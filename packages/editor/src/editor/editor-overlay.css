@@ -6,6 +6,16 @@
  * Values sourced from .interface-design/system.md.
  */
 
+/* --- Normalize (shadow-scoped, no leak risk) --- */
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
 /* --- Tokens (system.md palette) --- */
 
 :host {
