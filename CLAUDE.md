@@ -83,6 +83,14 @@ When deciding where a file belongs:
 - If it's demo/example code → `src/demo/`.
 - If unsure → it probably belongs in the domain that triggers it.
 
+Dependency boundaries in `src/editor/` — imports flow in one direction only:
+- `shell.tsx` → domain folders (`selection/`, `drag/`, `prop-editor/`) and infrastructure (`fiber/`, `overlay/`, `machine/`).
+- Domain folders → infrastructure folders. Never infrastructure → domain.
+- Domain folders → `spec-ops/` for pure spec mutations. Never the reverse.
+- `machine/` → nothing inside `src/editor/`. It defines types and the state machine only; it does NOT import from domain folders, fiber, or overlay.
+- `fiber/` → nothing inside `src/editor/`. It bridges React internals to DOM; it does NOT import from domain folders or machine.
+- No circular imports. If folder A imports from folder B, folder B MUST NOT import from folder A, directly or transitively.
+
 ## Design direction
 
 This editor is a review/feedback surface, not a creation tool.

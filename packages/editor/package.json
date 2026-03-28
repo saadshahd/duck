@@ -9,14 +9,18 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "@atlaskit/pragmatic-drag-and-drop": "^1.7.9",
+    "@atlaskit/pragmatic-drag-and-drop-hitbox": "^1.1.0",
     "@floating-ui/react": "^0.27.19",
     "@json-render/core": "latest",
     "@json-render/react": "latest",
+    "@xstate/react": "^6.1.0",
     "bippy": "^0.5.32",
     "neverthrow": "^8.0.0",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
     "react-shadow": "^20.6.0",
+    "xstate": "^5.29.0",
     "zod": "~4.3.0"
   },
   "devDependencies": {
