@@ -1,62 +1,10 @@
-import { test, expect, type Page } from "@playwright/test";
-
-// --- Shadow DOM helpers ---
-
-async function shadowQuery(
-  page: Page,
-  fn: (root: ShadowRoot) => unknown,
-): Promise<unknown> {
-  return page.evaluate((fnStr) => {
-    for (const d of document.querySelectorAll("div")) {
-      if (!d.shadowRoot || d.style.position !== "fixed") continue;
-      return new Function("root", `return (${fnStr})(root)`)(d.shadowRoot);
-    }
-    return null;
-  }, fn.toString());
-}
-
-const countButtons = (page: Page) =>
-  shadowQuery(
-    page,
-    (r) => r.querySelectorAll("button").length,
-  ) as Promise<number>;
-
-const countHighlights = (page: Page) =>
-  shadowQuery(
-    page,
-    (r) =>
-      [...r.querySelectorAll("div")].filter((d) =>
-        d.style.border?.includes("rgba(59, 130, 246"),
-      ).length,
-  ) as Promise<number>;
-
-const highlightRect = (page: Page) =>
-  shadowQuery(page, (r) => {
-    for (const el of r.querySelectorAll("div")) {
-      if (el.style.border?.includes("rgba(59, 130, 246"))
-        return {
-          top: el.style.top,
-          left: el.style.left,
-          width: el.style.width,
-          height: el.style.height,
-        };
-    }
-    return null;
-  }) as Promise<{
-    top: string;
-    left: string;
-    width: string;
-    height: string;
-  } | null>;
-
-const clickFirstButton = (page: Page) =>
-  page.evaluate(() => {
-    for (const d of document.querySelectorAll("div")) {
-      if (!d.shadowRoot || d.style.position !== "fixed") continue;
-      d.shadowRoot.querySelector("button")?.click();
-      return;
-    }
-  });
+import { test, expect } from "@playwright/test";
+import {
+  countHighlights,
+  getHighlightRect,
+  countToolbarButtons,
+  clickToolbarButton,
+} from "../overlay/testing.js";
 
 // --- Tests ---
 
@@ -80,7 +28,7 @@ test.describe("Editor overlay", () => {
     await page.getByText("Zero Chrome", { exact: true }).click();
     await page.waitForTimeout(300);
 
-    expect(await countButtons(page)).toBe(5);
+    expect(await countToolbarButtons(page)).toBe(5);
     expect(await countHighlights(page)).toBe(1);
   });
 
@@ -91,31 +39,73 @@ test.describe("Editor overlay", () => {
     await page.mouse.click(10, 10);
     await page.waitForTimeout(300);
 
-    expect(await countButtons(page)).toBe(0);
+    expect(await countToolbarButtons(page)).toBe(0);
     expect(await countHighlights(page)).toBe(0);
   });
 
   test("action bar clicks preserve selection", async ({ page }) => {
     await page.getByText("Zero Chrome", { exact: true }).click();
     await page.waitForTimeout(300);
-    expect(await countButtons(page)).toBe(5);
+    expect(await countToolbarButtons(page)).toBe(5);
 
-    await clickFirstButton(page);
+    await clickToolbarButton(page);
     await page.waitForTimeout(300);
-    expect(await countButtons(page)).toBe(5);
+    expect(await countToolbarButtons(page)).toBe(5);
   });
 
   test("hover different elements moves highlight", async ({ page }) => {
     await page.locator("h1").hover();
     await page.waitForTimeout(300);
-    const rectA = await highlightRect(page);
+    const rectA = await getHighlightRect(page);
 
     await page.getByText("Features", { exact: true }).hover();
     await page.waitForTimeout(300);
-    const rectB = await highlightRect(page);
+    const rectB = await getHighlightRect(page);
 
     expect(rectA).not.toBeNull();
     expect(rectB).not.toBeNull();
     expect(rectA).not.toEqual(rectB);
+  });
+
+  test("hover while selected does not change selection", async ({ page }) => {
+    await page.getByText("Zero Chrome", { exact: true }).click();
+    await page.waitForTimeout(300);
+    expect(await countToolbarButtons(page)).toBe(5);
+
+    await page.locator("h1").hover();
+    await page.waitForTimeout(300);
+
+    // selection ring persists, toolbar stays
+    expect(await countToolbarButtons(page)).toBe(5);
+    expect(await countHighlights(page)).toBe(1);
+  });
+
+  test("selecting different element changes selection", async ({ page }) => {
+    await page.getByText("Zero Chrome", { exact: true }).click();
+    await page.waitForTimeout(300);
+    const rectA = await getHighlightRect(page);
+
+    await page.locator("h1").click();
+    await page.waitForTimeout(300);
+    const rectB = await getHighlightRect(page);
+
+    expect(await countToolbarButtons(page)).toBe(5);
+    expect(rectA).not.toBeNull();
+    expect(rectB).not.toBeNull();
+    expect(rectA).not.toEqual(rectB);
+  });
+
+  test("scroll updates selection rect", async ({ page }) => {
+    await page.getByText("Zero Chrome", { exact: true }).click();
+    await page.waitForTimeout(300);
+    const rectBefore = await getHighlightRect(page);
+
+    await page.evaluate(() => window.scrollBy(0, 100));
+    await page.waitForTimeout(300);
+    const rectAfter = await getHighlightRect(page);
+
+    expect(rectBefore).not.toBeNull();
+    expect(rectAfter).not.toBeNull();
+    expect(rectBefore!.top).not.toBe(rectAfter!.top);
   });
 });

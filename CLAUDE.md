@@ -120,7 +120,8 @@ When writing unit tests:
 
 When writing E2E tests:
 - Co-locate with source: place `*.e2e.ts` in the domain folder that owns the behavior being tested.
-- Query the overlay via Shadow DOM helpers (see `selection.e2e.ts`).
+- Query overlay elements by `data-role` attribute or ARIA `role`, never by CSS class, inline style, or DOM structure. The test contract is the role, not the implementation.
+- Import shared overlay helpers from `overlay/testing.ts` — don't inline shadow DOM queries in each test file.
 - Use `page.waitForTimeout()` for animation/transition settling — the overlay is async.
 - Test user-visible behavior (hover glow appears, action bar has N buttons), not internal state.
 

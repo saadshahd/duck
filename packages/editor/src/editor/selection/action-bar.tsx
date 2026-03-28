@@ -30,7 +30,7 @@ export function FloatingActionBar({ rect }: { rect: DOMRect }) {
 
   return (
     <div ref={refs.setFloating} style={{ ...floatingStyles, zIndex: 1 }}>
-      <div className="action-bar">
+      <div className="action-bar" role="toolbar">
         {ACTIONS.map(({ label, action }) => (
           <button
             type="button"
