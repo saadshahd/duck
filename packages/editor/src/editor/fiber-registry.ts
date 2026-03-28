@@ -14,7 +14,7 @@ export type FiberRegistry = {
 };
 
 /** React prefixes array-child keys with ".$". Strip to recover the element ID. */
-function stripReactKeyPrefix(fiberKey: string): string {
+export function stripReactKeyPrefix(fiberKey: string): string {
   return fiberKey.startsWith(".$") ? fiberKey.slice(2) : fiberKey;
 }
 

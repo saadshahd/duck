@@ -12,7 +12,7 @@ export type EditorSelection =
 
 // --- Pure state transitions ---
 
-function transitionHover(
+export function transitionHover(
   prev: EditorSelection,
   hit: Hit | null,
 ): EditorSelection {
@@ -22,7 +22,7 @@ function transitionHover(
   return { tag: "hovering", ...hit };
 }
 
-function transitionSelect(
+export function transitionSelect(
   _prev: EditorSelection,
   hit: Hit | null,
 ): EditorSelection {
