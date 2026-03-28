@@ -9,17 +9,22 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "@floating-ui/react": "^0.27.19",
     "@json-render/core": "latest",
     "@json-render/react": "latest",
+    "bippy": "^0.5.32",
     "neverthrow": "^8.0.0",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
+    "react-shadow": "^20.6.0",
     "zod": "~4.3.0"
   },
   "devDependencies": {
+    "@tailwindcss/vite": "^4.2.2",
     "@types/react": "^19.0.0",
     "@types/react-dom": "^19.0.0",
     "@vitejs/plugin-react": "^4.0.0",
+    "tailwindcss": "^4.2.2",
     "typescript": "^5.7.0",
     "vite": "^6.0.0"
   }
