@@ -40,9 +40,11 @@ const ZERO_RECT: DOMRect = {
 export function FloatingActionBar({
   registry,
   elementId,
+  onAction,
 }: {
   registry: FiberRegistry;
   elementId: string;
+  onAction: (action: EditorAction) => void;
 }) {
   const { refs, floatingStyles } = useFloating({
     placement: "top",
@@ -67,7 +69,7 @@ export function FloatingActionBar({
           <button
             type="button"
             key={action.tag}
-            onClick={() => console.log("editor action", action)}
+            onClick={() => onAction(action)}
           >
             {label}
           </button>

@@ -80,6 +80,12 @@ export const editorMachine = setup({
               target: "hovering",
               actions: assign({ hoveredId: ({ event }) => event.elementId }),
             },
+            SELECT: {
+              target: "selected",
+              actions: assign({
+                selectedId: ({ event }) => event.elementId,
+              }),
+            },
           },
         },
         hovering: {

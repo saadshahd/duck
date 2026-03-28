@@ -1,85 +1,49 @@
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 import type { FiberRegistry } from "../fiber/index.js";
+import { resolveHit, isFromShadowDom, type Hit } from "../fiber/index.js";
+import type { EditorEvent } from "../machine/index.js";
 
-// --- Types ---
+// --- Hit → machine event mapping ---
 
-type Hit = { elementId: string };
+export const hoverEvent = (hit: Hit | null): EditorEvent =>
+  hit ? { type: "HOVER", elementId: hit.elementId } : { type: "UNHOVER" };
 
-export type EditorSelection =
-  | { tag: "idle" }
-  | { tag: "hovering"; elementId: string }
-  | { tag: "selected"; elementId: string };
-
-// --- Pure state transitions ---
-
-export function transitionHover(
-  prev: EditorSelection,
-  hit: Hit | null,
-): EditorSelection {
-  if (!hit) return prev.tag === "selected" ? prev : { tag: "idle" };
-  if (prev.tag === "hovering" && prev.elementId === hit.elementId) return prev;
-  if (prev.tag === "selected") return prev;
-  return { tag: "hovering", elementId: hit.elementId };
-}
-
-export function transitionSelect(
-  _prev: EditorSelection,
-  hit: Hit | null,
-): EditorSelection {
-  if (!hit) return { tag: "idle" };
-  return { tag: "selected", elementId: hit.elementId };
-}
-
-function isFromShadowDom(e: Event): boolean {
-  const origin = e.composedPath()[0];
-  return origin instanceof Node && origin.getRootNode() instanceof ShadowRoot;
-}
-
-// --- Hit resolution (DOM → element ID → rect) ---
-
-function resolveHit(registry: FiberRegistry, x: number, y: number): Hit | null {
-  const target = document.elementFromPoint(x, y);
-  if (!target) return null;
-  const id = registry.getNodeId(target);
-  if (!id) return null;
-  if (!registry.get(id)) return null;
-  return { elementId: id };
-}
+export const selectEvent = (hit: Hit | null): EditorEvent =>
+  hit ? { type: "SELECT", elementId: hit.elementId } : { type: "DESELECT" };
 
 // --- Hook ---
 
+/** Wire pointer events (mousemove, click) to the editor machine. */
 export function useEditorSelection(
   registry: FiberRegistry | null,
-): EditorSelection {
-  const [state, setState] = useState<EditorSelection>({ tag: "idle" });
+  send: (event: EditorEvent) => void,
+): void {
+  useEffect(
+    function wirePointerEvents() {
+      if (!registry) return;
+      let raf = 0;
 
-  useEffect(() => {
-    if (!registry) return;
-    let raf = 0;
+      const onMove = (e: MouseEvent) => {
+        cancelAnimationFrame(raf);
+        raf = requestAnimationFrame(() =>
+          send(hoverEvent(resolveHit(registry, e.clientX, e.clientY))),
+        );
+      };
 
-    const onMove = (e: MouseEvent) => {
-      cancelAnimationFrame(raf);
-      raf = requestAnimationFrame(() => {
-        const hit = resolveHit(registry, e.clientX, e.clientY);
-        setState((prev) => transitionHover(prev, hit));
-      });
-    };
+      const onClick = (e: MouseEvent) => {
+        if (isFromShadowDom(e)) return;
+        send(selectEvent(resolveHit(registry, e.clientX, e.clientY)));
+      };
 
-    const onClick = (e: MouseEvent) => {
-      if (isFromShadowDom(e)) return;
-      const hit = resolveHit(registry, e.clientX, e.clientY);
-      setState((prev) => transitionSelect(prev, hit));
-    };
+      document.addEventListener("mousemove", onMove, { passive: true });
+      document.addEventListener("click", onClick);
 
-    document.addEventListener("mousemove", onMove, { passive: true });
-    document.addEventListener("click", onClick);
-
-    return () => {
-      cancelAnimationFrame(raf);
-      document.removeEventListener("mousemove", onMove);
-      document.removeEventListener("click", onClick);
-    };
-  }, [registry]);
-
-  return state;
+      return () => {
+        cancelAnimationFrame(raf);
+        document.removeEventListener("mousemove", onMove);
+        document.removeEventListener("click", onClick);
+      };
+    },
+    [registry, send],
+  );
 }

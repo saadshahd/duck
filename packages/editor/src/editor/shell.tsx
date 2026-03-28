@@ -1,5 +1,6 @@
-import { useEffect, useRef, useState, useMemo } from "react";
+import { useCallback, useEffect, useRef, useState, useMemo } from "react";
 import type { Spec } from "@json-render/core";
+import type { ZodTypeAny } from "zod";
 import {
   Renderer,
   StateProvider,
@@ -7,12 +8,15 @@ import {
   ActionProvider,
 } from "@json-render/react";
 import type { ComponentRegistry } from "@json-render/react";
+import { useMachine } from "@xstate/react";
 import { createFiberRegistry, type FiberRegistry } from "./fiber/index.js";
+import { editorMachine } from "./machine/index.js";
 import {
   useEditorSelection,
   HoverHighlight,
   SelectionRing,
   FloatingActionBar,
+  type EditorAction,
 } from "./selection/index.js";
 import { OverlayRoot } from "./overlay/index.js";
 
@@ -23,7 +27,7 @@ function useFiberRegistry(
   idsRef.current = elementIds;
   const [registry, setRegistry] = useState<FiberRegistry | null>(null);
 
-  useEffect(() => {
+  useEffect(function initFiberRegistry() {
     const reg = createFiberRegistry(() => idsRef.current);
     setRegistry(reg);
     return () => reg.dispose();
@@ -32,17 +36,34 @@ function useFiberRegistry(
   return registry;
 }
 
+type EditorShellProps = {
+  spec: Spec;
+  registry: ComponentRegistry;
+  onSpecChange?: (spec: Spec) => void;
+  getPropSchema?: (componentType: string) => ZodTypeAny | undefined;
+};
+
 export function EditorShell({
   spec,
   registry,
-}: {
-  spec: Spec;
-  registry: ComponentRegistry;
-}) {
+  onSpecChange,
+  getPropSchema,
+}: EditorShellProps) {
   const elementIds = useMemo(() => new Set(Object.keys(spec.elements)), [spec]);
-
   const fiberRegistry = useFiberRegistry(elementIds);
-  const selection = useEditorSelection(fiberRegistry);
+  const [state, send] = useMachine(editorMachine);
+
+  useEditorSelection(fiberRegistry, send);
+
+  const handleAction = useCallback(
+    (action: EditorAction) => {
+      if (action.tag === "edit") send({ type: "OPEN_POPOVER" });
+    },
+    [send],
+  );
+
+  const { pointer } = state.value as { pointer: string; drag: string };
+  const { hoveredId, selectedId } = state.context;
 
   return (
     <StateProvider initialState={{}}>
@@ -53,24 +74,23 @@ export function EditorShell({
       </VisibilityProvider>
 
       <OverlayRoot>
-        {selection.tag === "hovering" && fiberRegistry && (
-          <HoverHighlight
-            registry={fiberRegistry}
-            elementId={selection.elementId}
-          />
+        {pointer === "hovering" && fiberRegistry && hoveredId && (
+          <HoverHighlight registry={fiberRegistry} elementId={hoveredId} />
         )}
-        {selection.tag === "selected" && fiberRegistry && (
-          <>
-            <SelectionRing
-              registry={fiberRegistry}
-              elementId={selection.elementId}
-            />
-            <FloatingActionBar
-              registry={fiberRegistry}
-              elementId={selection.elementId}
-            />
-          </>
-        )}
+        {(pointer === "selected" || pointer === "editing") &&
+          fiberRegistry &&
+          selectedId && (
+            <>
+              <SelectionRing registry={fiberRegistry} elementId={selectedId} />
+              {pointer === "selected" && (
+                <FloatingActionBar
+                  registry={fiberRegistry}
+                  elementId={selectedId}
+                  onAction={handleAction}
+                />
+              )}
+            </>
+          )}
       </OverlayRoot>
     </StateProvider>
   );
