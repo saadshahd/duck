@@ -17,10 +17,10 @@ When hovering over rendered components, a subtle boundary glow appears. Clicking
 - It has `pointer-events: none` by default — pointer events pass through to the rendered components underneath.
 - Individual overlay elements (selection ring, floating bar) have `pointer-events: auto`.
 
-**2. Tailwind inside the shadow root**
-- Tailwind v4 CSS must be injected into the shadow root via `adoptedStyleSheets` (constructable stylesheets).
-- In Vite, import the compiled Tailwind CSS as a string (`?inline` suffix), create a `CSSStyleSheet`, call `sheet.replaceSync(css)`, and assign to `shadowRoot.adoptedStyleSheets`.
-- **Known caveat**: Tailwind v4 `@property` rules don't work inside shadow roots. Extract any `@property` declarations and convert them to standard CSS custom properties in a `:host` rule. This is ~30 lines.
+**2. Editor overlay CSS**
+- Plain CSS in `editor-overlay.css`, injected into the shadow root via `adoptedStyleSheets` (constructable stylesheets).
+- In Vite, import the CSS as a string (`?inline` suffix), create a `CSSStyleSheet`, call `sheet.replaceSync(css)`, and assign to `shadowRoot.adoptedStyleSheets`.
+- Design tokens defined as CSS custom properties on `:host`, sourced from `.interface-design/system.md`.
 
 **3. Element hit-testing**
 - Intercept `mousemove` and `click` events on the rendered component area (outside the shadow root).
@@ -40,7 +40,6 @@ When hovering over rendered components, a subtle boundary glow appears. Clicking
 ### Libraries
 - `react-shadow` — Shadow DOM wrapper
 - `@floating-ui/react` — floating bar positioning
-- `tailwindcss` v4 — editor UI styling (inside shadow root only)
 
 ### Constraints
 - Editor overlay CSS must NOT leak into rendered catalog components.

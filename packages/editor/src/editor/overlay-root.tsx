@@ -2,13 +2,6 @@ import { useEffect, useRef, type ReactNode, type RefObject } from "react";
 import root from "react-shadow";
 import editorCss from "./editor-overlay.css?inline";
 
-const OVERLAY_STYLE: React.CSSProperties = {
-  position: "fixed",
-  inset: 0,
-  zIndex: 999999,
-  pointerEvents: "none",
-};
-
 const useShadowSheet = (css: string): RefObject<HTMLDivElement | null> => {
   const hostRef = useRef<HTMLDivElement>(null);
 
@@ -30,7 +23,15 @@ export function OverlayRoot({ children }: { children: ReactNode }) {
   const hostRef = useShadowSheet(editorCss);
 
   return (
-    <root.div ref={hostRef} style={OVERLAY_STYLE}>
+    <root.div
+      ref={hostRef}
+      style={{
+        position: "fixed",
+        inset: 0,
+        zIndex: 999999,
+        pointerEvents: "none",
+      }}
+    >
       {children}
     </root.div>
   );

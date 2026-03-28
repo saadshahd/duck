@@ -1,1 +1,77 @@
-@import "tailwindcss";
+/*
+ * Editor overlay styles — injected into Shadow DOM via adoptedStyleSheets.
+ * Plain CSS, no Tailwind. The overlay has ~5 elements; utility classes add
+ * complexity (shadow DOM @property issues) without scale benefits.
+ *
+ * Values sourced from .interface-design/system.md.
+ */
+
+/* --- Tokens (system.md palette) --- */
+
+:host {
+  --accent: #3b82f6;
+  --accent-hover: rgba(59, 130, 246, 0.30);
+  --accent-select: rgba(59, 130, 246, 0.50);
+  --surface-bar: rgba(15, 23, 42, 0.95);
+  --text-bar: #f8fafc;
+  --text-bar-muted: #94a3b8;
+  --border-subtle: rgba(0, 0, 0, 0.08);
+  --shadow-bar: 0 1px 3px rgba(0, 0, 0, 0.12);
+  --font-system: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+}
+
+/* --- Hover glow --- */
+
+.hover-highlight {
+  position: absolute;
+  border: 2px solid var(--accent-hover);
+  border-radius: 4px;
+  pointer-events: none;
+  transition: all 150ms ease;
+}
+
+/* --- Selection ring --- */
+
+.selection-ring {
+  position: absolute;
+  border: 2px solid var(--accent-select);
+  border-radius: 4px;
+  pointer-events: none;
+  transition: all 100ms ease;
+}
+
+/* --- Floating action bar --- */
+
+.action-bar {
+  display: flex;
+  gap: 4px;
+  padding: 4px;
+  background: var(--surface-bar);
+  border-radius: 8px;
+  box-shadow: var(--shadow-bar);
+  pointer-events: auto;
+  font-family: var(--font-system);
+}
+
+.action-bar button {
+  width: 28px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  background: transparent;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 14px;
+  color: var(--text-bar);
+  padding: 0;
+}
+
+.action-bar button:hover {
+  background: rgba(255, 255, 255, 0.10);
+}
+
+.action-bar button:active {
+  background: rgba(255, 255, 255, 0.15);
+}

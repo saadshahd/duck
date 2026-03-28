@@ -10,7 +10,7 @@ import type { ComponentRegistry } from "@json-render/react";
 import { createFiberRegistry, type FiberRegistry } from "./fiber-registry.js";
 import { useEditorSelection } from "./use-editor-selection.js";
 import { OverlayRoot } from "./overlay-root.js";
-import { HoverHighlight } from "./hover-highlight.js";
+import { HoverHighlight, SelectionRing } from "./hover-highlight.js";
 import { FloatingActionBar } from "./floating-action-bar.js";
 
 function useFiberRegistry(
@@ -55,7 +55,7 @@ export function EditorShell({
         )}
         {selection.tag === "selected" && (
           <>
-            <HoverHighlight rect={selection.rect} />
+            <SelectionRing rect={selection.rect} />
             <FloatingActionBar rect={selection.rect} />
           </>
         )}
