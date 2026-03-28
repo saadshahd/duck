@@ -1,5 +1,5 @@
 import { describe, it, expect } from "bun:test";
-import { stripReactKeyPrefix } from "./fiber-registry.js";
+import { stripReactKeyPrefix } from "./registry.js";
 
 describe("stripReactKeyPrefix", () => {
   it("strips .$ prefix from React array keys", () => {

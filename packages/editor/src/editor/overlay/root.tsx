@@ -1,6 +1,6 @@
 import { useEffect, useRef, type ReactNode, type RefObject } from "react";
 import root from "react-shadow";
-import editorCss from "./editor-overlay.css?inline";
+import editorCss from "./overlay.css?inline";
 
 const useShadowSheet = (css: string): RefObject<HTMLDivElement | null> => {
   const hostRef = useRef<HTMLDivElement>(null);

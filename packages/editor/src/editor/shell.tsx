@@ -7,11 +7,14 @@ import {
   ActionProvider,
 } from "@json-render/react";
 import type { ComponentRegistry } from "@json-render/react";
-import { createFiberRegistry, type FiberRegistry } from "./fiber-registry.js";
-import { useEditorSelection } from "./use-editor-selection.js";
-import { OverlayRoot } from "./overlay-root.js";
-import { HoverHighlight, SelectionRing } from "./hover-highlight.js";
-import { FloatingActionBar } from "./floating-action-bar.js";
+import { createFiberRegistry, type FiberRegistry } from "./fiber/index.js";
+import {
+  useEditorSelection,
+  HoverHighlight,
+  SelectionRing,
+  FloatingActionBar,
+} from "./selection/index.js";
+import { OverlayRoot } from "./overlay/index.js";
 
 function useFiberRegistry(
   elementIds: ReadonlySet<string>,

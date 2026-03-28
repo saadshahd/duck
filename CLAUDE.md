@@ -61,6 +61,28 @@ When touching json-render:
 - Use `@json-render/core` operations (`applySpecPatch`, `diffToPatches`, `validateSpec`, `autoFixSpec`) directly. Do NOT reimplement them.
 - Patches are RFC 6902 (JSON Patch) — use json-render's format. Do NOT invent a custom patch format.
 
+## Folder structure
+
+When organizing `packages/editor/src/`:
+- `src/editor/` contains the editor core. Each subdirectory is one interaction domain or infrastructure concern.
+- An interaction domain owns its XState machine slice, UI components, hooks, styles, and tests. Adding a new interaction = adding a new folder.
+- Infrastructure concerns (fiber bridging, overlay host, Shadow DOM) that serve multiple domains get their own folder at the same level as interaction domains.
+- Every domain folder has an `index.ts` barrel export. External consumers import from the folder, never from internal files.
+- `src/demo/` contains the demo catalog, registry, sample data, and app entry. The editor has zero imports from demo. Demo is replaceable.
+- `main.tsx` and `vite-env.d.ts` live at `src/` root.
+- `shell.tsx` (the editor composition root) lives at `src/editor/` root, not inside a domain folder.
+
+When adding a new feature or interaction mode:
+- Create a new folder under `src/editor/` named after the interaction (e.g., `drag/`, `inline-edit/`).
+- The folder MUST contain: an `index.ts` barrel, the XState machine slice (if stateful), UI components, and colocated tests (`*.test.ts` for unit, `*.e2e.ts` for Playwright).
+- Do NOT scatter a feature's files across multiple existing folders.
+
+When deciding where a file belongs:
+- If it serves one interaction domain → that domain's folder.
+- If it serves multiple domains → its own infrastructure folder.
+- If it's demo/example code → `src/demo/`.
+- If unsure → it probably belongs in the domain that triggers it.
+
 ## Design direction
 
 This editor is a review/feedback surface, not a creation tool.
@@ -97,8 +119,8 @@ When writing unit tests:
 - Import from `bun:test`. Do NOT use vitest, jest, or any other runner.
 
 When writing E2E tests:
-- Place in `packages/editor/tests/`. Name `*.spec.ts`.
-- Query the overlay via Shadow DOM helpers (see `overlay.spec.ts`).
+- Co-locate with source: place `*.e2e.ts` in the domain folder that owns the behavior being tested.
+- Query the overlay via Shadow DOM helpers (see `selection.e2e.ts`).
 - Use `page.waitForTimeout()` for animation/transition settling — the overlay is async.
 - Test user-visible behavior (hover glow appears, action bar has N buttons), not internal state.
 

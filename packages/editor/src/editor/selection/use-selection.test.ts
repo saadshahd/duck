@@ -3,7 +3,7 @@ import {
   transitionHover,
   transitionSelect,
   type EditorSelection,
-} from "./use-editor-selection.js";
+} from "./use-selection.js";
 
 // rect is opaque to the transition functions — plain object suffices
 const rect = { x: 0, y: 0, width: 100, height: 50 } as unknown as DOMRect;

@@ -1,6 +1,6 @@
 import React from "react";
 import { defineRegistry } from "@json-render/react";
-import { catalog } from "./demo-catalog.js";
+import { catalog } from "./catalog.js";
 
 const wrap =
   (Tag: string, defaultStyle?: React.CSSProperties) =>

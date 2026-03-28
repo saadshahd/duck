@@ -1,7 +1,7 @@
 import { useState } from "react";
 import type { Spec } from "@json-render/core";
-import { registry } from "./demo-registry.js";
-import { EditorShell } from "./editor/editor-shell.js";
+import { registry } from "./registry.js";
+import { EditorShell } from "../editor/shell.js";
 import sampleDoc from "./sample-document.json";
 
 export function App() {

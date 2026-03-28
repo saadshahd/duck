@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import type { FiberRegistry } from "./fiber-registry.js";
+import type { FiberRegistry } from "../fiber/index.js";
 
 // --- Types ---
 
