@@ -1,4 +1,4 @@
-import { useEffect, useState, useMemo } from "react";
+import { useEffect, useRef, useState, useMemo } from "react";
 import type { Spec } from "@json-render/core";
 import {
   Renderer,
@@ -16,13 +16,15 @@ import { FloatingActionBar } from "./floating-action-bar.js";
 function useFiberRegistry(
   elementIds: ReadonlySet<string>,
 ): FiberRegistry | null {
+  const idsRef = useRef(elementIds);
+  idsRef.current = elementIds;
   const [registry, setRegistry] = useState<FiberRegistry | null>(null);
 
   useEffect(() => {
-    const reg = createFiberRegistry(() => elementIds);
+    const reg = createFiberRegistry(() => idsRef.current);
     setRegistry(reg);
     return () => reg.dispose();
-  }, [elementIds]);
+  }, []);
 
   return registry;
 }

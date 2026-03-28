@@ -30,6 +30,11 @@ export function transitionSelect(
   return { tag: "selected", ...hit };
 }
 
+function isFromShadowDom(e: Event): boolean {
+  const origin = e.composedPath()[0];
+  return origin instanceof Node && origin.getRootNode() instanceof ShadowRoot;
+}
+
 // --- Hit resolution (DOM → element ID → rect) ---
 
 function resolveHit(registry: FiberRegistry, x: number, y: number): Hit | null {
@@ -62,6 +67,7 @@ export function useEditorSelection(
     };
 
     const onClick = (e: MouseEvent) => {
+      if (isFromShadowDom(e)) return;
       const hit = resolveHit(registry, e.clientX, e.clientY);
       setState((prev) => transitionSelect(prev, hit));
     };
