@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "json-render-editor": {
+      "command": "bun",
+      "args": ["run", "packages/mcp-server/src/index.ts", "--stdio"]
+    }
+  }
+}

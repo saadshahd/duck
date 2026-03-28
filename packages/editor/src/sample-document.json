@@ -1,0 +1,132 @@
+{
+  "root": "page",
+  "elements": {
+    "page": {
+      "type": "Box",
+      "props": {
+        "style": {
+          "maxWidth": "960px",
+          "margin": "0 auto",
+          "padding": "2rem",
+          "fontFamily": "-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
+          "color": "#24292f"
+        }
+      },
+      "children": ["hero", "features", "cta"]
+    },
+
+    "hero": {
+      "type": "Stack",
+      "props": {
+        "gap": "1.5rem",
+        "style": { "padding": "4rem 0", "textAlign": "center", "alignItems": "center" }
+      },
+      "children": ["hero-heading", "hero-description", "hero-actions"]
+    },
+    "hero-heading": {
+      "type": "Heading",
+      "props": { "level": "h1", "text": "Visual Editor for json-render", "style": { "fontSize": "3rem" } }
+    },
+    "hero-description": {
+      "type": "Text",
+      "props": {
+        "text": "A zero-chrome editor where the rendered page IS the editing surface. AI agents compose via MCP, designers review and steer.",
+        "style": { "fontSize": "1.25rem", "color": "#57606a", "maxWidth": "640px" }
+      }
+    },
+    "hero-actions": {
+      "type": "Stack",
+      "props": { "direction": "horizontal", "gap": "1rem" },
+      "children": ["hero-cta-primary", "hero-cta-secondary"]
+    },
+    "hero-cta-primary": {
+      "type": "Button",
+      "props": { "label": "Get started", "variant": "primary" }
+    },
+    "hero-cta-secondary": {
+      "type": "Button",
+      "props": { "label": "View docs", "variant": "secondary" }
+    },
+
+    "features": {
+      "type": "Stack",
+      "props": { "gap": "2rem", "style": { "padding": "4rem 0" } },
+      "children": ["features-heading", "features-grid"]
+    },
+    "features-heading": {
+      "type": "Heading",
+      "props": { "level": "h2", "text": "Features", "style": { "textAlign": "center" } }
+    },
+    "features-grid": {
+      "type": "Grid",
+      "props": { "columns": 3, "gap": "1.5rem" },
+      "children": ["feature-1", "feature-2", "feature-3"]
+    },
+    "feature-1": {
+      "type": "Card",
+      "props": {},
+      "children": ["feature-1-title", "feature-1-desc"]
+    },
+    "feature-1-title": {
+      "type": "Heading",
+      "props": { "level": "h3", "text": "Zero Chrome" }
+    },
+    "feature-1-desc": {
+      "type": "Text",
+      "props": { "text": "No panels, no toolbars. The rendered page is the editor. Everything is contextual — appears on interaction, disappears when done." }
+    },
+    "feature-2": {
+      "type": "Card",
+      "props": {},
+      "children": ["feature-2-title", "feature-2-desc"]
+    },
+    "feature-2-title": {
+      "type": "Heading",
+      "props": { "level": "h3", "text": "MCP-Native" }
+    },
+    "feature-2-desc": {
+      "type": "Text",
+      "props": { "text": "AI agents connect via MCP and compose UIs. The editor is a review surface, not a creation tool. Designers steer, AI builds." }
+    },
+    "feature-3": {
+      "type": "Card",
+      "props": {},
+      "children": ["feature-3-title", "feature-3-desc"]
+    },
+    "feature-3-title": {
+      "type": "Heading",
+      "props": { "level": "h3", "text": "Catalog-Agnostic" }
+    },
+    "feature-3-desc": {
+      "type": "Text",
+      "props": { "text": "Works with any json-render catalog. Bring your own component library — Primer, shadcn, Radix, or plain HTML." }
+    },
+
+    "cta": {
+      "type": "Stack",
+      "props": {
+        "gap": "1rem",
+        "style": {
+          "padding": "4rem 2rem",
+          "textAlign": "center",
+          "alignItems": "center",
+          "background": "#f6f8fa",
+          "borderRadius": "12px"
+        }
+      },
+      "children": ["cta-heading", "cta-desc", "cta-button"]
+    },
+    "cta-heading": {
+      "type": "Heading",
+      "props": { "level": "h2", "text": "Ready to try it?" }
+    },
+    "cta-desc": {
+      "type": "Text",
+      "props": { "text": "Install the editor, point it at your json-render catalog, and start editing." }
+    },
+    "cta-button": {
+      "type": "Button",
+      "props": { "label": "Get started", "variant": "primary" }
+    }
+  }
+}
