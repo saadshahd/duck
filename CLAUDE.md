@@ -81,4 +81,29 @@ When designing AI integration:
 bun install
 bun run dev        # Vite on :5173
 bun run typecheck  # All packages
+bun test           # Unit tests (bun:test)
+bunx playwright test --project=chromium  # E2E
 ```
+
+## Testing
+
+Frameworks: `bun:test` for unit tests, Playwright for E2E.
+
+When writing unit tests:
+- Co-locate with source: `foo.ts` → `foo.test.ts` in the same directory.
+- Test pure state transitions exhaustively: every state × every input.
+- Verify reference identity (`toBe`) when the function should return the same object.
+- Build test data with tiny factory functions (`hit(id)`, `hovering(id)`), not fixtures or mocks.
+- Import from `bun:test`. Do NOT use vitest, jest, or any other runner.
+
+When writing E2E tests:
+- Place in `packages/editor/tests/`. Name `*.spec.ts`.
+- Query the overlay via Shadow DOM helpers (see `overlay.spec.ts`).
+- Use `page.waitForTimeout()` for animation/transition settling — the overlay is async.
+- Test user-visible behavior (hover glow appears, action bar has N buttons), not internal state.
+
+When deciding what to test:
+- Pure functions with branching logic → unit test (exhaustive state × input).
+- User interactions through the rendered editor → E2E.
+- Do NOT mock: no jest.mock, no vi.mock, no stub services. Tests use real objects or simple test data builders.
+- Do NOT test React component rendering in isolation (no render/screen from testing-library). The editor's UI is tested through Playwright against the real page.
