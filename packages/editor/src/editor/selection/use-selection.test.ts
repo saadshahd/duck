@@ -5,20 +5,16 @@ import {
   type EditorSelection,
 } from "./use-selection.js";
 
-// rect is opaque to the transition functions — plain object suffices
-const rect = { x: 0, y: 0, width: 100, height: 50 } as unknown as DOMRect;
-const hit = (id: string) => ({ elementId: id, rect });
+const hit = (id: string) => ({ elementId: id });
 
 const idle: EditorSelection = { tag: "idle" };
 const hovering = (id: string): EditorSelection => ({
   tag: "hovering",
   elementId: id,
-  rect,
 });
 const selected = (id: string): EditorSelection => ({
   tag: "selected",
   elementId: id,
-  rect,
 });
 
 // --- Exhaustive state × input for transitionHover ---

@@ -1,5 +1,5 @@
-const INSET = -2; // border extends outside element bounds (system.md)
-const EXPAND = 4; // 2px border on each side
+import { useHighlightRef, INSET, EXPAND } from "./use-highlight-ref.js";
+import type { FiberRegistry } from "../fiber/index.js";
 
 export function outsetRect(rect: DOMRect) {
   return {
@@ -10,24 +10,28 @@ export function outsetRect(rect: DOMRect) {
   };
 }
 
-export function HoverHighlight({ rect }: { rect: DOMRect | null }) {
-  if (!rect) return null;
+export function HoverHighlight({
+  registry,
+  elementId,
+}: {
+  registry: FiberRegistry;
+  elementId: string;
+}) {
+  const ref = useHighlightRef(registry, elementId);
   return (
-    <div
-      data-role="hover-highlight"
-      className="hover-highlight"
-      style={outsetRect(rect)}
-    />
+    <div ref={ref} data-role="hover-highlight" className="hover-highlight" />
   );
 }
 
-export function SelectionRing({ rect }: { rect: DOMRect | null }) {
-  if (!rect) return null;
+export function SelectionRing({
+  registry,
+  elementId,
+}: {
+  registry: FiberRegistry;
+  elementId: string;
+}) {
+  const ref = useHighlightRef(registry, elementId);
   return (
-    <div
-      data-role="selection-ring"
-      className="selection-ring"
-      style={outsetRect(rect)}
-    />
+    <div ref={ref} data-role="selection-ring" className="selection-ring" />
   );
 }

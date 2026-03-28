@@ -3,12 +3,12 @@ import type { FiberRegistry } from "../fiber/index.js";
 
 // --- Types ---
 
-type Hit = { elementId: string; rect: DOMRect };
+type Hit = { elementId: string };
 
 export type EditorSelection =
   | { tag: "idle" }
-  | { tag: "hovering"; elementId: string; rect: DOMRect }
-  | { tag: "selected"; elementId: string; rect: DOMRect };
+  | { tag: "hovering"; elementId: string }
+  | { tag: "selected"; elementId: string };
 
 // --- Pure state transitions ---
 
@@ -19,7 +19,7 @@ export function transitionHover(
   if (!hit) return prev.tag === "selected" ? prev : { tag: "idle" };
   if (prev.tag === "hovering" && prev.elementId === hit.elementId) return prev;
   if (prev.tag === "selected") return prev;
-  return { tag: "hovering", ...hit };
+  return { tag: "hovering", elementId: hit.elementId };
 }
 
 export function transitionSelect(
@@ -27,7 +27,7 @@ export function transitionSelect(
   hit: Hit | null,
 ): EditorSelection {
   if (!hit) return { tag: "idle" };
-  return { tag: "selected", ...hit };
+  return { tag: "selected", elementId: hit.elementId };
 }
 
 function isFromShadowDom(e: Event): boolean {
@@ -42,9 +42,8 @@ function resolveHit(registry: FiberRegistry, x: number, y: number): Hit | null {
   if (!target) return null;
   const id = registry.getNodeId(target);
   if (!id) return null;
-  const el = registry.get(id);
-  if (!el) return null;
-  return { elementId: id, rect: el.getBoundingClientRect() };
+  if (!registry.get(id)) return null;
+  return { elementId: id };
 }
 
 // --- Hook ---
@@ -72,26 +71,13 @@ export function useEditorSelection(
       setState((prev) => transitionSelect(prev, hit));
     };
 
-    const onScroll = () => {
-      setState((prev) => {
-        if (prev.tag === "idle") return prev;
-        const el = registry.get(prev.elementId);
-        if (!el) return { tag: "idle" };
-        return { ...prev, rect: el.getBoundingClientRect() };
-      });
-    };
-
     document.addEventListener("mousemove", onMove, { passive: true });
     document.addEventListener("click", onClick);
-    window.addEventListener("scroll", onScroll, { passive: true });
-    window.addEventListener("resize", onScroll, { passive: true });
 
     return () => {
       cancelAnimationFrame(raf);
       document.removeEventListener("mousemove", onMove);
       document.removeEventListener("click", onClick);
-      window.removeEventListener("scroll", onScroll);
-      window.removeEventListener("resize", onScroll);
     };
   }, [registry]);
 

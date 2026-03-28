@@ -53,13 +53,22 @@ export function EditorShell({
       </VisibilityProvider>
 
       <OverlayRoot>
-        {selection.tag === "hovering" && (
-          <HoverHighlight rect={selection.rect} />
+        {selection.tag === "hovering" && fiberRegistry && (
+          <HoverHighlight
+            registry={fiberRegistry}
+            elementId={selection.elementId}
+          />
         )}
-        {selection.tag === "selected" && (
+        {selection.tag === "selected" && fiberRegistry && (
           <>
-            <SelectionRing rect={selection.rect} />
-            <FloatingActionBar rect={selection.rect} />
+            <SelectionRing
+              registry={fiberRegistry}
+              elementId={selection.elementId}
+            />
+            <FloatingActionBar
+              registry={fiberRegistry}
+              elementId={selection.elementId}
+            />
           </>
         )}
       </OverlayRoot>

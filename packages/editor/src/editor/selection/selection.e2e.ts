@@ -2,6 +2,7 @@ import { test, expect } from "@playwright/test";
 import {
   countHighlights,
   getHighlightRect,
+  waitFrames,
   countToolbarButtons,
   clickToolbarButton,
 } from "../overlay/testing.js";
@@ -107,5 +108,28 @@ test.describe("Editor overlay", () => {
     expect(rectBefore).not.toBeNull();
     expect(rectAfter).not.toBeNull();
     expect(rectBefore!.top).not.toBe(rectAfter!.top);
+  });
+
+  test("overlay tracks element within one frame after scroll", async ({
+    page,
+  }) => {
+    await page.getByText("Zero Chrome", { exact: true }).click();
+    await page.waitForTimeout(300);
+
+    const rectBefore = await getHighlightRect(page);
+    expect(rectBefore).not.toBeNull();
+    const topBefore = parseFloat(rectBefore!.top);
+
+    const scrollDelta = 100;
+    await page.evaluate((dy) => window.scrollBy(0, dy), scrollDelta);
+    await waitFrames(page, 2);
+
+    const rectAfter = await getHighlightRect(page);
+    expect(rectAfter).not.toBeNull();
+    const topAfter = parseFloat(rectAfter!.top);
+
+    // Ring should move by exactly the scroll delta (within tolerance)
+    const actualDelta = topBefore - topAfter;
+    expect(Math.abs(actualDelta - scrollDelta)).toBeLessThan(5);
   });
 });

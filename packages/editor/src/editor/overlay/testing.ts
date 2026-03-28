@@ -64,3 +64,18 @@ export const clickToolbarButton = (page: Page, index = 0) =>
       return;
     }
   }, index);
+
+// --- Animation & measurement helpers ---
+
+/** Wait for exactly N animation frames to elapse. */
+export const waitFrames = (page: Page, count: number) =>
+  page.evaluate(
+    (n) =>
+      new Promise<void>((resolve) => {
+        let remaining = n;
+        const tick = () =>
+          --remaining > 0 ? requestAnimationFrame(tick) : resolve();
+        requestAnimationFrame(tick);
+      }),
+    count,
+  );
