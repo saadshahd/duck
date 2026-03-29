@@ -56,10 +56,11 @@ const resolveSiblings = (spec: Spec, id: string) =>
 
 /** Measure geometry of two adjacent siblings to determine layout axis.
  *  Compares actual positions — works for flex, grid, inline-block, any layout. */
-const detectAxis = (a: DOMRect, b: DOMRect): Axis =>
-  Math.abs(a.top - b.top) < Math.abs(a.left - b.left)
-    ? "horizontal"
-    : "vertical";
+const detectAxis = (a: DOMRect, b: DOMRect): Axis => {
+  const dy = Math.abs(a.top + a.height / 2 - (b.top + b.height / 2));
+  const dx = Math.abs(a.left + a.width / 2 - (b.left + b.width / 2));
+  return dy > dx ? "vertical" : "horizontal";
+};
 
 const EDGES: Record<Axis, Edge[]> = {
   vertical: ["top", "bottom"],
