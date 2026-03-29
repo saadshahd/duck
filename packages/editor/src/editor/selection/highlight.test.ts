@@ -2,7 +2,7 @@ import { describe, it, expect } from "bun:test";
 import { outsetRect } from "./highlight.js";
 
 const rect = (x: number, y: number, w: number, h: number) =>
-  ({ top: y, left: x, width: w, height: h }) as unknown as DOMRect;
+  new DOMRect(x, y, w, h);
 
 describe("outsetRect", () => {
   it("expands rect by INSET=-2 / EXPAND=4", () => {

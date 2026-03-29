@@ -21,6 +21,7 @@ import {
 import { usePropEditor } from "./prop-editor/use-prop-editor.jsx";
 import { useDragReorder, DropIndicator } from "./drag/index.js";
 import { OverlayRoot } from "./overlay/index.js";
+import { BoxModelOverlay, GapOverlay, useBoxModel } from "./box-model/index.js";
 
 function useFiberRegistry(
   elementIds: ReadonlySet<string>,
@@ -82,6 +83,11 @@ export function EditorShell({
   const { pointer, drag } = state.value as { pointer: string; drag: string };
   const { hoveredId, selectedId } = state.context;
 
+  const showBoxModel =
+    pointer === "selected" ||
+    (pointer === "editing" && state.context.editing?.mode === "popover");
+  const boxModel = useBoxModel(fiberRegistry, showBoxModel ? selectedId : null);
+
   return (
     <StateProvider initialState={{}}>
       <VisibilityProvider>
@@ -104,6 +110,18 @@ export function EditorShell({
           selectedId && (
             <>
               <SelectionRing registry={fiberRegistry} elementId={selectedId} />
+              {boxModel && (
+                <>
+                  <BoxModelOverlay data={boxModel} />
+                  {boxModel.gap && (
+                    <GapOverlay
+                      registry={fiberRegistry!}
+                      elementId={selectedId}
+                      gap={boxModel.gap}
+                    />
+                  )}
+                </>
+              )}
               {pointer === "selected" && (
                 <FloatingActionBar
                   registry={fiberRegistry}

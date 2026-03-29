@@ -4,8 +4,8 @@ Zero-chrome visual editor for json-render documents. AI agents compose via MCP, 
 
 ## Stack
 
-Bun monorepo. TypeScript ESM.
-- `packages/editor` — React 19 + Vite
+Bun monorepo. TypeScript ESM. Each package owns its own test environment (`bunfig.toml`, preloads, dev deps).
+- `packages/editor` — React 19 + Vite. Uses `happy-dom` via `bunfig.toml` preload for DOM globals in unit tests.
 - `packages/mcp-server` — Bun + Effect v3
 
 ## Response format
