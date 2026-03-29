@@ -1,4 +1,4 @@
-import type { ReactNode } from "react";
+import { type ReactNode, useState, useEffect } from "react";
 import type { ZodTypeAny } from "zod";
 import {
   isString,
@@ -99,26 +99,40 @@ const ObjectFields = ({ label, value, onChange, schema }: SchemaFieldProps) => {
   );
 };
 
-const FallbackField = ({ label, value, onChange }: FieldProps) => (
-  <div>
-    <label>{label}</label>
-    <textarea
-      value={
-        typeof value === "string"
-          ? value
-          : (JSON.stringify(value, null, 2) ?? "")
-      }
-      onChange={(e) => {
-        try {
-          onChange(JSON.parse(e.target.value));
-        } catch {
-          onChange(e.target.value);
-        }
-      }}
-      rows={3}
-    />
-  </div>
-);
+const serialize = (v: unknown): string =>
+  typeof v === "string" ? v : (JSON.stringify(v, null, 2) ?? "");
+
+const FallbackField = ({ label, value, onChange }: FieldProps) => {
+  const [text, setText] = useState(() => serialize(value));
+  const [invalid, setInvalid] = useState(false);
+
+  // Sync from upstream when the committed value changes externally
+  useEffect(() => {
+    setText(serialize(value));
+    setInvalid(false);
+  }, [value]);
+
+  return (
+    <div>
+      <label>{label}</label>
+      <textarea
+        value={text}
+        data-invalid={invalid || undefined}
+        onChange={(e) => {
+          const raw = e.target.value;
+          setText(raw);
+          try {
+            onChange(JSON.parse(raw));
+            setInvalid(false);
+          } catch {
+            setInvalid(true);
+          }
+        }}
+        rows={3}
+      />
+    </div>
+  );
+};
 
 // --- Type → renderer lookup ---
 

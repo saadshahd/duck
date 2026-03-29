@@ -64,6 +64,10 @@
   border-color: var(--accent);
 }
 
+.prop-popover textarea[data-invalid] {
+  border-color: #f87171;
+}
+
 .inline-input {
   pointer-events: auto;
   background: transparent;
