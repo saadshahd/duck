@@ -26,109 +26,45 @@ When uncertain between approaches:
 When adding a dependency or utility:
 - Search npm and existing workspace code BEFORE writing custom. Name the package.
 - Do NOT reinvent: drag-and-drop, floating UI, state machines, MCP protocol, animation, Shadow DOM.
-- Use `neverthrow` for Result types. Do NOT declare custom Result/Either types.
-
-When adding any editor UI element:
-- It MUST be contextual: appear on interaction, disappear when done.
-- Do NOT add sidebars, toolbars, panels, or any persistent chrome. Zero means zero.
-
-When updating the rendered preview:
-- Preserve scroll position and selection.
-- Use element IDs as React keys.
-- Do NOT cause full page re-renders.
-- Do NOT break the designer's flow.
-
-When writing editor logic:
-- Never reference specific component types (Heading, Button, Card).
-- The editor is catalog-agnostic. It works with ANY json-render catalog.
-- Test with the demo catalog only.
-
-## Architecture rules
-
-When writing `packages/editor/` code:
-- Use XState v5 for interaction modes.
-- Editor overlay lives in Shadow DOM (open mode, via react-shadow).
-- React synthetic `mouseenter`/`mouseleave` are unreliable inside shadow DOM (`composed: false` per spec, browser-inconsistent). Use `mouseover`/`mouseout` with `relatedTarget` containment checks instead.
-- Immutable document snapshots. Every edit produces a new snapshot.
-- No Effect in the browser bundle.
-
-When composing XState machines:
-- Each domain owns its machines. Domain machines are spawned by domain hooks (`useActorRef`), not composed into the root editor machine.
-- The root editor machine (`machine/editor-machine.ts`) only holds states that share cross-domain context (e.g., pointer + drag share `selectedId`/`dragSourceId`).
-- Domain-internal state (visibility timers, panel open/closed) belongs in a domain machine, not the root.
-- When a domain has multiple machines that need to communicate (e.g., history navigation triggers timeline visibility), the domain's hook owns both machines and the bridge between them. Cross-machine event forwarding is domain logic, not shell logic.
-- Use `fromTransition` for pure reducers (no timers, no side effects). Use `setup().createMachine()` when the machine needs delayed transitions (`after`) or invoked services.
-- Shell passes props from domain hooks to components. No `useEffect` bridges between domain hooks in the shell.
-- Do NOT add domain-specific parallel states to the root machine. If a state only serves one domain, it belongs in that domain's machine.
-
-When writing editor overlay CSS:
-- Each domain owns its CSS in a colocated `.css` file (e.g., `selection/selection.css`).
-- Shared tokens and normalize live in `overlay/tokens.css`. This is the ONLY shared stylesheet.
-- Domain components self-register their CSS via `useShadowSheet(css)` from `overlay/`. The hook is ref-counted — multiple components sharing the same CSS string produce one sheet.
-- Repeat properties (`position: absolute; pointer-events: none`) across domains rather than extracting shared base classes. Three repeated lines are cheaper than coupling domains.
-- Use CSS custom properties from `:host` (defined in `tokens.css`) for colors, shadows, fonts. Do NOT hardcode values.
-- Do NOT add CSS to `overlay/tokens.css` unless it's a design token or normalize rule that genuinely serves all domains.
-- Do NOT import one domain's CSS from another domain.
-
-When handling keyboard input:
-- Two levels: element-level (Enter/Escape in inputs) uses `onKeyDown`. Global editor shortcuts (Ctrl+Z, arrows, Escape to deselect) use `tinykeys` dispatching through the XState machine.
-- The machine's current state determines which keys are active — key bindings are state-dependent, not global.
-- Do NOT use `react-hotkeys-hook`, `hotkeys-js`, or other heavyweight keyboard libraries.
-- Do NOT scatter keyboard handlers across components. Global shortcuts register once in the shell via `tinykeys`.
-
-When writing `packages/mcp-server/` code:
-- Use Effect v3 for concurrency and pipelines.
-- Atomic patch application: all succeed or none applied, with rollback.
-- Filesystem-first: pages on disk, memory cache for speed.
 
 When touching json-render:
 - Use `@json-render/core` types (`Spec`, `UIElement`) directly. Do NOT redeclare them.
 - Use `@json-render/core` operations (`applySpecPatch`, `diffToPatches`, `validateSpec`, `autoFixSpec`) directly. Do NOT reimplement them.
 - Patches are RFC 6902 (JSON Patch) — use json-render's format. Do NOT invent a custom patch format.
 
-## Folder structure
+## Architecture boundary
 
-When organizing `packages/editor/src/`:
-- `src/editor/` contains the editor core. Each subdirectory is one interaction domain or infrastructure concern.
-- An interaction domain owns its XState machine slice, UI components, hooks, styles, and tests. Adding a new interaction = adding a new folder.
-- Infrastructure concerns (fiber bridging, overlay host, Shadow DOM) that serve multiple domains get their own folder at the same level as interaction domains.
-- Every domain folder has an `index.ts` barrel export. External consumers import from the folder, never from internal files.
-- `src/demo/` contains the demo catalog, registry, sample data, and app entry. The editor has zero imports from demo. Demo is replaceable.
-- `main.tsx` and `vite-env.d.ts` live at `src/` root.
-- `shell.tsx` (the editor composition root) lives at `src/editor/` root, not inside a domain folder.
+The editor library and MCP server are independent packages. The editor takes `spec` as a prop and calls `onSpecChange`. The MCP server reads/writes specs through a Storage interface. Neither imports from the other.
 
-When adding a new feature or interaction mode:
-- Create a new folder under `src/editor/` named after the interaction (e.g., `drag/`, `inline-edit/`).
-- The folder MUST contain: an `index.ts` barrel, the XState machine slice (if stateful), UI components, and colocated tests (`*.test.ts` for unit, `*.e2e.ts` for Playwright).
-- Do NOT scatter a feature's files across multiple existing folders.
+The MCP server includes a bridge (HTTP+WebSocket) that connects to the browser for the closed agent-designer loop. The bridge is first-class, not optional.
 
-When deciding where a file belongs:
-- If it serves one interaction domain → that domain's folder.
-- If it serves multiple domains → its own infrastructure folder.
-- If it's demo/example code → `src/demo/`.
-- If unsure → it probably belongs in the domain that triggers it.
+| Package | Knows about | Does NOT know about |
+|---------|------------|-------------------|
+| `editor` | Spec, UIElement, ComponentRegistry | MCP, filesystem, storage, bridge |
+| `mcp-server` | Spec, Storage interface, catalog JSON, bridge protocol | React, DOM, editor internals |
 
-Dependency boundaries in `src/editor/` — imports flow in one direction only:
-- `shell.tsx` → domain folders (`selection/`, `drag/`, `prop-editor/`) and infrastructure (`fiber/`, `overlay/`, `machine/`).
-- Domain folders → infrastructure folders. Never infrastructure → domain.
-- Domain folders → `spec-ops/` for pure spec mutations. Never the reverse.
-- `machine/` → nothing inside `src/editor/`. It defines types and the state machine only; it does NOT import from domain folders, fiber, or overlay.
-- `fiber/` → nothing inside `src/editor/`. It bridges React internals to DOM; it does NOT import from domain folders or machine.
-- No circular imports. If folder A imports from folder B, folder B MUST NOT import from folder A, directly or transitively.
+## Testing
 
-## Design direction
+Frameworks: `bun:test` for unit tests, Playwright for E2E.
 
-This editor is a review/feedback surface, not a creation tool.
+When writing unit tests:
+- Co-locate with source: `foo.ts` → `foo.test.ts` in the same directory.
+- Test pure state transitions exhaustively: every state × every input.
+- Verify reference identity (`toBe`) when the function should return the same object.
+- Build test data with tiny factory functions, not fixtures or mocks.
+- Import from `bun:test`. Do NOT use vitest, jest, or any other runner.
 
-When designing any interaction:
-- The rendered page IS the editor.
-- Hover = boundary glow. Click = floating action bar. Double-click text = inline edit. Drag = reorder siblings.
-- Do NOT add modes, toolbars, or panels that require the designer to leave the page view.
+When writing E2E tests:
+- Co-locate with source: place `*.e2e.ts` in the domain folder that owns the behavior being tested.
+- Query overlay elements by `data-role` attribute or ARIA `role`, never by CSS class or DOM structure.
+- Import shared overlay helpers from `overlay/testing.ts`.
+- Test user-visible behavior, not internal state.
 
-When designing AI integration:
-- AI agents connect externally via MCP.
-- The editor has NO AI chat interface.
-- Do NOT add prompt inputs, chat panels, or annotation systems inside the editor.
+When deciding what to test:
+- Pure functions with branching logic → unit test (exhaustive state × input).
+- User interactions through the rendered editor → E2E.
+- Do NOT mock: no jest.mock, no vi.mock. Tests use real objects or simple test data builders.
+- Exception: Storage is the one mockable boundary in MCP server tests.
 
 ## Dev
 
@@ -139,27 +75,3 @@ bun run typecheck  # All packages
 bun test           # Unit tests (bun:test)
 bunx playwright test --project=chromium  # E2E
 ```
-
-## Testing
-
-Frameworks: `bun:test` for unit tests, Playwright for E2E.
-
-When writing unit tests:
-- Co-locate with source: `foo.ts` → `foo.test.ts` in the same directory.
-- Test pure state transitions exhaustively: every state × every input.
-- Verify reference identity (`toBe`) when the function should return the same object.
-- Build test data with tiny factory functions (`hit(id)`, `hovering(id)`), not fixtures or mocks.
-- Import from `bun:test`. Do NOT use vitest, jest, or any other runner.
-
-When writing E2E tests:
-- Co-locate with source: place `*.e2e.ts` in the domain folder that owns the behavior being tested.
-- Query overlay elements by `data-role` attribute or ARIA `role`, never by CSS class, inline style, or DOM structure. The test contract is the role, not the implementation.
-- Import shared overlay helpers from `overlay/testing.ts` — don't inline shadow DOM queries in each test file.
-- Use `page.waitForTimeout()` for animation/transition settling — the overlay is async.
-- Test user-visible behavior (hover glow appears, action bar has N buttons), not internal state.
-
-When deciding what to test:
-- Pure functions with branching logic → unit test (exhaustive state × input).
-- User interactions through the rendered editor → E2E.
-- Do NOT mock: no jest.mock, no vi.mock, no stub services. Tests use real objects or simple test data builders.
-- Do NOT test React component rendering in isolation (no render/screen from testing-library). The editor's UI is tested through Playwright against the real page.
