@@ -10,7 +10,6 @@
   },
   "dependencies": {
     "@tanstack/react-form": "^1.28.5",
-    "timeago.js": "^4.0.2",
     "tinykeys": "^3.0.0"
   }
 }

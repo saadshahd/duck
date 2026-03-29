@@ -1,0 +1,97 @@
+/*
+ * History timeline — bottom-center horizontal scrubber.
+ * Auto-appears on undo/redo, fades when stale.
+ */
+
+.timeline-rail {
+  position: fixed;
+  bottom: 24px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 16px;
+  border-radius: 999px;
+  background: var(--surface-bar);
+  box-shadow: var(--shadow-bar);
+  pointer-events: auto;
+  opacity: 1;
+  transition: opacity 300ms ease;
+  z-index: 10;
+}
+
+.timeline-rail[data-visibility="hidden"] {
+  opacity: 0;
+  pointer-events: none;
+}
+
+.timeline-rail[data-visibility="fading"] {
+  opacity: 0;
+  pointer-events: auto;
+}
+
+/* --- Dots --- */
+
+.timeline-dot {
+  appearance: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  border-radius: 50%;
+  transition: transform 120ms ease;
+  flex-shrink: 0;
+}
+
+.timeline-dot:hover {
+  transform: scale(1.4);
+}
+
+.timeline-dot[data-past] {
+  background: var(--text-bar-muted);
+}
+
+.timeline-dot[data-current] {
+  background: var(--accent);
+}
+
+.timeline-dot[data-future] {
+  background: transparent;
+  border: 1px solid var(--text-bar-muted);
+}
+
+.timeline-dot[data-named] {
+  box-shadow: 0 0 0 2px var(--accent);
+}
+
+/* --- Tooltip --- */
+
+.timeline-tooltip {
+  background: var(--surface-bar);
+  color: var(--text-bar);
+  font-family: var(--font-system);
+  font-size: 12px;
+  padding: 4px 8px;
+  border-radius: 4px;
+  white-space: nowrap;
+  max-width: 200px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  pointer-events: none;
+  opacity: 0;
+  transform: translateY(4px);
+  transition: opacity 150ms ease, transform 150ms ease;
+}
+
+.timeline-tooltip[data-visible] {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.timeline-tooltip-arrow {
+  position: absolute;
+  width: 8px;
+  height: 8px;
+  background: var(--surface-bar);
+  transform: rotate(45deg);
+}

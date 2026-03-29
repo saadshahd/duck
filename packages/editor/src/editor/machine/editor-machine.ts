@@ -21,7 +21,6 @@ export type EditorContext = {
   selectedId: string | null;
   editing: Editing | null;
   dragSourceId: string | null;
-  historyOpen: boolean;
 };
 
 // --- Events ---
@@ -49,11 +48,7 @@ export type EditorEvent =
       toIndex: number;
     }
   | { type: "DRAG_CANCEL" }
-  | { type: "ESCAPE" }
-  | { type: "OPEN_HISTORY" }
-  | { type: "CLOSE_HISTORY" }
-  | { type: "UNDO" }
-  | { type: "REDO" };
+  | { type: "ESCAPE" };
 
 // --- Context predicates ---
 
@@ -72,9 +67,6 @@ export const editorMachine = setup({
       event.type === "HOVER" && context.hoveredId !== event.elementId,
     notEditing: ({ context }) => !isEditing(context),
     notDragging: ({ context }) => !isDragging(context),
-    historyNotOpen: ({ context }) => !context.historyOpen,
-    historyNotOpenAndNotEditing: ({ context }) =>
-      !context.historyOpen && !isEditing(context),
   },
 }).createMachine({
   id: "editor",
@@ -84,11 +76,6 @@ export const editorMachine = setup({
     selectedId: null,
     editing: null,
     dragSourceId: null,
-    historyOpen: false,
-  },
-  on: {
-    UNDO: {},
-    REDO: {},
   },
   states: {
     pointer: {
@@ -139,7 +126,7 @@ export const editorMachine = setup({
               actions: assign({ selectedId: null, hoveredId: null }),
             },
             ESCAPE: {
-              guard: "historyNotOpenAndNotEditing",
+              guard: "notEditing",
               target: "idle",
               actions: assign({ selectedId: null, hoveredId: null }),
             },
@@ -178,7 +165,6 @@ export const editorMachine = setup({
               actions: assign({ editing: null }),
             },
             ESCAPE: {
-              guard: "historyNotOpen",
               target: "selected",
               actions: assign({ editing: null }),
             },
@@ -209,31 +195,6 @@ export const editorMachine = setup({
             DRAG_CANCEL: {
               target: "idle",
               actions: assign({ dragSourceId: null }),
-            },
-          },
-        },
-      },
-    },
-    history: {
-      initial: "closed",
-      states: {
-        closed: {
-          on: {
-            OPEN_HISTORY: {
-              target: "open",
-              actions: assign({ historyOpen: true }),
-            },
-          },
-        },
-        open: {
-          on: {
-            ESCAPE: {
-              target: "closed",
-              actions: assign({ historyOpen: false }),
-            },
-            CLOSE_HISTORY: {
-              target: "closed",
-              actions: assign({ historyOpen: false }),
             },
           },
         },

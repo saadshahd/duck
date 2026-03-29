@@ -6,7 +6,6 @@ import { tinykeys } from "tinykeys";
 type Send = (event: any) => void;
 
 const MACHINE_BINDINGS = {
-  "$mod+Shift+h": "OPEN_HISTORY",
   Escape: "ESCAPE",
 } as const;
 

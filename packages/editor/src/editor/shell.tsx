@@ -22,7 +22,7 @@ import { usePropEditor } from "./prop-editor/use-prop-editor.jsx";
 import { useDragReorder, DropIndicator } from "./drag/index.js";
 import { OverlayRoot } from "./overlay/index.js";
 import { BoxModelOverlay, GapOverlay, useBoxModel } from "./box-model/index.js";
-import { useHistory, HistoryOverlay } from "./history/index.js";
+import { useHistory, HistoryTimeline } from "./history/index.js";
 import { useKeyboard } from "./keyboard/index.js";
 
 function useFiberRegistry(
@@ -60,6 +60,9 @@ export function EditorShell({
     send: historySend,
     entries,
     currentIndex,
+    visibilityState,
+    onMouseEnter: timelineMouseEnter,
+    onMouseLeave: timelineMouseLeave,
   } = useHistory(spec, onSpecChange);
   const [state, send] = useMachine(editorMachine);
   useKeyboard({ machine: send, history: historySend });
@@ -93,10 +96,9 @@ export function EditorShell({
     push,
   });
 
-  const { pointer, drag, history } = state.value as {
+  const { pointer, drag } = state.value as {
     pointer: string;
     drag: string;
-    history: string;
   };
   const { hoveredId, selectedId } = state.context;
 
@@ -152,17 +154,17 @@ export function EditorShell({
         {drag === "dragging" && dropTarget && fiberRegistry && (
           <DropIndicator registry={fiberRegistry} target={dropTarget} />
         )}
-        {history === "open" && (
-          <HistoryOverlay
-            entries={entries}
-            currentIndex={currentIndex}
-            onRestore={(idx) => historySend({ type: "RESTORE", index: idx })}
-            onRename={(idx, name) =>
-              historySend({ type: "RENAME", index: idx, name })
-            }
-            onClose={() => send({ type: "CLOSE_HISTORY" })}
-          />
-        )}
+        <HistoryTimeline
+          entries={entries}
+          currentIndex={currentIndex}
+          visibilityState={visibilityState}
+          onRestore={(idx) => historySend({ type: "RESTORE", index: idx })}
+          onRename={(idx, name) =>
+            historySend({ type: "RENAME", index: idx, name })
+          }
+          onMouseEnter={timelineMouseEnter}
+          onMouseLeave={timelineMouseLeave}
+        />
       </OverlayRoot>
     </StateProvider>
   );

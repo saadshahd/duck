@@ -48,8 +48,18 @@ When writing editor logic:
 When writing `packages/editor/` code:
 - Use XState v5 for interaction modes.
 - Editor overlay lives in Shadow DOM (open mode, via react-shadow).
+- React synthetic `mouseenter`/`mouseleave` are unreliable inside shadow DOM (`composed: false` per spec, browser-inconsistent). Use `mouseover`/`mouseout` with `relatedTarget` containment checks instead.
 - Immutable document snapshots. Every edit produces a new snapshot.
 - No Effect in the browser bundle.
+
+When composing XState machines:
+- Each domain owns its machines. Domain machines are spawned by domain hooks (`useActorRef`), not composed into the root editor machine.
+- The root editor machine (`machine/editor-machine.ts`) only holds states that share cross-domain context (e.g., pointer + drag share `selectedId`/`dragSourceId`).
+- Domain-internal state (visibility timers, panel open/closed) belongs in a domain machine, not the root.
+- When a domain has multiple machines that need to communicate (e.g., history navigation triggers timeline visibility), the domain's hook owns both machines and the bridge between them. Cross-machine event forwarding is domain logic, not shell logic.
+- Use `fromTransition` for pure reducers (no timers, no side effects). Use `setup().createMachine()` when the machine needs delayed transitions (`after`) or invoked services.
+- Shell passes props from domain hooks to components. No `useEffect` bridges between domain hooks in the shell.
+- Do NOT add domain-specific parallel states to the root machine. If a state only serves one domain, it belongs in that domain's machine.
 
 When writing editor overlay CSS:
 - Each domain owns its CSS in a colocated `.css` file (e.g., `selection/selection.css`).
