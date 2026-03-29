@@ -14,3 +14,8 @@ export class InvalidPageName extends Data.TaggedError("InvalidPageName")<{
   readonly name: string;
   readonly reason: string;
 }> {}
+
+export class PatchError extends Data.TaggedError("PatchError")<{
+  readonly message: string;
+  readonly failedOpIndex?: number;
+}> {}
