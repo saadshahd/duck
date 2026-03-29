@@ -90,13 +90,12 @@ const handlers: {
 export const transition = (
   ctx: HistoryContext,
   event: HistoryEvent,
-): HistoryContext =>
-  (
-    handlers[event.type] as (
-      ctx: HistoryContext,
-      event: HistoryEvent,
-    ) => HistoryContext
-  )(ctx, event);
+): HistoryContext => {
+  const handler = handlers[event.type as HistoryEvent["type"]] as
+    | ((ctx: HistoryContext, event: HistoryEvent) => HistoryContext)
+    | undefined;
+  return handler ? handler(ctx, event) : ctx;
+};
 
 export type HistoryInput = { spec: Spec };
 
