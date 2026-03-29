@@ -16,8 +16,8 @@ import {
   resolveParentAxis,
   isInContainerZone,
   tagTransitionNames,
-  animatedUpdate,
 } from "./helpers.js";
+import { animatedUpdate } from "../animated-update.js";
 import { resolveIndicator } from "./resolve-indicator.js";
 import { resolveDrop } from "./resolve-drop.js";
 

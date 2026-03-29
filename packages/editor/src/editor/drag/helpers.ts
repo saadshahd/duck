@@ -1,4 +1,3 @@
-import { flushSync } from "react-dom";
 import type { Spec } from "@json-render/core";
 import {
   extractClosestEdge,
@@ -108,10 +107,4 @@ export const tagTransitionNames = (reg: FiberRegistry, ids: string[]) => {
     ];
   });
   return () => restores.forEach((fn) => fn());
-};
-
-export const animatedUpdate = (onChange: (s: Spec) => void, next: Spec) => {
-  document.startViewTransition
-    ? document.startViewTransition(() => flushSync(() => onChange(next)))
-    : onChange(next);
 };

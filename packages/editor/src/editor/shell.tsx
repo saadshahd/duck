@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState, useMemo } from "react";
+import { useEffect, useRef, useState, useMemo } from "react";
 import type { Spec } from "@json-render/core";
 import type { ZodTypeAny } from "zod";
 import {
@@ -16,7 +16,7 @@ import {
   HoverHighlight,
   SelectionRing,
   FloatingActionBar,
-  type EditorAction,
+  useActionHandler,
 } from "./selection/index.js";
 import { usePropEditor } from "./prop-editor/use-prop-editor.jsx";
 import { useDragReorder, DropIndicator } from "./drag/index.js";
@@ -73,12 +73,7 @@ export function EditorShell({
     getPropSchema,
   });
 
-  const handleAction = useCallback(
-    (action: EditorAction) => {
-      if (action.tag === "edit") send({ type: "OPEN_POPOVER" });
-    },
-    [send],
-  );
+  const handleAction = useActionHandler({ spec, state, send, onSpecChange });
 
   const { pointer, drag } = state.value as { pointer: string; drag: string };
   const { hoveredId, selectedId } = state.context;
