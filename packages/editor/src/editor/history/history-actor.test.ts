@@ -3,10 +3,15 @@ import type { Spec } from "@json-render/core";
 import { transition } from "./history-actor.js";
 import type { HistoryContext } from "./types.js";
 
-const spec = (id = "r"): Spec => ({
-  root: id,
-  elements: { [id]: { type: "Box", props: {} } },
-});
+let autoId = 0;
+
+const spec = (id?: string): Spec => {
+  const resolved = id ?? `auto-${++autoId}`;
+  return {
+    root: resolved,
+    elements: { [resolved]: { type: "Box", props: {} } },
+  };
+};
 
 const empty: HistoryContext = { entries: [], currentIndex: -1 };
 
@@ -100,6 +105,40 @@ describe("PUSH", () => {
     expect(ctx.entries).toHaveLength(2);
     expect(ctx.entries[0].label).toBe("a");
     expect(ctx.entries[1].label).toBe("c");
+  });
+
+  test("append with identical spec to current is a no-op", () => {
+    const ctx = push(empty, "a", { specId: "same" });
+    const next = push(ctx, "b", { specId: "same" });
+    expect(next).toBe(ctx);
+  });
+
+  test("coalesce that matches previous entry drops current entry", () => {
+    // Entry 0: spec("base"), Entry 1: spec("changed") with group
+    let ctx = push(empty, "base", { specId: "base" });
+    ctx = push(ctx, "changed", { group: "g", specId: "changed" });
+    expect(ctx.entries).toHaveLength(2);
+    // Coalesce back to spec("base") — same as entry 0
+    ctx = push(ctx, "reverted", { group: "g", specId: "base" });
+    expect(ctx.entries).toHaveLength(1);
+    expect(ctx.currentIndex).toBe(0);
+    expect(ctx.entries[0].label).toBe("base");
+  });
+
+  test("coalesce at index 0 with identical spec returns unchanged", () => {
+    // Only one entry with a group, push same spec with same group
+    const ctx = push(empty, "only", { group: "g", specId: "x" });
+    const next = push(ctx, "same", { group: "g", specId: "x" });
+    // No previous entry to compare — coalesce replaces in-place (spec unchanged)
+    expect(next.entries).toHaveLength(1);
+    expect(next.entries[0].label).toBe("same");
+  });
+
+  test("append after undo with identical spec to new current is a no-op", () => {
+    let ctx = push(push(empty, "a", { specId: "x" }), "b", { specId: "y" });
+    ctx = transition(ctx, { type: "UNDO" }); // back to entry 0, spec("x")
+    const next = push(ctx, "c", { specId: "x" }); // same spec as current
+    expect(next).toBe(ctx);
   });
 });
 

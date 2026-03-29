@@ -1,5 +1,6 @@
 import { fromTransition } from "xstate";
 import type { Spec } from "@json-render/core";
+import equal from "fast-deep-equal";
 import type { HistoryContext, HistoryEvent, Snapshot } from "./types.js";
 
 const MAX_ENTRIES = 100;
@@ -19,6 +20,15 @@ const coalesce = (
   const current = ctx.entries[ctx.currentIndex];
   const atEnd = ctx.currentIndex === ctx.entries.length - 1;
   if (!atEnd || !event.group || current?.group !== event.group) return null;
+
+  const prev = ctx.entries[ctx.currentIndex - 1];
+  if (prev && equal(event.spec, prev.spec)) {
+    return {
+      entries: ctx.entries.slice(0, ctx.currentIndex),
+      currentIndex: ctx.currentIndex - 1,
+    };
+  }
+
   const entry = {
     ...current,
     spec: event.spec,
@@ -34,6 +44,9 @@ const append = (
   ctx: HistoryContext,
   event: Extract<HistoryEvent, { type: "PUSH" }>,
 ): HistoryContext => {
+  const current = ctx.entries[ctx.currentIndex];
+  if (current && equal(event.spec, current.spec)) return ctx;
+
   const snapshot: Snapshot = {
     spec: event.spec,
     label: event.label,
