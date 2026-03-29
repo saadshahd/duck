@@ -47,3 +47,9 @@
 .action-bar button:active {
   background: rgba(255, 255, 255, 0.15);
 }
+
+.action-bar button:disabled {
+  opacity: 0.3;
+  pointer-events: none;
+  cursor: default;
+}

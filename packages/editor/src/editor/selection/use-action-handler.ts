@@ -1,21 +1,29 @@
 import { useCallback } from "react";
 import type { Spec } from "@json-render/core";
 import type { EditorEvent, EditorSnapshot } from "../machine/index.js";
+import type { Axis } from "../layout/index.js";
 import { findParent, reorderChild, deleteElement } from "../spec-ops/index.js";
 import { animatedUpdate } from "../animated-update.js";
 import type { SpecPush } from "../types.js";
 import type { EditorAction } from "./action-bar.js";
+
+const MOVE_LABELS: Record<Axis, { prev: string; next: string }> = {
+  vertical: { prev: "up", next: "down" },
+  horizontal: { prev: "left", next: "right" },
+};
 
 export function useActionHandler({
   spec,
   state,
   send,
   push,
+  axis,
 }: {
   spec: Spec;
   state: EditorSnapshot;
   send: (event: EditorEvent) => void;
   push: SpecPush;
+  axis: Axis;
 }): (action: EditorAction) => void {
   return useCallback(
     (action: EditorAction) => {
@@ -23,6 +31,7 @@ export function useActionHandler({
       if (!id) return;
 
       const type = spec.elements[id]?.type ?? "element";
+      const labels = MOVE_LABELS[axis];
 
       switch (action.tag) {
         case "edit":
@@ -35,7 +44,7 @@ export function useActionHandler({
             )
             .map((next) =>
               animatedUpdate(
-                (s) => push(s, `Moved ${type} up`, `move:${id}`),
+                (s) => push(s, `Moved ${type} ${labels.prev}`, `move:${id}`),
                 next,
               ),
             );
@@ -47,7 +56,7 @@ export function useActionHandler({
             )
             .map((next) =>
               animatedUpdate(
-                (s) => push(s, `Moved ${type} down`, `move:${id}`),
+                (s) => push(s, `Moved ${type} ${labels.next}`, `move:${id}`),
                 next,
               ),
             );
@@ -60,6 +69,6 @@ export function useActionHandler({
           break;
       }
     },
-    [spec, state.context.selectedId, push, send],
+    [spec, state.context.selectedId, push, send, axis],
   );
 }

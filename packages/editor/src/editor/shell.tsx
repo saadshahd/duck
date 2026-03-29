@@ -17,6 +17,7 @@ import {
   SelectionRing,
   FloatingActionBar,
   useActionHandler,
+  useMoveInfo,
 } from "./selection/index.js";
 import { usePropEditor } from "./prop-editor/use-prop-editor.jsx";
 import { useDragReorder, DropIndicator } from "./drag/index.js";
@@ -89,11 +90,17 @@ export function EditorShell({
     push,
     getPropSchema,
   });
+  const moveInfo = useMoveInfo(
+    currentSpec,
+    state.context.selectedId,
+    fiberRegistry,
+  );
   const handleAction = useActionHandler({
     spec: currentSpec,
     state,
     send,
     push,
+    axis: moveInfo.axis,
   });
 
   const { pointer, drag } = state.value as {
@@ -145,6 +152,9 @@ export function EditorShell({
                 <FloatingActionBar
                   registry={fiberRegistry}
                   elementId={selectedId}
+                  axis={moveInfo.axis}
+                  canMovePrev={moveInfo.canMovePrev}
+                  canMoveNext={moveInfo.canMoveNext}
                   onAction={handleAction}
                 />
               )}

@@ -1,11 +1,10 @@
-import type { Spec } from "@json-render/core";
 import {
   extractClosestEdge,
   type Edge,
 } from "@atlaskit/pragmatic-drag-and-drop-hitbox/closest-edge";
 import { getReorderDestinationIndex } from "@atlaskit/pragmatic-drag-and-drop-hitbox/util/get-reorder-destination-index";
 import type { FiberRegistry } from "../fiber/index.js";
-import type { Axis } from "./drop-indicator.js";
+import type { Axis } from "../layout/index.js";
 
 // --- Drag data bag ---
 
@@ -23,30 +22,11 @@ export const readData = (bag: Record<string | symbol, unknown>) =>
 
 // --- Axis & edges ---
 
+export { type Axis, detectAxis, resolveParentAxis } from "../layout/index.js";
+
 export const EDGES: Record<Axis, Edge[]> = {
   vertical: ["top", "bottom"],
   horizontal: ["left", "right"],
-};
-
-/** Measure geometry of two adjacent siblings to determine layout axis. */
-export const detectAxis = (a: DOMRect, b: DOMRect): Axis => {
-  const dy = Math.abs(a.top + a.height / 2 - (b.top + b.height / 2));
-  const dx = Math.abs(a.left + a.width / 2 - (b.left + b.width / 2));
-  return dy > dx ? "vertical" : "horizontal";
-};
-
-/** Resolve axis for a parent by measuring its first two children. */
-export const resolveParentAxis = (
-  spec: Spec,
-  parentId: string,
-  registry: FiberRegistry,
-): Axis | null => {
-  const children = spec.elements[parentId]?.children;
-  if (!children || children.length < 2) return null;
-  const a = registry.get(children[0]);
-  const b = registry.get(children[1]);
-  if (!a || !b) return null;
-  return detectAxis(a.getBoundingClientRect(), b.getBoundingClientRect());
 };
 
 // --- Zone detection ---

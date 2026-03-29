@@ -8,6 +8,7 @@ import {
 } from "@floating-ui/react";
 import { useShadowSheet } from "../overlay/index.js";
 import type { FiberRegistry } from "../fiber/index.js";
+import type { Axis } from "../layout/index.js";
 import css from "./selection.css?inline";
 
 export type EditorAction =
@@ -17,13 +18,10 @@ export type EditorAction =
   | { tag: "edit" }
   | { tag: "more" };
 
-const ACTIONS: readonly { label: string; action: EditorAction }[] = [
-  { label: "↑", action: { tag: "move-up" } },
-  { label: "↓", action: { tag: "move-down" } },
-  { label: "×", action: { tag: "delete" } },
-  { label: "✏", action: { tag: "edit" } },
-  { label: "⋮", action: { tag: "more" } },
-];
+const MOVE_LABELS: Record<Axis, { prev: string; next: string }> = {
+  vertical: { prev: "↑", next: "↓" },
+  horizontal: { prev: "←", next: "→" },
+};
 
 const MIDDLEWARE = [offset(8), flip(), shift({ padding: 8 })];
 
@@ -42,10 +40,16 @@ const ZERO_RECT: DOMRect = {
 export function FloatingActionBar({
   registry,
   elementId,
+  axis,
+  canMovePrev,
+  canMoveNext,
   onAction,
 }: {
   registry: FiberRegistry;
   elementId: string;
+  axis: Axis;
+  canMovePrev: boolean;
+  canMoveNext: boolean;
   onAction: (action: EditorAction) => void;
 }) {
   useShadowSheet(css);
@@ -65,18 +69,34 @@ export function FloatingActionBar({
     });
   }, [refs, registry, elementId]);
 
+  const labels = MOVE_LABELS[axis];
+
   return (
     <div ref={refs.setFloating} style={{ ...floatingStyles, zIndex: 1 }}>
       <div className="action-bar" role="toolbar">
-        {ACTIONS.map(({ label, action }) => (
-          <button
-            type="button"
-            key={action.tag}
-            onClick={() => onAction(action)}
-          >
-            {label}
-          </button>
-        ))}
+        <button
+          type="button"
+          disabled={!canMovePrev}
+          onClick={() => onAction({ tag: "move-up" })}
+        >
+          {labels.prev}
+        </button>
+        <button
+          type="button"
+          disabled={!canMoveNext}
+          onClick={() => onAction({ tag: "move-down" })}
+        >
+          {labels.next}
+        </button>
+        <button type="button" onClick={() => onAction({ tag: "delete" })}>
+          ×
+        </button>
+        <button type="button" onClick={() => onAction({ tag: "edit" })}>
+          ✏
+        </button>
+        <button type="button" onClick={() => onAction({ tag: "more" })}>
+          ⋮
+        </button>
       </div>
     </div>
   );
