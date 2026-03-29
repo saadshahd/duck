@@ -4,8 +4,7 @@ import { useActorRef, useSelector } from "@xstate/react";
 import { historyLogic } from "./history-actor.js";
 import { timelineVisibilityMachine } from "./timeline-visibility-machine.js";
 import type { HistoryContext, HistoryEvent } from "./types.js";
-
-export type SpecPush = (spec: Spec, label: string, group?: string) => void;
+import type { SpecPush } from "../types.js";
 
 const NAVIGATION_EVENTS = new Set(["UNDO", "REDO", "RESTORE"]);
 

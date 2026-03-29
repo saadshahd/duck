@@ -8,7 +8,7 @@ import type {
   InlineEditing,
 } from "../machine/index.js";
 import { editProp } from "../spec-ops/index.js";
-import type { SpecPush } from "../history/index.js";
+import type { SpecPush } from "../types.js";
 import { useDoubleClickEdit } from "./use-double-click-edit.js";
 import { useInlineEdit } from "./inline-input.js";
 import { PropPopover } from "./prop-popover.js";

@@ -18,7 +18,7 @@ import {
   tagTransitionNames,
 } from "./helpers.js";
 import { animatedUpdate } from "../animated-update.js";
-import type { SpecPush } from "../history/index.js";
+import type { SpecPush } from "../types.js";
 import { resolveIndicator } from "./resolve-indicator.js";
 import { resolveDrop } from "./resolve-drop.js";
 

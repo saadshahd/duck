@@ -3,7 +3,7 @@ import type { Spec } from "@json-render/core";
 import type { EditorEvent, EditorSnapshot } from "../machine/index.js";
 import { findParent, reorderChild, deleteElement } from "../spec-ops/index.js";
 import { animatedUpdate } from "../animated-update.js";
-import type { SpecPush } from "../history/index.js";
+import type { SpecPush } from "../types.js";
 import type { EditorAction } from "./action-bar.js";
 
 export function useActionHandler({
