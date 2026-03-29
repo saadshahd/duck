@@ -9,6 +9,8 @@ export type SpecOpsError =
   | { tag: "index-out-of-bounds"; index: number; length: number }
   | { tag: "no-children"; parentId: string }
   | { tag: "same-index"; index: number }
+  | { tag: "same-position"; parentId: string; index: number }
+  | { tag: "circular-move"; elementId: string; targetParentId: string }
   | { tag: "prop-not-found"; elementId: string; propKey: string };
 
 // --- Spec accessors ---
@@ -38,6 +40,35 @@ export const checkBounds = (
   index >= 0 && index < length
     ? ok(index)
     : err({ tag: "index-out-of-bounds", index, length });
+
+/** Like checkBounds but allows index === length (for insert-at-end). */
+export const checkBoundsInclusive = (
+  index: number,
+  length: number,
+): Result<number, SpecOpsError> =>
+  index >= 0 && index <= length
+    ? ok(index)
+    : err({ tag: "index-out-of-bounds", index, length });
+
+/** Collects all IDs in the subtree rooted at `ancestorId` (exclusive of ancestor).
+ *  Precompute once at drag-start, then use `set.has(id)` for O(1) canDrop checks. */
+export const collectDescendants = (
+  spec: Spec,
+  ancestorId: string,
+): ReadonlySet<string> => {
+  const result = new Set<string>();
+  const stack: string[] = [];
+  const root = spec.elements[ancestorId]?.children;
+  if (root) for (let i = 0; i < root.length; i++) stack.push(root[i]);
+  while (stack.length > 0) {
+    const id = stack.pop()!;
+    result.add(id);
+    const children = spec.elements[id]?.children;
+    if (children)
+      for (let i = 0; i < children.length; i++) stack.push(children[i]);
+  }
+  return result;
+};
 
 // --- Immutable mutation ---
 

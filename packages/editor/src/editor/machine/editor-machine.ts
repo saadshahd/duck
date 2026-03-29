@@ -40,7 +40,13 @@ export type EditorEvent =
   | { type: "COMMIT_EDIT"; newValue: unknown }
   | { type: "CANCEL_EDIT" }
   | { type: "DRAG_START"; sourceId: string }
-  | { type: "DROP"; fromIndex: number; toIndex: number; parentId: string }
+  | {
+      type: "DROP";
+      sourceParentId: string;
+      targetParentId: string;
+      fromIndex: number;
+      toIndex: number;
+    }
   | { type: "DRAG_CANCEL" };
 
 // --- Context predicates ---

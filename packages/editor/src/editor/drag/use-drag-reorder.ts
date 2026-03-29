@@ -1,25 +1,27 @@
 import { useEffect, useRef, useState } from "react";
-import { flushSync } from "react-dom";
 import type { Spec } from "@json-render/core";
 import {
   draggable,
   dropTargetForElements,
   monitorForElements,
 } from "@atlaskit/pragmatic-drag-and-drop/element/adapter";
-import {
-  attachClosestEdge,
-  extractClosestEdge,
-  type Edge,
-} from "@atlaskit/pragmatic-drag-and-drop-hitbox/closest-edge";
-import { getReorderDestinationIndex } from "@atlaskit/pragmatic-drag-and-drop-hitbox/util/get-reorder-destination-index";
+import { attachClosestEdge } from "@atlaskit/pragmatic-drag-and-drop-hitbox/closest-edge";
 import type { FiberRegistry } from "../fiber/index.js";
 import type { EditorEvent, EditorSnapshot } from "../machine/index.js";
-import { findParent, reorderChild, getChildren } from "../spec-ops/index.js";
+import { findParent, collectDescendants } from "../spec-ops/index.js";
+import type { DropTarget } from "./drop-indicator.js";
+import type { DragData } from "./helpers.js";
+import {
+  EDGES,
+  resolveParentAxis,
+  isInContainerZone,
+  tagTransitionNames,
+  animatedUpdate,
+} from "./helpers.js";
+import { resolveIndicator } from "./resolve-indicator.js";
+import { resolveDrop } from "./resolve-drop.js";
 
-// --- Types ---
-
-export type Axis = "vertical" | "horizontal";
-export type DropTarget = { elementId: string; edge: Edge; axis: Axis };
+// --- Helpers ---
 
 type Props = {
   registry: FiberRegistry | null;
@@ -29,90 +31,8 @@ type Props = {
   onSpecChange?: (spec: Spec) => void;
 };
 
-/** Typed shape stored in pragmatic-dnd's untyped userData bag. */
-type DragData = { elementId: string; parentId: string; index: number };
-
-/** Single boundary cast — all downstream code is type-safe. */
-const readData = (bag: Record<string | symbol, unknown>) => bag as DragData;
-
-// --- Pure helpers ---
-
 const stateOf = (s: EditorSnapshot) =>
   s.value as { pointer: string; drag: string };
-
-/** Drag handlers should be attached whenever an element is selected.
- *  The machine's guards prevent drag start during editing.
- *  Importantly: drag state must NOT be a dep — changing it mid-drag would detach handlers. */
-const isSelected = (s: EditorSnapshot) => stateOf(s).pointer === "selected";
-
-const resolveSiblings = (spec: Spec, id: string) =>
-  findParent(spec, id).andThen(({ parentId, childIndex }) =>
-    getChildren(spec, parentId).map((childIds) => ({
-      parentId,
-      childIds,
-      sourceIndex: childIndex,
-    })),
-  );
-
-/** Measure geometry of two adjacent siblings to determine layout axis.
- *  Compares actual positions — works for flex, grid, inline-block, any layout. */
-const detectAxis = (a: DOMRect, b: DOMRect): Axis => {
-  const dy = Math.abs(a.top + a.height / 2 - (b.top + b.height / 2));
-  const dx = Math.abs(a.left + a.width / 2 - (b.left + b.width / 2));
-  return dy > dx ? "vertical" : "horizontal";
-};
-
-const EDGES: Record<Axis, Edge[]> = {
-  vertical: ["top", "bottom"],
-  horizontal: ["left", "right"],
-};
-
-const firstTarget = (
-  targets: readonly { data: Record<string | symbol, unknown> }[],
-  axis: Axis,
-): DropTarget | null => {
-  const t = targets[0];
-  if (!t) return null;
-  const edge = extractClosestEdge(t.data);
-  const { elementId } = readData(t.data);
-  return edge && elementId ? { elementId, edge, axis } : null;
-};
-
-const animatedUpdate = (onChange: (s: Spec) => void, next: Spec) => {
-  document.startViewTransition
-    ? document.startViewTransition(() => flushSync(() => onChange(next)))
-    : onChange(next);
-};
-
-const tagTransitionNames = (reg: FiberRegistry, ids: string[]) => {
-  const restores = ids.flatMap((id) => {
-    const el = reg.get(id);
-    if (!el) return [];
-    const prev = el.style.viewTransitionName;
-    el.style.viewTransitionName = id;
-    return [
-      () => {
-        el.style.viewTransitionName = prev;
-      },
-    ];
-  });
-  return () => restores.forEach((fn) => fn());
-};
-
-/** Resolve a drop into a reorder destination index. */
-const resolveDropIndex = (
-  sourceIndex: number,
-  target: { data: Record<string | symbol, unknown> },
-  axis: Axis,
-) => {
-  const { index: targetIndex } = readData(target.data);
-  return getReorderDestinationIndex({
-    startIndex: sourceIndex,
-    indexOfTarget: targetIndex,
-    closestEdgeOfTarget: extractClosestEdge(target.data),
-    axis,
-  });
-};
 
 // --- Hook ---
 
@@ -129,111 +49,148 @@ export function useDragReorder({
   const changeRef = useRef(onSpecChange);
   changeRef.current = onSpecChange;
 
-  const pointer = stateOf(state).pointer;
   const selectedId = state.context.selectedId;
+  const pointer = stateOf(state).pointer;
+
+  // --- Effect 1: Make selected element draggable ---
 
   useEffect(() => {
-    if (!registry || !selectedId || !isSelected(state)) return;
+    if (!registry || !selectedId || pointer !== "selected") return;
 
-    const ctx = resolveSiblings(specRef.current, selectedId);
-    if (ctx.isErr() || ctx.value.childIds.length < 2) return;
-    const { parentId, childIds, sourceIndex } = ctx.value;
+    const ctx = findParent(specRef.current, selectedId);
+    if (ctx.isErr()) return;
+    const { parentId, childIndex } = ctx.value;
 
     const sourceEl = registry.get(selectedId);
     if (!sourceEl) return;
 
-    // Detect axis geometrically from first two siblings' positions
-    const firstEl = registry.get(childIds[0]);
-    const secondEl = registry.get(childIds[1]);
-    if (!firstEl || !secondEl) return;
-    const axis = detectAxis(
-      firstEl.getBoundingClientRect(),
-      secondEl.getBoundingClientRect(),
-    );
-    const edges = EDGES[axis];
-
     let clearNames: (() => void) | null = null;
-    const isSameParent = (bag: Record<string, unknown>) =>
-      bag.parentId === parentId;
-    const updateIndicator = ({
-      location,
-    }: {
+
+    return draggable({
+      element: sourceEl,
+      getInitialData: () => ({
+        elementId: selectedId,
+        parentId,
+        index: childIndex,
+      }),
+      onGenerateDragPreview: () => {
+        const allChildIds = Object.values(specRef.current.elements).flatMap(
+          (el) => el.children ?? [],
+        );
+        clearNames = tagTransitionNames(registry, allChildIds);
+      },
+      onDragStart: () => send({ type: "DRAG_START", sourceId: selectedId }),
+      onDrop: () => {
+        clearNames?.();
+        clearNames = null;
+      },
+    });
+  }, [registry, selectedId, pointer, send]);
+
+  // --- Effect 2: Register drop targets on ALL elements ---
+
+  useEffect(() => {
+    if (!registry) return;
+
+    const s = specRef.current;
+    const containerIds = new Set(
+      Object.entries(s.elements)
+        .filter(([, el]) => el.children != null)
+        .map(([id]) => id),
+    );
+
+    const cleanups = Object.keys(s.elements).flatMap((id) => {
+      const el = registry.get(id);
+      const parent = findParent(s, id);
+      if (!el || parent.isErr()) return [];
+
+      const { parentId, childIndex } = parent.value;
+      const isContainer = containerIds.has(id);
+      const edges =
+        EDGES[resolveParentAxis(s, parentId, registry) ?? "vertical"];
+
+      return [
+        dropTargetForElements({
+          element: el,
+          canDrop: ({ source }) => (source.data.elementId as string) !== id,
+          getData: ({ input, element }) => {
+            if (
+              isContainer &&
+              isInContainerZone(input, element.getBoundingClientRect())
+            )
+              return {
+                elementId: id,
+                role: "container",
+              } satisfies Partial<DragData>;
+            return attachClosestEdge(
+              {
+                elementId: id,
+                parentId,
+                index: childIndex,
+                role: "sibling",
+              } satisfies DragData,
+              { element, input, allowedEdges: edges },
+            );
+          },
+        }),
+      ];
+    });
+
+    return () => cleanups.forEach((fn) => fn());
+  }, [registry, spec]);
+
+  // --- Effect 3: Global drop monitor ---
+
+  useEffect(() => {
+    if (!registry) return;
+
+    let descendants: ReadonlySet<string> = new Set();
+
+    const indicator = (
+      source: { data: Record<string | symbol, unknown> },
       location: {
         current: {
           dropTargets: readonly { data: Record<string | symbol, unknown> }[];
         };
-      };
-    }) => {
-      const target = firstTarget(location.current.dropTargets, axis);
-      if (!target) return setDropTarget(null);
-      // Hide indicator when drop would be a no-op (same position)
-      const t = location.current.dropTargets[0];
-      const to = t ? resolveDropIndex(sourceIndex, t, axis) : sourceIndex;
-      setDropTarget(to === sourceIndex ? null : target);
-    };
+      },
+    ) =>
+      setDropTarget(
+        resolveIndicator(
+          source,
+          location.current.dropTargets[0],
+          specRef.current,
+          registry,
+          descendants,
+        ),
+      );
 
-    const cleanups = [
-      draggable({
-        element: sourceEl,
-        getInitialData: () => ({
-          elementId: selectedId,
-          parentId,
-          index: sourceIndex,
-        }),
-        onGenerateDragPreview: () => {
-          clearNames = tagTransitionNames(registry, childIds);
-        },
-        onDragStart: () => send({ type: "DRAG_START", sourceId: selectedId }),
-        onDrop: () => {
-          clearNames?.();
-          clearNames = null;
-        },
-      }),
-
-      ...childIds.flatMap((id, i) => {
-        const el = registry.get(id);
-        return el
-          ? [
-              dropTargetForElements({
-                element: el,
-                canDrop: ({ source }) => isSameParent(source.data),
-                getData: ({ input, element }) =>
-                  attachClosestEdge(
-                    { elementId: id, index: i },
-                    { element, input, allowedEdges: edges },
-                  ),
-              }),
-            ]
-          : [];
-      }),
-
-      monitorForElements({
-        canMonitor: ({ source }) => isSameParent(source.data),
-        onDrag: updateIndicator,
-        onDropTargetChange: updateIndicator,
-        onDrop: ({ source, location }) => {
-          setDropTarget(null);
-          const target = location.current.dropTargets[0];
-          if (!target) return send({ type: "DRAG_CANCEL" });
-
-          const from = readData(source.data).index;
-          const to = resolveDropIndex(from, target, axis);
-
-          if (from !== to) {
-            reorderChild(specRef.current, parentId, from, to).map((newSpec) => {
-              if (changeRef.current) animatedUpdate(changeRef.current, newSpec);
-            });
-          }
-          send({ type: "DROP", fromIndex: from, toIndex: to, parentId });
-        },
-      }),
-    ];
-
-    return () => {
-      cleanups.forEach((fn) => fn());
-      clearNames?.();
-    };
-  }, [registry, selectedId, pointer, spec, send]);
+    return monitorForElements({
+      onDragStart: ({ source }) => {
+        descendants = collectDescendants(
+          specRef.current,
+          source.data.elementId as string,
+        );
+      },
+      onDrag: ({ source, location }) => indicator(source, location),
+      onDropTargetChange: ({ source, location }) => indicator(source, location),
+      onDrop: ({ source, location }) => {
+        setDropTarget(null);
+        const result = resolveDrop(
+          source,
+          location.current.dropTargets[0],
+          specRef.current,
+          registry,
+          descendants,
+        );
+        descendants = new Set();
+        if (!result) return send({ type: "DRAG_CANCEL" });
+        result.newSpec.map((s) => {
+          if (changeRef.current) animatedUpdate(changeRef.current, s);
+        });
+        send(result.event);
+      },
+    });
+  }, [registry, spec, send]);
 
   return { dropTarget };
 }

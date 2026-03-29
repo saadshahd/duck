@@ -2,8 +2,11 @@ import type { Spec } from "@json-render/core";
 import { err, ok, type Result } from "neverthrow";
 import {
   type SpecOpsError,
+  getElement,
   getChildren,
   checkBounds,
+  checkBoundsInclusive,
+  collectDescendants,
   cloneAndMutate,
   moveInArray,
 } from "./helpers.js";
@@ -45,6 +48,53 @@ export function reorderChild(
           fromIndex,
           toIndex,
         );
+      }),
+    );
+}
+
+/** Move an element from one parent to another (or reorder within same parent). */
+export function moveChild(
+  spec: Spec,
+  sourceParentId: string,
+  sourceIndex: number,
+  targetParentId: string,
+  targetIndex: number,
+): Result<Spec, SpecOpsError> {
+  if (sourceParentId === targetParentId)
+    return reorderChild(spec, sourceParentId, sourceIndex, targetIndex);
+
+  return getChildren(spec, sourceParentId)
+    .andThen((srcChildren) =>
+      checkBounds(sourceIndex, srcChildren.length).map(
+        () => srcChildren[sourceIndex],
+      ),
+    )
+    .andThen((childId): Result<string, SpecOpsError> => {
+      if (
+        childId === targetParentId ||
+        collectDescendants(spec, childId).has(targetParentId)
+      )
+        return err({
+          tag: "circular-move",
+          elementId: childId,
+          targetParentId,
+        });
+      return ok(childId);
+    })
+    .andThen(() =>
+      getElement(spec, targetParentId).map((el) => el.children ?? []),
+    )
+    .andThen((tgtChildren) =>
+      checkBoundsInclusive(targetIndex, tgtChildren.length),
+    )
+    .map(() =>
+      cloneAndMutate(spec, (draft) => {
+        const [moved] = draft.elements[sourceParentId].children!.splice(
+          sourceIndex,
+          1,
+        );
+        const tgt = (draft.elements[targetParentId].children ??= []);
+        tgt.splice(targetIndex, 0, moved);
       }),
     );
 }

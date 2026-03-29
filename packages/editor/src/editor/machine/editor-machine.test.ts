@@ -51,7 +51,13 @@ const sampleEvents = [
   { type: "COMMIT_EDIT" as const, newValue: "World" },
   { type: "CANCEL_EDIT" as const },
   { type: "DRAG_START" as const, sourceId: "el-1" },
-  { type: "DROP" as const, fromIndex: 0, toIndex: 1, parentId: "page" },
+  {
+    type: "DROP" as const,
+    sourceParentId: "page",
+    targetParentId: "page",
+    fromIndex: 0,
+    toIndex: 1,
+  },
   { type: "DRAG_CANCEL" as const },
 ];
 

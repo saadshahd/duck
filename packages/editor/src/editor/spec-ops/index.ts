@@ -3,8 +3,10 @@ export {
   getElement,
   getChildren,
   checkBounds,
+  checkBoundsInclusive,
+  collectDescendants,
   cloneAndMutate,
   moveInArray,
 } from "./helpers.js";
-export { findParent, reorderChild } from "./reorder.js";
+export { findParent, reorderChild, moveChild } from "./reorder.js";
 export { editProp } from "./edit-prop.js";
