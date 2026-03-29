@@ -22,6 +22,8 @@ import { usePropEditor } from "./prop-editor/use-prop-editor.jsx";
 import { useDragReorder, DropIndicator } from "./drag/index.js";
 import { OverlayRoot } from "./overlay/index.js";
 import { BoxModelOverlay, GapOverlay, useBoxModel } from "./box-model/index.js";
+import { useHistory, HistoryOverlay } from "./history/index.js";
+import { useKeyboard } from "./keyboard/index.js";
 
 function useFiberRegistry(
   elementIds: ReadonlySet<string>,
@@ -52,30 +54,50 @@ export function EditorShell({
   onSpecChange,
   getPropSchema,
 }: EditorShellProps) {
-  const elementIds = useMemo(() => new Set(Object.keys(spec.elements)), [spec]);
-  const fiberRegistry = useFiberRegistry(elementIds);
+  const {
+    currentSpec,
+    push,
+    send: historySend,
+    entries,
+    currentIndex,
+  } = useHistory(spec, onSpecChange);
   const [state, send] = useMachine(editorMachine);
+  useKeyboard({ machine: send, history: historySend });
+
+  const elementIds = useMemo(
+    () => new Set(Object.keys(currentSpec.elements)),
+    [currentSpec],
+  );
+  const fiberRegistry = useFiberRegistry(elementIds);
 
   useEditorSelection(fiberRegistry, send);
   const { dropTarget } = useDragReorder({
     registry: fiberRegistry,
-    spec,
+    spec: currentSpec,
     state,
     send,
-    onSpecChange,
+    push,
   });
   const popover = usePropEditor({
     registry: fiberRegistry,
-    spec,
+    spec: currentSpec,
     state,
     send,
-    onSpecChange,
+    push,
     getPropSchema,
   });
+  const handleAction = useActionHandler({
+    spec: currentSpec,
+    state,
+    send,
+    push,
+  });
 
-  const handleAction = useActionHandler({ spec, state, send, onSpecChange });
-
-  const { pointer, drag } = state.value as { pointer: string; drag: string };
+  const { pointer, drag, history } = state.value as {
+    pointer: string;
+    drag: string;
+    history: string;
+  };
   const { hoveredId, selectedId } = state.context;
 
   const showBoxModel =
@@ -87,7 +109,7 @@ export function EditorShell({
     <StateProvider initialState={{}}>
       <VisibilityProvider>
         <ActionProvider handlers={{}}>
-          <Renderer spec={spec} registry={registry} />
+          <Renderer spec={currentSpec} registry={registry} />
         </ActionProvider>
       </VisibilityProvider>
 
@@ -129,6 +151,17 @@ export function EditorShell({
           )}
         {drag === "dragging" && dropTarget && fiberRegistry && (
           <DropIndicator registry={fiberRegistry} target={dropTarget} />
+        )}
+        {history === "open" && (
+          <HistoryOverlay
+            entries={entries}
+            currentIndex={currentIndex}
+            onRestore={(idx) => historySend({ type: "RESTORE", index: idx })}
+            onRename={(idx, name) =>
+              historySend({ type: "RENAME", index: idx, name })
+            }
+            onClose={() => send({ type: "CLOSE_HISTORY" })}
+          />
         )}
       </OverlayRoot>
     </StateProvider>

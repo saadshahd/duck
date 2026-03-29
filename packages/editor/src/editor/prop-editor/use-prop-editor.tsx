@@ -8,6 +8,7 @@ import type {
   InlineEditing,
 } from "../machine/index.js";
 import { editProp } from "../spec-ops/index.js";
+import type { SpecPush } from "../history/index.js";
 import { useDoubleClickEdit } from "./use-double-click-edit.js";
 import { useInlineEdit } from "./inline-input.js";
 import { PropPopover } from "./prop-popover.js";
@@ -17,7 +18,7 @@ type UsePropEditorProps = {
   spec: Spec;
   state: EditorSnapshot;
   send: (event: EditorEvent) => void;
-  onSpecChange?: (spec: Spec) => void;
+  push: SpecPush;
   getPropSchema?: (type: string) => ZodTypeAny | undefined;
 };
 
@@ -27,7 +28,7 @@ export function usePropEditor({
   spec,
   state,
   send,
-  onSpecChange,
+  push,
   getPropSchema,
 }: UsePropEditorProps): ReactNode {
   // --- Double-click text → DOUBLE_CLICK_TEXT ---
@@ -39,14 +40,18 @@ export function usePropEditor({
 
   const commitInline = useCallback(
     (value: string) => {
-      if (inline && onSpecChange) {
-        editProp(spec, inline.elementId, inline.propKey, value).map(
-          onSpecChange,
+      if (inline) {
+        editProp(spec, inline.elementId, inline.propKey, value).map((next) =>
+          push(
+            next,
+            `Edited text: "${String(value).slice(0, 30)}"`,
+            `prop:${inline.elementId}`,
+          ),
         );
       }
       send({ type: "COMMIT_EDIT", newValue: value });
     },
-    [inline, spec, onSpecChange, send],
+    [inline, spec, push, send],
   );
 
   const cancelInline = useCallback(() => send({ type: "CANCEL_EDIT" }), [send]);
@@ -67,16 +72,15 @@ export function usePropEditor({
 
   const handlePropChange = useCallback(
     (propKey: string, value: unknown) => {
-      if (!editing || !onSpecChange) return;
-      editProp(spec, editing.elementId, propKey, value).map(onSpecChange);
+      if (!editing) return;
+      editProp(spec, editing.elementId, propKey, value).map((next) =>
+        push(next, `Changed ${propKey}`, `prop:${editing.elementId}`),
+      );
     },
-    [editing, spec, onSpecChange],
+    [editing, spec, push],
   );
 
-  const handleClose = useCallback(
-    () => send({ type: "CANCEL_EDIT" }),
-    [send],
-  );
+  const handleClose = useCallback(() => send({ type: "CANCEL_EDIT" }), [send]);
 
   if (!editing || editing.mode !== "popover" || !popoverSchema || !registry)
     return null;

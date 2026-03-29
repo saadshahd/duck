@@ -18,6 +18,7 @@ import {
   tagTransitionNames,
 } from "./helpers.js";
 import { animatedUpdate } from "../animated-update.js";
+import type { SpecPush } from "../history/index.js";
 import { resolveIndicator } from "./resolve-indicator.js";
 import { resolveDrop } from "./resolve-drop.js";
 
@@ -28,7 +29,7 @@ type Props = {
   spec: Spec;
   state: EditorSnapshot;
   send: (event: EditorEvent) => void;
-  onSpecChange?: (spec: Spec) => void;
+  push: SpecPush;
 };
 
 const stateOf = (s: EditorSnapshot) =>
@@ -36,18 +37,14 @@ const stateOf = (s: EditorSnapshot) =>
 
 // --- Hook ---
 
-export function useDragReorder({
-  registry,
-  spec,
-  state,
-  send,
-  onSpecChange,
-}: Props): { dropTarget: DropTarget | null } {
+export function useDragReorder({ registry, spec, state, send, push }: Props): {
+  dropTarget: DropTarget | null;
+} {
   const [dropTarget, setDropTarget] = useState<DropTarget | null>(null);
   const specRef = useRef(spec);
   specRef.current = spec;
-  const changeRef = useRef(onSpecChange);
-  changeRef.current = onSpecChange;
+  const pushRef = useRef(push);
+  pushRef.current = push;
 
   const selectedId = state.context.selectedId;
   const pointer = stateOf(state).pointer;
@@ -185,7 +182,10 @@ export function useDragReorder({
         descendants = new Set();
         if (!result) return send({ type: "DRAG_CANCEL" });
         result.newSpec.map((s) => {
-          if (changeRef.current) animatedUpdate(changeRef.current, s);
+          animatedUpdate(
+            (next) => pushRef.current(next, "Reordered element"),
+            s,
+          );
         });
         send(result.event);
       },
