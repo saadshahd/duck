@@ -19,6 +19,7 @@ import {
   type EditorAction,
 } from "./selection/index.js";
 import { usePropEditor } from "./prop-editor/use-prop-editor.jsx";
+import { useDragReorder, DropIndicator } from "./drag/index.js";
 import { OverlayRoot } from "./overlay/index.js";
 
 function useFiberRegistry(
@@ -55,6 +56,13 @@ export function EditorShell({
   const [state, send] = useMachine(editorMachine);
 
   useEditorSelection(fiberRegistry, send);
+  const { dropTarget } = useDragReorder({
+    registry: fiberRegistry,
+    spec,
+    state,
+    send,
+    onSpecChange,
+  });
   const popover = usePropEditor({
     registry: fiberRegistry,
     spec,
@@ -71,7 +79,7 @@ export function EditorShell({
     [send],
   );
 
-  const { pointer } = state.value as { pointer: string; drag: string };
+  const { pointer, drag } = state.value as { pointer: string; drag: string };
   const { hoveredId, selectedId } = state.context;
 
   return (
@@ -81,6 +89,11 @@ export function EditorShell({
           <Renderer spec={spec} registry={registry} />
         </ActionProvider>
       </VisibilityProvider>
+
+      <style>{`
+        body { user-select: none; }
+        ::view-transition-group(*) { animation-duration: 200ms; animation-timing-function: ease; }
+      `}</style>
 
       <OverlayRoot>
         {pointer === "hovering" && fiberRegistry && hoveredId && (
@@ -101,6 +114,9 @@ export function EditorShell({
               {pointer === "editing" && popover}
             </>
           )}
+        {drag === "dragging" && dropTarget && fiberRegistry && (
+          <DropIndicator registry={fiberRegistry} target={dropTarget} />
+        )}
       </OverlayRoot>
     </StateProvider>
   );

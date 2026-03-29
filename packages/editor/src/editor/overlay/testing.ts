@@ -65,6 +65,23 @@ export const clickToolbarButton = (page: Page, index = 0) =>
     }
   }, index);
 
+// --- Drop indicator helpers ---
+
+export const hasDropIndicator = (page: Page) =>
+  shadowQuery(
+    page,
+    (r) => r.querySelector("[data-role='drop-indicator']") !== null,
+  ) as Promise<boolean>;
+
+export const getDropIndicatorRect = (page: Page) =>
+  shadowQuery(page, (r) => {
+    const el = r.querySelector(
+      "[data-role='drop-indicator']",
+    ) as HTMLElement | null;
+    if (!el) return null;
+    return { top: el.style.top, left: el.style.left, width: el.style.width };
+  }) as Promise<{ top: string; left: string; width: string } | null>;
+
 // --- Animation & measurement helpers ---
 
 /** Wait for exactly N animation frames to elapse. */

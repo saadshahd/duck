@@ -152,6 +152,15 @@
   border-color: var(--accent);
 }
 
+/* --- Drop indicator --- */
+
+.drop-indicator {
+  position: absolute;
+  background: var(--accent);
+  pointer-events: none;
+  border-radius: 1px;
+}
+
 /* --- Inline edit --- */
 
 .inline-input {
