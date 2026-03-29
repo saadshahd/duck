@@ -18,6 +18,7 @@ import {
   FloatingActionBar,
   type EditorAction,
 } from "./selection/index.js";
+import { usePropEditor } from "./prop-editor/use-prop-editor.jsx";
 import { OverlayRoot } from "./overlay/index.js";
 
 function useFiberRegistry(
@@ -54,6 +55,14 @@ export function EditorShell({
   const [state, send] = useMachine(editorMachine);
 
   useEditorSelection(fiberRegistry, send);
+  const popover = usePropEditor({
+    registry: fiberRegistry,
+    spec,
+    state,
+    send,
+    onSpecChange,
+    getPropSchema,
+  });
 
   const handleAction = useCallback(
     (action: EditorAction) => {
@@ -89,6 +98,7 @@ export function EditorShell({
                   onAction={handleAction}
                 />
               )}
+              {pointer === "editing" && popover}
             </>
           )}
       </OverlayRoot>

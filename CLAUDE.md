@@ -51,6 +51,12 @@ When writing `packages/editor/` code:
 - Immutable document snapshots. Every edit produces a new snapshot.
 - No Effect in the browser bundle.
 
+When handling keyboard input:
+- Two levels: element-level (Enter/Escape in inputs) uses `onKeyDown`. Global editor shortcuts (Ctrl+Z, arrows, Escape to deselect) use `tinykeys` dispatching through the XState machine.
+- The machine's current state determines which keys are active — key bindings are state-dependent, not global.
+- Do NOT use `react-hotkeys-hook`, `hotkeys-js`, or other heavyweight keyboard libraries.
+- Do NOT scatter keyboard handlers across components. Global shortcuts register once in the shell via `tinykeys`.
+
 When writing `packages/mcp-server/` code:
 - Use Effect v3 for concurrency and pipelines.
 - Atomic patch application: all succeed or none applied, with rollback.
