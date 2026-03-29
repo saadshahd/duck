@@ -1,0 +1,33 @@
+/* Box-model domain — margin/padding/content/gap visualization */
+
+.box-model-layer {
+  position: absolute;
+  pointer-events: none;
+}
+
+.box-model-margin  { background: rgba(246, 178, 107, 0.3); }
+.box-model-padding { background: rgba(147, 196, 125, 0.2); }
+.box-model-content { background: rgba(147, 196, 237, 0.25); }
+
+.box-model-label {
+  position: absolute;
+  font-family: var(--font-system);
+  font-size: 11px;
+  font-weight: 400;
+  line-height: 1;
+  color: rgba(0, 0, 0, 0.55);
+  pointer-events: none;
+  white-space: nowrap;
+}
+
+.box-model-gap {
+  position: absolute;
+  pointer-events: none;
+  background: repeating-linear-gradient(
+    45deg,
+    rgba(168, 132, 199, 0.2),
+    rgba(168, 132, 199, 0.2) 4px,
+    transparent 4px,
+    transparent 8px
+  );
+}

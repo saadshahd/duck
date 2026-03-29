@@ -6,7 +6,9 @@ import {
   shift,
   autoUpdate,
 } from "@floating-ui/react";
+import { useShadowSheet } from "../overlay/index.js";
 import type { FiberRegistry } from "../fiber/index.js";
+import css from "./selection.css?inline";
 
 export type EditorAction =
   | { tag: "move-up" }
@@ -46,6 +48,7 @@ export function FloatingActionBar({
   elementId: string;
   onAction: (action: EditorAction) => void;
 }) {
+  useShadowSheet(css);
   const { refs, floatingStyles } = useFloating({
     placement: "top",
     middleware: MIDDLEWARE,

@@ -1,5 +1,7 @@
+import { useShadowSheet } from "../overlay/index.js";
 import type { BoxModelData, BoxModelEdges } from "./read-box-model.js";
 import { isZeroEdges } from "./read-box-model.js";
+import css from "./box-model.css?inline";
 
 const MIN_LABEL_STRIP = 14;
 
@@ -101,6 +103,7 @@ function Band({
 // ── Component ────────────────────────────────────────────
 
 export function BoxModelOverlay({ data }: { data: BoxModelData }) {
+  useShadowSheet(css);
   // Outermost container positioned at marginRect
   const { marginRect } = data;
 

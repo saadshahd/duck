@@ -8,8 +8,10 @@ import {
 } from "@floating-ui/react";
 import type { Spec } from "@json-render/core";
 import type { ZodTypeAny } from "zod";
+import { useShadowSheet } from "../overlay/index.js";
 import type { FiberRegistry } from "../fiber/index.js";
 import { ZodFields } from "./zod-fields.js";
+import css from "./prop-editor.css?inline";
 
 const MIDDLEWARE = [offset(8), flip(), shift({ padding: 8 })];
 
@@ -46,6 +48,7 @@ export function PropPopover({
   onPropChange,
   onClose,
 }: PropPopoverProps) {
+  useShadowSheet(css);
   const { refs, floatingStyles } = useFloating({
     placement: "bottom-start",
     middleware: MIDDLEWARE,

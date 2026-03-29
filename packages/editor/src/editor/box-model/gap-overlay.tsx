@@ -1,5 +1,7 @@
+import { useShadowSheet } from "../overlay/index.js";
 import type { FiberRegistry } from "../fiber/index.js";
 import type { GapInfo } from "./read-box-model.js";
+import css from "./box-model.css?inline";
 
 type GapRegion = { style: React.CSSProperties; value: number };
 
@@ -60,6 +62,7 @@ export function GapOverlay({
   elementId: string;
   gap: GapInfo;
 }) {
+  useShadowSheet(css);
   const el = registry.get(elementId);
   if (!el) return null;
 

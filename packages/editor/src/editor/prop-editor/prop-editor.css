@@ -1,0 +1,73 @@
+/* Prop-editor domain — property popover and inline input */
+
+.prop-popover {
+  pointer-events: auto;
+  background: var(--surface-bar);
+  border-radius: 8px;
+  box-shadow: var(--shadow-bar);
+  font-family: var(--font-system);
+  min-width: 220px;
+  max-width: 320px;
+  max-height: 400px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 12px;
+}
+
+.prop-popover label {
+  display: block;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-bar);
+  margin-bottom: 4px;
+  user-select: none;
+}
+
+.prop-popover input,
+.prop-popover select,
+.prop-popover textarea {
+  width: 100%;
+  height: 28px;
+  padding: 0 8px;
+  font-family: var(--font-system);
+  font-size: 13px;
+  color: var(--text-bar);
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.10);
+  border-radius: 6px;
+  outline: none;
+  transition: border-color 150ms ease;
+}
+
+.prop-popover textarea {
+  height: auto;
+  min-height: 56px;
+  padding: 6px 8px;
+  resize: vertical;
+}
+
+.prop-popover select {
+  appearance: none;
+  cursor: pointer;
+}
+
+.prop-popover input::placeholder,
+.prop-popover textarea::placeholder {
+  color: var(--text-bar-muted);
+}
+
+.prop-popover input:focus,
+.prop-popover select:focus,
+.prop-popover textarea:focus {
+  border-color: var(--accent);
+}
+
+.inline-input {
+  pointer-events: auto;
+  background: transparent;
+  border: 1px solid var(--accent);
+  border-radius: 2px;
+  outline: none;
+}

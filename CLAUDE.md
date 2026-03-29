@@ -51,6 +51,15 @@ When writing `packages/editor/` code:
 - Immutable document snapshots. Every edit produces a new snapshot.
 - No Effect in the browser bundle.
 
+When writing editor overlay CSS:
+- Each domain owns its CSS in a colocated `.css` file (e.g., `selection/selection.css`).
+- Shared tokens and normalize live in `overlay/tokens.css`. This is the ONLY shared stylesheet.
+- Domain components self-register their CSS via `useShadowSheet(css)` from `overlay/`. The hook is ref-counted — multiple components sharing the same CSS string produce one sheet.
+- Repeat properties (`position: absolute; pointer-events: none`) across domains rather than extracting shared base classes. Three repeated lines are cheaper than coupling domains.
+- Use CSS custom properties from `:host` (defined in `tokens.css`) for colors, shadows, fonts. Do NOT hardcode values.
+- Do NOT add CSS to `overlay/tokens.css` unless it's a design token or normalize rule that genuinely serves all domains.
+- Do NOT import one domain's CSS from another domain.
+
 When handling keyboard input:
 - Two levels: element-level (Enter/Escape in inputs) uses `onKeyDown`. Global editor shortcuts (Ctrl+Z, arrows, Escape to deselect) use `tinykeys` dispatching through the XState machine.
 - The machine's current state determines which keys are active — key bindings are state-dependent, not global.

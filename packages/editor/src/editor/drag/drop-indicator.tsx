@@ -1,5 +1,7 @@
 import type { Edge } from "@atlaskit/pragmatic-drag-and-drop-hitbox/closest-edge";
+import { useShadowSheet } from "../overlay/index.js";
 import type { FiberRegistry } from "../fiber/index.js";
+import css from "./drag.css?inline";
 
 export type Axis = "vertical" | "horizontal";
 
@@ -68,6 +70,7 @@ function LineIndicator({
 }
 
 export function DropIndicator({ registry, target }: Props) {
+  useShadowSheet(css);
   if (target.kind === "container")
     return <ContainerHighlight registry={registry} target={target} />;
   return <LineIndicator registry={registry} target={target} />;

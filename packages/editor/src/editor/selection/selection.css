@@ -1,0 +1,49 @@
+/* Selection domain — hover glow, selection ring, floating action bar */
+
+.hover-highlight {
+  position: absolute;
+  border: 2px solid var(--accent-hover);
+  border-radius: 4px;
+  pointer-events: none;
+}
+
+.selection-ring {
+  position: absolute;
+  border: 2px solid var(--accent-select);
+  border-radius: 4px;
+  pointer-events: none;
+}
+
+.action-bar {
+  display: flex;
+  gap: 4px;
+  padding: 4px;
+  background: var(--surface-bar);
+  border-radius: 8px;
+  box-shadow: var(--shadow-bar);
+  pointer-events: auto;
+  font-family: var(--font-system);
+}
+
+.action-bar button {
+  width: 28px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  background: transparent;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 14px;
+  color: var(--text-bar);
+  padding: 0;
+}
+
+.action-bar button:hover {
+  background: rgba(255, 255, 255, 0.10);
+}
+
+.action-bar button:active {
+  background: rgba(255, 255, 255, 0.15);
+}
