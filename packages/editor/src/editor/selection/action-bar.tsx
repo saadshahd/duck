@@ -1,10 +1,11 @@
-import { useEffect } from "react";
+import { useEffect, type RefObject } from "react";
 import {
   useFloating,
   offset,
   flip,
   shift,
   autoUpdate,
+  useMergeRefs,
 } from "@floating-ui/react";
 import { useShadowSheet } from "../overlay/index.js";
 import type { FiberRegistry } from "../fiber/index.js";
@@ -44,6 +45,7 @@ export function FloatingActionBar({
   canMovePrev,
   canMoveNext,
   onAction,
+  toolbarRef,
 }: {
   registry: FiberRegistry;
   elementId: string;
@@ -51,6 +53,7 @@ export function FloatingActionBar({
   canMovePrev: boolean;
   canMoveNext: boolean;
   onAction: (action: EditorAction) => void;
+  toolbarRef: RefObject<HTMLElement | null>;
 }) {
   useShadowSheet(css);
   const { refs, floatingStyles } = useFloating({
@@ -70,9 +73,10 @@ export function FloatingActionBar({
   }, [refs, registry, elementId]);
 
   const labels = MOVE_LABELS[axis];
+  const mergedRef = useMergeRefs([refs.setFloating, toolbarRef]);
 
   return (
-    <div ref={refs.setFloating} style={{ ...floatingStyles, zIndex: 1 }}>
+    <div ref={mergedRef} style={{ ...floatingStyles, zIndex: 1 }}>
       <div className="action-bar" role="toolbar">
         <button
           type="button"

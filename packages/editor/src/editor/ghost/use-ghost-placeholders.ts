@@ -1,12 +1,10 @@
 import { useEffect, useRef } from "react";
 import type { Spec } from "@json-render/core";
 import type { FiberRegistry } from "../fiber/index.js";
-import { ghostCandidateIds } from "../layout/index.js";
+import { ghostCandidateIds, isCollapsed } from "../layout/index.js";
 import { GHOST_MIN_HEIGHT } from "./constants.js";
 
 // --- Constants & types ---
-
-const SUB_PIXEL = 1;
 
 const STYLE_KEYS = [
   "minHeight",
@@ -25,9 +23,6 @@ const GHOST_STYLES: SavedStyles = {
 };
 
 // --- Helpers ---
-
-const isCollapsed = (rect: DOMRect): boolean =>
-  rect.width <= SUB_PIXEL || rect.height <= SUB_PIXEL;
 
 const saveStyles = (el: HTMLElement): SavedStyles =>
   Object.fromEntries(STYLE_KEYS.map((k) => [k, el.style[k]])) as SavedStyles;

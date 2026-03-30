@@ -1,5 +1,6 @@
 import { useShadowSheet } from "../overlay/index.js";
-import type { BoxModelData, BoxModelEdges } from "./read-box-model.js";
+import type { BoxModelData } from "./read-box-model.js";
+import type { Edges } from "../layout/rect.js";
 import { isZeroEdges } from "./read-box-model.js";
 import css from "./box-model.css?inline";
 
@@ -12,7 +13,7 @@ type EdgeLabel = { value: number; style: React.CSSProperties };
 function edgeLabels(
   outerRect: DOMRect,
   innerRect: DOMRect,
-  edges: BoxModelEdges,
+  edges: Edges,
 ): EdgeLabel[] {
   const labels: EdgeLabel[] = [];
   const midX = outerRect.x + outerRect.width / 2;
@@ -71,7 +72,7 @@ function Band({
   children,
 }: {
   className: string;
-  edges: BoxModelEdges;
+  edges: Edges;
   children?: React.ReactNode;
 }) {
   return (

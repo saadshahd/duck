@@ -3,12 +3,12 @@ import {
   readBoxModel,
   isZeroEdges,
   hasVisibleSpacing,
-  type BoxModelEdges,
 } from "./read-box-model.js";
+import type { Edges } from "../layout/rect.js";
 
 // ── helpers ──────────────────────────────────────────────
 
-const edges = (t: number, r: number, b: number, l: number): BoxModelEdges => ({
+const edges = (t: number, r: number, b: number, l: number): Edges => ({
   top: t,
   right: r,
   bottom: b,

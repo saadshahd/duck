@@ -33,27 +33,13 @@ export function HoverHighlight({
 export function SelectionRing({
   registry,
   elementId,
-  elementType,
-  onSelectParent,
 }: {
   registry: FiberRegistry;
   elementId: string;
-  elementType: string | undefined;
-  onSelectParent?: () => void;
 }) {
   useShadowSheet(css);
   const ref = useHighlightRef(registry, elementId);
   return (
-    <div ref={ref} data-role="selection-ring" className="selection-ring">
-      {elementType && (
-        <span
-          className={`element-label${onSelectParent ? " element-label--interactive" : ""}`}
-          onClick={onSelectParent}
-        >
-          {onSelectParent && <span className="element-label__arrow">↑</span>}
-          {elementType}
-        </span>
-      )}
-    </div>
+    <div ref={ref} data-role="selection-ring" className="selection-ring" />
   );
 }

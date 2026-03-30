@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useMemo, useRef } from "react";
 import type { Spec } from "@json-render/core";
 import type { ZodTypeAny } from "zod";
 import {
@@ -14,6 +14,7 @@ import {
   useEditorSelection,
   HoverHighlight,
   SelectionRing,
+  SelectionLabel,
   FloatingActionBar,
   useActionHandler,
   useMoveInfo,
@@ -104,6 +105,7 @@ export function EditorShell({
   });
 
   const selectParent = createSelectParent(currentSpec, selectedId, send);
+  const toolbarRef = useRef<HTMLElement | null>(null);
 
   useGhostPlaceholders(currentSpec, fiberRegistry);
 
@@ -139,10 +141,12 @@ export function EditorShell({
           fiberRegistry &&
           selectedId && (
             <>
-              <SelectionRing
+              <SelectionRing registry={fiberRegistry} elementId={selectedId} />
+              <SelectionLabel
                 registry={fiberRegistry}
                 elementId={selectedId}
                 elementType={currentSpec.elements[selectedId]?.type}
+                toolbarRef={toolbarRef}
                 onSelectParent={selectParent}
               />
               {boxModel && (
@@ -165,6 +169,7 @@ export function EditorShell({
                   canMovePrev={moveInfo.canMovePrev}
                   canMoveNext={moveInfo.canMoveNext}
                   onAction={handleAction}
+                  toolbarRef={toolbarRef}
                 />
               )}
               {pointer === "editing" && popover}

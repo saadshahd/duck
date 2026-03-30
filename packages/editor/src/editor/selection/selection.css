@@ -54,13 +54,23 @@
   cursor: default;
 }
 
+/* Floating label root — positioned by floating-ui */
+
+.selection-label-root {
+  pointer-events: none;
+}
+
 /* Element type label — corner tag on highlight */
 
-.element-label {
+/* When label is a child of a highlight (hover) — position via CSS */
+.hover-highlight > .element-label {
   position: absolute;
   top: 0;
   left: 0;
   transform: translateY(-100%);
+}
+
+.element-label {
   background: var(--surface-bar);
   color: var(--text-bar);
   font-family: var(--font-system);
@@ -71,6 +81,11 @@
   white-space: nowrap;
   pointer-events: none;
   line-height: 1.4;
+}
+
+/* Flip radius when label is placed below the element */
+.element-label[data-side="bottom"] {
+  border-radius: 0 0 4px 4px;
 }
 
 .element-label--interactive {
