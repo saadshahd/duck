@@ -15,27 +15,45 @@ export function outsetRect(rect: DOMRect) {
 export function HoverHighlight({
   registry,
   elementId,
+  elementType,
 }: {
   registry: FiberRegistry;
   elementId: string;
+  elementType: string | undefined;
 }) {
   useShadowSheet(css);
   const ref = useHighlightRef(registry, elementId);
   return (
-    <div ref={ref} data-role="hover-highlight" className="hover-highlight" />
+    <div ref={ref} data-role="hover-highlight" className="hover-highlight">
+      {elementType && <span className="element-label">{elementType}</span>}
+    </div>
   );
 }
 
 export function SelectionRing({
   registry,
   elementId,
+  elementType,
+  onSelectParent,
 }: {
   registry: FiberRegistry;
   elementId: string;
+  elementType: string | undefined;
+  onSelectParent?: () => void;
 }) {
   useShadowSheet(css);
   const ref = useHighlightRef(registry, elementId);
   return (
-    <div ref={ref} data-role="selection-ring" className="selection-ring" />
+    <div ref={ref} data-role="selection-ring" className="selection-ring">
+      {elementType && (
+        <span
+          className={`element-label${onSelectParent ? " element-label--interactive" : ""}`}
+          onClick={onSelectParent}
+        >
+          {onSelectParent && <span className="element-label__arrow">↑</span>}
+          {elementType}
+        </span>
+      )}
+    </div>
   );
 }

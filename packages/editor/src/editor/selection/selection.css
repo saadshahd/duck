@@ -53,3 +53,41 @@
   pointer-events: none;
   cursor: default;
 }
+
+/* Element type label — corner tag on highlight */
+
+.element-label {
+  position: absolute;
+  top: 0;
+  left: 0;
+  transform: translateY(-100%);
+  background: var(--surface-bar);
+  color: var(--text-bar);
+  font-family: var(--font-system);
+  font-size: 12px;
+  font-weight: 500;
+  padding: 2px 6px;
+  border-radius: 4px 4px 0 0;
+  white-space: nowrap;
+  pointer-events: none;
+  line-height: 1.4;
+}
+
+.element-label--interactive {
+  pointer-events: auto;
+  cursor: pointer;
+}
+
+.element-label__arrow {
+  opacity: 0.4;
+  margin-right: 3px;
+  transition: opacity 150ms ease;
+}
+
+.element-label--interactive:hover .element-label__arrow {
+  opacity: 1;
+}
+
+.element-label--interactive:hover {
+  background: rgba(30, 41, 59, 0.95);
+}

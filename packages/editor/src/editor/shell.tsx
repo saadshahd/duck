@@ -18,6 +18,7 @@ import {
   FloatingActionBar,
   useActionHandler,
   useMoveInfo,
+  createSelectParent,
 } from "./selection/index.js";
 import { usePropEditor } from "./prop-editor/use-prop-editor.jsx";
 import { useDragReorder, DropIndicator } from "./drag/index.js";
@@ -67,7 +68,6 @@ export function EditorShell({
     onMouseLeave: timelineMouseLeave,
   } = useHistory(spec, onSpecChange);
   const [state, send] = useMachine(editorMachine);
-  useKeyboard({ machine: send, history: historySend });
 
   const elementIds = useMemo(
     () => new Set(Object.keys(currentSpec.elements)),
@@ -110,6 +110,14 @@ export function EditorShell({
   };
   const { hoveredId, selectedId } = state.context;
 
+  useKeyboard({
+    machine: send,
+    history: historySend,
+    nav: { spec: currentSpec, selectedId, pointer },
+  });
+
+  const selectParent = createSelectParent(currentSpec, selectedId, send);
+
   useGhostPlaceholders(currentSpec, fiberRegistry);
 
   const showBoxModel =
@@ -132,13 +140,22 @@ export function EditorShell({
 
       <OverlayRoot>
         {pointer === "hovering" && fiberRegistry && hoveredId && (
-          <HoverHighlight registry={fiberRegistry} elementId={hoveredId} />
+          <HoverHighlight
+            registry={fiberRegistry}
+            elementId={hoveredId}
+            elementType={currentSpec.elements[hoveredId]?.type}
+          />
         )}
         {(pointer === "selected" || pointer === "editing") &&
           fiberRegistry &&
           selectedId && (
             <>
-              <SelectionRing registry={fiberRegistry} elementId={selectedId} />
+              <SelectionRing
+                registry={fiberRegistry}
+                elementId={selectedId}
+                elementType={currentSpec.elements[selectedId]?.type}
+                onSelectParent={selectParent}
+              />
               {boxModel && (
                 <>
                   <BoxModelOverlay data={boxModel} />

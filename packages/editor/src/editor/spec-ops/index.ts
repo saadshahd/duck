@@ -12,3 +12,8 @@ export {
 export { findParent, reorderChild, moveChild } from "./reorder.js";
 export { editProp } from "./edit-prop.js";
 export { deleteElement } from "./delete.js";
+export {
+  nextInTreeOrder,
+  type NavDirection,
+  type NavTarget,
+} from "./navigation.js";
