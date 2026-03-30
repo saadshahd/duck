@@ -25,6 +25,7 @@ import { OverlayRoot } from "./overlay/index.js";
 import { BoxModelOverlay, GapOverlay, useBoxModel } from "./box-model/index.js";
 import { useHistory, HistoryTimeline } from "./history/index.js";
 import { useKeyboard } from "./keyboard/index.js";
+import { useGhostPlaceholders } from "./ghost/index.js";
 
 function useFiberRegistry(
   elementIds: ReadonlySet<string>,
@@ -108,6 +109,8 @@ export function EditorShell({
     drag: string;
   };
   const { hoveredId, selectedId } = state.context;
+
+  useGhostPlaceholders(currentSpec, fiberRegistry);
 
   const showBoxModel =
     pointer === "selected" ||

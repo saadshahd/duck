@@ -2,7 +2,12 @@ import { useCallback } from "react";
 import type { Spec } from "@json-render/core";
 import type { EditorEvent, EditorSnapshot } from "../machine/index.js";
 import type { Axis } from "../layout/index.js";
-import { findParent, reorderChild, deleteElement } from "../spec-ops/index.js";
+import {
+  findParent,
+  reorderChild,
+  deleteElement,
+  nearestSibling,
+} from "../spec-ops/index.js";
 import { animatedUpdate } from "../animated-update.js";
 import type { SpecPush } from "../types.js";
 import type { EditorAction } from "./action-bar.js";
@@ -62,9 +67,10 @@ export function useActionHandler({
             );
           break;
         case "delete":
-          deleteElement(spec, id).map((next) => {
+          deleteElement(spec, id).map(({ spec: next, parentId }) => {
+            const nextId = nearestSibling(spec, parentId, id);
             push(next, `Deleted ${type}`);
-            send({ type: "DESELECT" });
+            send({ type: "SELECT", elementId: nextId });
           });
           break;
       }

@@ -30,16 +30,26 @@ const nested = (): Spec => ({
 describe("deleteElement", () => {
   it("deletes a leaf element", () => {
     const result = deleteElement(leaf(), "b");
-    expect(result.isOk() && result.value.elements.page.children).toEqual([
+    expect(result.isOk() && result.value.spec.elements.page.children).toEqual([
       "a",
       "c",
     ]);
-    expect(result.isOk() && result.value.elements).not.toHaveProperty("b");
+    expect(result.isOk() && result.value.spec.elements).not.toHaveProperty("b");
+  });
+
+  it("returns parentId", () => {
+    const result = deleteElement(leaf(), "b");
+    expect(result.isOk() && result.value.parentId).toBe("page");
+  });
+
+  it("returns nested parentId", () => {
+    const result = deleteElement(nested(), "a");
+    expect(result.isOk() && result.value.parentId).toBe("container");
   });
 
   it("deletes first child", () => {
     const result = deleteElement(leaf(), "a");
-    expect(result.isOk() && result.value.elements.page.children).toEqual([
+    expect(result.isOk() && result.value.spec.elements.page.children).toEqual([
       "b",
       "c",
     ]);
@@ -47,7 +57,7 @@ describe("deleteElement", () => {
 
   it("deletes last child", () => {
     const result = deleteElement(leaf(), "c");
-    expect(result.isOk() && result.value.elements.page.children).toEqual([
+    expect(result.isOk() && result.value.spec.elements.page.children).toEqual([
       "a",
       "b",
     ]);
@@ -55,8 +65,10 @@ describe("deleteElement", () => {
 
   it("deletes a subtree (element + all descendants)", () => {
     const result = deleteElement(nested(), "container");
-    expect(result.isOk() && result.value.elements.page.children).toEqual(["x"]);
-    const elements = result.isOk() && result.value.elements;
+    expect(result.isOk() && result.value.spec.elements.page.children).toEqual([
+      "x",
+    ]);
+    const elements = result.isOk() && result.value.spec.elements;
     expect(elements).not.toHaveProperty("container");
     expect(elements).not.toHaveProperty("a");
     expect(elements).not.toHaveProperty("b");
@@ -66,7 +78,7 @@ describe("deleteElement", () => {
   it("returns new spec (immutable)", () => {
     const original = leaf();
     const result = deleteElement(original, "b");
-    expect(result.isOk() && result.value).not.toBe(original);
+    expect(result.isOk() && result.value.spec).not.toBe(original);
     expect(original.elements.page.children).toEqual(["a", "b", "c"]);
     expect(original.elements).toHaveProperty("b");
   });
