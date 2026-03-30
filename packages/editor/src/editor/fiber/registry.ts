@@ -25,10 +25,29 @@ function fiberToElement(fiber: Fiber): HTMLElement | undefined {
 
 export function createFiberRegistry(
   getNodeIds: () => ReadonlySet<string>,
+  getRootContainer?: () => HTMLElement | null,
+  getRootId?: () => string | undefined,
 ): FiberRegistry {
   const map = new Map<string, HTMLElement>();
+  const reverseMap = new Map<Element, string>();
   let currentIds: ReadonlySet<string> = new Set();
   let disposed = false;
+
+  const register = (id: string, el: HTMLElement) => {
+    map.set(id, el);
+    reverseMap.set(el, id);
+  };
+
+  // @json-render/react doesn't key the root ElementRenderer,
+  // so it's invisible to the keyed-fiber pass. Fall back to DOM.
+  const registerRoot = () => {
+    const rootId = getRootId?.();
+    const container = getRootContainer?.();
+    if (!rootId || !container || !currentIds.has(rootId) || map.has(rootId))
+      return;
+    const el = container.firstElementChild;
+    if (el instanceof HTMLElement) register(rootId, el);
+  };
 
   instrument(
     secure({
@@ -36,12 +55,14 @@ export function createFiberRegistry(
         if (disposed) return;
         currentIds = getNodeIds();
         map.clear();
+        reverseMap.clear();
         traverseFiber(root.current as Fiber, (fiber) => {
           if (!fiber.key) return;
           const id = stripReactKeyPrefix(fiber.key);
           const el = currentIds.has(id) ? fiberToElement(fiber) : undefined;
-          if (el) map.set(id, el);
+          if (el) register(id, el);
         });
+        registerRoot();
       },
     }),
   );
@@ -52,6 +73,8 @@ export function createFiberRegistry(
   return {
     get: (nodeId) => map.get(nodeId),
     getNodeId: (element) => {
+      const found = reverseMap.get(element);
+      if (found) return found;
       const match = traverseFiber(
         getFiberFromHostInstance(element),
         (f) => isKnownKey(f.key),
@@ -63,6 +86,7 @@ export function createFiberRegistry(
     dispose: () => {
       disposed = true;
       map.clear();
+      reverseMap.clear();
     },
   };
 }

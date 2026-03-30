@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, useMemo } from "react";
+import { useMemo } from "react";
 import type { Spec } from "@json-render/core";
 import type { ZodTypeAny } from "zod";
 import {
@@ -9,7 +9,6 @@ import {
 } from "@json-render/react";
 import type { ComponentRegistry } from "@json-render/react";
 import { useMachine } from "@xstate/react";
-import { createFiberRegistry, type FiberRegistry } from "./fiber/index.js";
 import { editorMachine } from "./machine/index.js";
 import {
   useEditorSelection,
@@ -27,22 +26,7 @@ import { BoxModelOverlay, GapOverlay, useBoxModel } from "./box-model/index.js";
 import { useHistory, HistoryTimeline } from "./history/index.js";
 import { useKeyboard } from "./keyboard/index.js";
 import { useGhostPlaceholders } from "./ghost/index.js";
-
-function useFiberRegistry(
-  elementIds: ReadonlySet<string>,
-): FiberRegistry | null {
-  const idsRef = useRef(elementIds);
-  idsRef.current = elementIds;
-  const [registry, setRegistry] = useState<FiberRegistry | null>(null);
-
-  useEffect(function initFiberRegistry() {
-    const reg = createFiberRegistry(() => idsRef.current);
-    setRegistry(reg);
-    return () => reg.dispose();
-  }, []);
-
-  return registry;
-}
+import { useFiberRegistry } from "./shell/use-fiber-registry.js";
 
 type EditorShellProps = {
   spec: Spec;
@@ -73,7 +57,10 @@ export function EditorShell({
     () => new Set(Object.keys(currentSpec.elements)),
     [currentSpec],
   );
-  const fiberRegistry = useFiberRegistry(elementIds);
+  const { registry: fiberRegistry, containerRef } = useFiberRegistry(
+    elementIds,
+    currentSpec,
+  );
 
   useEditorSelection(fiberRegistry, send);
   const { dropTarget } = useDragReorder({
@@ -129,7 +116,9 @@ export function EditorShell({
     <StateProvider initialState={{}}>
       <VisibilityProvider>
         <ActionProvider handlers={{}}>
-          <Renderer spec={currentSpec} registry={registry} />
+          <div ref={containerRef} style={{ display: "contents" }}>
+            <Renderer spec={currentSpec} registry={registry} />
+          </div>
         </ActionProvider>
       </VisibilityProvider>
 
