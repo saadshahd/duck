@@ -44,8 +44,10 @@ describe("editProp", () => {
     expect(result.isErr() && result.error.tag).toBe("element-not-found");
   });
 
-  it("fails for nonexistent prop", () => {
+  it("creates prop when key does not exist", () => {
     const result = editProp(spec(), "heading", "color", "red");
-    expect(result.isErr() && result.error.tag).toBe("prop-not-found");
+    expect(result.isOk() && result.value.elements.heading.props.color).toBe(
+      "red",
+    );
   });
 });
