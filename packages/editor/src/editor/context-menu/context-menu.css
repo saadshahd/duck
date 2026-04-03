@@ -2,6 +2,7 @@
 
 .context-menu {
   pointer-events: auto;
+  z-index: 2;
   background: var(--surface-bar);
   border-radius: 8px;
   box-shadow: 0 4px 16px rgba(0, 0, 0, 0.24), 0 0 0 1px rgba(255, 255, 255, 0.06);
@@ -43,4 +44,43 @@
   font-size: 11px;
   color: var(--text-bar-muted);
   line-height: 1;
+}
+
+.context-menu-divider {
+  height: 1px;
+  margin: 4px 0;
+  background: rgba(255, 255, 255, 0.10);
+}
+
+.context-menu-action {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 7px 8px;
+  border-radius: 4px;
+  cursor: pointer;
+  user-select: none;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text-bar);
+  transition: background 80ms ease;
+}
+
+.context-menu-action:hover {
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.context-menu-action[aria-disabled] {
+  color: var(--text-bar-muted);
+  cursor: default;
+}
+
+.context-menu-action[aria-disabled]:hover {
+  background: none;
+}
+
+.context-menu-shortcut {
+  font-size: 11px;
+  color: var(--text-bar-muted);
+  margin-left: 16px;
 }

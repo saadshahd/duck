@@ -29,6 +29,7 @@ import { useKeyboard } from "./keyboard/index.js";
 import { useGhostPlaceholders } from "./ghost/index.js";
 import { useFiberRegistry } from "./shell/use-fiber-registry.js";
 import { useContextMenu, ContextMenu } from "./context-menu/index.js";
+import { useClipboard } from "./clipboard/index.js";
 
 type EditorShellProps = {
   spec: Spec;
@@ -99,10 +100,19 @@ export function EditorShell({
   };
   const { hoveredId, selectedId } = state.context;
 
+  const clipboard = useClipboard({
+    spec: currentSpec,
+    selectedId,
+    push,
+    onSelect: (id) => send({ type: "SELECT", elementId: id }),
+    onDeselect: () => send({ type: "DESELECT" }),
+  });
+
   useKeyboard({
     machine: send,
     history: historySend,
     nav: { spec: currentSpec, selectedId, pointer },
+    clipboard,
   });
 
   const selectParent = createSelectParent(currentSpec, selectedId, send);
@@ -201,7 +211,9 @@ export function EditorShell({
             y={menu.y}
             elementIds={menu.elementIds}
             spec={currentSpec}
+            selectedId={selectedId}
             send={send}
+            clipboard={clipboard}
             onHighlight={setMenuHighlightId}
             onClose={closeMenu}
           />

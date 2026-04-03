@@ -3,10 +3,41 @@ import { useFloating, flip, shift } from "@floating-ui/react";
 import type { Spec } from "@json-render/core";
 import { useShadowSheet, useOnClickOutside } from "../overlay/index.js";
 import type { EditorEvent } from "../machine/index.js";
+import type { ClipboardActions } from "../clipboard/index.js";
 import { useMenuKeyboard } from "./use-menu-keyboard.js";
 import css from "./context-menu.css?inline";
 
 const MIDDLEWARE = [flip(), shift({ padding: 8 })];
+
+const isMac = navigator.platform.startsWith("Mac");
+const MOD = isMac ? "\u2318" : "Ctrl+";
+
+const CLIPBOARD_ITEMS: {
+  label: string;
+  shortcut: string;
+  action: keyof ClipboardActions;
+  needsSelection: boolean;
+}[] = [
+  {
+    label: "Copy",
+    shortcut: `${MOD}C`,
+    action: "onCopy",
+    needsSelection: true,
+  },
+  { label: "Cut", shortcut: `${MOD}X`, action: "onCut", needsSelection: true },
+  {
+    label: "Paste",
+    shortcut: `${MOD}V`,
+    action: "onPaste",
+    needsSelection: false,
+  },
+  {
+    label: "Duplicate",
+    shortcut: `${MOD}D`,
+    action: "onDuplicate",
+    needsSelection: true,
+  },
+];
 
 const isEntering = (e: React.MouseEvent) => {
   const related = e.relatedTarget as Node | null;
@@ -18,7 +49,9 @@ type ContextMenuProps = {
   y: number;
   elementIds: string[];
   spec: Spec;
+  selectedId: string | null;
   send: (event: EditorEvent) => void;
+  clipboard: ClipboardActions;
   onHighlight: (elementId: string | null) => void;
   onClose: () => void;
 };
@@ -28,7 +61,9 @@ export function ContextMenu({
   y,
   elementIds,
   spec,
+  selectedId,
   send,
+  clipboard,
   onHighlight,
   onClose,
 }: ContextMenuProps) {
@@ -106,6 +141,26 @@ export function ContextMenu({
           >
             <span className="context-menu-item-type">{element.type}</span>
             <span className="context-menu-item-id">{id}</span>
+          </div>
+        );
+      })}
+      <div className="context-menu-divider" />
+      {CLIPBOARD_ITEMS.map(({ label, shortcut, action, needsSelection }) => {
+        const disabled = needsSelection && !selectedId;
+        return (
+          <div
+            key={action}
+            className="context-menu-action"
+            role="menuitem"
+            aria-disabled={disabled || undefined}
+            onClick={() => {
+              if (disabled) return;
+              clipboard[action]();
+              onClose();
+            }}
+          >
+            <span>{label}</span>
+            <span className="context-menu-shortcut">{shortcut}</span>
           </div>
         );
       })}

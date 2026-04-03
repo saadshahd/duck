@@ -2,6 +2,7 @@ import { useEffect, useRef } from "react";
 import { tinykeys } from "tinykeys";
 import type { Spec } from "@json-render/core";
 import { nextInTreeOrder, type NavTarget } from "../spec-ops/index.js";
+import type { ClipboardActions } from "../clipboard/index.js";
 import { arrowToDirection } from "./navigation.js";
 
 // Widened — type safety comes from the static BINDINGS maps, not this signature
@@ -62,15 +63,45 @@ const arrowBindings = (send: Send, navRef: React.RefObject<NavContext>) =>
     ]),
   );
 
+const CLIPBOARD_KEYS: Record<string, keyof ClipboardActions> = {
+  "$mod+c": "onCopy",
+  "$mod+x": "onCut",
+  "$mod+v": "onPaste",
+  "$mod+d": "onDuplicate",
+};
+
+const clipboardBindings = (
+  navRef: React.RefObject<NavContext>,
+  cbRef: React.RefObject<ClipboardActions>,
+) =>
+  Object.fromEntries(
+    Object.entries(CLIPBOARD_KEYS).map(([key, action]) => [
+      key,
+      (e: KeyboardEvent) => {
+        const { pointer, selectedId } = navRef.current;
+        const needsSelection = action !== "onPaste";
+        if (pointer === "editing") return;
+        if (needsSelection && (pointer !== "selected" || !selectedId)) return;
+
+        e.preventDefault();
+        cbRef.current[action]();
+      },
+    ]),
+  );
+
 // --- Hook ---
 
 export function useKeyboard(targets: {
   machine: Send;
   history: Send;
   nav: NavContext;
+  clipboard: ClipboardActions;
 }): void {
   const navRef = useRef(targets.nav);
   navRef.current = targets.nav;
+
+  const cbRef = useRef(targets.clipboard);
+  cbRef.current = targets.clipboard;
 
   useEffect(
     () =>
@@ -78,6 +109,7 @@ export function useKeyboard(targets: {
         ...eventBindings(targets.machine, MACHINE_BINDINGS),
         ...eventBindings(targets.history, HISTORY_BINDINGS),
         ...arrowBindings(targets.machine, navRef),
+        ...clipboardBindings(navRef, cbRef),
       }),
     [targets.machine, targets.history],
   );
