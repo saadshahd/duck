@@ -31,7 +31,7 @@
       "props": {
         "level": "h1",
         "text": "Visual Editor for json-render",
-        "style": { "fontSize": "3rem", "marginBottom": 0 }
+        "style": { "fontSize": "3rem", "marginBottom": "0" }
       }
     },
     "hero-description": {
