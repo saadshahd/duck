@@ -14,7 +14,7 @@ type UseDoubleClickEditProps = {
 };
 
 /**
- * Wire double-click on text to DOUBLE_CLICK_TEXT machine event.
+ * Wire double-click on text to START_INLINE_EDIT machine event.
  * Resolves the clicked text → element → string prop via findEditableProp.
  */
 export function useDoubleClickEdit({
@@ -48,10 +48,11 @@ export function useDoubleClickEdit({
 
         e.preventDefault();
         send({
-          type: "DOUBLE_CLICK_TEXT",
+          type: "START_INLINE_EDIT",
           elementId: hit.elementId,
           propKey: match.propKey,
           original: match.value,
+          trigger: "select",
         });
       };
 

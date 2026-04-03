@@ -43,10 +43,11 @@ const sampleEvents = [
   { type: "DESELECT" as const },
   { type: "OPEN_POPOVER" as const },
   {
-    type: "DOUBLE_CLICK_TEXT" as const,
+    type: "START_INLINE_EDIT" as const,
     elementId: "el-1",
     propKey: "text",
     original: "Hello",
+    trigger: "select" as const,
   },
   { type: "COMMIT_EDIT" as const, newValue: "World" },
   { type: "CANCEL_EDIT" as const },
@@ -130,14 +131,61 @@ describe("exclusivity guards", () => {
       { type: "SELECT", elementId: "x" },
       { type: "DRAG_START", sourceId: "x" },
       {
-        type: "DOUBLE_CLICK_TEXT",
+        type: "START_INLINE_EDIT",
         elementId: "x",
         propKey: "text",
         original: "Hi",
+        trigger: "select" as const,
       },
     );
     expect((s.value as MachineValue).pointer).toBe("selected");
     expect(s.context.editing).toBeNull();
+  });
+});
+
+// --- Inline edit trigger variants ---
+
+describe("inline edit trigger", () => {
+  it("select trigger stores propKey and original", () => {
+    const s = walk(
+      { type: "SELECT", elementId: "x" },
+      {
+        type: "START_INLINE_EDIT",
+        elementId: "x",
+        propKey: "text",
+        original: "Hi",
+        trigger: "select" as const,
+      },
+    );
+    expect(s.context.editing).toEqual({
+      elementId: "x",
+      mode: "inline",
+      propKey: "text",
+      original: "Hi",
+      trigger: "select",
+    });
+  });
+
+  it("replace trigger stores char", () => {
+    const s = walk(
+      { type: "SELECT", elementId: "x" },
+      {
+        type: "START_INLINE_EDIT",
+        elementId: "x",
+        propKey: "text",
+        original: "Hi",
+        trigger: "replace" as const,
+        char: "H",
+      },
+    );
+    expect(s.context.editing).toEqual({
+      elementId: "x",
+      mode: "inline",
+      propKey: "text",
+      original: "Hi",
+      trigger: "replace",
+      char: "H",
+    });
   });
 });
 

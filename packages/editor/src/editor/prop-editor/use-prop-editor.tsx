@@ -10,6 +10,7 @@ import type {
 import { editProp } from "../spec-ops/index.js";
 import type { SpecPush } from "../types.js";
 import { useDoubleClickEdit } from "./use-double-click-edit.js";
+import { useKeyboardEdit } from "./use-keyboard-edit.js";
 import { useInlineEdit } from "./inline-input.js";
 import { PropPopover } from "./prop-popover.js";
 
@@ -31,8 +32,11 @@ export function usePropEditor({
   push,
   getPropSchema,
 }: UsePropEditorProps): ReactNode {
-  // --- Double-click text → DOUBLE_CLICK_TEXT ---
   useDoubleClickEdit({ registry, spec, getPropSchema, send });
+
+  const { pointer } = state.value as { pointer: string };
+  const { selectedId } = state.context;
+  useKeyboardEdit({ spec, selectedId, pointer, getPropSchema, send });
 
   // --- Inline editing lifecycle ---
   const editing = state.context.editing;
@@ -58,8 +62,7 @@ export function usePropEditor({
 
   useInlineEdit({
     registry,
-    elementId: inline?.elementId ?? "",
-    original: inline?.original ?? "",
+    editing: inline,
     onCommit: commitInline,
     onCancel: cancelInline,
   });

@@ -1,7 +1,10 @@
 import { describe, it, expect } from "bun:test";
 import { z } from "zod";
 import type { UIElement } from "@json-render/core";
-import { findEditableProp } from "./find-editable-prop.js";
+import {
+  findEditableProp,
+  findSingleEditableProp,
+} from "./find-editable-prop.js";
 
 const el = (type: string, props: Record<string, unknown>): UIElement => ({
   type,
@@ -101,5 +104,33 @@ describe("findEditableProp", () => {
       propKey: "text",
       value: "Hello",
     });
+  });
+});
+
+describe("findSingleEditableProp", () => {
+  it("returns the single string prop", () => {
+    const element = el("Heading", { text: "Hello", level: "h1" });
+    expect(findSingleEditableProp(element, headingSchema)).toEqual({
+      propKey: "text",
+      value: "Hello",
+    });
+  });
+
+  it("returns null when no string props exist", () => {
+    const element = el("Box", { padding: "1rem" });
+    const schema = z.object({ padding: z.number() });
+    expect(findSingleEditableProp(element, schema)).toBeNull();
+  });
+
+  it("returns null when multiple string props exist", () => {
+    const element = el("Custom", { title: "A", subtitle: "B" });
+    const schema = z.object({ title: z.string(), subtitle: z.string() });
+    expect(findSingleEditableProp(element, schema)).toBeNull();
+  });
+
+  it("returns null when string prop value is undefined", () => {
+    const schema = z.object({ text: z.string().optional() });
+    const element = el("Text", {});
+    expect(findSingleEditableProp(element, schema)).toBeNull();
   });
 });

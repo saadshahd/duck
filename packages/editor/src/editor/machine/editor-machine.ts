@@ -2,12 +2,15 @@ import { setup, assign, type SnapshotFrom } from "xstate";
 
 // --- Context ---
 
-export type InlineEditing = {
+type InlineEditBase = {
   elementId: string;
   mode: "inline";
   propKey: string;
   original: string;
 };
+
+export type InlineEditing = InlineEditBase &
+  ({ trigger: "select" } | { trigger: "replace"; char: string });
 
 export type PopoverEditing = {
   elementId: string;
@@ -31,12 +34,12 @@ export type EditorEvent =
   | { type: "SELECT"; elementId: string }
   | { type: "DESELECT" }
   | { type: "OPEN_POPOVER" }
-  | {
-      type: "DOUBLE_CLICK_TEXT";
+  | ({
+      type: "START_INLINE_EDIT";
       elementId: string;
       propKey: string;
       original: string;
-    }
+    } & ({ trigger: "select" } | { trigger: "replace"; char: string }))
   | { type: "COMMIT_EDIT"; newValue: unknown }
   | { type: "CANCEL_EDIT" }
   | { type: "DRAG_START"; sourceId: string }
@@ -140,16 +143,27 @@ export const editorMachine = setup({
                     : null,
               }),
             },
-            DOUBLE_CLICK_TEXT: {
+            START_INLINE_EDIT: {
               guard: "notDragging",
               target: "editing",
               actions: assign({
-                editing: ({ event }) => ({
-                  elementId: event.elementId,
-                  mode: "inline",
-                  propKey: event.propKey,
-                  original: event.original,
-                }),
+                editing: ({ event }) =>
+                  event.trigger === "replace"
+                    ? {
+                        elementId: event.elementId,
+                        mode: "inline" as const,
+                        propKey: event.propKey,
+                        original: event.original,
+                        trigger: "replace" as const,
+                        char: event.char,
+                      }
+                    : {
+                        elementId: event.elementId,
+                        mode: "inline" as const,
+                        propKey: event.propKey,
+                        original: event.original,
+                        trigger: "select" as const,
+                      },
               }),
             },
           },

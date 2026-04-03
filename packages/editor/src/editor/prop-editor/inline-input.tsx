@@ -1,10 +1,10 @@
 import { useEffect } from "react";
 import type { FiberRegistry } from "../fiber/index.js";
+import type { InlineEditing } from "../machine/index.js";
 
 type UseInlineEditProps = {
   registry: FiberRegistry | null;
-  elementId: string;
-  original: string;
+  editing: InlineEditing | null;
   onCommit: (value: string) => void;
   onCancel: () => void;
 };
@@ -17,30 +17,37 @@ const selectAll = (el: HTMLElement): void => {
   sel?.addRange(range);
 };
 
-/**
- * Makes the target element contentEditable in place.
- * Enter / blur → commit, Escape → cancel (restores original text).
- */
+const prepare = (el: HTMLElement, editing: InlineEditing): void => {
+  if (editing.trigger === "replace") {
+    el.textContent = editing.char;
+    const sel = window.getSelection();
+    sel?.selectAllChildren(el);
+    sel?.collapseToEnd();
+  } else {
+    selectAll(el);
+  }
+};
+
 export function useInlineEdit({
   registry,
-  elementId,
-  original,
+  editing,
   onCommit,
   onCancel,
 }: UseInlineEditProps): void {
   useEffect(
     function attachContentEditable() {
-      const el = registry?.get(elementId);
+      if (!editing) return;
+      const el = registry?.get(editing.elementId);
       if (!el) return;
 
       el.contentEditable = "true";
       el.focus();
-      selectAll(el);
+      prepare(el, editing);
 
       const keyActions: Record<string, () => void> = {
         Enter: () => onCommit(el.textContent ?? ""),
         Escape: () => {
-          el.textContent = original;
+          el.textContent = editing.original;
           onCancel();
         },
       };
@@ -63,6 +70,6 @@ export function useInlineEdit({
         el.removeEventListener("blur", onBlur);
       };
     },
-    [registry, elementId, original, onCommit, onCancel],
+    [registry, editing, onCommit, onCancel],
   );
 }
