@@ -13,6 +13,14 @@ export { findParent, reorderChild, moveChild } from "./reorder.js";
 export { editProp } from "./edit-prop.js";
 export { deleteElement } from "./delete.js";
 export {
+  type SpecFragment,
+  type DuplicateResult,
+  serializeFragment,
+  deserializeFragment,
+  insertFragment,
+  duplicate,
+} from "./clipboard.js";
+export {
   nextInTreeOrder,
   type NavDirection,
   type NavTarget,

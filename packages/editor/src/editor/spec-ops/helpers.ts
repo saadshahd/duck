@@ -11,7 +11,8 @@ export type SpecOpsError =
   | { tag: "same-index"; index: number }
   | { tag: "same-position"; parentId: string; index: number }
   | { tag: "circular-move"; elementId: string; targetParentId: string }
-  | { tag: "cannot-delete-root"; elementId: string };
+  | { tag: "cannot-delete-root"; elementId: string }
+  | { tag: "cannot-duplicate-root"; elementId: string };
 
 // --- Spec accessors ---
 
