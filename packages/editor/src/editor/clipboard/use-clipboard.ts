@@ -66,7 +66,7 @@ export function useClipboard(deps: ClipboardDeps): ClipboardActions {
         return deleteElement(spec, selectedId);
       })
       .map(({ spec: newSpec }) => {
-        push(newSpec, "Cut", "clipboard");
+        push(newSpec, "Cut");
         onDeselect();
       });
   }, []);
@@ -82,8 +82,14 @@ export function useClipboard(deps: ClipboardDeps): ClipboardActions {
       new Set(Object.keys(spec.elements)),
     );
 
-    insertFragment(spec, remapped, capturedId ?? spec.root).map((newSpec) => {
-      push(newSpec, "Paste", "clipboard");
+    const target = capturedId ?? spec.root;
+    const hasChildren = !!spec.elements[target]?.children;
+    const position = hasChildren
+      ? { tag: "child" as const }
+      : { tag: "after" as const };
+
+    insertFragment(spec, remapped, target, position).map((newSpec) => {
+      push(newSpec, "Paste");
       onSelect(remapped.root);
     });
   }, []);
@@ -92,7 +98,7 @@ export function useClipboard(deps: ClipboardDeps): ClipboardActions {
     const { spec, selectedId, push, onSelect } = ref.current;
     if (!selectedId) return;
     duplicate(spec, selectedId).map(({ spec: newSpec, newRootId }) => {
-      push(newSpec, "Duplicate", "clipboard");
+      push(newSpec, "Duplicate");
       onSelect(newRootId);
     });
   }, []);

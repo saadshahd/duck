@@ -139,16 +139,25 @@ describe("deserializeFragment", () => {
 
 // --- insertFragment ---
 
-describe("insertFragment", () => {
-  it("inserts fragment after the target element", () => {
+describe("insertFragment — after", () => {
+  const after = { tag: "after" as const };
+
+  it("inserts as sibling after a leaf element", () => {
     const frag = deserializeFragment(
       fragment(),
       new Set(Object.keys(flat().elements)),
     );
-    const result = insertFragment(flat(), frag, "a");
-    expect(result.isOk()).toBe(true);
-    const s = result._unsafeUnwrap();
+    const s = insertFragment(flat(), frag, "a", after)._unsafeUnwrap();
     expect(s.elements.page.children).toEqual(["a", "stack-1", "b", "c"]);
+  });
+
+  it("inserts as sibling after the last element", () => {
+    const frag = deserializeFragment(
+      fragment(),
+      new Set(Object.keys(flat().elements)),
+    );
+    const s = insertFragment(flat(), frag, "c", after)._unsafeUnwrap();
+    expect(s.elements.page.children).toEqual(["a", "b", "c", "stack-1"]);
   });
 
   it("merges fragment elements into spec", () => {
@@ -156,37 +165,92 @@ describe("insertFragment", () => {
       fragment(),
       new Set(Object.keys(flat().elements)),
     );
-    const s = insertFragment(flat(), frag, "a")._unsafeUnwrap();
+    const s = insertFragment(flat(), frag, "a", after)._unsafeUnwrap();
     expect(s.elements).toHaveProperty("stack-1");
     expect(s.elements).toHaveProperty("text-1");
     expect(s.elements["text-1"].props).toEqual({ text: "Child" });
   });
+});
 
-  it("inserts after the last element", () => {
+describe("insertFragment — child", () => {
+  const child = { tag: "child" as const };
+
+  it("appends as last child of a container", () => {
+    const frag = deserializeFragment(
+      fragment(),
+      new Set(Object.keys(nested().elements)),
+    );
+    const s = insertFragment(
+      nested(),
+      frag,
+      "container",
+      child,
+    )._unsafeUnwrap();
+    expect(s.elements.container.children).toEqual([
+      "heading",
+      "text",
+      "stack-1",
+    ]);
+  });
+
+  it("appends into root when root is the target", () => {
     const frag = deserializeFragment(
       fragment(),
       new Set(Object.keys(flat().elements)),
     );
-    const s = insertFragment(flat(), frag, "c")._unsafeUnwrap();
+    const s = insertFragment(flat(), frag, "page", child)._unsafeUnwrap();
     expect(s.elements.page.children).toEqual(["a", "b", "c", "stack-1"]);
   });
 
+  it("merges fragment elements into spec", () => {
+    const frag = deserializeFragment(
+      fragment(),
+      new Set(Object.keys(nested().elements)),
+    );
+    const s = insertFragment(
+      nested(),
+      frag,
+      "container",
+      child,
+    )._unsafeUnwrap();
+    expect(s.elements).toHaveProperty("stack-1");
+    expect(s.elements["text-1"].props).toEqual({ text: "Child" });
+  });
+
+  it("fails when target has no children", () => {
+    const frag = deserializeFragment(fragment(), new Set());
+    const result = insertFragment(flat(), frag, "a", child);
+    expect(result.isErr()).toBe(true);
+    expect(result._unsafeUnwrapErr().tag).toBe("no-children");
+  });
+});
+
+describe("insertFragment — immutability and errors", () => {
   it("returns immutable result", () => {
     const original = flat();
     const frag = deserializeFragment(
       fragment(),
       new Set(Object.keys(original.elements)),
     );
-    const s = insertFragment(original, frag, "a")._unsafeUnwrap();
+    const s = insertFragment(original, frag, "a", {
+      tag: "after",
+    })._unsafeUnwrap();
     expect(s).not.toBe(original);
     expect(original.elements.page.children).toEqual(["a", "b", "c"]);
   });
 
-  it("fails for nonexistent afterElementId", () => {
+  it("fails for nonexistent target with after", () => {
     const frag = deserializeFragment(fragment(), new Set());
-    const result = insertFragment(flat(), frag, "zzz");
+    const result = insertFragment(flat(), frag, "zzz", { tag: "after" });
     expect(result.isErr()).toBe(true);
     expect(result._unsafeUnwrapErr().tag).toBe("parent-not-found");
+  });
+
+  it("fails for nonexistent target with child", () => {
+    const frag = deserializeFragment(fragment(), new Set());
+    const result = insertFragment(flat(), frag, "zzz", { tag: "child" });
+    expect(result.isErr()).toBe(true);
+    expect(result._unsafeUnwrapErr().tag).toBe("element-not-found");
   });
 });
 

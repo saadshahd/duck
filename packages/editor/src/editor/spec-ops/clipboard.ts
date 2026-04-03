@@ -7,6 +7,7 @@ import {
   cloneAndMutate,
 } from "./helpers.js";
 import { findParent } from "./reorder.js";
+import type { InsertPosition } from "./insert.js";
 
 // --- Types ---
 
@@ -72,20 +73,43 @@ export function deserializeFragment(
   };
 }
 
+const insertInto = (
+  spec: Spec,
+  fragment: SpecFragment,
+  parentId: string,
+): Spec =>
+  cloneAndMutate(spec, (draft) => {
+    Object.assign(draft.elements, fragment.elements);
+    draft.elements[parentId].children!.push(fragment.root);
+  });
+
+const insertAfter = (
+  spec: Spec,
+  fragment: SpecFragment,
+  parentId: string,
+  childIndex: number,
+): Spec =>
+  cloneAndMutate(spec, (draft) => {
+    Object.assign(draft.elements, fragment.elements);
+    draft.elements[parentId].children!.splice(childIndex + 1, 0, fragment.root);
+  });
+
 export function insertFragment(
   spec: Spec,
   fragment: SpecFragment,
-  afterElementId: string,
+  targetId: string,
+  position: InsertPosition,
 ): Result<Spec, SpecOpsError> {
-  return findParent(spec, afterElementId).map(({ parentId, childIndex }) =>
-    cloneAndMutate(spec, (draft) => {
-      Object.assign(draft.elements, fragment.elements);
-      draft.elements[parentId].children!.splice(
-        childIndex + 1,
-        0,
-        fragment.root,
-      );
-    }),
+  if (position.tag === "child") {
+    return getElement(spec, targetId).andThen((target) =>
+      target.children
+        ? ok(insertInto(spec, fragment, targetId))
+        : err({ tag: "no-children" as const, parentId: targetId }),
+    );
+  }
+
+  return findParent(spec, targetId).map(({ parentId, childIndex }) =>
+    insertAfter(spec, fragment, parentId, childIndex),
   );
 }
 
@@ -101,9 +125,8 @@ export function duplicate(
       deserializeFragment(fragment, new Set(Object.keys(spec.elements))),
     )
     .andThen((remapped) =>
-      insertFragment(spec, remapped, elementId).map((newSpec) => ({
-        spec: newSpec,
-        newRootId: remapped.root,
-      })),
+      insertFragment(spec, remapped, elementId, { tag: "after" }).map(
+        (newSpec) => ({ spec: newSpec, newRootId: remapped.root }),
+      ),
     );
 }
