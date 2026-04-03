@@ -25,3 +25,8 @@ export {
   type NavDirection,
   type NavTarget,
 } from "./navigation.js";
+export {
+  type InsertPosition,
+  type InsertResult,
+  insertElement,
+} from "./insert.js";
