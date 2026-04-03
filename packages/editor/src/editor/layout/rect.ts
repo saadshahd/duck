@@ -26,3 +26,15 @@ export const rectsOverlap = (a: DOMRect, b: DOMRect): boolean =>
 
 export const isCollapsed = (r: DOMRect, threshold = 1): boolean =>
   r.width <= threshold || r.height <= threshold;
+
+export const ZERO_RECT: DOMRect = {
+  x: 0,
+  y: 0,
+  top: 0,
+  left: 0,
+  bottom: 0,
+  right: 0,
+  width: 0,
+  height: 0,
+  toJSON: () => ({}),
+};

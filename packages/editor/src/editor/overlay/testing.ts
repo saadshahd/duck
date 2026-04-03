@@ -82,6 +82,16 @@ export const getDropIndicatorRect = (page: Page) =>
     return { top: el.style.top, left: el.style.left, width: el.style.width };
   }) as Promise<{ top: string; left: string; width: string } | null>;
 
+// --- Drop zone label helpers ---
+
+export const getDropZoneLabelText = (page: Page) =>
+  shadowQuery(
+    page,
+    (r) =>
+      (r.querySelector(".drop-zone-label") as HTMLElement | null)
+        ?.textContent ?? null,
+  ) as Promise<string | null>;
+
 // --- Animation & measurement helpers ---
 
 /** Wait for exactly N animation frames to elapse. */

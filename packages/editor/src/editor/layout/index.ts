@@ -6,4 +6,5 @@ export {
   insetRect,
   rectsOverlap,
   isCollapsed,
+  ZERO_RECT,
 } from "./rect.js";

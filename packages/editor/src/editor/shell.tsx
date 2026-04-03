@@ -21,7 +21,7 @@ import {
   createSelectParent,
 } from "./selection/index.js";
 import { usePropEditor } from "./prop-editor/use-prop-editor.jsx";
-import { useDragReorder, DropIndicator } from "./drag/index.js";
+import { useDragReorder, DropIndicator, DropZoneLabel } from "./drag/index.js";
 import { OverlayRoot } from "./overlay/index.js";
 import { BoxModelOverlay, GapOverlay, useBoxModel } from "./box-model/index.js";
 import { useHistory, HistoryTimeline } from "./history/index.js";
@@ -176,7 +176,14 @@ export function EditorShell({
             </>
           )}
         {drag === "dragging" && dropTarget && fiberRegistry && (
-          <DropIndicator registry={fiberRegistry} target={dropTarget} />
+          <>
+            <DropIndicator registry={fiberRegistry} target={dropTarget} />
+            <DropZoneLabel
+              registry={fiberRegistry}
+              spec={currentSpec}
+              target={dropTarget}
+            />
+          </>
         )}
         <HistoryTimeline
           entries={entries}

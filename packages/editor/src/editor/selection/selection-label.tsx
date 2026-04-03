@@ -1,28 +1,10 @@
-import { useEffect, type RefObject } from "react";
-import {
-  useFloating,
-  offset,
-  shift,
-  autoUpdate,
-  useMergeRefs,
-} from "@floating-ui/react";
+import { type RefObject } from "react";
+import { useFloating, offset, shift, autoUpdate } from "@floating-ui/react";
 import type { Middleware } from "@floating-ui/react";
-import { useShadowSheet } from "../overlay/index.js";
+import { useShadowSheet, useRegistryAnchor } from "../overlay/index.js";
 import type { FiberRegistry } from "../fiber/index.js";
 import { rectsOverlap } from "../layout/rect.js";
 import css from "./selection.css?inline";
-
-const ZERO_RECT: DOMRect = {
-  x: 0,
-  y: 0,
-  top: 0,
-  left: 0,
-  bottom: 0,
-  right: 0,
-  width: 0,
-  height: 0,
-  toJSON: () => ({}),
-};
 
 const FALLBACKS: import("@floating-ui/react").Placement[] = [
   "top-end",
@@ -80,14 +62,7 @@ export function SelectionLabel({
       autoUpdate(ref, floating, update, { animationFrame: true }),
   });
 
-  useEffect(() => {
-    refs.setPositionReference({
-      getBoundingClientRect: () => {
-        const el = registry.get(elementId);
-        return el?.getBoundingClientRect() ?? ZERO_RECT;
-      },
-    });
-  }, [refs, registry, elementId]);
+  useRegistryAnchor(refs, registry, elementId);
 
   if (!elementType) return null;
 

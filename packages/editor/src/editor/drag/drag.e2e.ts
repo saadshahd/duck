@@ -1,5 +1,5 @@
 import { test, expect, type Page, type Locator } from "@playwright/test";
-import { hasDropIndicator } from "../overlay/testing.js";
+import { hasDropIndicator, getDropZoneLabelText } from "../overlay/testing.js";
 
 /**
  * Simulate a full native drag-and-drop sequence.
@@ -104,6 +104,24 @@ test.describe("Drag-to-reorder", () => {
     await page.waitForTimeout(300);
 
     expect(await hasDropIndicator(page)).toBe(true);
+  });
+
+  test("drag over sibling shows drop zone label with container type", async ({
+    page,
+  }) => {
+    const heading = page.locator("h1");
+    await heading.click();
+    await page.waitForTimeout(300);
+
+    const description = page.getByText("A zero-chrome editor", {
+      exact: false,
+    });
+    await dragOver(page, heading, description);
+    await page.waitForTimeout(300);
+
+    const label = await getDropZoneLabelText(page);
+    expect(label).not.toBeNull();
+    expect(label!.length).toBeGreaterThan(0);
   });
 
   test("drop reorders elements", async ({ page }) => {

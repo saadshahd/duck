@@ -56,3 +56,17 @@
   pointer-events: none;
   transition: all 150ms ease;
 }
+
+.drop-zone-label {
+  pointer-events: none;
+  font-family: var(--font-system);
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 1.4;
+  padding: 2px 6px;
+  border-radius: 3px;
+  color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 10%, white);
+  border: 1px dashed var(--accent);
+  white-space: nowrap;
+}
