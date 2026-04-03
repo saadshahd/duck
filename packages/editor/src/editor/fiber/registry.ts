@@ -56,11 +56,12 @@ export function createFiberRegistry(
         currentIds = getNodeIds();
         map.clear();
         reverseMap.clear();
+        const container = getRootContainer?.();
         traverseFiber(root.current as Fiber, (fiber) => {
           if (!fiber.key) return;
           const id = stripReactKeyPrefix(fiber.key);
           const el = currentIds.has(id) ? fiberToElement(fiber) : undefined;
-          if (el) register(id, el);
+          if (el && (!container || container.contains(el))) register(id, el);
         });
         registerRoot();
       },

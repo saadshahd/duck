@@ -11,7 +11,7 @@ import type { ZodTypeAny } from "zod";
 import { useShadowSheet } from "../overlay/index.js";
 import type { FiberRegistry } from "../fiber/index.js";
 import { ZodFields } from "./zod-fields.js";
-import { useOnClickOutside } from "./use-on-click-outside.js";
+import { useOnClickOutside } from "../overlay/index.js";
 import css from "./prop-editor.css?inline";
 
 const MIDDLEWARE = [offset(8), flip(), shift({ padding: 8 })];

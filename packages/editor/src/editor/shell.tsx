@@ -28,6 +28,7 @@ import { useHistory, HistoryTimeline } from "./history/index.js";
 import { useKeyboard } from "./keyboard/index.js";
 import { useGhostPlaceholders } from "./ghost/index.js";
 import { useFiberRegistry } from "./shell/use-fiber-registry.js";
+import { useContextMenu, ContextMenu } from "./context-menu/index.js";
 
 type EditorShellProps = {
   spec: Spec;
@@ -108,6 +109,15 @@ export function EditorShell({
   const toolbarRef = useRef<HTMLElement | null>(null);
 
   useGhostPlaceholders(currentSpec, fiberRegistry);
+  const {
+    menu,
+    close: closeMenu,
+    highlightId: menuHighlightId,
+    setHighlightId: setMenuHighlightId,
+  } = useContextMenu(fiberRegistry);
+
+  const hoverHighlightId = !menu && pointer === "hovering" ? hoveredId : null;
+  const highlightId = menuHighlightId ?? hoverHighlightId;
 
   const showBoxModel =
     pointer === "selected" ||
@@ -130,11 +140,11 @@ export function EditorShell({
       `}</style>
 
       <OverlayRoot>
-        {pointer === "hovering" && fiberRegistry && hoveredId && (
+        {highlightId && fiberRegistry && (
           <HoverHighlight
             registry={fiberRegistry}
-            elementId={hoveredId}
-            elementType={currentSpec.elements[hoveredId]?.type}
+            elementId={highlightId}
+            elementType={currentSpec.elements[highlightId]?.type}
           />
         )}
         {(pointer === "selected" || pointer === "editing") &&
@@ -184,6 +194,17 @@ export function EditorShell({
               target={dropTarget}
             />
           </>
+        )}
+        {menu && (
+          <ContextMenu
+            x={menu.x}
+            y={menu.y}
+            elementIds={menu.elementIds}
+            spec={currentSpec}
+            send={send}
+            onHighlight={setMenuHighlightId}
+            onClose={closeMenu}
+          />
         )}
         <HistoryTimeline
           entries={entries}
