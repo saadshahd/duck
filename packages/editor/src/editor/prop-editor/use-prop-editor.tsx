@@ -35,8 +35,8 @@ export function usePropEditor({
   useDoubleClickEdit({ registry, spec, getPropSchema, send });
 
   const { pointer } = state.value as { pointer: string };
-  const { selectedId } = state.context;
-  useKeyboardEdit({ spec, selectedId, pointer, getPropSchema, send });
+  const { lastSelectedId } = state.context;
+  useKeyboardEdit({ spec, lastSelectedId, pointer, getPropSchema, send });
 
   // --- Inline editing lifecycle ---
   const editing = state.context.editing;

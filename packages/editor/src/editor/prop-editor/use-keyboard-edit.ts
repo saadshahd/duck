@@ -7,7 +7,7 @@ import { findSingleEditableProp } from "./find-editable-prop.js";
 
 type UseKeyboardEditProps = {
   spec: Spec;
-  selectedId: string | null;
+  lastSelectedId: string | null;
   pointer: string;
   getPropSchema: ((type: string) => ZodTypeAny | undefined) | undefined;
   send: (event: EditorEvent) => void;
@@ -18,7 +18,7 @@ const isPrintable = (e: KeyboardEvent): boolean =>
 
 export function useKeyboardEdit({
   spec,
-  selectedId,
+  lastSelectedId,
   pointer,
   getPropSchema,
   send,
@@ -28,11 +28,11 @@ export function useKeyboardEdit({
       if (!getPropSchema) return;
 
       const onKeyDown = (e: KeyboardEvent) => {
-        if (pointer !== "selected" || !selectedId) return;
+        if (pointer !== "selected" || !lastSelectedId) return;
         if (!isPrintable(e)) return;
         if (isEditable(e.target)) return;
 
-        const element = spec.elements[selectedId];
+        const element = spec.elements[lastSelectedId];
         if (!element) return;
 
         const schema = getPropSchema(element.type);
@@ -44,7 +44,7 @@ export function useKeyboardEdit({
         e.preventDefault();
         send({
           type: "START_INLINE_EDIT",
-          elementId: selectedId,
+          elementId: lastSelectedId,
           propKey: match.propKey,
           original: match.value,
           trigger: "replace",
@@ -55,6 +55,6 @@ export function useKeyboardEdit({
       window.addEventListener("keydown", onKeyDown);
       return () => window.removeEventListener("keydown", onKeyDown);
     },
-    [spec, selectedId, pointer, getPropSchema, send],
+    [spec, lastSelectedId, pointer, getPropSchema, send],
   );
 }

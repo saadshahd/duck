@@ -15,10 +15,24 @@ describe("hoverEvent", () => {
 
 describe("selectEvent", () => {
   it("hit → SELECT", () => {
-    expect(selectEvent(hit("a"))).toEqual({ type: "SELECT", elementId: "a" });
+    expect(selectEvent(hit("a"), false)).toEqual({
+      type: "SELECT",
+      elementId: "a",
+    });
+  });
+
+  it("hit + multi → MULTI_SELECT", () => {
+    expect(selectEvent(hit("a"), true)).toEqual({
+      type: "MULTI_SELECT",
+      elementId: "a",
+    });
   });
 
   it("null → DESELECT", () => {
-    expect(selectEvent(null)).toEqual({ type: "DESELECT" });
+    expect(selectEvent(null, false)).toEqual({ type: "DESELECT" });
+  });
+
+  it("null + multi → DESELECT", () => {
+    expect(selectEvent(null, true)).toEqual({ type: "DESELECT" });
   });
 });

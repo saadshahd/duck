@@ -13,18 +13,18 @@ type Verify = (ctx: EditorContext) => void;
 
 const stateVerifiers: Record<string, Verify> = {
   "pointer.idle": (ctx) => {
-    expect(ctx.selectedId).toBeNull();
+    expect(ctx.selectedIds.size).toBe(0);
   },
   "pointer.hovering": (ctx) => {
     expect(ctx.hoveredId).not.toBeNull();
   },
   "pointer.selected": (ctx) => {
-    expect(ctx.selectedId).not.toBeNull();
+    expect(ctx.selectedIds.size).toBeGreaterThan(0);
     expect(ctx.editing).toBeNull();
   },
   "pointer.editing": (ctx) => {
     expect(ctx.editing).not.toBeNull();
-    expect(ctx.selectedId).not.toBeNull();
+    expect(ctx.selectedIds.size).toBeGreaterThan(0);
   },
   "drag.idle": (ctx) => {
     expect(ctx.dragSourceId).toBeNull();
@@ -40,6 +40,7 @@ const sampleEvents = [
   { type: "HOVER" as const, elementId: "el-1" },
   { type: "UNHOVER" as const },
   { type: "SELECT" as const, elementId: "el-1" },
+  { type: "MULTI_SELECT" as const, elementId: "el-2" },
   { type: "DESELECT" as const },
   { type: "OPEN_POPOVER" as const },
   {
@@ -195,7 +196,8 @@ describe("ESCAPE behavior", () => {
   it("pointer selected → ESCAPE deselects", () => {
     const s = walk({ type: "SELECT", elementId: "x" }, { type: "ESCAPE" });
     expect((s.value as MachineValue).pointer).toBe("idle");
-    expect(s.context.selectedId).toBeNull();
+    expect(s.context.selectedIds.size).toBe(0);
+    expect(s.context.lastSelectedId).toBeNull();
   });
 
   it("pointer editing → ESCAPE cancels edit", () => {
@@ -206,5 +208,83 @@ describe("ESCAPE behavior", () => {
     );
     expect((s.value as MachineValue).pointer).toBe("selected");
     expect(s.context.editing).toBeNull();
+  });
+});
+
+// --- Multi-select ---
+
+describe("multi-select", () => {
+  it("SELECT sets single element", () => {
+    const s = walk({ type: "SELECT", elementId: "a" });
+    expect(s.context.selectedIds).toEqual(new Set(["a"]));
+    expect(s.context.lastSelectedId).toBe("a");
+  });
+
+  it("SELECT replaces previous selection", () => {
+    const s = walk(
+      { type: "SELECT", elementId: "a" },
+      { type: "SELECT", elementId: "b" },
+    );
+    expect(s.context.selectedIds).toEqual(new Set(["b"]));
+    expect(s.context.lastSelectedId).toBe("b");
+  });
+
+  it("MULTI_SELECT from idle transitions to selected", () => {
+    const s = walk({ type: "MULTI_SELECT", elementId: "a" });
+    expect((s.value as MachineValue).pointer).toBe("selected");
+    expect(s.context.selectedIds).toEqual(new Set(["a"]));
+    expect(s.context.lastSelectedId).toBe("a");
+  });
+
+  it("MULTI_SELECT adds to set", () => {
+    const s = walk(
+      { type: "SELECT", elementId: "a" },
+      { type: "MULTI_SELECT", elementId: "b" },
+    );
+    expect(s.context.selectedIds).toEqual(new Set(["a", "b"]));
+    expect(s.context.lastSelectedId).toBe("b");
+  });
+
+  it("MULTI_SELECT removes existing element", () => {
+    const s = walk(
+      { type: "SELECT", elementId: "a" },
+      { type: "MULTI_SELECT", elementId: "b" },
+      { type: "MULTI_SELECT", elementId: "a" },
+    );
+    expect(s.context.selectedIds).toEqual(new Set(["b"]));
+    expect(s.context.lastSelectedId).toBe("b");
+  });
+
+  it("MULTI_SELECT last element transitions to idle", () => {
+    const s = walk(
+      { type: "SELECT", elementId: "a" },
+      { type: "MULTI_SELECT", elementId: "a" },
+    );
+    expect((s.value as MachineValue).pointer).toBe("idle");
+    expect(s.context.selectedIds.size).toBe(0);
+    expect(s.context.lastSelectedId).toBeNull();
+  });
+
+  it("DESELECT clears multi-selection", () => {
+    const s = walk(
+      { type: "SELECT", elementId: "a" },
+      { type: "MULTI_SELECT", elementId: "b" },
+      { type: "DESELECT" },
+    );
+    expect(s.context.selectedIds.size).toBe(0);
+    expect(s.context.lastSelectedId).toBeNull();
+  });
+
+  it("OPEN_POPOVER collapses multi to singleton", () => {
+    const s = walk(
+      { type: "SELECT", elementId: "a" },
+      { type: "MULTI_SELECT", elementId: "b" },
+      { type: "OPEN_POPOVER" },
+    );
+    expect(s.context.selectedIds).toEqual(new Set(["b"]));
+    expect(s.context.editing).toEqual({
+      elementId: "b",
+      mode: "popover",
+    });
   });
 });

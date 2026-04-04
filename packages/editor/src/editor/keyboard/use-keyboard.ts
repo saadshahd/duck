@@ -11,14 +11,14 @@ type Send = (event: any) => void;
 
 type NavContext = {
   spec: Spec;
-  selectedId: string | null;
+  lastSelectedId: string | null;
   pointer: string;
 };
 
 // --- Guards ---
 
 const selected = (nav: NavContext): boolean =>
-  nav.pointer === "selected" && nav.selectedId !== null;
+  nav.pointer === "selected" && nav.lastSelectedId !== null;
 
 const notEditing = (nav: NavContext): boolean => nav.pointer !== "editing";
 
@@ -81,7 +81,7 @@ const arrowBindings = (send: Send, navRef: React.RefObject<NavContext>) =>
         e.preventDefault();
         sendNavTarget(
           send,
-          nextInTreeOrder(nav.spec, nav.selectedId!, direction),
+          nextInTreeOrder(nav.spec, nav.lastSelectedId!, direction),
         );
       },
     ]),
@@ -116,17 +116,36 @@ const clipboardBindings = (
 
 // --- Hook ---
 
+const deleteBindings = (
+  navRef: React.RefObject<NavContext>,
+  onDeleteRef: React.RefObject<() => void>,
+) =>
+  Object.fromEntries(
+    ["Backspace", "Delete"].map((key) => [
+      key,
+      (e: KeyboardEvent) => {
+        if (!selected(navRef.current) || isEditable(e.target)) return;
+        e.preventDefault();
+        onDeleteRef.current();
+      },
+    ]),
+  );
+
 export function useKeyboard(targets: {
   machine: Send;
   history: Send;
   nav: NavContext;
   clipboard: ClipboardActions;
+  onDelete: () => void;
 }): void {
   const navRef = useRef(targets.nav);
   navRef.current = targets.nav;
 
   const cbRef = useRef(targets.clipboard);
   cbRef.current = targets.clipboard;
+
+  const deleteRef = useRef(targets.onDelete);
+  deleteRef.current = targets.onDelete;
 
   useEffect(
     () =>
@@ -137,6 +156,7 @@ export function useKeyboard(targets: {
         ),
         ...arrowBindings(targets.machine, navRef),
         ...clipboardBindings(navRef, cbRef),
+        ...deleteBindings(navRef, deleteRef),
       }),
     [targets.machine, targets.history],
   );

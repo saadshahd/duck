@@ -1,4 +1,5 @@
 import { setup, assign, type SnapshotFrom } from "xstate";
+import { Selection } from "./selection-model.js";
 
 // --- Context ---
 
@@ -21,7 +22,8 @@ export type Editing = InlineEditing | PopoverEditing;
 
 export type EditorContext = {
   hoveredId: string | null;
-  selectedId: string | null;
+  selectedIds: ReadonlySet<string>;
+  lastSelectedId: string | null;
   editing: Editing | null;
   dragSourceId: string | null;
 };
@@ -32,6 +34,7 @@ export type EditorEvent =
   | { type: "HOVER"; elementId: string }
   | { type: "UNHOVER" }
   | { type: "SELECT"; elementId: string }
+  | { type: "MULTI_SELECT"; elementId: string }
   | { type: "DESELECT" }
   | { type: "OPEN_POPOVER" }
   | ({
@@ -71,13 +74,17 @@ export const editorMachine = setup({
       event.type === "HOVER" && context.hoveredId !== event.elementId,
     notEditing: ({ context }) => !isEditing(context),
     notDragging: ({ context }) => !isDragging(context),
+    multiSelectEmptiesSet: ({ context, event }) =>
+      event.type === "MULTI_SELECT" &&
+      Selection.wouldEmpty(context, event.elementId),
   },
 }).createMachine({
   id: "editor",
   type: "parallel",
   context: {
     hoveredId: null,
-    selectedId: null,
+    selectedIds: new Set<string>(),
+    lastSelectedId: null,
     editing: null,
     dragSourceId: null,
   },
@@ -93,9 +100,11 @@ export const editorMachine = setup({
             },
             SELECT: {
               target: "selected",
-              actions: assign({
-                selectedId: ({ event }) => event.elementId,
-              }),
+              actions: assign(({ event }) => Selection.of(event.elementId)),
+            },
+            MULTI_SELECT: {
+              target: "selected",
+              actions: assign(({ event }) => Selection.of(event.elementId)),
             },
           },
         },
@@ -111,38 +120,64 @@ export const editorMachine = setup({
             },
             SELECT: {
               target: "selected",
-              actions: assign({
-                selectedId: ({ event }) => event.elementId,
+              actions: assign(({ event }) => ({
+                ...Selection.of(event.elementId),
                 hoveredId: null,
-              }),
+              })),
+            },
+            MULTI_SELECT: {
+              target: "selected",
+              actions: assign(({ event }) => ({
+                ...Selection.of(event.elementId),
+                hoveredId: null,
+              })),
             },
           },
         },
         selected: {
           on: {
             SELECT: {
-              actions: assign({
-                selectedId: ({ event }) => event.elementId,
-              }),
+              actions: assign(({ event }) => Selection.of(event.elementId)),
             },
+            MULTI_SELECT: [
+              {
+                guard: "multiSelectEmptiesSet",
+                target: "idle",
+                actions: assign(() => ({
+                  ...Selection.clear(),
+                  hoveredId: null,
+                })),
+              },
+              {
+                actions: assign(({ context, event }) =>
+                  Selection.toggle(context, event.elementId),
+                ),
+              },
+            ],
             DESELECT: {
               target: "idle",
-              actions: assign({ selectedId: null, hoveredId: null }),
+              actions: assign(() => ({
+                ...Selection.clear(),
+                hoveredId: null,
+              })),
             },
             ESCAPE: {
               guard: "notEditing",
               target: "idle",
-              actions: assign({ selectedId: null, hoveredId: null }),
+              actions: assign(() => ({
+                ...Selection.clear(),
+                hoveredId: null,
+              })),
             },
             OPEN_POPOVER: {
               guard: "notDragging",
               target: "editing",
-              actions: assign({
-                editing: ({ context }) =>
-                  context.selectedId
-                    ? { elementId: context.selectedId, mode: "popover" }
-                    : null,
-              }),
+              actions: assign(({ context }) => ({
+                ...Selection.collapseToLast(context),
+                editing: context.lastSelectedId
+                  ? { elementId: context.lastSelectedId, mode: "popover" }
+                  : null,
+              })),
             },
             OPEN_INSERT: {
               guard: "notDragging",
@@ -151,8 +186,9 @@ export const editorMachine = setup({
             START_INLINE_EDIT: {
               guard: "notDragging",
               target: "editing",
-              actions: assign({
-                editing: ({ event }) =>
+              actions: assign(({ context, event }) => ({
+                ...Selection.collapseToLast(context),
+                editing:
                   event.trigger === "replace"
                     ? {
                         elementId: event.elementId,
@@ -169,7 +205,7 @@ export const editorMachine = setup({
                         original: event.original,
                         trigger: "select" as const,
                       },
-              }),
+              })),
             },
           },
         },
@@ -193,13 +229,14 @@ export const editorMachine = setup({
           on: {
             SELECT: {
               target: "selected",
-              actions: assign({
-                selectedId: ({ event }) => event.elementId,
-              }),
+              actions: assign(({ event }) => Selection.of(event.elementId)),
             },
             DESELECT: {
               target: "idle",
-              actions: assign({ selectedId: null, hoveredId: null }),
+              actions: assign(() => ({
+                ...Selection.clear(),
+                hoveredId: null,
+              })),
             },
             ESCAPE: {
               target: "selected",

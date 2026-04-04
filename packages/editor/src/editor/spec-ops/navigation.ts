@@ -12,11 +12,11 @@ export type NavTarget =
  */
 export function nextInTreeOrder(
   spec: Spec,
-  selectedId: string,
+  fromId: string,
   direction: NavDirection,
 ): NavTarget {
   const order = preOrder(spec);
-  const idx = order.indexOf(selectedId);
+  const idx = order.indexOf(fromId);
   if (idx === -1) return { tag: "deselect" };
 
   const nextIdx = direction === "forward" ? idx + 1 : idx - 1;

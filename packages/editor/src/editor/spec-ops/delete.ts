@@ -1,5 +1,5 @@
 import type { Spec } from "@json-render/core";
-import { err, type Result } from "neverthrow";
+import { err, ok, type Result } from "neverthrow";
 import {
   type SpecOpsError,
   collectDescendants,
@@ -27,4 +27,32 @@ export function deleteElement(
       parentId,
     };
   });
+}
+
+export type DeleteManyResult = {
+  spec: Spec;
+  affectedParentIds: ReadonlySet<string>;
+};
+
+export function deleteElements(
+  spec: Spec,
+  elementIds: ReadonlySet<string>,
+): Result<DeleteManyResult, SpecOpsError> {
+  if (elementIds.has(spec.root))
+    return err({ tag: "cannot-delete-root", elementId: spec.root });
+
+  let current = spec;
+  const parentIds = new Set<string>();
+
+  for (const id of elementIds) {
+    if (!current.elements[id]) continue;
+    deleteElement(current, id).map(({ spec: next, parentId }) => {
+      current = next;
+      parentIds.add(parentId);
+    });
+  }
+
+  return current === spec
+    ? err({ tag: "element-not-found", elementId: "" })
+    : ok({ spec: current, affectedParentIds: parentIds });
 }

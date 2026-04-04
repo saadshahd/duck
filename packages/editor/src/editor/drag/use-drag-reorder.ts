@@ -46,19 +46,26 @@ export function useDragReorder({ registry, spec, state, send, push }: Props): {
   const pushRef = useRef(push);
   pushRef.current = push;
 
-  const selectedId = state.context.selectedId;
+  const { lastSelectedId, selectedIds } = state.context;
   const pointer = stateOf(state).pointer;
+  const singleSelected = selectedIds.size === 1;
 
-  // --- Effect 1: Make selected element draggable ---
+  // --- Effect 1: Make selected element draggable (single selection only) ---
 
   useEffect(() => {
-    if (!registry || !selectedId || pointer !== "selected") return;
+    if (
+      !registry ||
+      !lastSelectedId ||
+      !singleSelected ||
+      pointer !== "selected"
+    )
+      return;
 
-    const ctx = findParent(specRef.current, selectedId);
+    const ctx = findParent(specRef.current, lastSelectedId);
     if (ctx.isErr()) return;
     const { parentId, childIndex } = ctx.value;
 
-    const sourceEl = registry.get(selectedId);
+    const sourceEl = registry.get(lastSelectedId);
     if (!sourceEl) return;
 
     let clearNames: (() => void) | null = null;
@@ -66,7 +73,7 @@ export function useDragReorder({ registry, spec, state, send, push }: Props): {
     return draggable({
       element: sourceEl,
       getInitialData: () => ({
-        elementId: selectedId,
+        elementId: lastSelectedId,
         parentId,
         index: childIndex,
       }),
@@ -76,13 +83,13 @@ export function useDragReorder({ registry, spec, state, send, push }: Props): {
         );
         clearNames = tagTransitionNames(registry, allChildIds);
       },
-      onDragStart: () => send({ type: "DRAG_START", sourceId: selectedId }),
+      onDragStart: () => send({ type: "DRAG_START", sourceId: lastSelectedId }),
       onDrop: () => {
         clearNames?.();
         clearNames = null;
       },
     });
-  }, [registry, selectedId, pointer, send]);
+  }, [registry, lastSelectedId, singleSelected, pointer, send]);
 
   // --- Effect 2: Register drop targets on ALL elements ---
 

@@ -7,7 +7,7 @@ import { insertElement, type InsertPosition } from "../spec-ops/index.js";
 
 type InsertDeps = {
   spec: Spec;
-  selectedId: string | null;
+  lastSelectedId: string | null;
   catalog: ComponentCatalog;
   send: (event: EditorEvent) => void;
   push: SpecPush;
@@ -23,8 +23,8 @@ export function useInsert(deps: InsertDeps): {
   ref.current = deps;
 
   const onInsert = useCallback((componentType: string) => {
-    const { spec, selectedId, catalog, send, push } = ref.current;
-    if (!selectedId) return;
+    const { spec, lastSelectedId, catalog, send, push } = ref.current;
+    if (!lastSelectedId) return;
 
     const entry = catalog[componentType];
     const props = entry ? defaultsFromSchema(entry.props, componentType) : {};
@@ -32,8 +32,8 @@ export function useInsert(deps: InsertDeps): {
 
     insertElement(
       spec,
-      selectedId,
-      positionFor(spec, selectedId),
+      lastSelectedId,
+      positionFor(spec, lastSelectedId),
       componentType,
       { props, children },
     ).map(({ spec: newSpec, elementId }) => {

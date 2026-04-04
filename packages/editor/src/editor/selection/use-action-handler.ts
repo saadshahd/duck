@@ -6,6 +6,7 @@ import {
   findParent,
   reorderChild,
   deleteElement,
+  deleteElements,
   nearestSibling,
 } from "../spec-ops/index.js";
 import { animatedUpdate } from "../animated-update.js";
@@ -32,10 +33,10 @@ export function useActionHandler({
 }): (action: EditorAction) => void {
   return useCallback(
     (action: EditorAction) => {
-      const id = state.context.selectedId;
-      if (!id) return;
+      const { selectedIds, lastSelectedId } = state.context;
+      if (selectedIds.size === 0 || !lastSelectedId) return;
 
-      const type = spec.elements[id]?.type ?? "element";
+      const type = spec.elements[lastSelectedId]?.type ?? "element";
       const labels = MOVE_LABELS[axis];
 
       switch (action.tag) {
@@ -46,38 +47,68 @@ export function useActionHandler({
           send({ type: "OPEN_POPOVER" });
           break;
         case "move-up":
-          findParent(spec, id)
+          if (selectedIds.size > 1) return;
+          findParent(spec, lastSelectedId)
             .andThen(({ parentId, childIndex }) =>
               reorderChild(spec, parentId, childIndex, childIndex - 1),
             )
             .map((next) =>
               animatedUpdate(
-                (s) => push(s, `Moved ${type} ${labels.prev}`, `move:${id}`),
+                (s) =>
+                  push(
+                    s,
+                    `Moved ${type} ${labels.prev}`,
+                    `move:${lastSelectedId}`,
+                  ),
                 next,
               ),
             );
           break;
         case "move-down":
-          findParent(spec, id)
+          if (selectedIds.size > 1) return;
+          findParent(spec, lastSelectedId)
             .andThen(({ parentId, childIndex }) =>
               reorderChild(spec, parentId, childIndex, childIndex + 1),
             )
             .map((next) =>
               animatedUpdate(
-                (s) => push(s, `Moved ${type} ${labels.next}`, `move:${id}`),
+                (s) =>
+                  push(
+                    s,
+                    `Moved ${type} ${labels.next}`,
+                    `move:${lastSelectedId}`,
+                  ),
                 next,
               ),
             );
           break;
         case "delete":
-          deleteElement(spec, id).map(({ spec: next, parentId }) => {
-            const nextId = nearestSibling(spec, parentId, id);
-            push(next, `Deleted ${type}`);
-            send({ type: "SELECT", elementId: nextId });
-          });
+          if (selectedIds.size > 1) {
+            deleteElements(spec, selectedIds).map(({ spec: next }) => {
+              push(next, `Deleted ${selectedIds.size} elements`);
+              send({ type: "DESELECT" });
+            });
+          } else {
+            deleteElement(spec, lastSelectedId).map(
+              ({ spec: next, parentId }) => {
+                push(next, `Deleted ${type}`);
+                send({
+                  type: "SELECT",
+                  elementId: nearestSibling(spec, parentId, lastSelectedId),
+                });
+              },
+            );
+          }
           break;
       }
     },
-    [spec, state.context.selectedId, push, send, axis],
+    [
+      spec,
+      state.context.selectedIds,
+      state.context.lastSelectedId,
+      push,
+      send,
+      axis,
+    ],
   );
 }

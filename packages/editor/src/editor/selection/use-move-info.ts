@@ -18,13 +18,13 @@ const DISABLED: MoveInfo = {
 
 export function useMoveInfo(
   spec: Spec,
-  selectedId: string | null,
+  lastSelectedId: string | null,
   registry: FiberRegistry | null,
 ): MoveInfo {
   return useMemo(() => {
-    if (!selectedId || !registry) return DISABLED;
+    if (!lastSelectedId || !registry) return DISABLED;
 
-    const parent = findParent(spec, selectedId);
+    const parent = findParent(spec, lastSelectedId);
     if (parent.isErr()) return DISABLED;
 
     const { parentId, childIndex } = parent.value;
@@ -37,5 +37,5 @@ export function useMoveInfo(
       canMovePrev: childIndex > 0,
       canMoveNext: childIndex < children.length - 1,
     };
-  }, [spec, selectedId, registry]);
+  }, [spec, lastSelectedId, registry]);
 }

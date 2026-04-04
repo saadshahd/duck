@@ -38,12 +38,14 @@ export function SelectionLabel({
   registry,
   elementId,
   elementType,
+  selectionCount,
   toolbarRef,
   onSelectParent,
 }: {
   registry: FiberRegistry;
   elementId: string;
   elementType: string | undefined;
+  selectionCount?: number;
   toolbarRef: RefObject<HTMLElement | null>;
   onSelectParent?: () => void;
 }) {
@@ -81,6 +83,9 @@ export function SelectionLabel({
       >
         {onSelectParent && <span className="element-label__arrow">↑</span>}
         {elementType}
+        {selectionCount && selectionCount > 1 && (
+          <span className="element-label__count"> +{selectionCount - 1}</span>
+        )}
       </span>
     </div>
   );

@@ -6,12 +6,12 @@ type Send = (event: any) => void;
 
 export function createSelectParent(
   spec: Spec,
-  selectedId: string | null,
+  lastSelectedId: string | null,
   send: Send,
 ): (() => void) | undefined {
-  if (!selectedId) return undefined;
+  if (!lastSelectedId) return undefined;
   return () => {
-    const parent = findParent(spec, selectedId);
+    const parent = findParent(spec, lastSelectedId);
     if (parent.isOk()) {
       send({ type: "SELECT", elementId: parent.value.parentId });
     } else {

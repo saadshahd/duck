@@ -49,7 +49,7 @@ type ContextMenuProps = {
   y: number;
   elementIds: string[];
   spec: Spec;
-  selectedId: string | null;
+  lastSelectedId: string | null;
   send: (event: EditorEvent) => void;
   clipboard: ClipboardActions;
   onHighlight: (elementId: string | null) => void;
@@ -61,7 +61,7 @@ export function ContextMenu({
   y,
   elementIds,
   spec,
-  selectedId,
+  lastSelectedId,
   send,
   clipboard,
   onHighlight,
@@ -146,7 +146,7 @@ export function ContextMenu({
       })}
       <div className="context-menu-divider" />
       {CLIPBOARD_ITEMS.map(({ label, shortcut, action, needsSelection }) => {
-        const disabled = needsSelection && !selectedId;
+        const disabled = needsSelection && !lastSelectedId;
         return (
           <div
             key={action}

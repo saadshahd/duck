@@ -85,11 +85,11 @@ export function EditorShell({
     push,
     getPropSchema,
   });
-  const moveInfo = useMoveInfo(
-    currentSpec,
-    state.context.selectedId,
-    fiberRegistry,
-  );
+
+  const { selectedIds, lastSelectedId } = state.context;
+  const singleSelected = selectedIds.size === 1 ? lastSelectedId : null;
+
+  const moveInfo = useMoveInfo(currentSpec, singleSelected, fiberRegistry);
   const handleAction = useActionHandler({
     spec: currentSpec,
     state,
@@ -102,11 +102,11 @@ export function EditorShell({
     pointer: string;
     drag: string;
   };
-  const { hoveredId, selectedId } = state.context;
+  const { hoveredId } = state.context;
 
   const clipboard = useClipboard({
     spec: currentSpec,
-    selectedId,
+    lastSelectedId,
     push,
     onSelect: (id) => send({ type: "SELECT", elementId: id }),
     onDeselect: () => send({ type: "DESELECT" }),
@@ -114,7 +114,7 @@ export function EditorShell({
 
   const { onInsert } = useInsert({
     spec: currentSpec,
-    selectedId,
+    lastSelectedId,
     catalog: componentCatalog ?? {},
     send,
     push,
@@ -123,11 +123,12 @@ export function EditorShell({
   useKeyboard({
     machine: send,
     history: historySend,
-    nav: { spec: currentSpec, selectedId, pointer },
+    nav: { spec: currentSpec, lastSelectedId, pointer },
     clipboard,
+    onDelete: () => handleAction({ tag: "delete" }),
   });
 
-  const selectParent = createSelectParent(currentSpec, selectedId, send);
+  const selectParent = createSelectParent(currentSpec, lastSelectedId, send);
   const toolbarRef = useRef<HTMLElement | null>(null);
 
   useGhostPlaceholders(currentSpec, fiberRegistry);
@@ -142,10 +143,24 @@ export function EditorShell({
   const highlightId = menuHighlightId ?? hoverHighlightId;
 
   const showBoxModel =
-    pointer === "selected" ||
-    pointer === "inserting" ||
-    (pointer === "editing" && state.context.editing?.mode === "popover");
-  const boxModel = useBoxModel(fiberRegistry, showBoxModel ? selectedId : null);
+    singleSelected &&
+    (pointer === "selected" ||
+      pointer === "inserting" ||
+      (pointer === "editing" && state.context.editing?.mode === "popover"));
+  const boxModel = useBoxModel(
+    fiberRegistry,
+    showBoxModel ? lastSelectedId : null,
+  );
+
+  const hasSelection =
+    (pointer === "selected" ||
+      pointer === "editing" ||
+      pointer === "inserting") &&
+    fiberRegistry &&
+    selectedIds.size > 0;
+
+  const showActionBar =
+    hasSelection && pointer === "selected" && singleSelected;
 
   return (
     <StateProvider initialState={{}}>
@@ -170,56 +185,61 @@ export function EditorShell({
             elementType={currentSpec.elements[highlightId]?.type}
           />
         )}
-        {(pointer === "selected" ||
-          pointer === "editing" ||
-          pointer === "inserting") &&
-          fiberRegistry &&
-          selectedId && (
-            <>
-              <SelectionRing registry={fiberRegistry} elementId={selectedId} />
+        {hasSelection && (
+          <>
+            {[...selectedIds].map((id) => (
+              <SelectionRing key={id} registry={fiberRegistry} elementId={id} />
+            ))}
+            {lastSelectedId && (
               <SelectionLabel
                 registry={fiberRegistry}
-                elementId={selectedId}
-                elementType={currentSpec.elements[selectedId]?.type}
+                elementId={lastSelectedId}
+                elementType={currentSpec.elements[lastSelectedId]?.type}
+                selectionCount={selectedIds.size}
                 toolbarRef={toolbarRef}
                 onSelectParent={selectParent}
               />
-              {boxModel && (
-                <>
-                  <BoxModelOverlay data={boxModel} />
-                  {boxModel.gap && (
-                    <GapOverlay
-                      registry={fiberRegistry!}
-                      elementId={selectedId}
-                      gap={boxModel.gap}
-                    />
-                  )}
-                </>
-              )}
-              {pointer === "selected" && (
-                <FloatingActionBar
-                  registry={fiberRegistry}
-                  elementId={selectedId}
-                  axis={moveInfo.axis}
-                  canMovePrev={moveInfo.canMovePrev}
-                  canMoveNext={moveInfo.canMoveNext}
-                  canInsert={!!componentCatalog}
-                  onAction={handleAction}
-                  toolbarRef={toolbarRef}
-                />
-              )}
-              {pointer === "editing" && popover}
-              {pointer === "inserting" && componentCatalog && fiberRegistry && (
+            )}
+            {boxModel && (
+              <>
+                <BoxModelOverlay data={boxModel} />
+                {boxModel.gap && lastSelectedId && (
+                  <GapOverlay
+                    registry={fiberRegistry!}
+                    elementId={lastSelectedId}
+                    gap={boxModel.gap}
+                  />
+                )}
+              </>
+            )}
+            {showActionBar && singleSelected && (
+              <FloatingActionBar
+                registry={fiberRegistry}
+                elementId={singleSelected}
+                axis={moveInfo.axis}
+                canMovePrev={moveInfo.canMovePrev}
+                canMoveNext={moveInfo.canMoveNext}
+                canInsert={!!componentCatalog}
+                onAction={handleAction}
+                toolbarRef={toolbarRef}
+              />
+            )}
+            {pointer === "editing" && singleSelected && popover}
+            {pointer === "inserting" &&
+              singleSelected &&
+              componentCatalog &&
+              fiberRegistry &&
+              lastSelectedId && (
                 <CatalogPicker
                   registry={fiberRegistry}
-                  elementId={selectedId}
+                  elementId={lastSelectedId}
                   catalog={componentCatalog}
                   onInsert={onInsert}
                   onClose={() => send({ type: "ESCAPE" })}
                 />
               )}
-            </>
-          )}
+          </>
+        )}
         {drag === "dragging" && dropTarget && fiberRegistry && (
           <>
             <DropIndicator registry={fiberRegistry} target={dropTarget} />
@@ -236,7 +256,7 @@ export function EditorShell({
             y={menu.y}
             elementIds={menu.elementIds}
             spec={currentSpec}
-            selectedId={selectedId}
+            lastSelectedId={lastSelectedId}
             send={send}
             clipboard={clipboard}
             onHighlight={setMenuHighlightId}

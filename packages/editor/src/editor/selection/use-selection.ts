@@ -8,8 +8,10 @@ import type { EditorEvent } from "../machine/index.js";
 export const hoverEvent = (hit: Hit | null): EditorEvent =>
   hit ? { type: "HOVER", elementId: hit.elementId } : { type: "UNHOVER" };
 
-export const selectEvent = (hit: Hit | null): EditorEvent =>
-  hit ? { type: "SELECT", elementId: hit.elementId } : { type: "DESELECT" };
+export const selectEvent = (hit: Hit | null, multi: boolean): EditorEvent =>
+  hit
+    ? { type: multi ? "MULTI_SELECT" : "SELECT", elementId: hit.elementId }
+    : { type: "DESELECT" };
 
 // --- Hook ---
 
@@ -32,7 +34,9 @@ export function useEditorSelection(
 
       const onClick = (e: MouseEvent) => {
         if (isFromShadowDom(e)) return;
-        send(selectEvent(resolveHit(registry, e.clientX, e.clientY)));
+        send(
+          selectEvent(resolveHit(registry, e.clientX, e.clientY), e.shiftKey),
+        );
       };
 
       document.addEventListener("mousemove", onMove, { passive: true });

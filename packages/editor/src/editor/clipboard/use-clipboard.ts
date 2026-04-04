@@ -12,7 +12,7 @@ import type { SpecPush } from "../types.js";
 
 type ClipboardDeps = {
   spec: Spec;
-  selectedId: string | null;
+  lastSelectedId: string | null;
   push: SpecPush;
   onSelect: (elementId: string) => void;
   onDeselect: () => void;
@@ -52,18 +52,18 @@ export function useClipboard(deps: ClipboardDeps): ClipboardActions {
   ref.current = deps;
 
   const onCopy = useCallback(() => {
-    const { spec, selectedId } = ref.current;
-    if (!selectedId) return;
-    serializeFragment(spec, selectedId).map(writeClipboard);
+    const { spec, lastSelectedId } = ref.current;
+    if (!lastSelectedId) return;
+    serializeFragment(spec, lastSelectedId).map(writeClipboard);
   }, []);
 
   const onCut = useCallback(() => {
-    const { spec, selectedId, push, onDeselect } = ref.current;
-    if (!selectedId) return;
-    serializeFragment(spec, selectedId)
+    const { spec, lastSelectedId, push, onDeselect } = ref.current;
+    if (!lastSelectedId) return;
+    serializeFragment(spec, lastSelectedId)
       .andThen((fragment) => {
         writeClipboard(fragment);
-        return deleteElement(spec, selectedId);
+        return deleteElement(spec, lastSelectedId);
       })
       .map(({ spec: newSpec }) => {
         push(newSpec, "Cut");
@@ -72,7 +72,7 @@ export function useClipboard(deps: ClipboardDeps): ClipboardActions {
   }, []);
 
   const onPaste = useCallback(async () => {
-    const capturedId = ref.current.selectedId;
+    const capturedId = ref.current.lastSelectedId;
     const fragment = await readClipboard();
     if (!fragment) return;
 
@@ -95,9 +95,9 @@ export function useClipboard(deps: ClipboardDeps): ClipboardActions {
   }, []);
 
   const onDuplicate = useCallback(() => {
-    const { spec, selectedId, push, onSelect } = ref.current;
-    if (!selectedId) return;
-    duplicate(spec, selectedId).map(({ spec: newSpec, newRootId }) => {
+    const { spec, lastSelectedId, push, onSelect } = ref.current;
+    if (!lastSelectedId) return;
+    duplicate(spec, lastSelectedId).map(({ spec: newSpec, newRootId }) => {
       push(newSpec, "Duplicate");
       onSelect(newRootId);
     });
