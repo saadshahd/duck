@@ -53,3 +53,27 @@ export const shapeEntries = (s: ZodTypeAny): [string, ZodTypeAny][] => {
     ? Object.entries((inner as ZodObject).shape as Record<string, ZodTypeAny>)
     : [];
 };
+
+const requiredDefault = (type: ZodTypeAny, placeholder: string): unknown => {
+  const inner = unwrap(type);
+  if (inner instanceof ZodString) return placeholder;
+  if (inner instanceof ZodNumber) return 0;
+  if (inner instanceof ZodBoolean) return false;
+  if (inner instanceof ZodEnum) return (inner.options as string[])[0];
+  return undefined;
+};
+
+/**
+ * Derive default values for required (non-optional) fields of a ZodObject.
+ * String fields get `placeholder` as their value.
+ */
+export const defaultsFromSchema = (
+  schema: ZodTypeAny,
+  placeholder: string,
+): Record<string, unknown> =>
+  Object.fromEntries(
+    shapeEntries(schema)
+      .filter(([, type]) => !isOptional(type))
+      .map(([key, type]) => [key, requiredDefault(type, placeholder)])
+      .filter(([, v]) => v !== undefined),
+  );

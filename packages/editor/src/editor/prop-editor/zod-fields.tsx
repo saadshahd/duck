@@ -10,7 +10,7 @@ import {
   isOptional,
   enumValues,
   shapeEntries,
-} from "./zod-inspect.js";
+} from "../schema/index.js";
 
 // --- Controlled field props (decoupled from form library) ---
 

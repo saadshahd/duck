@@ -39,6 +39,9 @@ export function useActionHandler({
       const labels = MOVE_LABELS[axis];
 
       switch (action.tag) {
+        case "insert":
+          send({ type: "OPEN_INSERT" });
+          break;
         case "edit":
           send({ type: "OPEN_POPOVER" });
           break;

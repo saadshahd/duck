@@ -1,6 +1,6 @@
 import type { UIElement } from "@json-render/core";
 import type { ZodTypeAny } from "zod";
-import { shapeEntries, isString } from "./zod-inspect.js";
+import { shapeEntries, isString } from "../schema/index.js";
 
 export type EditableMatch = { propKey: string; value: string };
 

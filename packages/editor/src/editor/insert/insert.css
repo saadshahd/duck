@@ -1,0 +1,76 @@
+/* Insert domain — catalog picker */
+
+.catalog-picker {
+  pointer-events: auto;
+  background: var(--surface-bar);
+  border-radius: 8px;
+  box-shadow: var(--shadow-bar);
+  font-family: var(--font-system);
+  min-width: 200px;
+  max-width: 280px;
+  max-height: 320px;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.catalog-picker-filter {
+  width: 100%;
+  height: 32px;
+  padding: 0 10px;
+  font-family: var(--font-system);
+  font-size: 13px;
+  color: var(--text-bar);
+  background: rgba(255, 255, 255, 0.06);
+  border: none;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.10);
+  outline: none;
+}
+
+.catalog-picker-filter::placeholder {
+  color: var(--text-bar-muted);
+}
+
+.catalog-picker-filter:focus {
+  background: rgba(255, 255, 255, 0.10);
+}
+
+.catalog-picker-list {
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+}
+
+.catalog-picker-item {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 8px 10px;
+  border: none;
+  background: none;
+  text-align: left;
+  cursor: pointer;
+  font-family: var(--font-system);
+}
+
+.catalog-picker-item:hover {
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.catalog-picker-item-type {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-bar);
+}
+
+.catalog-picker-item-desc {
+  font-size: 11px;
+  color: var(--text-bar-muted);
+}
+
+.catalog-picker-empty {
+  padding: 12px 10px;
+  font-size: 13px;
+  color: var(--text-bar-muted);
+  text-align: center;
+}

@@ -3,9 +3,9 @@ import { tinykeys } from "tinykeys";
 import type { Spec } from "@json-render/core";
 import { nextInTreeOrder, type NavTarget } from "../spec-ops/index.js";
 import type { ClipboardActions } from "../clipboard/index.js";
+import { isEditable } from "../overlay/index.js";
 import { arrowToDirection } from "./navigation.js";
 
-// Widened — type safety comes from the static BINDINGS maps, not this signature
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type Send = (event: any) => void;
 
@@ -15,53 +15,79 @@ type NavContext = {
   pointer: string;
 };
 
-// --- Static binding maps ---
+// --- Guards ---
 
-const MACHINE_BINDINGS: Record<string, string> = {
-  Escape: "ESCAPE",
+const selected = (nav: NavContext): boolean =>
+  nav.pointer === "selected" && nav.selectedId !== null;
+
+const notEditing = (nav: NavContext): boolean => nav.pointer !== "editing";
+
+// --- Event bindings: key → send(event) ---
+
+type EventDef = {
+  key: string;
+  event: string;
+  target: "machine" | "history";
+  guard?: (nav: NavContext, e: KeyboardEvent) => boolean;
 };
 
-const HISTORY_BINDINGS: Record<string, string> = {
-  "$mod+z": "UNDO",
-  "$mod+Shift+z": "REDO",
-};
+const EVENT_DEFS: EventDef[] = [
+  { key: "Escape", event: "ESCAPE", target: "machine" },
+  { key: "$mod+z", event: "UNDO", target: "history" },
+  { key: "$mod+Shift+z", event: "REDO", target: "history" },
+  {
+    key: "/",
+    event: "OPEN_INSERT",
+    target: "machine",
+    guard: (nav, e) => selected(nav) && !isEditable(e.target),
+  },
+];
 
-// --- Pure helpers ---
-
-const eventBindings = (send: Send, map: Record<string, string>) =>
+const eventBindings = (
+  sends: Record<string, Send>,
+  navRef: React.RefObject<NavContext>,
+) =>
   Object.fromEntries(
-    Object.entries(map).map(([key, type]) => [
+    EVENT_DEFS.map(({ key, event, target, guard }) => [
       key,
       (e: KeyboardEvent) => {
+        if (guard && !guard(navRef.current, e)) return;
         if (key !== "Escape") e.preventDefault();
-        send({ type });
+        sends[target]({ type: event });
       },
     ]),
   );
+
+// --- Arrow navigation (custom dispatch: computes NavTarget) ---
+
+const ARROW_KEYS = ["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight"];
 
 const sendNavTarget = (send: Send, target: NavTarget) =>
   target.tag === "select"
     ? send({ type: "SELECT", elementId: target.targetId })
     : send({ type: "DESELECT" });
 
-const ARROW_KEYS = ["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight"];
-
 const arrowBindings = (send: Send, navRef: React.RefObject<NavContext>) =>
   Object.fromEntries(
     ARROW_KEYS.map((key) => [
       key,
       (e: KeyboardEvent) => {
-        const { spec, selectedId, pointer } = navRef.current;
-        if (pointer !== "selected" || !selectedId) return;
+        const nav = navRef.current;
+        if (!selected(nav)) return;
 
         const direction = arrowToDirection(key);
         if (!direction) return;
 
         e.preventDefault();
-        sendNavTarget(send, nextInTreeOrder(spec, selectedId, direction));
+        sendNavTarget(
+          send,
+          nextInTreeOrder(nav.spec, nav.selectedId!, direction),
+        );
       },
     ]),
   );
+
+// --- Clipboard (custom dispatch: routes to ClipboardActions) ---
 
 const CLIPBOARD_KEYS: Record<string, keyof ClipboardActions> = {
   "$mod+c": "onCopy",
@@ -78,10 +104,9 @@ const clipboardBindings = (
     Object.entries(CLIPBOARD_KEYS).map(([key, action]) => [
       key,
       (e: KeyboardEvent) => {
-        const { pointer, selectedId } = navRef.current;
-        const needsSelection = action !== "onPaste";
-        if (pointer === "editing") return;
-        if (needsSelection && (pointer !== "selected" || !selectedId)) return;
+        const nav = navRef.current;
+        if (!notEditing(nav)) return;
+        if (action !== "onPaste" && !selected(nav)) return;
 
         e.preventDefault();
         cbRef.current[action]();
@@ -106,8 +131,10 @@ export function useKeyboard(targets: {
   useEffect(
     () =>
       tinykeys(window, {
-        ...eventBindings(targets.machine, MACHINE_BINDINGS),
-        ...eventBindings(targets.history, HISTORY_BINDINGS),
+        ...eventBindings(
+          { machine: targets.machine, history: targets.history },
+          navRef,
+        ),
         ...arrowBindings(targets.machine, navRef),
         ...clipboardBindings(navRef, cbRef),
       }),

@@ -19,7 +19,7 @@ const base = (): Spec => ({
 describe("insertElement — child", () => {
   it("inserts as last child of parent", () => {
     const result = insertElement(base(), "page", { tag: "child" }, "Button", {
-      label: "Click",
+      props: { label: "Click" },
     });
     expect(result.isOk()).toBe(true);
     const { spec, elementId } = result._unsafeUnwrap();
@@ -89,17 +89,24 @@ describe("insertElement — ID generation", () => {
 
 // --- Default props ---
 
-describe("insertElement — props", () => {
+describe("insertElement — defaults", () => {
   it("applies default props", () => {
     const result = insertElement(base(), "page", { tag: "child" }, "Button", {
-      label: "Go",
-      variant: "primary",
+      props: { label: "Go", variant: "primary" },
     });
     const { spec, elementId } = result._unsafeUnwrap();
     expect(spec.elements[elementId].props).toEqual({
       label: "Go",
       variant: "primary",
     });
+  });
+
+  it("creates element with children array when specified", () => {
+    const result = insertElement(base(), "page", { tag: "child" }, "Card", {
+      children: [],
+    });
+    const { spec, elementId } = result._unsafeUnwrap();
+    expect(spec.elements[elementId].children).toEqual([]);
   });
 
   it("uses empty props when no defaults given", () => {

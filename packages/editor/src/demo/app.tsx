@@ -19,6 +19,7 @@ export function App() {
       registry={registry}
       onSpecChange={setSpec}
       getPropSchema={(type) => PROP_SCHEMAS[type]}
+      componentCatalog={catalog.data.components}
     />
   );
 }

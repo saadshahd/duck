@@ -93,6 +93,7 @@ export const catalog = defineCatalog(schema, {
   components: {
     Box: {
       description: "Layout container",
+      slots: ["default"],
       props: z.object({
         style: z
           .object({
@@ -161,6 +162,7 @@ export const catalog = defineCatalog(schema, {
     },
     Stack: {
       description: "Vertical or horizontal stack layout",
+      slots: ["default"],
       props: z.object({
         direction: z.enum(["vertical", "horizontal"]).optional(),
         gap: space.optional(),
@@ -178,6 +180,7 @@ export const catalog = defineCatalog(schema, {
     },
     Card: {
       description: "Content card with border and padding",
+      slots: ["default"],
       props: z.object({
         style: z
           .object({
@@ -190,6 +193,7 @@ export const catalog = defineCatalog(schema, {
     },
     Grid: {
       description: "CSS grid layout",
+      slots: ["default"],
       props: z.object({
         columns: z.number().optional(),
         gap: space.optional(),

@@ -2,6 +2,7 @@ import { useEffect } from "react";
 import type { Spec } from "@json-render/core";
 import type { ZodTypeAny } from "zod";
 import type { EditorEvent } from "../machine/index.js";
+import { isEditable } from "../overlay/index.js";
 import { findSingleEditableProp } from "./find-editable-prop.js";
 
 type UseKeyboardEditProps = {
@@ -14,12 +15,6 @@ type UseKeyboardEditProps = {
 
 const isPrintable = (e: KeyboardEvent): boolean =>
   e.key.length === 1 && !e.metaKey && !e.ctrlKey && !e.altKey && !e.isComposing;
-
-const isEditable = (el: EventTarget | null): boolean =>
-  el instanceof HTMLElement &&
-  (el.isContentEditable ||
-    el instanceof HTMLInputElement ||
-    el instanceof HTMLTextAreaElement);
 
 export function useKeyboardEdit({
   spec,

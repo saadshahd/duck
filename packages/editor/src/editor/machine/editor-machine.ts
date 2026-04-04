@@ -51,6 +51,7 @@ export type EditorEvent =
       toIndex: number;
     }
   | { type: "DRAG_CANCEL" }
+  | { type: "OPEN_INSERT" }
   | { type: "ESCAPE" };
 
 // --- Context predicates ---
@@ -143,6 +144,10 @@ export const editorMachine = setup({
                     : null,
               }),
             },
+            OPEN_INSERT: {
+              guard: "notDragging",
+              target: "inserting",
+            },
             START_INLINE_EDIT: {
               guard: "notDragging",
               target: "editing",
@@ -181,6 +186,23 @@ export const editorMachine = setup({
             ESCAPE: {
               target: "selected",
               actions: assign({ editing: null }),
+            },
+          },
+        },
+        inserting: {
+          on: {
+            SELECT: {
+              target: "selected",
+              actions: assign({
+                selectedId: ({ event }) => event.elementId,
+              }),
+            },
+            DESELECT: {
+              target: "idle",
+              actions: assign({ selectedId: null, hoveredId: null }),
+            },
+            ESCAPE: {
+              target: "selected",
             },
           },
         },

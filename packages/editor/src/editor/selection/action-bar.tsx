@@ -13,6 +13,7 @@ import type { Axis } from "../layout/index.js";
 import css from "./selection.css?inline";
 
 export type EditorAction =
+  | { tag: "insert" }
   | { tag: "move-up" }
   | { tag: "move-down" }
   | { tag: "delete" }
@@ -44,6 +45,7 @@ export function FloatingActionBar({
   axis,
   canMovePrev,
   canMoveNext,
+  canInsert,
   onAction,
   toolbarRef,
 }: {
@@ -52,6 +54,7 @@ export function FloatingActionBar({
   axis: Axis;
   canMovePrev: boolean;
   canMoveNext: boolean;
+  canInsert: boolean;
   onAction: (action: EditorAction) => void;
   toolbarRef: RefObject<HTMLElement | null>;
 }) {
@@ -78,6 +81,17 @@ export function FloatingActionBar({
   return (
     <div ref={mergedRef} style={{ ...floatingStyles, zIndex: 1 }}>
       <div className="action-bar" role="toolbar">
+        {canInsert && (
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              onAction({ tag: "insert" });
+            }}
+          >
+            +
+          </button>
+        )}
         <button
           type="button"
           disabled={!canMovePrev}

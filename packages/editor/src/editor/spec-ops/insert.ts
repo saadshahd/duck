@@ -19,13 +19,14 @@ export function insertElement(
   targetId: string,
   position: InsertPosition,
   componentType: string,
-  defaultProps: Record<string, unknown> = {},
+  defaults: { props?: Record<string, unknown>; children?: string[] } = {},
 ): Result<InsertResult, SpecOpsError> {
   const elementId = nextId(componentType, new Set(Object.keys(spec.elements)));
 
   const element: UIElement = {
     type: componentType,
-    props: { ...defaultProps },
+    props: { ...defaults.props },
+    ...(defaults.children && { children: defaults.children }),
   };
 
   if (position.tag === "child") {

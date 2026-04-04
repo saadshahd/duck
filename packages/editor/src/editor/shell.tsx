@@ -30,12 +30,15 @@ import { useGhostPlaceholders } from "./ghost/index.js";
 import { useFiberRegistry } from "./shell/use-fiber-registry.js";
 import { useContextMenu, ContextMenu } from "./context-menu/index.js";
 import { useClipboard } from "./clipboard/index.js";
+import { CatalogPicker, useInsert } from "./insert/index.js";
+import type { ComponentCatalog } from "./types.js";
 
 type EditorShellProps = {
   spec: Spec;
   registry: ComponentRegistry;
   onSpecChange?: (spec: Spec) => void;
   getPropSchema?: (componentType: string) => ZodTypeAny | undefined;
+  componentCatalog?: ComponentCatalog;
 };
 
 export function EditorShell({
@@ -43,6 +46,7 @@ export function EditorShell({
   registry,
   onSpecChange,
   getPropSchema,
+  componentCatalog,
 }: EditorShellProps) {
   const {
     currentSpec,
@@ -108,6 +112,14 @@ export function EditorShell({
     onDeselect: () => send({ type: "DESELECT" }),
   });
 
+  const { onInsert } = useInsert({
+    spec: currentSpec,
+    selectedId,
+    catalog: componentCatalog ?? {},
+    send,
+    push,
+  });
+
   useKeyboard({
     machine: send,
     history: historySend,
@@ -131,6 +143,7 @@ export function EditorShell({
 
   const showBoxModel =
     pointer === "selected" ||
+    pointer === "inserting" ||
     (pointer === "editing" && state.context.editing?.mode === "popover");
   const boxModel = useBoxModel(fiberRegistry, showBoxModel ? selectedId : null);
 
@@ -157,7 +170,9 @@ export function EditorShell({
             elementType={currentSpec.elements[highlightId]?.type}
           />
         )}
-        {(pointer === "selected" || pointer === "editing") &&
+        {(pointer === "selected" ||
+          pointer === "editing" ||
+          pointer === "inserting") &&
           fiberRegistry &&
           selectedId && (
             <>
@@ -188,11 +203,21 @@ export function EditorShell({
                   axis={moveInfo.axis}
                   canMovePrev={moveInfo.canMovePrev}
                   canMoveNext={moveInfo.canMoveNext}
+                  canInsert={!!componentCatalog}
                   onAction={handleAction}
                   toolbarRef={toolbarRef}
                 />
               )}
               {pointer === "editing" && popover}
+              {pointer === "inserting" && componentCatalog && fiberRegistry && (
+                <CatalogPicker
+                  registry={fiberRegistry}
+                  elementId={selectedId}
+                  catalog={componentCatalog}
+                  onInsert={onInsert}
+                  onClose={() => send({ type: "ESCAPE" })}
+                />
+              )}
             </>
           )}
         {drag === "dragging" && dropTarget && fiberRegistry && (

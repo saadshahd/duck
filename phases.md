@@ -1,535 +1,1250 @@
-# Implementation Phases
+# Editor Finalization → MCP Phases
 
-## Phase 4: MCP Server
+Each phase has self-contained task prompts. Copy a prompt into a session to execute it.
 
-### Goal
+**Order**: bugs → drag labels → context menu → type-to-edit → copy/paste → insert → multi-select → tests → MCP
 
-AI agents connect to the editor via MCP. Closed feedback loop: agent edits → designer sees changes → designer gives feedback → agent adjusts.
+---
 
-### Architecture
+## Phase 1: Bugs + Prop Editor
 
+### Task 1a — Popover click-outside dismiss
+
+**Files:**
+- Modify: `packages/editor/src/editor/prop-editor/prop-popover.tsx`
+- Create: `packages/editor/src/editor/prop-editor/use-on-click-outside.ts`
+
+**Prompt:**
 ```
-MCP Server (single Bun process)
-  ├── stdio → Agent (MCP protocol)
-  ├── HTTP+WebSocket → Browser (bridge)
-  └── Storage interface → FileStorage / CMS adapter
+Fix: prop editor popover doesn't close when clicking outside.
+
+## Context
+
+`PropPopover` (prop-editor/prop-popover.tsx) renders a floating popover for editing element props. It handles Escape (lines 70-78 via keydown listener on document) but has no click-outside handler.
+
+The popover lives inside Shadow DOM (OverlayRoot). Events from light DOM cross the shadow boundary — use `event.composedPath()` for containment checks, not `event.target`.
+
+## What to build
+
+1. Create `prop-editor/use-on-click-outside.ts` — a named hook:
+   ```ts
+   function useOnClickOutside(
+     ref: React.RefObject<HTMLElement | null>,
+     onClose: () => void,
+   ): void
+   ```
+   - Listen for `pointerdown` on `document` (not `mousedown` — pointer events work across touch/mouse)
+   - Check `event.composedPath().includes(ref.current)` — if NOT contained, call `onClose()`
+   - Clean up on unmount
+
+2. In `PropPopover`, replace nothing — add the hook call:
+   ```ts
+   useOnClickOutside(refs.floating, onClose);
+   ```
+   The floating ref is `refs.floating` from `useFloating()` — it's a `React.RefObject<HTMLElement>`.
+
+## Why this approach
+- `composedPath()` is the correct API for shadow DOM — `event.target` is retargeted at the shadow boundary
+- Named hook per TASTE.md: raw useEffect for click-outside is an unnamed concept
+- `pointerdown` fires before `click`, preventing the popover from closing and reopening when clicking its own trigger
+
+## Risks
+- The popover contains inputs, selects, textareas — clicks inside those must NOT trigger close. `composedPath().includes(ref)` handles this since those elements are descendants of the floating ref
+- If the popover trigger button is outside the popover, clicking it will fire close AND reopen — verify this doesn't cause flicker
+
+## Verify
+- Click inside popover fields → popover stays open
+- Click on the rendered page outside popover → popover closes
+- Click on another overlay element → popover closes
+- Press Escape → popover still closes (existing behavior preserved)
+- `bun test` passes, `bunx playwright test --project=chromium` passes
 ```
 
-### Tool model
+---
 
-| Tool | Purpose |
-|------|---------|
-| `editor_status` | Pages, bridge, connections |
-| `editor_query` | Unified reads: outline, element, subtree, type, search, selection, capture, catalog |
-| `editor_apply` | RFC 6902 patches → draft |
-| `editor_commit` | Promote draft, push to browser |
-| `editor_discard` | Delete draft |
+### Task 1b — Fix unset prop editing
 
-### Step 1: Storage interface + FileStorage
+**Files:**
+- Modify: `packages/editor/src/editor/spec-ops/edit-prop.ts`
+- Modify: `packages/editor/src/editor/spec-ops/edit-prop.test.ts`
+- Check: `packages/editor/src/editor/spec-ops/helpers.ts` (SpecOpsError union)
 
-**Context**: The MCP server needs a storage layer that abstracts file I/O so CMS adapters can be swapped in later. `FileStorage` is the default.
+**Prompt:**
+```
+Fix: setting a value on a prop that doesn't exist yet in element.props does nothing.
 
-**Build**:
-1. Define `Storage` interface in `packages/mcp-server/src/storage.ts`:
-   - Types: `PageInfo = { name: string; elementCount: number; hasDraft: boolean }`, `StorageError`, `NotFound`
-   - Methods: `listPages`, `readSpec`, `writeSpec`, `readDraft`, `writeDraft`, `commitDraft`, `discardDraft`
-   - All methods return `Effect` with typed errors
+## Context
 
-2. Implement `FileStorage` in `packages/mcp-server/src/file-storage.ts`:
-   - Constructor takes `projectDir: string` (the `.json-render-editor/` directory)
-   - `listPages`: scan `pages/*/spec.json`, count elements per page, check for `spec.draft.json`
-   - `readSpec`: read + parse `pages/{page}/spec.json`. Return `NotFound` if missing.
-   - `writeSpec`: atomic write (`.tmp` + rename) to `pages/{page}/spec.json`
-   - `readDraft`: read `spec.draft.json` if exists, return `null` if not
-   - `writeDraft`: atomic write to `spec.draft.json`
-   - `commitDraft`: verify draft exists → atomic rename `spec.draft.json` → `spec.json`. Return `NotFound` if no draft.
-   - `discardDraft`: delete `spec.draft.json`. Idempotent (no error if missing).
-   - Page name validation: kebab-case regex, max 64 chars
+`editProp` (spec-ops/edit-prop.ts) has a `checkProp` guard (lines 5-12) that returns `err({ tag: "prop-not-found" })` when the propKey is not in `element.props`. This means the popover's `onPropChange` silently fails for props that have a schema field but no current value.
 
-3. Use `@json-render/core` `Spec` type for all spec values. Import, don't redeclare.
+The prop popover renders ALL fields from the Zod schema (via `ZodFields` in zod-fields.tsx:157-179), including optional props with no value yet. When the user types into one of these empty fields, `editProp` returns an error because `propKey in el.props` is false.
 
-**Verify**:
-- Unit test in `file-storage.test.ts`:
-  - Create a temp directory, instantiate FileStorage
-  - Write a spec → read it back → identical
-  - Draft lifecycle: write draft → read draft → commit → read spec (sees draft content) → draft gone
-  - Discard: write draft → discard → read draft returns null
-  - Discard non-existent draft → no error
-  - Commit without draft → NotFound error
-  - List pages: create 3 pages, one with draft → listPages returns correct info
-  - Invalid page name → error
-  - Atomic write: verify no partial writes (write large spec, check file after)
-- `bun test packages/mcp-server/src/file-storage.test.ts` passes
+## What to build
 
-**Dependencies**: `@json-render/core` (add to mcp-server package.json), `effect` (already installed)
+1. In `edit-prop.ts`: remove the `checkProp` function entirely. The only validation needed is that the element exists (`getElement` already does this). Whether a prop is valid for a component is the catalog's concern — the editor is catalog-agnostic.
+
+   Simplified function:
+   ```ts
+   export function editProp(
+     spec: Spec,
+     elementId: string,
+     propKey: string,
+     newValue: unknown,
+   ): Result<Spec, SpecOpsError> {
+     return getElement(spec, elementId).map(() =>
+       cloneAndMutate(spec, (draft) => {
+         draft.elements[elementId].props[propKey] = newValue;
+       }),
+     );
+   }
+   ```
+
+2. In `helpers.ts`: check if `"prop-not-found"` is part of the `SpecOpsError` union. If it is and no other function produces it, remove it from the union.
+
+3. In `edit-prop.test.ts`:
+   - Add test: "creates prop when key does not exist" — call editProp with a propKey not in element.props, assert Result is ok and new spec has the value
+   - Update or remove any test asserting `prop-not-found` error
+   - Search the codebase for any code matching on `"prop-not-found"` — update or remove
+
+## Risks
+- Removing checkProp changes the error surface. Grep for `"prop-not-found"` across the codebase before implementing
+- This deliberately allows setting arbitrary props — the editor doesn't validate prop names against the schema. That's by design (catalog-agnostic)
+
+## Verify
+- Open popover on an element → change a prop that has no current value → value is set in the spec
+- Existing prop editing still works
+- `bun test packages/editor/src/editor/spec-ops/edit-prop.test.ts` passes
+- `bun test` passes (no other tests broke)
+```
 
 ---
 
-### Step 2: MCP server skeleton + bridge
+### Task 1c — Demo catalog style typing
 
-**Context**: The MCP server is a single process with two transports: stdio for MCP protocol, HTTP+WebSocket for browser bridge. The bridge enables the closed agent-designer loop.
+**Files:**
+- Modify: `packages/editor/src/demo/catalog.ts`
 
-**Build**:
-1. MCP server entry in `packages/mcp-server/src/index.ts`:
-   - Read project directory from `--project-dir` arg or cwd
-   - Instantiate `FileStorage`
-   - Read `catalog.json` + `catalog-prompt.txt` from project dir (fail with clear message if missing)
-   - Start bridge HTTP+WebSocket server on port 0 (OS-assigned)
-   - Connect MCP stdio transport
-   - Register tools (stubs initially — implement in later steps)
+**Prompt:**
+```
+Update demo catalog to type style props as z.object instead of z.record.
 
-2. Bridge in `packages/mcp-server/src/bridge.ts`:
-   - `Bun.serve` with WebSocket upgrade
-   - Connection state: `Map<pageName, Set<WebSocket>>` — multiple tabs per page
-   - On WebSocket connect: wait for `{ type: "ready", page }` message, add to page's connection set
-   - `pushSpecUpdate(page, spec)`: broadcast `{ type: "spec-update", spec }` to all connections for that page
-   - `getSelection(page)`: return most recent `{ type: "selection-changed", ... }` for that page, or null
-   - `requestCapture(page, options)`: send `{ type: "capture-request", id, ...options }` to one connection for that page, return Promise that resolves on `{ type: "capture-response", id, image }`
-   - Capture timeout: 10 seconds
-   - On WebSocket close: remove from connection set
-   - HTTP routes: `GET /health` → `{ ok: true, port }`, `GET /status` → connections per page
+## Context
 
-3. Server composition in `packages/mcp-server/src/server.ts`:
-   - Type: `McpServerConfig = { storage: Storage; catalogData: CatalogData; bridge: Bridge }`
-   - Tool registration helper that adapts Effect handlers to MCP SDK handlers (Effect.runPromise at boundary)
-   - Each tool gets the config injected
+All 8 demo components type `style` as `z.record(z.unknown()).optional()` (catalog.ts). This hits the `FallbackField` JSON textarea in the prop editor. If `style` is typed as `z.object({...})`, the editor automatically renders individual labeled fields via `ObjectFields` → recursive `ZodField`.
 
-**Verify**:
-- Start the server: `bun run packages/mcp-server/src/index.ts --project-dir .json-render-editor`
-  - Bridge HTTP server starts, port printed to stderr
-  - `GET /health` returns `{ ok: true }`
-  - MCP stdio transport connects (test with `echo '{"jsonrpc":"2.0","method":"initialize",...}' | bun run ...`)
-- If `catalog.json` missing: clear error message, not a crash
-- Unit test for bridge:
-  - Create bridge, connect mock WebSocket, verify ready message registers connection
-  - Broadcast spec update → all connections for that page receive it
-  - Request capture → timeout when no response
-  - Disconnect → connection removed from set
+The sample-document.json has specific style properties per component — use those as the schema keys.
 
-**Dependencies**: `@modelcontextprotocol/sdk` (already installed), `effect` (already installed)
+## What to build
+
+Replace `style: z.record(z.unknown()).optional()` with `z.object({...}).optional()` for each component. Include the style properties actually used in `demo/sample-document.json` plus a few common extras:
+
+- **Box**: maxWidth, margin, padding, fontFamily, color, background, borderRadius
+- **Heading**: fontSize, marginBottom, textAlign, color
+- **Text**: fontSize, color, maxWidth, marginBottom, lineHeight
+- **Button**: (no style in sample — keep it minimal or omit)
+- **Image**: width, maxWidth, borderRadius, objectFit
+- **Stack**: margin, gap (gap is already a direct prop — check if style.gap is used)
+- **Card**: padding, background, borderRadius, border
+- **Grid**: gap (already a direct prop — check overlap)
+
+All style fields: `z.string().optional()`. CSS values are always strings.
+
+## Risks
+- If sample-document.json has style properties not in the schema, z.object will fail strict parsing. But the editor doesn't parse props against schemas — it only uses schemas for field rendering. So extra properties in the data are fine
+- Some components may use style properties not listed here — that's acceptable, the user can still use the JSON fallback for unlisted properties via a "style (raw)" escape hatch, but don't build that now
+
+## Verify
+- `bun run dev` → open popover on any element → style shows individual fields, not a JSON textarea
+- Editing a style field (e.g., fontSize on a Heading) → value updates in the rendered page
+- `bun run typecheck` passes
+```
 
 ---
 
-### Step 3: `editor_status` tool
+## Phase 2: Drag Drop Zone Labels
 
-**Context**: The first tool agents call. Returns page list, bridge info, and connection status.
+### Task 2a — Parent container label during drag
 
-**Build**:
-1. Tool handler in `packages/mcp-server/src/tools/status.ts`:
-   - No input parameters
-   - Pipeline: `storage.listPages()` → combine with bridge status
-   - Output:
-     ```ts
-     {
-       pages: Array<{ name: string; elementCount: number; hasDraft: boolean }>;
-       bridge: { port: number; connectedPages: string[] };
-     }
+**Files:**
+- Create: `packages/editor/src/editor/drag/drop-zone-label.tsx`
+- Modify: `packages/editor/src/editor/drag/drag.css`
+- Modify: `packages/editor/src/editor/shell.tsx`
+
+**Prompt:**
+```
+Show the receiving container's type label during drag-and-drop.
+
+## Context
+
+During drag, `useDragReorder` (drag/use-drag-reorder.ts) returns `dropTarget: DropTarget | null`. The `DropTarget` type (drop-indicator.tsx:7-9):
+```ts
+type DropTarget =
+  | { kind: "line"; elementId: string; edge: Edge; axis: Axis }
+  | { kind: "container"; elementId: string };
+```
+
+When `kind === "container"`, the user is dropping INTO a container — `elementId` IS the container. When `kind === "line"`, they're dropping between siblings — the receiving container is the parent of `elementId` (use `findParent` from spec-ops/reorder.ts).
+
+The `SelectionLabel` (selection/selection-label.tsx) already renders a floating type label using @floating-ui/react. Reuse that positioning pattern.
+
+## What to build
+
+1. `drag/drop-zone-label.tsx` — new component:
+   ```ts
+   type DropZoneLabelProps = {
+     registry: FiberRegistry;
+     spec: Spec;
+     target: DropTarget;
+   };
+   ```
+   - Derive container ID: if `target.kind === "container"` → `target.elementId`. If `target.kind === "line"` → call `findParent(spec, target.elementId)` to get `parentId`
+   - Look up container type: `spec.elements[containerId]?.type`
+   - Position at top-start of the container element using `useFloating({ placement: "top-start" })` with `offset(4)` and `autoUpdate` (same pattern as SelectionLabel)
+   - Use `useShadowSheet(css)` for shadow DOM styling
+   - `pointer-events: none` — must not interfere with drop hit testing
+
+2. Style in `drag/drag.css`:
+   - Distinct from selection label — use a dashed border or a different background token so it's clear this is a drop target hint, not the selection
+   - Small font, subtle, doesn't compete with the drop indicator line
+
+3. Wire in `shell.tsx`:
+   - Render `<DropZoneLabel>` inside `OverlayRoot` when `dropTarget` is non-null AND machine is in drag state (`state.context.dragSourceId !== null`)
+   - Pass `registry`, `spec`, `target`
+
+## Risks
+- `findParent` does a linear scan of spec.elements — acceptable during drag (fires on monitor change, not every frame)
+- If the container is the root element, the label still shows (e.g., "Box") — that's correct
+- The label must disappear instantly on drop or drag cancel — driven by `dropTarget` becoming null
+
+## Verify
+- Drag an element → drop zone label appears on the receiving container showing its type (e.g., "Stack")
+- Cross-parent drag → label changes as you move between containers
+- Drop or cancel → label disappears immediately
+- Label doesn't interfere with drop target detection (pointer-events: none)
+- `bunx playwright test --project=chromium` — existing drag e2e tests still pass
+```
+
+---
+
+## Phase 3: Context Menu
+
+### Task 3a — Right-click element picker
+
+**Files:**
+- Create: `packages/editor/src/editor/context-menu/use-context-menu.ts`
+- Create: `packages/editor/src/editor/context-menu/context-menu.tsx`
+- Create: `packages/editor/src/editor/context-menu/context-menu.css`
+- Create: `packages/editor/src/editor/context-menu/index.ts`
+- Modify: `packages/editor/src/editor/shell.tsx`
+
+**Prompt:**
+```
+Add a right-click context menu that shows all spec elements at the click point.
+
+## Context
+
+This is a new domain: `src/editor/context-menu/`. It follows the module layer rules: domain layer, imports from infrastructure (fiber, overlay, spec-ops) but not from other domains.
+
+The fiber registry (fiber/index.ts) provides `getNodeId(element): string | undefined` to map DOM elements back to spec IDs. `document.elementsFromPoint(x, y)` returns all DOM elements at a point in paint-order (topmost first).
+
+This becomes the editor's general-purpose context menu — future phases will add Copy, Paste, Delete, Insert entries here.
+
+## What to build
+
+1. `use-context-menu.ts` — hook managing menu state:
+   ```ts
+   type MenuState =
+     | { open: false }
+     | { open: true; x: number; y: number; elementIds: string[] };
+
+   function useContextMenu(deps: {
+     registry: FiberRegistry | null;
+     send: (event: EditorEvent) => void;
+   }): { menu: MenuState; close: () => void }
+   ```
+   - Register `contextmenu` listener on `document`
+   - On right-click:
+     - `e.preventDefault()` to suppress browser default menu
+     - `document.elementsFromPoint(e.clientX, e.clientY)` → get all DOM elements at point
+     - Filter through `registry.getNodeId(el)` → keep only spec elements
+     - Deduplicate IDs (same spec element may have multiple DOM nodes)
+     - Store `{ open: true, x: e.clientX, y: e.clientY, elementIds }`
+   - If no spec elements at point → don't open (let browser default menu through)
+   - `close()` → set to `{ open: false }`
+
+2. `context-menu.tsx` — renders the floating menu:
+   ```ts
+   type ContextMenuProps = {
+     x: number;
+     y: number;
+     elementIds: string[];
+     spec: Spec;
+     send: (event: EditorEvent) => void;
+     onClose: () => void;
+   };
+   ```
+   - Position: `position: fixed; left: x; top: y` (cursor position, no floating-ui needed)
+   - Each item shows: component type + element ID (e.g., "Card · feature-1")
+   - `onMouseEnter` per item → `send({ type: "HOVER", elementId })` to highlight
+   - `onMouseLeave` → `send({ type: "UNHOVER" })`
+   - `onClick` per item → `send({ type: "SELECT", elementId })`, then `onClose()`
+   - Escape → `onClose()`
+   - Click-outside → `onClose()` (reuse `useOnClickOutside` from Phase 1a)
+   - `pointer-events: auto` on the menu container (overlay root has `pointer-events: none`)
+   - Use `useShadowSheet(css)` for shadow DOM styling
+
+3. `context-menu.css`:
+   - Dark floating panel matching existing overlay aesthetic
+   - Use tokens from `overlay/tokens.css` (--editor-surface, --editor-text, etc.)
+   - Hover state on items (subtle highlight)
+   - Max-height with scroll for many elements
+
+4. `index.ts` — barrel: export useContextMenu, ContextMenu
+
+5. Wire in `shell.tsx`:
+   - Call `useContextMenu({ registry, send })`
+   - Render `<ContextMenu>` inside `OverlayRoot` when `menu.open === true`
+   - Pass `spec`, `send`, `onClose: menu.close`
+
+## Risks
+- `document.elementsFromPoint` returns overlay elements too (the shadow host div). Filter: only keep elements where `getNodeId` returns a defined value
+- The context menu itself must not be included in `elementsFromPoint` results — it renders in shadow DOM overlay so it won't be
+- Right-click on an area with no spec elements (e.g., browser chrome, empty space) → don't prevent default, let the browser menu show
+- Multiple DOM elements may map to the same spec ID (e.g., a component renders multiple DOM nodes) → deduplicate by spec ID, preserve first-seen order
+
+## Verify
+- Right-click on an element → menu appears with type + ID
+- Right-click on overlapping area → multiple elements listed in z-order
+- Hover menu item → element highlights on page
+- Click menu item → element selected, menu closes
+- Click outside → menu closes
+- Escape → menu closes
+- Right-click on empty area (no spec elements) → browser default menu shows
+- `bun run typecheck` passes
+```
+
+---
+
+## Phase 4: Type-to-Edit
+
+### Task 4a — Printable keypress enters inline edit
+
+**Files:**
+- Modify: `packages/editor/src/editor/keyboard/use-keyboard.ts`
+- Modify: `packages/editor/src/editor/shell.tsx`
+
+**Prompt:**
+```
+When a text element is selected and the user types a printable character, enter inline edit mode.
+
+## Context
+
+Inline edit is currently triggered by double-click only. The flow:
+1. `useDoubleClickEdit` detects double-click → calls `findEditableProp(spec, elementId, getPropSchema)` → sends `DOUBLE_CLICK_TEXT` event
+2. Machine transitions to editing.inline state
+3. `useInlineEdit` makes the DOM element contentEditable
+
+`findEditableProp` (prop-editor/find-editable-prop.ts) returns `{ propKey, original }` if the element has an editable text prop, or undefined.
+
+`useKeyboard` (keyboard/use-keyboard.ts) registers shortcuts via `tinykeys(window, bindings)`. It takes `{ machine: Send, history: Send, nav: NavContext }`.
+
+Machine events relevant:
+```ts
+{ type: "DOUBLE_CLICK_TEXT"; elementId: string; propKey: string; original: string }
+```
+
+## What to build
+
+1. In `shell.tsx`, create a `startEdit` callback:
+   ```ts
+   const startEdit = useCallback((initialChar: string) => {
+     const selectedId = state.context.selectedId;
+     if (!selectedId) return;
+     const editable = findEditableProp(currentSpec, selectedId, getPropSchema);
+     if (!editable) return;
+     send({
+       type: "DOUBLE_CLICK_TEXT",
+       elementId: selectedId,
+       propKey: editable.propKey,
+       original: initialChar, // replaces existing text with typed char
+     });
+   }, [state.context.selectedId, currentSpec, getPropSchema, send]);
+   ```
+
+2. In `use-keyboard.ts`, add a printable key listener alongside tinykeys:
+   - Add a `keydown` listener on `window` (separate from tinykeys — tinykeys is for named shortcuts, this is a catch-all)
+   - Guards (ALL must pass):
+     - `event.key.length === 1` (single printable character)
+     - `!event.isComposing` (not in IME composition)
+     - `!event.metaKey && !event.ctrlKey && !event.altKey` (not a shortcut)
+     - No active input focused: `!["INPUT", "TEXTAREA", "SELECT"].includes(document.activeElement?.tagName ?? "")` and `document.activeElement?.contentEditable !== "true"`
+   - If guards pass: `event.preventDefault()`, call `startEdit(event.key)`
+
+   Expand the hook signature:
+   ```ts
+   function useKeyboard(targets: {
+     machine: Send;
+     history: Send;
+     nav: NavContext;
+     startEdit?: (initialChar: string) => void;
+   }): void
+   ```
+
+3. Wire in `shell.tsx`: pass `startEdit` to `useKeyboard`
+
+## Risks
+- International keyboards: some characters require IME composition. `e.isComposing` check prevents entering edit mode during composition
+- The initial character REPLACES existing text. This matches Figma/Sketch behavior — typing on a selected text starts fresh. The original value is `initialChar`, not the element's current text
+- If `findEditableProp` returns undefined (element has no editable text), the keypress is ignored — no error, no feedback
+- The `DOUBLE_CLICK_TEXT` event name is now misleading (also triggered by keyboard). Consider renaming to `START_INLINE_EDIT` atomically across the codebase. But this is optional polish — the behavior is correct either way
+
+## Verify
+- Select a Heading → press "H" → enters inline edit mode with "H" as the text
+- Select a Button (no editable text prop) → press "H" → nothing happens
+- While typing in the popover input → keypresses don't trigger edit mode
+- Cmd+C while selected → doesn't trigger edit mode (modifier guard)
+- `bun test` passes
+```
+
+---
+
+## Phase 5: Copy/Paste
+
+### Task 5a — Clipboard spec operations
+
+**Files:**
+- Create: `packages/editor/src/editor/spec-ops/clipboard.ts`
+- Create: `packages/editor/src/editor/spec-ops/clipboard.test.ts`
+
+**Prompt:**
+```
+Add copy/paste spec operations: serialize fragment, deserialize with new IDs, insert, duplicate.
+
+## Context
+
+Spec structure (`@json-render/core`):
+```ts
+type Spec = { root: string; elements: Record<string, UIElement> };
+type UIElement = { type: string; props: Record<string, unknown>; children?: string[] };
+```
+
+Existing helpers in `spec-ops/helpers.ts`:
+- `collectDescendants(spec, ancestorId)` → `ReadonlySet<string>` of all descendant IDs
+- `cloneAndMutate(spec, mutate)` → immutable spec update via structuredClone + mutation
+- `getElement(spec, elementId)` → `Result<UIElement, SpecOpsError>`
+- `nearestSibling(spec, parentId, childId)` → next/prev sibling ID
+
+From `spec-ops/reorder.ts`:
+- `findParent(spec, childId)` → `Result<{ parentId, childIndex }, SpecOpsError>`
+
+No existing ID generation utility — build one inline.
+
+## What to build
+
+New file: `spec-ops/clipboard.ts`
+
+1. Fragment type:
+   ```ts
+   type SpecFragment = {
+     _type: "json-render-fragment";
+     root: string;
+     elements: Record<string, UIElement>;
+   };
+   ```
+   The `_type` marker enables clipboard validation on paste.
+
+2. `serializeFragment(spec, elementId)` → `Result<SpecFragment, SpecOpsError>`:
+   - Validate element exists via `getElement`
+   - Collect element + descendants via `collectDescendants`
+   - Build fragment: `root = elementId`, elements = subset of spec.elements containing only the target + descendants
+   - Return the fragment
+
+3. `deserializeFragment(fragment, existingIds: Set<string>)` → `SpecFragment`:
+   - Generate new ID for each element in the fragment
+   - ID format: `${element.type.toLowerCase()}-${n}` where n increments until not in `existingIds` and not already assigned in this operation
+   - Build an old→new ID map
+   - Remap: update all `children` arrays to use new IDs, update `root` to new root ID
+   - Pure function, can't fail
+
+4. `insertFragment(spec, fragment, afterElementId)` → `Result<Spec, SpecOpsError>`:
+   - Find parent of `afterElementId` via `findParent`
+   - `cloneAndMutate`: merge `fragment.elements` into `spec.elements`, splice `fragment.root` into parent's children after `afterElementId`
+   - Return new spec
+
+5. `duplicateElement(spec, elementId)` → `Result<Spec, SpecOpsError>`:
+   - Compose: `serializeFragment` → `deserializeFragment` (with all existing spec IDs) → `insertFragment(spec, newFragment, elementId)`
+   - Guard: cannot duplicate root (`elementId === spec.root` → error)
+
+## Test file: `clipboard.test.ts`
+
+Factory helper:
+```ts
+const twoLevelSpec = (): Spec => ({
+  root: "page",
+  elements: {
+    page: { type: "Box", props: {}, children: ["a", "b"] },
+    a: { type: "Card", props: { title: "A" }, children: ["a1"] },
+    a1: { type: "Text", props: { text: "Hello" } },
+    b: { type: "Card", props: { title: "B" } },
+  },
+});
+```
+
+Tests:
+- serializeFragment("a") → fragment has a, a1, root is "a"
+- serializeFragment("nonexistent") → error
+- deserializeFragment: all IDs changed, no collisions, children arrays remapped
+- deserializeFragment with conflicting existingIds: IDs skip conflicts
+- insertFragment after "a" → new element between a and b in parent's children
+- duplicateElement("a") → spec has original a + new card with new ID, children intact
+- duplicateElement root → error
+- duplicateElement leaf ("b") → single element fragment
+- Immutability: original spec unchanged after all operations
+
+## Risks
+- ID generation must check against ALL existing IDs (both spec.elements keys and IDs being generated in this batch)
+- Children arrays in the fragment reference OLD IDs — remapping must be complete before inserting
+- `structuredClone` in `cloneAndMutate` handles deep copy — no manual cloning needed
+
+## Verify
+- `bun test packages/editor/src/editor/spec-ops/clipboard.test.ts` passes
+- All tests use real Spec objects, no mocks
+```
+
+---
+
+### Task 5b — Wire keyboard shortcuts + context menu entries
+
+**Files:**
+- Modify: `packages/editor/src/editor/keyboard/use-keyboard.ts`
+- Modify: `packages/editor/src/editor/shell.tsx`
+- Modify: `packages/editor/src/editor/context-menu/context-menu.tsx`
+
+**Prompt:**
+```
+Wire copy/paste/cut/duplicate to keyboard shortcuts and context menu.
+
+## Context
+
+Clipboard operations from Task 5a:
+- `serializeFragment(spec, elementId)` → `Result<SpecFragment, SpecOpsError>`
+- `deserializeFragment(fragment, existingIds)` → `SpecFragment`
+- `insertFragment(spec, fragment, afterElementId)` → `Result<Spec, SpecOpsError>`
+- `duplicateElement(spec, elementId)` → `Result<Spec, SpecOpsError>`
+
+`deleteElement` (spec-ops/delete.ts) already exists.
+`SpecPush` (types.ts): `(spec: Spec, label: string, group?: string) => void`
+
+## What to build
+
+1. In `shell.tsx`, create clipboard callbacks:
+
+   ```ts
+   const handleCopy = useCallback(async () => {
+     const id = state.context.selectedId;
+     if (!id) return;
+     serializeFragment(currentSpec, id).map(async (fragment) => {
+       await navigator.clipboard.writeText(JSON.stringify(fragment));
+     });
+   }, [state.context.selectedId, currentSpec]);
+
+   const handlePaste = useCallback(async () => {
+     const id = state.context.selectedId;
+     if (!id) return;
+     try {
+       const text = await navigator.clipboard.readText();
+       const parsed = JSON.parse(text);
+       if (parsed?._type !== "json-render-fragment") return;
+       const allIds = new Set(Object.keys(currentSpec.elements));
+       const remapped = deserializeFragment(parsed, allIds);
+       insertFragment(currentSpec, remapped, id).map((next) =>
+         push(next, `Pasted ${remapped.elements[remapped.root]?.type ?? "element"}`)
+       );
+     } catch { /* invalid clipboard content — ignore */ }
+   }, [state.context.selectedId, currentSpec, push]);
+
+   const handleCut = useCallback(async () => {
+     await handleCopy();
+     const id = state.context.selectedId;
+     if (!id) return;
+     deleteElement(currentSpec, id).map(({ spec, parentId }) => {
+       push(spec, "Cut element");
+       send({ type: "SELECT", elementId: nearestSibling(currentSpec, parentId, id) });
+     });
+   }, [handleCopy, state.context.selectedId, currentSpec, push, send]);
+
+   const handleDuplicate = useCallback(() => {
+     const id = state.context.selectedId;
+     if (!id) return;
+     duplicateElement(currentSpec, id).map((next) => {
+       push(next, "Duplicated element");
+     });
+   }, [state.context.selectedId, currentSpec, push]);
+   ```
+
+2. In `use-keyboard.ts`, register via tinykeys:
+   ```ts
+   "$mod+c": (e) => { e.preventDefault(); onCopy?.(); },
+   "$mod+v": (e) => { e.preventDefault(); onPaste?.(); },
+   "$mod+x": (e) => { e.preventDefault(); onCut?.(); },
+   "$mod+d": (e) => { e.preventDefault(); onDuplicate?.(); },
+   ```
+
+   Expand hook signature with optional clipboard callbacks.
+   Guard: all require selectedId (except paste which also needs clipboard content — handled in the callback).
+
+3. In `context-menu.tsx`, add a divider + entries after the element list:
+   - Copy, Cut, Paste, Duplicate
+   - Each calls the same callbacks passed from shell
+   - All disabled when no element is selected (except paste which checks clipboard)
+
+## Risks
+- `navigator.clipboard.readText()` is async and may prompt for permission. Handle denial as no-op
+- Paste validation: clipboard may have non-JSON or non-fragment JSON. The `_type` check + try/catch handles this
+- `$mod+c` may conflict with browser's native copy. `e.preventDefault()` suppresses it — only do this when a spec element is selected. If nothing selected, let the browser handle it
+- Cross-tab paste: works naturally since clipboard contains JSON. Different catalog = user's problem
+
+## Verify
+- Select element → Cmd+C → Cmd+V → element duplicated as next sibling with new IDs
+- Cmd+X → element removed, clipboard has fragment
+- Cmd+D → element duplicated (no clipboard interaction)
+- Right-click → context menu shows Copy/Cut/Paste/Duplicate
+- Paste with non-fragment clipboard content → nothing happens
+- `bun test` passes
+```
+
+---
+
+## Phase 6: Insert Element
+
+### Task 6a — Insert spec operation
+
+**Files:**
+- Create: `packages/editor/src/editor/spec-ops/insert.ts`
+- Create: `packages/editor/src/editor/spec-ops/insert.test.ts`
+
+**Prompt:**
+```
+Add insertElement spec operation for adding new elements from the catalog.
+
+## Context
+
+Same infrastructure as clipboard operations. Uses `findParent`, `cloneAndMutate`, `getElement` from spec-ops/helpers and reorder.
+
+## What to build
+
+New file: `spec-ops/insert.ts`
+
+```ts
+type InsertPosition = { tag: "child" } | { tag: "after" };
+
+function insertElement(
+  spec: Spec,
+  componentType: string,
+  targetId: string,
+  position: InsertPosition,
+  defaultProps?: Record<string, unknown>,
+): Result<{ spec: Spec; newElementId: string }, SpecOpsError>
+```
+
+Behavior:
+- Generate unique ID: `${componentType.toLowerCase()}-${n}` where n starts at 1 and increments until not in `spec.elements`
+- Create UIElement: `{ type: componentType, props: defaultProps ?? {} }`
+- If `position.tag === "child"`:
+  - Validate target has a `children` array (containers). If not → error `{ tag: "not-a-container", elementId: targetId }`
+  - Add `children: []` to the new element (it's going into a container, so it might be a container itself — but default to no children)
+  - Append new ID to target's children
+- If `position.tag === "after"`:
+  - `findParent(spec, targetId)` to get parent + index
+  - Splice new ID after targetId in parent's children
+- Use `cloneAndMutate`
+- Return new spec + generated ID
+
+Add `"not-a-container"` to `SpecOpsError` union in helpers.ts if not present.
+
+## Test file: `insert.test.ts`
+
+Tests:
+- Insert as child → element added, last in children array
+- Insert after → element at correct position in parent's children
+- Insert after last child → element at end
+- ID generation: if "text-1" exists, generates "text-2"
+- Default props applied
+- Empty props when no defaults
+- Insert as child of leaf (no children array) → error
+- Immutability: original spec unchanged
+
+## Verify
+- `bun test packages/editor/src/editor/spec-ops/insert.test.ts` passes
+```
+
+---
+
+### Task 6b — Catalog picker + toolbar integration
+
+**Files:**
+- Create: `packages/editor/src/editor/insert/catalog-picker.tsx`
+- Create: `packages/editor/src/editor/insert/use-insert.ts`
+- Create: `packages/editor/src/editor/insert/insert.css`
+- Create: `packages/editor/src/editor/insert/index.ts`
+- Modify: `packages/editor/src/editor/selection/action-bar.tsx` (add '+' button)
+- Modify: `packages/editor/src/editor/keyboard/use-keyboard.ts` (add '/' shortcut)
+- Modify: `packages/editor/src/editor/machine/editor-machine.ts` (add insert state)
+- Modify: `packages/editor/src/editor/shell.tsx`
+
+**Prompt:**
+```
+Add element insertion: catalog picker opened by toolbar '+' button or '/' keyboard shortcut.
+
+## Context
+
+New domain: `src/editor/insert/`. Follows layer rules — imports from infrastructure only.
+
+EditorAction union (selection/action-bar.tsx:15-20) currently has: move-up, move-down, delete, edit, more.
+
+Machine context (machine/editor-machine.ts:19-24) currently has: hoveredId, selectedId, editing, dragSourceId.
+
+## What to build
+
+1. **Machine** (editor-machine.ts):
+   - Add to context: `insertOpen: boolean` (default: false)
+   - Add events: `{ type: "OPEN_INSERT" }`, `{ type: "CLOSE_INSERT" }`
+   - In selected state: OPEN_INSERT → assign insertOpen: true. CLOSE_INSERT → assign insertOpen: false
+   - DESELECT, ESCAPE → also set insertOpen: false
+
+2. **Action bar** (selection/action-bar.tsx):
+   - Add `{ tag: "insert" }` to EditorAction union
+   - Add '+' button before the existing move buttons:
+     ```tsx
+     <button type="button" onClick={() => onAction({ tag: "insert" })}>+</button>
      ```
-   - Register with MCP SDK: name `editor_status`, read-only annotation hints
 
-**Verify**:
-- Create `.json-render-editor/pages/landing/spec.json` with demo spec
-- Start MCP server
-- Call `editor_status` via MCP → returns `{ pages: [{ name: "landing", elementCount: ~40, hasDraft: false }], bridge: { port: N, connectedPages: [] } }`
-- Create `spec.draft.json` for landing → call again → `hasDraft: true`
-- Unit test with mock storage: listPages returns known data → output matches
+3. **Catalog picker** (insert/catalog-picker.tsx):
+   ```ts
+   type CatalogPickerProps = {
+     registry: FiberRegistry;
+     elementId: string;
+     componentTypes: string[];
+     onInsert: (componentType: string) => void;
+     onClose: () => void;
+   };
+   ```
+   - Floating panel anchored to selected element via @floating-ui/react (same pattern as PropPopover)
+   - Filter input at top: simple case-insensitive `includes` match on type name
+   - List of matching types — click one → `onInsert(type)`
+   - Escape or click-outside → `onClose()`
+   - Auto-focus the filter input on mount
+   - `useShadowSheet(css)` for styling
 
----
+4. **Insert hook** (insert/use-insert.ts):
+   ```ts
+   function useInsert(deps: {
+     spec: Spec;
+     selectedId: string | null;
+     send: (event: EditorEvent) => void;
+     push: SpecPush;
+   }): { onInsert: (componentType: string) => void }
+   ```
+   - `onInsert`: determine position — if selected element has children, insert as child; else insert after
+   - Call `insertElement` spec-op with `componentType`, target, position, empty props
+   - Push to history: "Added {componentType}"
+   - Select the new element: `send({ type: "SELECT", elementId: newId })`
+   - Close picker: `send({ type: "CLOSE_INSERT" })`
 
-### Step 4: `editor_query` tool — spec modes
+5. **Keyboard** (use-keyboard.ts):
+   - Add `/` binding (when selected, not in input): `send({ type: "OPEN_INSERT" })`
 
-**Context**: The unified read tool. This step implements the spec-reading modes: outline, element, subtree, type, search. Bridge-dependent modes (selection, capture) and catalog come in later steps.
+6. **Shell** (shell.tsx):
+   - Handle `{ tag: "insert" }` action → `send({ type: "OPEN_INSERT" })`
+   - Call `useInsert` hook
+   - Render `<CatalogPicker>` when `state.context.insertOpen` is true
+   - Pass `componentTypes` — derive from the registry. The shell has access to `registry: ComponentRegistry` from props. Get type names: the `EditorShell` already receives it as a prop, extract the type name list
+   - Pass `onInsert` from the hook, `onClose` that sends CLOSE_INSERT
 
-**Build**:
-1. Tool handler in `packages/mcp-server/src/tools/query.ts`:
-   - Input schema (Zod):
-     ```ts
-     z.object({
-       page: z.string().optional(),
-       what: z.enum(["outline", "element", "subtree", "type", "search", "selection", "capture", "catalog"]),
-       id: z.string().optional(),
-       depth: z.number().optional(),
-       componentType: z.string().optional(),
-       q: z.string().optional(),
-       component: z.string().optional(),
-       components: z.array(z.string()).optional(),
-     })
-     ```
+## Risks
+- The editor must NOT import ComponentRegistry internals. Component type names should be passed as `string[]` from the demo/consumer layer
+- `EditorShellProps` may need a new optional prop: `componentTypes?: string[]` for the picker. If not provided, the '+' button doesn't render
+- The '/' shortcut must check `document.activeElement` isn't an input (same guard as type-to-edit)
+- Auto-focusing the filter input: must work inside shadow DOM. Use `ref.current?.focus()` in a useEffect
 
-2. Mode implementations in `packages/mcp-server/src/tools/query-modes/`:
-   - `outline.ts`: Walk spec tree from root, include full props up to `depth` levels, summarize deeper elements as `{ type, childCount }`. Return `{ outline, totalElements, isDraft }`.
-   - `element.ts`: Return one element with full props + immediate children outlines. Error with available IDs if not found.
-   - `subtree.ts`: Return element + all descendants with full props. Error with available IDs if not found.
-   - `type.ts`: Filter `spec.elements` by type, return matches with ancestry path. Return `{ elements, count }`.
-   - `search.ts`: Search all string prop values for substring match (case-insensitive). Return matches with ancestry + matching prop key/value. Return `{ results, count }`.
-
-3. Common: all spec modes read draft first (via `storage.readDraft`), fall back to `storage.readSpec`.
-
-**Verify**:
-- Load demo sample-document.json into `.json-render-editor/pages/landing/spec.json`
-- `editor_query({ page: "landing", what: "outline" })` → tree outline, ~2 levels, deeper nodes summarized
-- `editor_query({ page: "landing", what: "outline", depth: 1 })` → only root + direct children
-- `editor_query({ page: "landing", what: "element", id: "hero-heading" })` → Heading element with props
-- `editor_query({ page: "landing", what: "element", id: "nonexistent" })` → error with available IDs
-- `editor_query({ page: "landing", what: "subtree", id: "hero" })` → hero + all descendants
-- `editor_query({ page: "landing", what: "type", componentType: "Button" })` → all buttons with ancestry
-- `editor_query({ page: "landing", what: "search", q: "Visual Editor" })` → elements containing that text
-- Unit tests for each mode with small test specs (3-5 elements)
-
----
-
-### Step 5: `editor_query` — catalog mode
-
-**Context**: Agents need component schemas to write correct patches. Catalog data is pre-computed JSON read from disk.
-
-**Build**:
-1. Catalog mode in `packages/mcp-server/src/tools/query-modes/catalog.ts`:
-   - No `page` param needed
-   - Sub-modes:
-     - `component: "Button"` → return that component's JSON Schema + description
-     - `components: ["Button", "Card"]` → batch fetch, report unknown types in errors
-     - `q: "layout"` → fuzzy search component names + descriptions
-     - Default → summary: all components grouped, name + description + prop count
-   - Return system prompt text from `catalog-prompt.txt` in summary mode
-
-2. Catalog data loader in `packages/mcp-server/src/catalog.ts`:
-   - Type: `CatalogData = { schema: Record<string, ComponentSchema>; prompt: string }`
-   - `loadCatalog(projectDir)`: read + parse `catalog.json`, read `catalog-prompt.txt`
-   - Validate structure on load, clear error if malformed
-
-3. Catalog helper export in `packages/mcp-server/src/catalog-helper.ts`:
-   - `writeCatalogFiles(catalog, outputDir)`: calls `catalog.jsonSchema({ strict: true })` and `catalog.prompt()`, writes both files
-   - Exported from package main entry for consumers
-
-**Verify**:
-- Generate catalog files from demo: `writeCatalogFiles(demoCatalog, '.json-render-editor')`
-- `editor_query({ what: "catalog" })` → summary of 8 demo components
-- `editor_query({ what: "catalog", component: "Button" })` → Button JSON Schema with props
-- `editor_query({ what: "catalog", components: ["Button", "Nonexistent"] })` → Button schema + error for Nonexistent
-- `editor_query({ what: "catalog", q: "layout" })` → Stack, Grid, Box
-- Unit test with small catalog data fixture
+## Verify
+- Select element → click '+' in toolbar → picker appears with component types
+- Type to filter → list narrows
+- Click a type → new element inserted, selected
+- Press '/' → picker opens
+- Escape → picker closes
+- Insert into container → added as last child
+- Insert on leaf → added as next sibling
+- `bun run typecheck` passes, `bun test` passes
+```
 
 ---
 
-### Step 6: `editor_apply` tool
+## Phase 7: Multi-Select
 
-**Context**: The write tool. Applies RFC 6902 patches to a draft. Core of the agent editing workflow.
+### Task 7a — Machine state change
 
-**Build**:
-1. Tool handler in `packages/mcp-server/src/tools/apply.ts`:
-   - Input: `{ page: string, patches: JsonPatch[] }`
-   - Pipeline:
-     1. Read draft (or committed spec if no draft)
-     2. Deep-clone the spec (`structuredClone` — protect against `applySpecPatch` mutation)
-     3. Apply patches sequentially with `applySpecPatch` from `@json-render/core`
-     4. On failure at op N: return `{ error, failedOpIndex: N, availableElementIds }`. No draft written.
-     5. Run `validateSpec` — collect warnings (advisory, don't block)
-     6. Run `autoFixSpec` if fixable issues found
-     7. Write result to draft via `storage.writeDraft(page, spec)`
-     8. Return `{ touchedElementIds, elementCount, warnings }`
+**Files:**
+- Modify: `packages/editor/src/editor/machine/editor-machine.ts`
+- Modify: `packages/editor/src/editor/machine/editor-machine.test.ts`
 
-2. Determine touched element IDs: diff old spec elements vs new spec elements.
+**Prompt:**
+```
+Extend the editor machine to support multi-select via shift-click.
 
-**Verify**:
-- Apply valid patch (replace a prop): draft created, prop changed, touchedElementIds includes that element
-- Apply valid patch to existing draft: draft updated, no new copy from committed
-- Apply invalid patch (bad path): error with failedOpIndex 0, no draft written
-- Apply 5 patches where #3 fails: error with failedOpIndex 2, patches 0-1 NOT applied (full rollback)
-- Apply patch that triggers validation warning: warning returned, draft still written
-- Page not found: error with available pages
-- Unit tests for each scenario
+## Context
 
----
+Current EditorContext (editor-machine.ts:19-24):
+```ts
+type EditorContext = {
+  hoveredId: string | null;
+  selectedId: string | null;
+  editing: Editing | null;
+  dragSourceId: string | null;
+};
+```
 
-### Step 7: `editor_commit` + `editor_discard` tools
+Current EditorEvent SELECT: `{ type: "SELECT"; elementId: string }`
 
-**Context**: Draft lifecycle. Commit promotes agent's work to the live spec and pushes to the browser. Discard reverts.
+## What to build
 
-**Build**:
-1. `editor_commit` in `packages/mcp-server/src/tools/commit.ts`:
-   - Input: `{ page: string }`
-   - Pipeline:
-     1. `storage.commitDraft(page)` — promotes draft to committed spec
-     2. Read the new committed spec
-     3. `bridge.pushSpecUpdate(page, spec)` — push to all connected browsers
-     4. Return `{ committed: true, elementCount }`
-   - Error: no draft exists → `{ error: "No active draft for page '{page}'" }`
-   - **History integration**: The browser bridge client pushes incoming spec through `history.push(spec, "Agent commit")`, NOT `setSpec()`. User can Cmd+Z to revert. All prior edits remain in undo stack.
+1. Change context:
+   ```ts
+   type EditorContext = {
+     hoveredId: string | null;
+     selectedIds: ReadonlySet<string>;    // was selectedId
+     lastSelectedId: string | null;       // new — anchor for action bar
+     editing: Editing | null;
+     dragSourceId: string | null;
+     insertOpen: boolean;                 // from Phase 6 if already added
+   };
+   ```
+   Initial: `selectedIds: new Set(), lastSelectedId: null`
 
-2. `editor_discard` in `packages/mcp-server/src/tools/discard.ts`:
-   - Input: `{ page: string }`
-   - `storage.discardDraft(page)` — delete draft
-   - Return `{ discarded: true }`
-   - Idempotent: discarding non-existent draft → success
+2. Add event: `{ type: "SHIFT_SELECT"; elementId: string }`
 
-**Verify**:
-- Apply patches → commit → `readSpec` returns patched version → draft gone
-- Commit pushes to bridge: connect mock WebSocket, commit, verify `spec-update` received
-- Commit without draft → clear error
-- Apply → discard → readDraft returns null → readSpec returns original
-- Discard non-existent → success
-- Unit tests for both tools
+3. Event behaviors:
+   - `SELECT`: `selectedIds = new Set([elementId])`, `lastSelectedId = elementId`
+   - `SHIFT_SELECT`: toggle elementId in set. If added → `lastSelectedId = elementId`. If removed and set empty → transition to idle, `lastSelectedId = null`. If removed and set non-empty → `lastSelectedId = last remaining or unchanged`
+   - `DESELECT` / `ESCAPE`: `selectedIds = new Set()`, `lastSelectedId = null`
+   - `DRAG_START`: unchanged — uses `sourceId` param, drag is single-element
 
----
+4. Guard updates:
+   - "has selection": `selectedIds.size > 0`
+   - Transition idle → selected: on SELECT or SHIFT_SELECT when set becomes non-empty
+   - Transition selected → idle: on DESELECT, ESCAPE, or SHIFT_SELECT that empties the set
 
-### Step 8: `editor_query` — selection mode (bridge-dependent)
+5. BREAKING CHANGE: every reference to `selectedId` across the codebase must update. Before implementing, search for all usages:
+   - `state.context.selectedId` → `state.context.lastSelectedId` (for single-element operations) or `state.context.selectedIds` (for set operations)
+   - This affects: shell.tsx, use-selection.ts, use-keyboard.ts, use-drag-reorder.ts, use-prop-editor.tsx, action-bar.tsx, selection-label.tsx, selection-ring.tsx, use-action-handler, box-model hooks, ghost hooks
 
-**Context**: Returns what the designer is currently focused on in the browser. Requires bridge WebSocket connection.
+   Do this as an ATOMIC change — update all references in one commit.
 
-**Build**:
-1. Selection tracking in bridge (`bridge.ts`):
-   - On `{ type: "selection-changed", page, selection }` from browser:
-     - Store: `Map<page, { elementId, elementType, props, ancestry }>`
-     - Live while connected, no TTL
-   - On WebSocket close: clear selection for that page
-   - `getSelection(page)`: return stored selection or null
+## Tests (editor-machine.test.ts):
+- SELECT → selectedIds has one element
+- SELECT different → set replaced with new element
+- SHIFT_SELECT → element added to set
+- SHIFT_SELECT same → element removed from set
+- SHIFT_SELECT last element → transitions to idle
+- DESELECT → set empty
+- All existing tests updated for new context shape
 
-2. Query mode in `packages/mcp-server/src/tools/query-modes/selection.ts`:
-   - When browser connected + selection exists: return `{ elementId, type, props, ancestry, page }`
-   - When browser connected + no selection: `{ selection: null, connected: true }`
-   - When no browser: `{ selection: null, connected: false, message: "Open the editor to enable selection" }`
+## Risks
+- XState v5 context comparisons use reference equality. Every context update must create a NEW Set, not mutate. Use `new Set([...existing, newId])` and `new Set([...existing].filter(id => id !== removeId))`
+- The model-based test's state space expands with multi-select. May need to bound the model (max 2 selected) to keep path enumeration tractable
+- This is the largest refactor in the roadmap. Do it carefully — run typecheck after every file change
 
-3. Browser-side: send selection changes to bridge WebSocket on select/deselect.
-
-**Verify**:
-- No browser → `{ connected: false }`
-- Browser connected, nothing selected → `{ selection: null, connected: true }`
-- Select element → query → returns element details
-- Deselect → null. Different element → new element.
-- Browser disconnects → selection cleared
-- Unit test with mock bridge state
+## Verify
+- `bun run typecheck` passes with zero errors
+- `bun test packages/editor/src/editor/machine/editor-machine.test.ts` passes
+- `bun test` — all tests pass
+- `bunx playwright test --project=chromium` — all e2e tests pass
+```
 
 ---
 
-### Step 9: `editor_query` — capture mode (bridge-dependent)
+### Task 7b — Selection rendering + bulk operations
 
-**Context**: Captures a screenshot from the browser, saves as a file, returns the path.
+**Files:**
+- Modify: `packages/editor/src/editor/selection/selection-ring.tsx`
+- Modify: `packages/editor/src/editor/selection/selection-label.tsx`
+- Modify: `packages/editor/src/editor/selection/action-bar.tsx`
+- Modify: `packages/editor/src/editor/selection/use-selection.ts`
+- Modify: `packages/editor/src/editor/shell.tsx`
 
-**Build**:
-1. Capture flow in bridge:
-   - `requestCapture(page, opts)`:
-     - Send `{ type: "capture-request", id: randomUUID, elementId?, viewport? }` to one connection
-     - Wait for `{ type: "capture-response", id, imageBase64 }` (10s timeout)
-     - Decode → write to `{projectDir}/captures/{page}-{timestamp}.png`
-     - Return file path
-   - Cleanup: delete files older than 1 hour
+**Prompt:**
+```
+Update selection UI for multi-select: multiple rings, bulk delete, bulk move.
 
-2. Query mode in `packages/mcp-server/src/tools/query-modes/capture.ts`:
-   - Output: `{ path: string, viewport: { width, height } }`
-   - Error when no browser / timeout
+## Context
 
-3. Browser-side: on `capture-request`, capture viewport or element, encode as base64 PNG.
+After Task 7a, context has `selectedIds: ReadonlySet<string>` and `lastSelectedId: string | null`.
 
-**Verify**:
-- No browser → clear error
-- Browser connected → capture → PNG file exists → valid image
-- Capture with elementId → cropped to element
-- Timeout → clear error
-- Old captures cleaned up
+## What to build
 
----
+1. **use-selection.ts** — detect shift key:
+   - In the click handler, check `e.shiftKey`
+   - If shift: `send({ type: "SHIFT_SELECT", elementId })`
+   - If not: `send({ type: "SELECT", elementId })` (existing behavior)
 
-### Step 10: Browser bridge client + demo integration
+2. **selection-ring.tsx** — render multiple rings:
+   - Currently renders one ring. Change to map over `selectedIds`:
+   ```tsx
+   {Array.from(selectedIds).map(id => (
+     <SingleRing key={id} registry={registry} elementId={id} />
+   ))}
+   ```
+   - Extract existing ring rendering into a `SingleRing` component
 
-**Context**: The browser needs a client that connects to the MCP server's bridge. This step adds the client and integrates it into the demo app.
+3. **selection-label.tsx** — show count badge:
+   - Render label for `lastSelectedId` only
+   - When `selectedIds.size > 1`, append count: `{elementType} (+{selectedIds.size - 1})`
 
-**Build**:
-1. Bridge client in `packages/mcp-server/src/bridge-client.ts` (exported for consumers):
-   - `createBridgeClient(url)`: connect, ready message, spec update callback, capture handler, selection sender
-   - Auto-reconnect (exponential backoff, max 5s)
+4. **action-bar.tsx** — multi-select aware actions:
+   - Anchor to `lastSelectedId`
+   - Move up/down: disabled unless ALL selected share the same parent (check via `findParent` for each)
+   - Delete: enabled when set non-empty. Deletes all selected
+   - Edit/Insert/More: disabled when `selectedIds.size > 1`
 
-2. Demo app integration (`packages/editor/src/demo/App.tsx`):
-   - On mount: create bridge client, connect with page name
-   - On `specUpdate`: push through `history.push(newSpec, "Agent commit")` — labeled history entry
-   - On `captureRequest`: capture rendered page as base64 PNG
-   - Send selection changes to bridge
-   - Bridge URL from env var or `.mcp.json` metadata
+5. **shell.tsx** — bulk operation callbacks:
+   - Bulk delete: collect all selectedIds, delete in a single `cloneAndMutate` (not one-by-one). Remove all elements + their descendants. Update all parent children arrays. Push single history entry "Deleted {n} elements". After delete, select nearest sibling of last deleted.
+   - Bulk move: only when all selected are siblings. Shift them all in the same direction within the parent's children array. Single history entry.
 
-3. Query param support: `?page=X&draft=true` loads spec from bridge API
+## Risks
+- Bulk delete in one `cloneAndMutate`: must handle case where selected elements are nested (parent selected AND child selected). Deleting parent already removes child — don't double-delete. Filter: only delete elements whose parent is NOT also in the selected set
+- Rendering N selection rings: N × getBoundingClientRect per frame. Fine for N < 20. Don't optimize prematurely
+- Action bar anchor to `lastSelectedId`: if that element is deleted by another action, bar disappears — correct behavior
 
-**Verify**:
-- Start MCP + demo → browser connects (visible in `editor_status`)
-- Apply + commit → browser updates live
-- Select element → `editor_query({ what: "selection" })` returns it
-- `editor_query({ what: "capture" })` → file saved → viewable
-- Disconnect → graceful degradation
-
----
-
-### Step 11: Annotation ("Copy context")
-
-**Context**: Manual fallback for agent context. Complements bridge-based selection.
-
-**Build**:
-1. Context builder in `packages/editor/src/editor/selection/copy-context.ts`:
-   - `buildElementContext(spec, elementId)`: ancestry path, type, props, parent
-
-2. Add "Copy" action to `FloatingActionBar`:
-   - On click: build context → `navigator.clipboard.writeText(text)`
-   - Brief "Copied" confirmation
-
-3. Wire through `useActionHandler`.
-
-**Verify**:
-- Select element → copy → clipboard has structured context
-- Works for root (no parent) and deeply nested elements
-- E2E test
+## Verify
+- Shift-click 3 elements → 3 rings visible, label shows "+2"
+- Click without shift → selection reset to single
+- Delete with multi-select → all removed, single history entry
+- Move with multi-select siblings → all move together
+- Move disabled when selected elements have different parents
+- `bunx playwright test --project=chromium` passes
+```
 
 ---
 
-### Step 12: Catalog init + end-to-end demo
+## Phase 8: Test Coverage
 
-**Context**: Final integration. Full loop works end-to-end.
+### Task 8a — Fill test gaps
 
-**Build**:
-1. Demo setup script: generate catalog files, create initial page, print instructions
-2. Package.json scripts: `mcp:setup`, `mcp`
-3. Update `.mcp.json`
+**Prompt:**
+```
+Fill test coverage gaps across the editor. Co-locate all tests with source.
 
-**Verify** (full end-to-end):
-1. `bun run mcp:setup` → project dir ready
-2. `bun run dev` + MCP server starts → bridge connects
-3. `editor_status` → pages, browser connected
-4. `editor_query({ what: "catalog" })` → 8 components
-5. `editor_query({ what: "outline", page: "landing" })` → page structure
-6. `editor_apply` → draft created
-7. `editor_commit` → browser updates
-8. `editor_query({ what: "selection" })` → user's focus
-9. `editor_query({ what: "capture" })` → screenshot file
-10. "Copy context" → paste → agent sees text
+## Tests to write
 
-### Constraints
+1. `prop-editor/use-on-click-outside.test.ts`:
+   - pointerdown inside ref → callback NOT called
+   - pointerdown outside ref → callback called
+   - cleanup on unmount → listener removed
 
-- Effect v3 for MCP server only. No Effect in editor bundle.
-- No neverthrow in MCP server — Effect is the one error model.
-- The editor library has zero knowledge of MCP, bridge, or storage.
-- CMS adapter complexity lives in the adapter, not the Storage interface.
-- Page creation/deletion is a CMS concern, not MCP.
+2. `layout/ghost.test.ts` (if not already covered):
+   - Collapsed container (0 height, has children array) → identified as ghost candidate
+   - Container with visible height → not a candidate
+   - Leaf element → not a candidate
 
----
+3. `history/history.e2e.ts`:
+   - Make edit → Cmd+Z → spec reverts to previous
+   - Cmd+Z → Cmd+Shift+Z → spec re-applies
+   - Use overlay helpers from `overlay/testing.ts`
 
-## Phase 5: Stable Updates
+4. `context-menu/context-menu.e2e.ts`:
+   - Right-click on element → menu appears
+   - Menu shows element type + ID
+   - Click item → element selected, menu closes
+   - Click outside → menu closes
+   - Escape → menu closes
 
-### Goal
+5. `spec-ops/clipboard.test.ts` — covered in Phase 5a
 
-When the AI agent applies patches via MCP, the page updates without disturbing the designer. No scroll jumps, no selection loss, no flicker.
+6. `spec-ops/insert.test.ts` — covered in Phase 6a
 
-### What to build
+## Patterns
+- Unit tests: `bun:test`, co-located `*.test.ts`
+- E2E tests: Playwright, co-located `*.e2e.ts`, query by `data-role` or ARIA role
+- No mocks except Storage boundary
+- Factory functions for test data, not fixtures
 
-**1. Stable React keys**
-
-- Ensure the json-render `Renderer` uses element IDs as React keys. Check if `@json-render/react` does this by default. If not, wrap the registry to inject `key={elementId}` on each rendered element.
-- This ensures React reconciles elements by identity, not by position — moving an element in the children array doesn't destroy and recreate it.
-
-**2. Scroll position preservation**
-
-- Before applying a Spec update from MCP: record `window.scrollY` (or the scroll container's `scrollTop`).
-- After React re-renders with the new Spec: restore the scroll position.
-- Use `requestAnimationFrame` or `useLayoutEffect` to restore before the browser paints.
-- Edge case: if the element above the viewport was deleted, the viewport may shift. Anchor to the first visible element instead of absolute scroll position.
-
-**3. Selection preservation**
-
-- Before applying a Spec update: record `selectedElementId` from the XState machine.
-- After update: if the element still exists in the new Spec, keep it selected and reposition the floating bar. If deleted, deselect.
-- The floating bar position may need to update (element may have moved). Recalculate `getBoundingClientRect` after render.
-
-**4. Change highlight animation**
-
-- When a Spec update arrives from MCP, diff the old and new Spec to find which elements changed (added, updated, removed).
-- Use `@json-render/core`'s `diffToPatches` if available, otherwise diff the `elements` maps.
-- For changed elements: apply a brief glow animation (0.5s, subtle blue pulse) via the Shadow DOM overlay.
-- For added elements: brief fade-in animation.
-- For removed elements: brief fade-out before removal (if possible with React's reconciliation — may need `AnimatePresence` from `motion`).
-- Animations are non-blocking — they don't prevent the designer from interacting.
-
-### Libraries
-
-- `motion` v12 — change highlight animations, `AnimatePresence` for exit animations
-- `@json-render/core` — `diffToPatches` for change detection
-
-### Constraints
-
-- No full page re-renders. React's reconciliation + stable keys handles partial updates.
-- Scroll preservation must work even when elements above the viewport change size.
-- Animation must be subtle — a brief glow, not a jarring flash. Duration: 300-500ms. Color: `rgba(59, 130, 246, 0.15)` background pulse.
-
-### Verification
-
-1. Scroll to middle of page → agent applies patch to hero (above viewport) → scroll position unchanged.
-2. Select a card → agent updates the card's text → card stays selected, floating bar repositions correctly.
-3. Agent adds a new section → it fades in with subtle animation.
-4. Agent updates a heading → the heading glows briefly, then returns to normal.
-5. Agent deletes a section → it disappears (fade-out if possible), siblings reflow smoothly.
-6. Rapid consecutive patches (agent streaming) → no flicker, no scroll jumps, updates batch smoothly.
+## Verify
+- `bun test` — all unit tests pass
+- `bunx playwright test --project=chromium` — all e2e tests pass
+```
 
 ---
 
-## Phase 6: Polish & Testing
+## Phase 9: MCP Tool Handlers
 
-### Goal
+### Task 9a — Wire editor_status
 
-The editor is tested end-to-end, edge cases are handled, and there's a working example catalog for others to try.
+**Files:**
+- Modify: `packages/mcp-server/src/server.ts`
 
-### What to build
+**Prompt:**
+```
+Wire editor_status to return real data from storage and bridge.
 
-**1. E2E tests with Playwright**
+## Context
 
-- Test the full interaction loop:
-  - Page loads → renders full-screen → no editor chrome visible.
-  - Hover → glow appears → move away → glow disappears.
-  - Click → floating bar → click outside → deselect.
-  - Drag section → reorder → Spec updated.
-  - Double-click text → edit → Enter → committed.
-  - Cmd+Z → undo → Cmd+Shift+Z → redo.
-  - Checkpoint create → restore.
-- Test MCP integration (if possible — may need a mock MCP client):
-  - Apply patch via MCP → editor updates.
-  - Selection visible via MCP.
-- Test CSS isolation:
-  - Load a catalog with aggressive global CSS → editor overlay unaffected.
-- Test responsive behavior:
-  - Floating bar stays in viewport at all screen sizes.
+Current state (server.ts ~line 95): returns hardcoded `{ pages: [], bridge: { ... } }`.
 
-**2. Integration tests for MCP tools**
+Storage interface: `listPages(): Effect<PageInfo[], StorageError>` where `PageInfo = { name, elementCount, hasDraft }`.
+Bridge: `viewers(): Record<string, number>` returns page→connection count.
 
-- Use `vitest` to test MCP tool handlers directly (without the full MCP transport).
-- Test `editor_apply` with valid and invalid patches.
-- Test `editor_catalog` in all query modes.
-- Test atomic file writes (write + rename, verify contents).
-- Test WebSocket message handling (mock WebSocket).
+Both are available in `McpContext` passed to every handler.
 
-**3. Example catalog**
+## What to build
 
-- Expand the demo catalog or create a second example catalog that demonstrates:
-  - More component types (form elements, media, navigation).
-  - Nested component structures (grid → card → heading + text + button).
-  - Components with multiple text props (to test inline editing picks the right one).
-- Include a sample document that exercises all editor features.
+Replace the stub with:
+```ts
+Effect.gen(function* () {
+  const pages = yield* ctx.storage.listPages();
+  return {
+    pages,
+    bridge: {
+      port: ctx.bridge.port,
+      viewers: ctx.bridge.viewers(),
+    },
+  };
+})
+```
 
-**4. Edge cases to handle**
+## Verify
+- Create a page dir with spec.json → editor_status returns it
+- Create spec.draft.json → hasDraft: true
+- Bridge has no viewers → empty object
+- `bun test packages/mcp-server` passes
+```
 
-- Empty document (no elements) → show a helpful empty state, not a blank page.
-- Single element document → drag-to-reorder disabled (no siblings).
-- Very long pages → scroll performance with overlay positioned elements.
-- Elements with `display: none` or zero height → skip during hit-testing.
-- Concurrent MCP patches while designer is mid-drag or mid-text-edit → queue patches until interaction completes (don't interrupt active gestures).
+---
 
-### Libraries
+### Task 9b — Wire editor_query (all 8 modes)
 
-- `playwright` — E2E browser tests
-- `vitest` — unit and integration tests
-- `@testing-library/react` — component tests (if needed)
+**Files:**
+- Create: `packages/mcp-server/src/query/` directory with one file per mode
+- Modify: `packages/mcp-server/src/server.ts`
 
-### Constraints
+**Prompt:**
+```
+Wire all 8 editor_query modes. Each mode in a separate file under src/query/.
 
-- Tests must run in CI (headless Chromium via Playwright).
-- No mocking of json-render internals — test through the public API.
-- E2E tests should complete in under 60 seconds total.
+## Modes
 
-### Verification
+1. `outline(spec, depth=2)`:
+   - Walk tree from root. Up to depth: include `{ id, type, props, children: [...] }`. Below depth: `{ id, type, childCount }`.
+   - Return `{ outline, totalElements }`.
 
-1. `bun run test` → all unit/integration tests pass.
-2. `bun run test:e2e` → all Playwright tests pass in headless Chromium.
-3. Load the example catalog → all editor features work as described in earlier phases.
-4. Edge cases (empty doc, single element, concurrent patches) handled gracefully.
+2. `element(spec, elementId)`:
+   - Return full element: `{ id, type, props, children, ancestry }`.
+   - Ancestry: array of `{ id, type }` from root to parent.
+   - Error if not found — include available element IDs in error for agent self-correction.
+
+3. `subtree(spec, elementId)`:
+   - Element + all descendants with full props. Use recursive walk.
+   - Same error handling as element.
+
+4. `type(spec, componentType)`:
+   - Filter spec.elements by type. Return each with ancestry path.
+   - Return `{ elements: [...], count }`.
+
+5. `search(spec, query)`:
+   - For each element, JSON.stringify each prop value. Case-insensitive includes match.
+   - Return `{ results: [{ id, type, propKey, matchedValue, ancestry }], count }`.
+
+6. `selection(bridge, page)`:
+   - `bridge.lastSelection(page)` → return selection or `{ selection: null, connected: bridge.hasViewers(page) }`.
+   - No error on missing browser — graceful degradation.
+
+7. `capture(bridge, page)`:
+   - `bridge.capture(page)` → return file path.
+   - Error when no browser or timeout — clear message.
+
+8. `catalog(catalogData)`:
+   - No page param needed. Return cached catalog JSON + prompt text.
+
+## Router
+
+In server.ts, replace the stub with:
+```ts
+const spec = yield* readSpecOrDraft(ctx.storage, args.page);
+const handler = queryHandlers[args.what];
+if (!handler) return Effect.fail(new InvalidQuery(...));
+return handler({ spec, ...args, bridge: ctx.bridge, catalog: ctx.catalog });
+```
+
+Helper `readSpecOrDraft`: try readDraft first, fall back to readSpec.
+
+## Verify
+- Each mode with demo sample-document.json
+- outline depth=1 vs depth=3 → different detail levels
+- element with bad ID → error with available IDs
+- search "Visual" → finds hero-description
+- type "Button" → finds all buttons with ancestry
+- selection with no browser → graceful message
+- catalog → returns full catalog data
+- `bun test` for each mode
+```
+
+---
+
+### Task 9c — Wire editor_apply
+
+**Files:**
+- Modify: `packages/mcp-server/src/server.ts`
+
+**Prompt:**
+```
+Wire editor_apply to execute RFC 6902 patches on a draft spec.
+
+## What to build
+
+Replace the stub. Effect.gen pipeline:
+
+1. Read base: `readDraft(page)` ?? `readSpec(page)`
+2. `structuredClone(base)` — protect against applySpecPatch mutation
+3. Apply patches sequentially via `applySpecPatch` from @json-render/core
+4. On failure at op N: return `{ error, failedOpIndex: N }`, NO draft written
+5. `validateSpec(result)` → collect warnings (advisory)
+6. `autoFixSpec(result)` if fixable issues
+7. `writeDraft(page, finalSpec)`
+8. Return `{ applied: true, opCount, warnings }`
+9. Do NOT return the full spec (too large for MCP responses)
+
+## Verify
+- Valid patch → draft created, correct values
+- Invalid patch → error with failedOpIndex, no draft written
+- Patch 3 of 5 fails → full rollback (no partial draft)
+- Validation warning → returned but draft still written
+- Apply to existing draft → draft updated (not re-forked from committed)
+- `bun test` with test specs
+```
+
+---
+
+### Task 9d — Wire editor_commit + editor_discard
+
+**Files:**
+- Modify: `packages/mcp-server/src/server.ts`
+
+**Prompt:**
+```
+Wire editor_commit and editor_discard.
+
+## editor_commit
+
+```ts
+Effect.gen(function* () {
+  yield* ctx.storage.commitDraft(page);
+  const spec = yield* ctx.storage.readSpec(page);
+  ctx.bridge.broadcast(page, spec);
+  return { committed: true, page, elementCount: Object.keys(spec.elements).length };
+})
+```
+Error if no draft → NotFound.
+
+## editor_discard
+
+```ts
+Effect.gen(function* () {
+  yield* ctx.storage.discardDraft(page);
+  return { discarded: true, page };
+})
+```
+Idempotent — discardDraft already handles missing draft.
+
+## Verify
+- apply → commit → readSpec returns patched version, draft gone
+- commit broadcasts to bridge (mock WebSocket receives spec-update)
+- commit without draft → clear error
+- apply → discard → draft gone, readSpec returns original
+- discard non-existent → success
+```
+
+---
+
+### Task 9e — Browser bridge client
+
+**Files:**
+- Create: `packages/editor/src/editor/bridge/use-bridge.ts`
+- Create: `packages/editor/src/editor/bridge/index.ts`
+- Modify: `packages/editor/src/editor/shell.tsx`
+
+**Prompt:**
+```
+Connect the editor to the MCP bridge via WebSocket.
+
+## Context
+
+New infrastructure module: `src/editor/bridge/`. Infrastructure layer — no interaction state, no domain imports.
+
+The bridge server (packages/mcp-server/src/bridge/) expects:
+- Client sends: `{ type: "ready", page }`, `{ type: "selection-changed", page, elementId }`, `{ type: "capture-response", id, imageBase64 }`
+- Client receives: `{ type: "spec-update", spec }`, `{ type: "capture-request", id, elementId? }`
+
+## What to build
+
+1. `use-bridge.ts`:
+   ```ts
+   type UseBridgeOptions = {
+     url: string;
+     page: string;
+     selectedId: string | null;
+     push: SpecPush;
+   };
+
+   function useBridge(options: UseBridgeOptions): void
+   ```
+   - Connect WebSocket to `url`
+   - On open: send `{ type: "ready", page }`
+   - On `spec-update` message: `push(message.spec, "Agent commit")` — labeled history entry, user can Cmd+Z
+   - When `selectedId` changes: send `{ type: "selection-changed", page, elementId: selectedId }`
+   - On `capture-request`: defer capture support for now — send `{ type: "capture-response", id, error: "not implemented" }`
+   - Auto-reconnect: on close/error, reconnect after 1s, 2s, 4s... max 8s (exponential backoff, 5 retries max)
+   - Clean up on unmount
+   - Guard: if `spec-update` spec is identical to current spec (by reference or JSON comparison), skip push to avoid loops
+
+2. Wire in `shell.tsx`:
+   - Add optional `bridgeUrl?: string` prop to `EditorShellProps`
+   - If provided, call `useBridge({ url: bridgeUrl, page: "default", selectedId: lastSelectedId, push })`
+   - Editor works without bridge — all bridge features are optional
+
+## Risks
+- Infinite loop: bridge sends spec-update → push to history → onSpecChange fires → consumer might re-render. Guard with a "from bridge" flag or spec identity check
+- WebSocket in useEffect: must close on unmount. Store ws ref, call ws.close() in cleanup
+- Reconnect timer must be cleared on unmount
+
+## Verify
+- Start MCP server + dev server with bridgeUrl → browser connects (visible in editor_status)
+- Apply + commit via MCP → editor updates live, shows as "Agent commit" in history
+- Cmd+Z → reverts agent's change
+- Select element → MCP editor_query selection → returns it
+- Editor works normally without bridgeUrl prop
+```
+
+---
+
+## Deferred / Out of Scope
+
+- **3D exploded view**: spiked and rejected — can't work from overlay (shadow DOM encapsulation), breaks catalog components with overflow/fixed/transform, 5-8 weeks vs 1 day for context menu. Browser DevTools use WebGL reconstruction, not CSS transforms
+- **Custom field renderers**: extension seam exists (`getPropField` callback), build when a catalog needs it
+- **AI chat in editor**: never — by design
+- **Sidebars/toolbars/panels**: zero-chrome principle
+- **Page create/delete**: CMS concern, not MCP
+- **Drag for multi-select**: single-element drag only
+- **Cross-parent bulk move**: too complex, unclear UX
+- **CI/CD**: fine without for now
+
+## Decisions Log
+
+| Decision | Chosen | Rejected | Why |
+|----------|--------|----------|-----|
+| Style editing | Catalog's job (typed z.object) | Editor CSS inspector | Editor is catalog-agnostic |
+| Drop zone label | Parent container label only | Label on indicator line | Line label competes with spatial signal |
+| Overlap selection | Right-click context menu | 3D exploded view | 3D breaks isolation, costs 5-8 weeks |
+| Delete shortcut | Toolbar only (for now) | Backspace/Delete key | Needs real user testing first |
+| Type-to-edit | Yes, printable key → inline edit | Double-click only | Matches Figma/Sketch UX |
+| Copy format | JSON fragment on system clipboard | Internal-only | Enables cross-tab paste |
+| Insert UX | Toolbar '+' + '/' shortcut | One or the other | Discoverability + power users |
+| Multi-select | Shift-click, bulk delete + move | Defer entirely | Users need it for review workflows |
