@@ -2,12 +2,29 @@ import { describe, it, expect } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
 import * as os from "node:os";
-import type { Spec } from "@json-render/core";
+import { defineCatalog, type Spec } from "@json-render/core";
+import { schema } from "@json-render/react/schema";
+import { z } from "zod";
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { InMemoryTransport } from "@modelcontextprotocol/sdk/inMemory.js";
 import { createMcpServer } from "./server.js";
 import { createFileStorage } from "./file-storage.js";
 import { createBridge } from "./bridge/index.js";
+
+const testCatalog = defineCatalog(schema, {
+  components: {
+    Box: {
+      description: "Layout container",
+      slots: ["default"],
+      props: z.object({}),
+    },
+    Text: {
+      description: "Paragraph text",
+      props: z.object({ text: z.string() }),
+    },
+  },
+  actions: {},
+});
 
 // ── Factories ─────────────────────────────────────────────────────
 
@@ -27,7 +44,7 @@ const setup = async () => {
   const connectClient = async () => {
     const mcp = createMcpServer({
       storage: createFileStorage(tmpDir),
-      catalog: { json: {}, prompt: "" },
+      catalog: testCatalog,
       bridge,
     });
     const [clientTransport, serverTransport] =

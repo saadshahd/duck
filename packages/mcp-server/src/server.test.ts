@@ -4,10 +4,27 @@ import * as path from "node:path";
 import * as os from "node:os";
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { InMemoryTransport } from "@modelcontextprotocol/sdk/inMemory.js";
-import type { Spec } from "@json-render/core";
+import { defineCatalog, type Spec } from "@json-render/core";
+import { schema } from "@json-render/react/schema";
+import { z } from "zod";
 import { createMcpServer } from "./server.js";
 import { createFileStorage } from "./file-storage.js";
 import { createBridge } from "./bridge/index.js";
+
+const testCatalog = defineCatalog(schema, {
+  components: {
+    Box: {
+      description: "Layout container",
+      slots: ["default"],
+      props: z.object({}),
+    },
+    Text: {
+      description: "Paragraph text",
+      props: z.object({ text: z.string() }),
+    },
+  },
+  actions: {},
+});
 
 // ── Factories ─────────────────────────────────────────────────────
 
@@ -37,7 +54,7 @@ const setup = async () => {
   const connectClient = async () => {
     const mcp = createMcpServer({
       storage: createFileStorage(tmpDir),
-      catalog: { json: {}, prompt: "" },
+      catalog: testCatalog,
       bridge,
     });
     const [clientTransport, serverTransport] =
@@ -290,6 +307,82 @@ describe("editor_discard", () => {
 
       expect(isError).toBeUndefined();
       expect(data).toEqual({ discarded: true, page: "landing" });
+    } finally {
+      await teardown();
+    }
+  });
+});
+
+// ── editor_manifest ─────────────────────────────────────────────
+
+describe("editor_manifest", () => {
+  it("lists components with descriptions", async () => {
+    const { connectClient, teardown } = await setup();
+    try {
+      const { data, isError } = await callTool(
+        await connectClient(),
+        "editor_manifest",
+        { what: "components" },
+      );
+
+      expect(isError).toBeUndefined();
+      expect(data.components).toEqual([
+        { name: "Box", description: "Layout container", hasSlots: true },
+        { name: "Text", description: "Paragraph text", hasSlots: false },
+      ]);
+      expect(data.actions).toEqual([]);
+    } finally {
+      await teardown();
+    }
+  });
+
+  it("returns single component schema", async () => {
+    const { connectClient, teardown } = await setup();
+    try {
+      const { data, isError } = await callTool(
+        await connectClient(),
+        "editor_manifest",
+        { what: "component", componentType: "Text" },
+      );
+
+      expect(isError).toBeUndefined();
+      expect(data.name).toBe("Text");
+      expect(data.description).toBe("Paragraph text");
+      expect(data.props).toHaveProperty("properties");
+      expect(data.props.properties).toHaveProperty("text");
+    } finally {
+      await teardown();
+    }
+  });
+
+  it("returns NotFound for unknown component", async () => {
+    const { connectClient, teardown } = await setup();
+    try {
+      const { data, isError } = await callTool(
+        await connectClient(),
+        "editor_manifest",
+        { what: "component", componentType: "DoesNotExist" },
+      );
+
+      expect(isError).toBe(true);
+      expect(data.error).toBe("NotFound");
+    } finally {
+      await teardown();
+    }
+  });
+
+  it("returns full prompt", async () => {
+    const { connectClient, teardown } = await setup();
+    try {
+      const { data, isError } = await callTool(
+        await connectClient(),
+        "editor_manifest",
+        { what: "prompt" },
+      );
+
+      expect(isError).toBeUndefined();
+      expect(typeof data.prompt).toBe("string");
+      expect(data.prompt.length).toBeGreaterThan(0);
     } finally {
       await teardown();
     }
