@@ -63,9 +63,12 @@ function registerTools(mcp: McpServer, ctx: McpContext) {
     },
     () =>
       runTool(
-        Effect.succeed({
-          pages: [],
-          bridge: { port: ctx.bridge.port, viewers: ctx.bridge.viewers() },
+        Effect.gen(function* () {
+          const pages = yield* ctx.storage.listPages();
+          return {
+            pages,
+            bridge: { port: ctx.bridge.port, viewers: ctx.bridge.viewers() },
+          };
         }),
       ),
   );
