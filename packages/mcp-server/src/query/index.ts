@@ -10,7 +10,6 @@ import { typeQuery } from "./type-query.js";
 import { search } from "./search.js";
 import { selection } from "./selection.js";
 import { capture } from "./capture.js";
-import { catalog } from "./catalog.js";
 
 type QueryArgs = {
   readonly what: string;
@@ -65,8 +64,6 @@ const requirePage = (page: string | undefined) => requireParam(page, "page");
 // ── Dispatch ──────────────────────────────────────────────────────
 
 export const dispatchQuery = (ctx: McpContext, args: QueryArgs) => {
-  if (args.what === "catalog") return catalog(ctx.catalog);
-
   const specHandler = specModes[args.what];
   if (specHandler)
     return requirePage(args.page).pipe(

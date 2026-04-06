@@ -11,6 +11,7 @@ import type {
   QueryError,
 } from "./errors.js";
 import { dispatchQuery } from "./query/index.js";
+import { dispatchManifest } from "./manifest.js";
 import { applyPatches } from "./apply.js";
 
 // ── Error union for all tool handlers ──────────────────────────────
@@ -85,12 +86,9 @@ function registerTools(mcp: McpServer, ctx: McpContext) {
     "editor_query",
     {
       description:
-        "Read spec data: outline, element, subtree, type, search, selection, capture, catalog",
+        "Read page spec data: outline, element, subtree, type, search, selection, capture",
       inputSchema: {
-        page: z
-          .string()
-          .optional()
-          .describe("Page name (required for all modes except catalog)"),
+        page: z.string().optional().describe("Page name"),
         what: z.enum([
           "outline",
           "element",
@@ -99,7 +97,6 @@ function registerTools(mcp: McpServer, ctx: McpContext) {
           "search",
           "selection",
           "capture",
-          "catalog",
         ]),
         id: z
           .string()
@@ -180,5 +177,22 @@ function registerTools(mcp: McpServer, ctx: McpContext) {
           .discardDraft(args.page)
           .pipe(Effect.map(() => ({ discarded: true, page: args.page }))),
       ),
+  );
+
+  mcp.registerTool(
+    "editor_manifest",
+    {
+      description:
+        "Query the component catalog: list components, get a single component schema, or get the full prompt",
+      inputSchema: {
+        what: z.enum(["components", "component", "prompt"]),
+        componentType: z
+          .string()
+          .optional()
+          .describe("Component name (required for component mode)"),
+      },
+      annotations: readOnly,
+    },
+    (args) => runTool(dispatchManifest(ctx.catalog, args)),
   );
 }
