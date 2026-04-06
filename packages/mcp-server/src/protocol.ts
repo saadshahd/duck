@@ -6,20 +6,13 @@ export type {
   CaptureResult,
 } from "@json-render-editor/spec";
 
-import type { Spec } from "@json-render/core";
+import type { Spec, Catalog } from "@json-render/core";
 import type { Storage } from "./storage.js";
 import type {
   CaptureMode,
   CaptureResult,
   SelectionData,
 } from "@json-render-editor/spec";
-
-// ── Catalog data (loaded from disk at startup) ─────────────────────
-
-export type CatalogData = {
-  readonly json: unknown;
-  readonly prompt: string;
-};
 
 // ── Bridge handle ──────────────────────────────────────────────────
 
@@ -38,6 +31,6 @@ export type BridgeHandle = {
 
 export type McpContext = {
   readonly storage: Storage;
-  readonly catalog: CatalogData;
+  readonly catalog: Catalog;
   readonly bridge: BridgeHandle;
 };
