@@ -6,3 +6,10 @@ export { outlineTree, type OutlineNode } from "./outline-tree.js";
 export { preOrder } from "./pre-order.js";
 export { topologicalRoots } from "./topological-roots.js";
 export { nearestSibling } from "./nearest-sibling.js";
+export {
+  type BrowserMessage,
+  type ServerMessage,
+  type CaptureMode,
+  type SelectionData,
+  type CaptureResult,
+} from "./bridge-protocol.js";

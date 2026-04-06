@@ -1,36 +1,18 @@
+export type {
+  BrowserMessage,
+  ServerMessage,
+  CaptureMode,
+  SelectionData,
+  CaptureResult,
+} from "@json-render-editor/spec";
+
 import type { Spec } from "@json-render/core";
 import type { Storage } from "./storage.js";
-
-// ── Bridge messages ────────────────────────────────────────────────
-
-/** Browser → Server (page derived from ws.data, not in message) */
-export type BrowserMessage =
-  | { type: "ready"; page: string }
-  | { type: "selection-changed"; elementId: string; ancestorIds: string[] }
-  | { type: "capture-response"; id: string; image: string };
-
-export type CaptureMode =
-  | { mode: "viewport" }
-  | { mode: "element"; elementId: string }
-  | { mode: "fullPage" };
-
-/** Server → Browser */
-export type ServerMessage =
-  | { type: "spec-update"; spec: Spec }
-  | ({ type: "capture-request"; id: string } & CaptureMode);
-
-// ── Selection snapshot ─────────────────────────────────────────────
-
-export type SelectionData = {
-  readonly elementId: string;
-  readonly ancestorIds: string[];
-};
-
-// ── Capture result ─────────────────────────────────────────────────
-
-export type CaptureResult = {
-  readonly image: string;
-};
+import type {
+  CaptureMode,
+  CaptureResult,
+  SelectionData,
+} from "@json-render-editor/spec";
 
 // ── Catalog data (loaded from disk at startup) ─────────────────────
 
