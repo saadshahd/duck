@@ -5,6 +5,7 @@ import {
   getElement,
   collectDescendants,
   cloneAndMutate,
+  topologicalRoots,
 } from "./helpers.js";
 import { findParent } from "./reorder.js";
 import type { InsertPosition } from "./insert.js";
@@ -13,25 +14,30 @@ import type { InsertPosition } from "./insert.js";
 
 export type SpecFragment = {
   _type: "json-render-fragment";
-  root: string;
+  roots: string[];
   elements: Record<string, UIElement>;
 };
 
-export type DuplicateResult = { spec: Spec; newRootId: string };
+export type DuplicateResult = { spec: Spec; newRootIds: string[] };
 
 // --- Operations ---
 
 export function serializeFragment(
   spec: Spec,
-  elementId: string,
+  elementIds: ReadonlySet<string>,
 ): Result<SpecFragment, SpecOpsError> {
-  return getElement(spec, elementId).map(() => {
-    const ids = [elementId, ...collectDescendants(spec, elementId)];
-    return {
-      _type: "json-render-fragment" as const,
-      root: elementId,
-      elements: Object.fromEntries(ids.map((id) => [id, spec.elements[id]])),
-    };
+  const roots = topologicalRoots(spec, elementIds);
+  if (roots.length === 0)
+    return err({
+      tag: "element-not-found",
+      elementId: [...elementIds][0] ?? "",
+    });
+
+  const allIds = roots.flatMap((id) => [id, ...collectDescendants(spec, id)]);
+  return ok({
+    _type: "json-render-fragment" as const,
+    roots,
+    elements: Object.fromEntries(allIds.map((id) => [id, spec.elements[id]])),
   });
 }
 
@@ -60,7 +66,7 @@ export function deserializeFragment(
 
   return {
     _type: "json-render-fragment",
-    root: remap(fragment.root),
+    roots: fragment.roots.map(remap),
     elements: Object.fromEntries(
       Object.entries(fragment.elements).map(([oldId, el]) => [
         remap(oldId),
@@ -80,7 +86,7 @@ const insertInto = (
 ): Spec =>
   cloneAndMutate(spec, (draft) => {
     Object.assign(draft.elements, fragment.elements);
-    draft.elements[parentId].children!.push(fragment.root);
+    draft.elements[parentId].children!.push(...fragment.roots);
   });
 
 const insertAfter = (
@@ -91,7 +97,11 @@ const insertAfter = (
 ): Spec =>
   cloneAndMutate(spec, (draft) => {
     Object.assign(draft.elements, fragment.elements);
-    draft.elements[parentId].children!.splice(childIndex + 1, 0, fragment.root);
+    draft.elements[parentId].children!.splice(
+      childIndex + 1,
+      0,
+      ...fragment.roots,
+    );
   });
 
 export function insertFragment(
@@ -115,18 +125,39 @@ export function insertFragment(
 
 export function duplicate(
   spec: Spec,
-  elementId: string,
+  elementIds: ReadonlySet<string>,
 ): Result<DuplicateResult, SpecOpsError> {
-  if (elementId === spec.root)
-    return err({ tag: "cannot-duplicate-root", elementId });
+  const allRoots = topologicalRoots(spec, elementIds);
+  if (allRoots.length === 0)
+    return err({
+      tag: "element-not-found",
+      elementId: [...elementIds][0] ?? "",
+    });
 
-  return serializeFragment(spec, elementId)
-    .map((fragment) =>
-      deserializeFragment(fragment, new Set(Object.keys(spec.elements))),
-    )
-    .andThen((remapped) =>
-      insertFragment(spec, remapped, elementId, { tag: "after" }).map(
-        (newSpec) => ({ spec: newSpec, newRootId: remapped.root }),
-      ),
-    );
+  const roots = allRoots.filter((id) => id !== spec.root);
+  if (roots.length === 0)
+    return err({ tag: "cannot-duplicate-root", elementId: spec.root });
+
+  let current = spec;
+  const newRootIds: string[] = [];
+
+  // Reverse order: inserting after later siblings first avoids index shifts
+  for (let i = roots.length - 1; i >= 0; i--) {
+    const id = roots[i];
+    const result = serializeFragment(current, new Set([id]))
+      .map((frag) =>
+        deserializeFragment(frag, new Set(Object.keys(current.elements))),
+      )
+      .andThen((remapped) =>
+        insertFragment(current, remapped, id, { tag: "after" }).map(
+          (newSpec) => {
+            current = newSpec;
+            newRootIds.unshift(remapped.roots[0]);
+          },
+        ),
+      );
+    if (result.isErr()) return err(result._unsafeUnwrapErr());
+  }
+
+  return ok({ spec: current, newRootIds });
 }

@@ -21,9 +21,9 @@ describe("selectEvent", () => {
     });
   });
 
-  it("hit + multi → MULTI_SELECT", () => {
+  it("hit + multi → TOGGLE_SELECT", () => {
     expect(selectEvent(hit("a"), true)).toEqual({
-      type: "MULTI_SELECT",
+      type: "TOGGLE_SELECT",
       elementId: "a",
     });
   });

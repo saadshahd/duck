@@ -34,7 +34,8 @@ export type EditorEvent =
   | { type: "HOVER"; elementId: string }
   | { type: "UNHOVER" }
   | { type: "SELECT"; elementId: string }
-  | { type: "MULTI_SELECT"; elementId: string }
+  | { type: "REPLACE_SELECT"; elementIds: string[] }
+  | { type: "TOGGLE_SELECT"; elementId: string }
   | { type: "DESELECT" }
   | { type: "OPEN_POPOVER" }
   | ({
@@ -75,8 +76,10 @@ export const editorMachine = setup({
     notEditing: ({ context }) => !isEditing(context),
     notDragging: ({ context }) => !isDragging(context),
     multiSelectEmptiesSet: ({ context, event }) =>
-      event.type === "MULTI_SELECT" &&
+      event.type === "TOGGLE_SELECT" &&
       Selection.wouldEmpty(context, event.elementId),
+    replaceSelectEmpty: ({ event }) =>
+      event.type === "REPLACE_SELECT" && event.elementIds.length === 0,
   },
 }).createMachine({
   id: "editor",
@@ -102,9 +105,13 @@ export const editorMachine = setup({
               target: "selected",
               actions: assign(({ event }) => Selection.of(event.elementId)),
             },
-            MULTI_SELECT: {
+            TOGGLE_SELECT: {
               target: "selected",
               actions: assign(({ event }) => Selection.of(event.elementId)),
+            },
+            REPLACE_SELECT: {
+              target: "selected",
+              actions: assign(({ event }) => Selection.ofSet(event.elementIds)),
             },
           },
         },
@@ -125,10 +132,17 @@ export const editorMachine = setup({
                 hoveredId: null,
               })),
             },
-            MULTI_SELECT: {
+            TOGGLE_SELECT: {
               target: "selected",
               actions: assign(({ event }) => ({
                 ...Selection.of(event.elementId),
+                hoveredId: null,
+              })),
+            },
+            REPLACE_SELECT: {
+              target: "selected",
+              actions: assign(({ event }) => ({
+                ...Selection.ofSet(event.elementIds),
                 hoveredId: null,
               })),
             },
@@ -139,7 +153,7 @@ export const editorMachine = setup({
             SELECT: {
               actions: assign(({ event }) => Selection.of(event.elementId)),
             },
-            MULTI_SELECT: [
+            TOGGLE_SELECT: [
               {
                 guard: "multiSelectEmptiesSet",
                 target: "idle",
@@ -151,6 +165,23 @@ export const editorMachine = setup({
               {
                 actions: assign(({ context, event }) =>
                   Selection.toggle(context, event.elementId),
+                ),
+              },
+            ],
+            REPLACE_SELECT: [
+              {
+                guard: "replaceSelectEmpty",
+                target: "idle",
+                actions: assign(() => ({
+                  ...Selection.clear(),
+                  hoveredId: null,
+                })),
+              },
+              {
+                actions: assign(({ event }) =>
+                  Selection.ofSet(
+                    (event as { elementIds: string[] }).elementIds,
+                  ),
                 ),
               },
             ],

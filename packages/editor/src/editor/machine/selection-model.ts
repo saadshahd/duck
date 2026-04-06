@@ -31,4 +31,12 @@ export const Selection = {
 
   wouldEmpty: (state: SelectionState, elementId: string): boolean =>
     state.selectedIds.size === 1 && state.selectedIds.has(elementId),
+
+  ofSet: (elementIds: string[]): SelectionState =>
+    elementIds.length === 0
+      ? EMPTY
+      : {
+          selectedIds: new Set(elementIds),
+          lastSelectedId: elementIds.at(-1)!,
+        },
 } as const;

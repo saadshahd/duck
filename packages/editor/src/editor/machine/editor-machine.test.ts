@@ -40,7 +40,7 @@ const sampleEvents = [
   { type: "HOVER" as const, elementId: "el-1" },
   { type: "UNHOVER" as const },
   { type: "SELECT" as const, elementId: "el-1" },
-  { type: "MULTI_SELECT" as const, elementId: "el-2" },
+  { type: "TOGGLE_SELECT" as const, elementId: "el-2" },
   { type: "DESELECT" as const },
   { type: "OPEN_POPOVER" as const },
   {
@@ -229,36 +229,36 @@ describe("multi-select", () => {
     expect(s.context.lastSelectedId).toBe("b");
   });
 
-  it("MULTI_SELECT from idle transitions to selected", () => {
-    const s = walk({ type: "MULTI_SELECT", elementId: "a" });
+  it("TOGGLE_SELECT from idle transitions to selected", () => {
+    const s = walk({ type: "TOGGLE_SELECT", elementId: "a" });
     expect((s.value as MachineValue).pointer).toBe("selected");
     expect(s.context.selectedIds).toEqual(new Set(["a"]));
     expect(s.context.lastSelectedId).toBe("a");
   });
 
-  it("MULTI_SELECT adds to set", () => {
+  it("TOGGLE_SELECT adds to set", () => {
     const s = walk(
       { type: "SELECT", elementId: "a" },
-      { type: "MULTI_SELECT", elementId: "b" },
+      { type: "TOGGLE_SELECT", elementId: "b" },
     );
     expect(s.context.selectedIds).toEqual(new Set(["a", "b"]));
     expect(s.context.lastSelectedId).toBe("b");
   });
 
-  it("MULTI_SELECT removes existing element", () => {
+  it("TOGGLE_SELECT removes existing element", () => {
     const s = walk(
       { type: "SELECT", elementId: "a" },
-      { type: "MULTI_SELECT", elementId: "b" },
-      { type: "MULTI_SELECT", elementId: "a" },
+      { type: "TOGGLE_SELECT", elementId: "b" },
+      { type: "TOGGLE_SELECT", elementId: "a" },
     );
     expect(s.context.selectedIds).toEqual(new Set(["b"]));
     expect(s.context.lastSelectedId).toBe("b");
   });
 
-  it("MULTI_SELECT last element transitions to idle", () => {
+  it("TOGGLE_SELECT last element transitions to idle", () => {
     const s = walk(
       { type: "SELECT", elementId: "a" },
-      { type: "MULTI_SELECT", elementId: "a" },
+      { type: "TOGGLE_SELECT", elementId: "a" },
     );
     expect((s.value as MachineValue).pointer).toBe("idle");
     expect(s.context.selectedIds.size).toBe(0);
@@ -268,7 +268,7 @@ describe("multi-select", () => {
   it("DESELECT clears multi-selection", () => {
     const s = walk(
       { type: "SELECT", elementId: "a" },
-      { type: "MULTI_SELECT", elementId: "b" },
+      { type: "TOGGLE_SELECT", elementId: "b" },
       { type: "DESELECT" },
     );
     expect(s.context.selectedIds.size).toBe(0);
@@ -278,7 +278,7 @@ describe("multi-select", () => {
   it("OPEN_POPOVER collapses multi to singleton", () => {
     const s = walk(
       { type: "SELECT", elementId: "a" },
-      { type: "MULTI_SELECT", elementId: "b" },
+      { type: "TOGGLE_SELECT", elementId: "b" },
       { type: "OPEN_POPOVER" },
     );
     expect(s.context.selectedIds).toEqual(new Set(["b"]));

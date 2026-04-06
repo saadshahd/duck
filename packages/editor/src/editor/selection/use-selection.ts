@@ -10,7 +10,7 @@ export const hoverEvent = (hit: Hit | null): EditorEvent =>
 
 export const selectEvent = (hit: Hit | null, multi: boolean): EditorEvent =>
   hit
-    ? { type: multi ? "MULTI_SELECT" : "SELECT", elementId: hit.elementId }
+    ? { type: multi ? "TOGGLE_SELECT" : "SELECT", elementId: hit.elementId }
     : { type: "DESELECT" };
 
 // --- Hook ---

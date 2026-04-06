@@ -33,7 +33,7 @@ const flat = (): Spec => ({
 
 const fragment = (overrides?: Partial<SpecFragment>): SpecFragment => ({
   _type: "json-render-fragment",
-  root: "item",
+  roots: ["item"],
   elements: {
     item: { type: "Stack", props: {}, children: ["child"] },
     child: { type: "Text", props: { text: "Child" } },
@@ -45,19 +45,19 @@ const fragment = (overrides?: Partial<SpecFragment>): SpecFragment => ({
 
 describe("serializeFragment", () => {
   it("extracts a leaf element", () => {
-    const result = serializeFragment(flat(), "b");
+    const result = serializeFragment(flat(), new Set(["b"]));
     expect(result.isOk()).toBe(true);
     const frag = result._unsafeUnwrap();
     expect(frag._type).toBe("json-render-fragment");
-    expect(frag.root).toBe("b");
+    expect(frag.roots).toEqual(["b"]);
     expect(Object.keys(frag.elements)).toEqual(["b"]);
     expect(frag.elements.b.props).toEqual({ text: "B" });
   });
 
   it("extracts a subtree with all descendants", () => {
-    const result = serializeFragment(nested(), "container");
+    const result = serializeFragment(nested(), new Set(["container"]));
     const frag = result._unsafeUnwrap();
-    expect(frag.root).toBe("container");
+    expect(frag.roots).toEqual(["container"]);
     expect(new Set(Object.keys(frag.elements))).toEqual(
       new Set(["container", "heading", "text"]),
     );
@@ -65,15 +65,41 @@ describe("serializeFragment", () => {
   });
 
   it("does not include sibling or ancestor elements", () => {
-    const frag = serializeFragment(nested(), "container")._unsafeUnwrap();
+    const frag = serializeFragment(
+      nested(),
+      new Set(["container"]),
+    )._unsafeUnwrap();
     expect(frag.elements).not.toHaveProperty("page");
     expect(frag.elements).not.toHaveProperty("footer");
   });
 
   it("fails for nonexistent element", () => {
-    const result = serializeFragment(flat(), "zzz");
+    const result = serializeFragment(flat(), new Set(["zzz"]));
     expect(result.isErr()).toBe(true);
     expect(result._unsafeUnwrapErr().tag).toBe("element-not-found");
+  });
+
+  it("serializes multiple siblings in tree order", () => {
+    const frag = serializeFragment(flat(), new Set(["c", "a"]))._unsafeUnwrap();
+    expect(frag.roots).toEqual(["a", "c"]);
+    expect(Object.keys(frag.elements).sort()).toEqual(["a", "c"]);
+  });
+
+  it("deduplicates parent+child to parent only", () => {
+    const frag = serializeFragment(
+      nested(),
+      new Set(["container", "heading"]),
+    )._unsafeUnwrap();
+    expect(frag.roots).toEqual(["container"]);
+    expect(frag.elements).toHaveProperty("heading");
+  });
+
+  it("serializes elements from different branches", () => {
+    const frag = serializeFragment(
+      nested(),
+      new Set(["heading", "footer"]),
+    )._unsafeUnwrap();
+    expect(frag.roots).toEqual(["heading", "footer"]);
   });
 });
 
@@ -83,7 +109,7 @@ describe("deserializeFragment", () => {
   it("remaps all IDs to type-based names", () => {
     const frag = fragment();
     const result = deserializeFragment(frag, new Set());
-    expect(result.root).toBe("stack-1");
+    expect(result.roots).toEqual(["stack-1"]);
     expect(Object.keys(result.elements)).toContain("stack-1");
     expect(Object.keys(result.elements)).toContain("text-1");
   });
@@ -98,14 +124,14 @@ describe("deserializeFragment", () => {
       fragment(),
       new Set(["stack-1", "text-1"]),
     );
-    expect(result.root).toBe("stack-2");
+    expect(result.roots).toEqual(["stack-2"]);
     expect(result.elements["stack-2"].children).toEqual(["text-2"]);
   });
 
   it("avoids collisions between IDs generated in the same batch", () => {
     const frag: SpecFragment = {
       _type: "json-render-fragment",
-      root: "a",
+      roots: ["a"],
       elements: {
         a: { type: "Text", props: { text: "1" } },
         b: { type: "Text", props: { text: "2" } },
@@ -134,6 +160,19 @@ describe("deserializeFragment", () => {
   it("does not add children to childless elements", () => {
     const result = deserializeFragment(fragment(), new Set());
     expect(result.elements["text-1"]).not.toHaveProperty("children");
+  });
+
+  it("remaps multiple roots", () => {
+    const frag: SpecFragment = {
+      _type: "json-render-fragment",
+      roots: ["x", "y"],
+      elements: {
+        x: { type: "Heading", props: { text: "X" } },
+        y: { type: "Text", props: { text: "Y" } },
+      },
+    };
+    const result = deserializeFragment(frag, new Set());
+    expect(result.roots).toEqual(["heading-1", "text-1"]);
   });
 });
 
@@ -169,6 +208,25 @@ describe("insertFragment — after", () => {
     expect(s.elements).toHaveProperty("stack-1");
     expect(s.elements).toHaveProperty("text-1");
     expect(s.elements["text-1"].props).toEqual({ text: "Child" });
+  });
+
+  it("inserts multiple roots as siblings after target", () => {
+    const frag: SpecFragment = {
+      _type: "json-render-fragment",
+      roots: ["heading-1", "text-1"],
+      elements: {
+        "heading-1": { type: "Heading", props: { text: "H" } },
+        "text-1": { type: "Text", props: { text: "T" } },
+      },
+    };
+    const s = insertFragment(flat(), frag, "a", after)._unsafeUnwrap();
+    expect(s.elements.page.children).toEqual([
+      "a",
+      "heading-1",
+      "text-1",
+      "b",
+      "c",
+    ]);
   });
 });
 
@@ -223,6 +281,25 @@ describe("insertFragment — child", () => {
     expect(result.isErr()).toBe(true);
     expect(result._unsafeUnwrapErr().tag).toBe("no-children");
   });
+
+  it("appends multiple roots as children", () => {
+    const frag: SpecFragment = {
+      _type: "json-render-fragment",
+      roots: ["heading-1", "text-1"],
+      elements: {
+        "heading-1": { type: "Heading", props: { text: "H" } },
+        "text-1": { type: "Text", props: { text: "T" } },
+      },
+    };
+    const s = insertFragment(flat(), frag, "page", child)._unsafeUnwrap();
+    expect(s.elements.page.children).toEqual([
+      "a",
+      "b",
+      "c",
+      "heading-1",
+      "text-1",
+    ]);
+  });
 });
 
 describe("insertFragment — immutability and errors", () => {
@@ -258,50 +335,80 @@ describe("insertFragment — immutability and errors", () => {
 
 describe("duplicate", () => {
   it("duplicates a leaf element after itself", () => {
-    const result = duplicate(flat(), "b");
+    const result = duplicate(flat(), new Set(["b"]));
     expect(result.isOk()).toBe(true);
-    const { spec, newRootId } = result._unsafeUnwrap();
-    expect(spec.elements.page.children).toEqual(["a", "b", newRootId, "c"]);
-    expect(spec.elements[newRootId].type).toBe("Text");
-    expect(spec.elements[newRootId].props).toEqual({ text: "B" });
+    const { spec, newRootIds } = result._unsafeUnwrap();
+    expect(newRootIds).toHaveLength(1);
+    expect(spec.elements.page.children).toEqual(["a", "b", newRootIds[0], "c"]);
+    expect(spec.elements[newRootIds[0]].type).toBe("Text");
+    expect(spec.elements[newRootIds[0]].props).toEqual({ text: "B" });
   });
 
   it("duplicates a subtree with all descendants", () => {
-    const result = duplicate(nested(), "container");
-    const { spec, newRootId } = result._unsafeUnwrap();
+    const result = duplicate(nested(), new Set(["container"]));
+    const { spec, newRootIds } = result._unsafeUnwrap();
     expect(spec.elements.page.children).toEqual([
       "container",
-      newRootId,
+      newRootIds[0],
       "footer",
     ]);
-    const newChildren = spec.elements[newRootId].children!;
+    const newChildren = spec.elements[newRootIds[0]].children!;
     expect(newChildren).toHaveLength(2);
     expect(spec.elements[newChildren[0]].type).toBe("Heading");
     expect(spec.elements[newChildren[1]].type).toBe("Text");
   });
 
   it("generates IDs that don't collide with existing elements", () => {
-    const { spec } = duplicate(flat(), "a")._unsafeUnwrap();
+    const { spec } = duplicate(flat(), new Set(["a"]))._unsafeUnwrap();
     const allIds = Object.keys(spec.elements);
     expect(new Set(allIds).size).toBe(allIds.length);
   });
 
   it("returns immutable result", () => {
     const original = flat();
-    const result = duplicate(original, "b");
+    const result = duplicate(original, new Set(["b"]));
     expect(result._unsafeUnwrap().spec).not.toBe(original);
     expect(original.elements.page.children).toEqual(["a", "b", "c"]);
   });
 
   it("fails for root element", () => {
-    const result = duplicate(flat(), "page");
+    const result = duplicate(flat(), new Set(["page"]));
     expect(result.isErr()).toBe(true);
     expect(result._unsafeUnwrapErr().tag).toBe("cannot-duplicate-root");
   });
 
   it("fails for nonexistent element", () => {
-    const result = duplicate(flat(), "zzz");
+    const result = duplicate(flat(), new Set(["zzz"]));
     expect(result.isErr()).toBe(true);
     expect(result._unsafeUnwrapErr().tag).toBe("element-not-found");
+  });
+
+  it("duplicates multiple siblings in-place", () => {
+    const { spec, newRootIds } = duplicate(
+      flat(),
+      new Set(["a", "c"]),
+    )._unsafeUnwrap();
+    expect(newRootIds).toHaveLength(2);
+    // Each duplicate appears after its original
+    expect(spec.elements.page.children).toEqual([
+      "a",
+      newRootIds[0],
+      "b",
+      "c",
+      newRootIds[1],
+    ]);
+  });
+
+  it("deduplicates parent+child to parent only", () => {
+    const { spec, newRootIds } = duplicate(
+      nested(),
+      new Set(["container", "heading"]),
+    )._unsafeUnwrap();
+    expect(newRootIds).toHaveLength(1);
+    expect(spec.elements.page.children).toEqual([
+      "container",
+      newRootIds[0],
+      "footer",
+    ]);
   });
 });

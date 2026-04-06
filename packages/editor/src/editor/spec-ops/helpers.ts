@@ -99,3 +99,22 @@ export const moveInArray = <T>(arr: T[], from: number, to: number): T[] => {
   result.splice(to, 0, moved);
   return result;
 };
+
+/** Filters `ids` to elements whose ancestors are NOT also in `ids`,
+ *  returned in DFS pre-order (tree reading order).
+ *  When a selected element is found, its subtree is skipped — descendants are already covered. */
+export const topologicalRoots = (
+  spec: Spec,
+  ids: ReadonlySet<string>,
+): string[] => {
+  const roots: string[] = [];
+  const walk = (id: string): void => {
+    if (ids.has(id)) {
+      roots.push(id);
+      return; // skip subtree — descendants are covered
+    }
+    spec.elements[id]?.children?.forEach(walk);
+  };
+  walk(spec.root);
+  return roots;
+};

@@ -106,9 +106,15 @@ export function EditorShell({
 
   const clipboard = useClipboard({
     spec: currentSpec,
+    selectedIds,
     lastSelectedId,
     push,
-    onSelect: (id) => send({ type: "SELECT", elementId: id }),
+    onSelect: (ids) =>
+      send(
+        ids.length === 1
+          ? { type: "SELECT", elementId: ids[0] }
+          : { type: "REPLACE_SELECT", elementIds: ids },
+      ),
     onDeselect: () => send({ type: "DESELECT" }),
   });
 

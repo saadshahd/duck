@@ -5,16 +5,19 @@ import {
   deserializeFragment,
   insertFragment,
   duplicate,
-  deleteElement,
+  deleteElements,
   type SpecFragment,
 } from "../spec-ops/index.js";
 import type { SpecPush } from "../types.js";
 
+// --- Types ---
+
 type ClipboardDeps = {
   spec: Spec;
+  selectedIds: ReadonlySet<string>;
   lastSelectedId: string | null;
   push: SpecPush;
-  onSelect: (elementId: string) => void;
+  onSelect: (elementIds: string[]) => void;
   onDeselect: () => void;
 };
 
@@ -25,55 +28,59 @@ export type ClipboardActions = {
   onDuplicate: () => void;
 };
 
-const FRAGMENT_TYPE = "json-render-fragment" as const;
+// --- Clipboard I/O ---
 
-const isFragment = (data: unknown): data is SpecFragment =>
-  typeof data === "object" &&
-  data !== null &&
-  "_type" in data &&
-  (data as SpecFragment)._type === FRAGMENT_TYPE;
+const FRAGMENT_TYPE = "json-render-fragment";
 
-const writeClipboard = (fragment: SpecFragment): void => {
+const writeFragment = (fragment: SpecFragment): void => {
   navigator.clipboard.writeText(JSON.stringify(fragment)).catch(() => {});
 };
 
-const readClipboard = async (): Promise<SpecFragment | null> => {
+const readFragment = async (): Promise<SpecFragment | null> => {
   try {
     const text = await navigator.clipboard.readText();
-    const parsed: unknown = JSON.parse(text);
-    return isFragment(parsed) ? parsed : null;
+    const data = JSON.parse(text) as Record<string, unknown>;
+    if (data?._type !== FRAGMENT_TYPE) return null;
+    // Normalize legacy single-root format
+    const roots = (data.roots ?? [data.root]) as string[];
+    return { ...data, roots } as SpecFragment;
   } catch {
     return null;
   }
 };
+
+const pluralLabel = (verb: string, count: number): string =>
+  count > 1 ? `${verb} ${count} elements` : verb;
+
+// --- Hook ---
 
 export function useClipboard(deps: ClipboardDeps): ClipboardActions {
   const ref = useRef(deps);
   ref.current = deps;
 
   const onCopy = useCallback(() => {
-    const { spec, lastSelectedId } = ref.current;
-    if (!lastSelectedId) return;
-    serializeFragment(spec, lastSelectedId).map(writeClipboard);
+    const { spec, selectedIds } = ref.current;
+    if (selectedIds.size === 0) return;
+    serializeFragment(spec, selectedIds).map(writeFragment);
   }, []);
 
   const onCut = useCallback(() => {
-    const { spec, lastSelectedId, push, onDeselect } = ref.current;
-    if (!lastSelectedId) return;
-    serializeFragment(spec, lastSelectedId)
+    const { spec, selectedIds, push, onDeselect } = ref.current;
+    if (selectedIds.size === 0) return;
+    serializeFragment(spec, selectedIds)
       .andThen((fragment) => {
-        writeClipboard(fragment);
-        return deleteElement(spec, lastSelectedId);
+        writeFragment(fragment);
+        return deleteElements(spec, selectedIds);
       })
       .map(({ spec: newSpec }) => {
-        push(newSpec, "Cut");
+        push(newSpec, pluralLabel("Cut", selectedIds.size));
         onDeselect();
       });
   }, []);
 
   const onPaste = useCallback(async () => {
     const capturedId = ref.current.lastSelectedId;
-    const fragment = await readClipboard();
+    const fragment = await readFragment();
     if (!fragment) return;
 
     const { spec, push, onSelect } = ref.current;
@@ -83,23 +90,22 @@ export function useClipboard(deps: ClipboardDeps): ClipboardActions {
     );
 
     const target = capturedId ?? spec.root;
-    const hasChildren = !!spec.elements[target]?.children;
-    const position = hasChildren
-      ? { tag: "child" as const }
-      : { tag: "after" as const };
+    const position: { tag: "child" | "after" } = spec.elements[target]?.children
+      ? { tag: "child" }
+      : { tag: "after" };
 
     insertFragment(spec, remapped, target, position).map((newSpec) => {
-      push(newSpec, "Paste");
-      onSelect(remapped.root);
+      push(newSpec, pluralLabel("Pasted", remapped.roots.length));
+      onSelect(remapped.roots);
     });
   }, []);
 
   const onDuplicate = useCallback(() => {
-    const { spec, lastSelectedId, push, onSelect } = ref.current;
-    if (!lastSelectedId) return;
-    duplicate(spec, lastSelectedId).map(({ spec: newSpec, newRootId }) => {
-      push(newSpec, "Duplicate");
-      onSelect(newRootId);
+    const { spec, selectedIds, push, onSelect } = ref.current;
+    if (selectedIds.size === 0) return;
+    duplicate(spec, selectedIds).map(({ spec: newSpec, newRootIds }) => {
+      push(newSpec, pluralLabel("Duplicated", newRootIds.length));
+      onSelect(newRootIds);
     });
   }, []);
 
