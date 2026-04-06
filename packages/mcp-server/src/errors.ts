@@ -19,3 +19,8 @@ export class PatchError extends Data.TaggedError("PatchError")<{
   readonly message: string;
   readonly failedOpIndex?: number;
 }> {}
+
+export class QueryError extends Data.TaggedError("QueryError")<{
+  readonly message: string;
+  readonly context?: Record<string, unknown>;
+}> {}

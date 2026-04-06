@@ -6,8 +6,8 @@
   "scripts": {
     "dev": "bun run --cwd packages/editor dev",
     "build": "bun run --cwd packages/editor build",
-    "typecheck": "tsc --noEmit -p packages/editor && tsc --noEmit -p packages/mcp-server",
-    "test": "bun test --cwd packages/editor && bun test --cwd packages/mcp-server"
+    "typecheck": "tsc --noEmit -p packages/spec && tsc --noEmit -p packages/editor && tsc --noEmit -p packages/mcp-server",
+    "test": "bun test --cwd packages/spec && bun test --cwd packages/editor && bun test --cwd packages/mcp-server"
   },
   "dependencies": {
     "@tanstack/react-form": "^1.28.5",

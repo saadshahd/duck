@@ -1,12 +1,13 @@
 import type { Spec } from "@json-render/core";
 import { err, ok, type Result } from "neverthrow";
+import { findParent as findParentPure } from "@json-render-editor/spec";
+import { collectDescendants } from "@json-render-editor/spec";
 import {
   type SpecOpsError,
   getElement,
   getChildren,
   checkBounds,
   checkBoundsInclusive,
-  collectDescendants,
   cloneAndMutate,
   moveInArray,
 } from "./helpers.js";
@@ -15,15 +16,8 @@ export function findParent(
   spec: Spec,
   childId: string,
 ): Result<{ parentId: string; childIndex: number }, SpecOpsError> {
-  const entry = Object.entries(spec.elements).find(([, el]) =>
-    el.children?.includes(childId),
-  );
-  return entry
-    ? ok({
-        parentId: entry[0],
-        childIndex: entry[1].children!.indexOf(childId),
-      })
-    : err({ tag: "parent-not-found", childId });
+  const result = findParentPure(spec, childId);
+  return result ? ok(result) : err({ tag: "parent-not-found", childId });
 }
 
 export function reorderChild(

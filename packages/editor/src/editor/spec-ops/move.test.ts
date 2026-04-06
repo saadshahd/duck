@@ -1,7 +1,7 @@
 import { describe, it, expect } from "bun:test";
 import type { Spec } from "@json-render/core";
 import { moveChild } from "./reorder.js";
-import { collectDescendants } from "./helpers.js";
+import { collectDescendants } from "@json-render-editor/spec";
 
 // --- Factories ---
 

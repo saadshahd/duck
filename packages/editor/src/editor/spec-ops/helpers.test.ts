@@ -1,6 +1,6 @@
 import { describe, it, expect } from "bun:test";
 import type { Spec } from "@json-render/core";
-import { nearestSibling } from "./helpers.js";
+import { nearestSibling } from "@json-render-editor/spec";
 
 const spec = (): Spec => ({
   root: "page",

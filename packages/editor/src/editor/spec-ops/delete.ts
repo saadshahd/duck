@@ -1,10 +1,7 @@
 import type { Spec } from "@json-render/core";
 import { err, ok, type Result } from "neverthrow";
-import {
-  type SpecOpsError,
-  collectDescendants,
-  cloneAndMutate,
-} from "./helpers.js";
+import { collectDescendants } from "@json-render-editor/spec";
+import { type SpecOpsError, cloneAndMutate } from "./helpers.js";
 import { findParent } from "./reorder.js";
 
 export type DeleteResult = { spec: Spec; parentId: string };

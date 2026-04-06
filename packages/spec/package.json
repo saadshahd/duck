@@ -1,0 +1,17 @@
+{
+  "name": "@json-render-editor/spec",
+  "version": "0.0.1",
+  "private": true,
+  "type": "module",
+  "main": "src/index.ts",
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "test": "bun test"
+  },
+  "dependencies": {
+    "@json-render/core": "latest"
+  },
+  "devDependencies": {
+    "typescript": "^5.7.0"
+  }
+}

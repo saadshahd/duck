@@ -8,11 +8,18 @@ import type {
   StorageError,
   InvalidPageName,
   PatchError,
+  QueryError,
 } from "./errors.js";
+import { dispatchQuery } from "./query/index.js";
 
 // ── Error union for all tool handlers ──────────────────────────────
 
-type ToolError = NotFound | StorageError | InvalidPageName | PatchError;
+type ToolError =
+  | NotFound
+  | StorageError
+  | InvalidPageName
+  | PatchError
+  | QueryError;
 
 // ── Effect → MCP boundary ──────────────────────────────────────────
 
@@ -109,7 +116,7 @@ function registerTools(mcp: McpServer, ctx: McpContext) {
       },
       annotations: readOnly,
     },
-    (args) => runTool(Effect.succeed({ stub: true, ...args })),
+    (args) => runTool(dispatchQuery(ctx, args)),
   );
 
   mcp.registerTool(

@@ -1,12 +1,7 @@
 import type { Spec, UIElement } from "@json-render/core";
 import { err, ok, type Result } from "neverthrow";
-import {
-  type SpecOpsError,
-  getElement,
-  collectDescendants,
-  cloneAndMutate,
-  topologicalRoots,
-} from "./helpers.js";
+import { collectDescendants, topologicalRoots } from "@json-render-editor/spec";
+import { type SpecOpsError, getElement, cloneAndMutate } from "./helpers.js";
 import { findParent } from "./reorder.js";
 import type { InsertPosition } from "./insert.js";
 

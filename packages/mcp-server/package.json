@@ -10,6 +10,7 @@
   },
   "dependencies": {
     "@json-render/core": "^0.16.0",
+    "@json-render-editor/spec": "workspace:*",
     "@modelcontextprotocol/sdk": "^1.28.0",
     "effect": "^3.21.0",
     "zod": "~4.3.0"
