@@ -1,9 +1,11 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { Spec } from "@json-render/core";
 import equal from "fast-deep-equal";
 import { buildParentMap, getAncestry } from "@json-render-editor/spec";
 import type { SpecPush } from "../types.js";
 import type { BrowserMessage, ServerMessage } from "@json-render-editor/spec";
+
+export type BridgeStatus = "connecting" | "connected" | "disconnected";
 
 type UseBridgeOptions = {
   url: string;
@@ -24,7 +26,8 @@ export function useBridge({
   selectedId,
   currentSpec,
   push,
-}: UseBridgeOptions): void {
+}: UseBridgeOptions): { status: BridgeStatus } {
+  const [status, setStatus] = useState<BridgeStatus>("connecting");
   const latest = useRef({ page, selectedId, currentSpec, push });
   latest.current = { page, selectedId, currentSpec, push };
 
@@ -62,10 +65,12 @@ export function useBridge({
 
       function connect() {
         if (disposed) return;
+        setStatus("connecting");
         ws = new WebSocket(url);
 
         ws.onopen = () => {
           retries = 0;
+          setStatus("connected");
           sendRef.current = send;
           send({ type: "ready", page: latest.current.page });
           if (latest.current.selectedId) {
@@ -82,7 +87,11 @@ export function useBridge({
 
         ws.onclose = () => {
           sendRef.current = null;
-          if (disposed || retries >= MAX_RETRIES) return;
+          if (disposed) return;
+          if (retries >= MAX_RETRIES) {
+            setStatus("disconnected");
+            return;
+          }
           reconnectTimer = setTimeout(connect, BACKOFF_MS[retries]);
           retries++;
         };
@@ -109,6 +118,8 @@ export function useBridge({
     },
     [selectedId, currentSpec, page],
   );
+
+  return { status };
 }
 
 function selectionMessage(spec: Spec, elementId: string): BrowserMessage {

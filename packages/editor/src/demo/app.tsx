@@ -10,6 +10,13 @@ const PROP_SCHEMAS = Object.fromEntries(
   Object.entries(catalog.data.components).map(([k, v]) => [k, v.props]),
 );
 
+const params = new URLSearchParams(window.location.search);
+const bridge = (() => {
+  const url = params.get("bridge");
+  const page = params.get("page");
+  return url && page ? { url, page } : undefined;
+})();
+
 export function App() {
   const [spec, setSpec] = useState<Spec>(sampleDoc as Spec);
 
@@ -20,6 +27,7 @@ export function App() {
       onSpecChange={setSpec}
       getPropSchema={(type) => PROP_SCHEMAS[type]}
       componentCatalog={catalog.data.components}
+      bridge={bridge}
     />
   );
 }

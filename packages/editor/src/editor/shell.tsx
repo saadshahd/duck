@@ -1,4 +1,4 @@
-import { useMemo, useRef } from "react";
+import { useMemo, useRef, useState } from "react";
 import type { Spec } from "@json-render/core";
 import type { ZodTypeAny } from "zod";
 import {
@@ -31,7 +31,12 @@ import { useFiberRegistry } from "./shell/use-fiber-registry.js";
 import { useContextMenu, ContextMenu } from "./context-menu/index.js";
 import { useClipboard } from "./clipboard/index.js";
 import { CatalogPicker, useInsert } from "./insert/index.js";
-import type { ComponentCatalog } from "./types.js";
+import { useBridge } from "./bridge/use-bridge.js";
+import { ConnectionDot } from "./bridge/connection-dot.js";
+import { ReconnectPrompt } from "./bridge/reconnect-prompt.js";
+import type { ComponentCatalog, SpecPush } from "./types.js";
+
+type BridgeConfig = { url: string; page: string };
 
 type EditorShellProps = {
   spec: Spec;
@@ -39,6 +44,7 @@ type EditorShellProps = {
   onSpecChange?: (spec: Spec) => void;
   getPropSchema?: (componentType: string) => ZodTypeAny | undefined;
   componentCatalog?: ComponentCatalog;
+  bridge?: BridgeConfig;
 };
 
 export function EditorShell({
@@ -47,7 +53,9 @@ export function EditorShell({
   onSpecChange,
   getPropSchema,
   componentCatalog,
+  bridge,
 }: EditorShellProps) {
+  const [bridgeUrl, setBridgeUrl] = useState(bridge?.url ?? null);
   const {
     currentSpec,
     push,
@@ -280,7 +288,46 @@ export function EditorShell({
           onMouseEnter={timelineMouseEnter}
           onMouseLeave={timelineMouseLeave}
         />
+        {bridgeUrl && bridge && (
+          <BridgeConnector
+            url={bridgeUrl}
+            page={bridge.page}
+            selectedId={lastSelectedId}
+            currentSpec={currentSpec}
+            push={push}
+            onReconnect={setBridgeUrl}
+          />
+        )}
       </OverlayRoot>
     </StateProvider>
+  );
+}
+
+function BridgeConnector({
+  url,
+  page,
+  selectedId,
+  currentSpec,
+  push,
+  onReconnect,
+}: {
+  url: string;
+  page: string;
+  selectedId: string | null;
+  currentSpec: Spec;
+  push: SpecPush;
+  onReconnect: (url: string) => void;
+}) {
+  const { status } = useBridge({ url, page, selectedId, currentSpec, push });
+
+  return (
+    <>
+      <ConnectionDot status={status} />
+      <ReconnectPrompt
+        status={status}
+        currentUrl={url}
+        onReconnect={onReconnect}
+      />
+    </>
   );
 }

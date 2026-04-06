@@ -1,0 +1,64 @@
+/*
+ * Bridge connection dot — bottom-right status indicator.
+ * Solid = connected, pulse = connecting, hollow = disconnected.
+ */
+
+.connection-dot {
+  position: fixed;
+  bottom: 16px;
+  right: 16px;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  pointer-events: auto;
+  cursor: default;
+  z-index: 10;
+}
+
+.connection-dot[data-status="connected"] {
+  background: var(--accent);
+}
+
+.connection-dot[data-status="connecting"] {
+  background: var(--accent);
+  animation: dot-pulse 1s ease-in-out infinite;
+}
+
+.connection-dot[data-status="disconnected"] {
+  background: transparent;
+  border: 2px solid var(--accent);
+  /* offset size so outer dimensions stay 8px */
+  width: 8px;
+  height: 8px;
+  box-sizing: border-box;
+}
+
+@keyframes dot-pulse {
+  0%, 100% { opacity: 0.4; }
+  50% { opacity: 1; }
+}
+
+/* --- Tooltip --- */
+
+.connection-dot-tooltip {
+  position: fixed;
+  bottom: 30px;
+  right: 8px;
+  background: var(--surface-bar);
+  color: var(--text-bar);
+  font-family: var(--font-system);
+  font-size: 11px;
+  padding: 4px 8px;
+  border-radius: 4px;
+  white-space: nowrap;
+  pointer-events: none;
+  opacity: 0;
+  transform: translateY(4px);
+  transition: opacity 150ms ease, transform 150ms ease;
+  z-index: 11;
+}
+
+.connection-dot-tooltip[data-visible] {
+  opacity: 1;
+  transform: translateY(0);
+}
