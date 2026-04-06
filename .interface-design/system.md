@@ -148,6 +148,47 @@ Everything fast enough to feel instant, slow enough to not flicker.
 - Added elements: `opacity: 0 → 1` over `300ms`.
 - The highlight is a full-element overlay in the Shadow DOM, not a style change on the content element.
 
+## Connection Status Dot
+
+Always-visible when bridge is configured. Uses accent color with shape to encode state — no color proliferation.
+
+- Position: fixed bottom-right of overlay, `16px` inset from edges.
+- Size: `8px` diameter circle.
+- `pointer-events: auto` (needs hover for tooltip).
+- z-index: above all other overlay content.
+
+| State          | Fill                        | Animation                                   | Tooltip                    |
+|----------------|-----------------------------|---------------------------------------------|----------------------------|
+| Connected      | solid `var(--accent)`       | none                                        | "Bridge connected"         |
+| Connecting     | solid `var(--accent)`       | opacity `0.4 → 1.0`, `1s ease` infinite    | "Connecting to bridge..."  |
+| Disconnected   | hollow, `2px` ring accent   | none                                        | "Bridge disconnected"      |
+
+- Transition between states: `150ms ease` (matches hover glow).
+- Tooltip: system font, `12px`, appears on hover after `300ms` delay. Dark pill matching `--surface-bar`.
+
+## Reconnect Prompt
+
+Appears only when connection is in `disconnected` state (retries exhausted). Positioned above the status dot, right-aligned.
+
+- Surface: `var(--surface-bar)`, `border-radius: 8px`, shadow `0 1px 3px rgba(0, 0, 0, 0.12)`.
+- Padding: `8px 12px`.
+- Width: `200px`.
+- Layout: `"Port:"` label + input + `"Connect"` button, single row.
+
+| Element   | Spec                                                                  |
+|-----------|-----------------------------------------------------------------------|
+| Label     | `12px`, `var(--text-bar-muted)`                                       |
+| Input     | `60px` wide, `13px`, `var(--text-bar)`, `bg: rgba(255,255,255,0.08)`, `border: 1px solid rgba(255,255,255,0.12)`, `border-radius: 4px` |
+| Button    | `var(--accent)` background, white text, `13px`, weight `500`, `border-radius: 4px`, padding `4px 8px` |
+| Button:hover | `filter: brightness(1.1)`                                         |
+
+- Enter: `200ms ease-out` (matches floating bar).
+- Exit: `150ms ease-in`.
+- Escape key: dismiss without reconnecting.
+- Auto-focus input on mount.
+- Auto-dismiss on successful WebSocket connection.
+- Pre-fills input with current port number (extracted from URL).
+
 ## Anti-Patterns
 
 These violate the visual identity:
