@@ -11,6 +11,7 @@ import type {
   QueryError,
 } from "./errors.js";
 import { dispatchQuery } from "./query/index.js";
+import { applyPatches } from "./apply.js";
 
 // ── Error union for all tool handlers ──────────────────────────────
 
@@ -137,7 +138,7 @@ function registerTools(mcp: McpServer, ctx: McpContext) {
           .describe("RFC 6902 JSON Patch operations"),
       },
     },
-    (args) => runTool(Effect.succeed({ stub: true, ...args })),
+    (args) => runTool(applyPatches(ctx, args)),
   );
 
   mcp.registerTool(
@@ -149,7 +150,20 @@ function registerTools(mcp: McpServer, ctx: McpContext) {
         label: z.string().optional().describe("History label for this commit"),
       },
     },
-    (args) => runTool(Effect.succeed({ stub: true, ...args })),
+    (args) =>
+      runTool(
+        ctx.storage.commitDraft(args.page).pipe(
+          Effect.flatMap(() => ctx.storage.readSpec(args.page)),
+          Effect.tap((spec) =>
+            Effect.sync(() => ctx.bridge.broadcast(args.page, spec)),
+          ),
+          Effect.map((spec) => ({
+            committed: true,
+            page: args.page,
+            elementCount: Object.keys(spec.elements).length,
+          })),
+        ),
+      ),
   );
 
   mcp.registerTool(
@@ -160,6 +174,11 @@ function registerTools(mcp: McpServer, ctx: McpContext) {
         page: z.string().describe("Page name"),
       },
     },
-    (args) => runTool(Effect.succeed({ stub: true, ...args })),
+    (args) =>
+      runTool(
+        ctx.storage
+          .discardDraft(args.page)
+          .pipe(Effect.map(() => ({ discarded: true, page: args.page }))),
+      ),
   );
 }
