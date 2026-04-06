@@ -41,7 +41,7 @@ export const createBridge = (): BridgeHandle => {
 
     async start() {
       server = Bun.serve<WsData>({
-        port: 0,
+        port: Number(process.env.BRIDGE_PORT) || 4400,
         hostname: "127.0.0.1",
         fetch: (req, srv) => route(req, srv, pool),
         websocket: {

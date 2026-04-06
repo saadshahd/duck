@@ -12,9 +12,9 @@ const PROP_SCHEMAS = Object.fromEntries(
 
 const params = new URLSearchParams(window.location.search);
 const bridge = (() => {
-  const url = params.get("bridge");
-  const page = params.get("page");
-  return url && page ? { url, page } : undefined;
+  const url = params.get("bridge") ?? "ws://localhost:4400";
+  const page = params.get("page") ?? "landing";
+  return { url, page };
 })();
 
 export function App() {
