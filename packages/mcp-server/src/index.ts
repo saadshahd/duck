@@ -1,11 +1,11 @@
-import { readFileSync } from "node:fs";
-import { join, resolve } from "node:path";
+import { resolve } from "node:path";
 import { Effect } from "effect";
+import type { Catalog } from "@json-render/core";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { createFileStorage } from "./file-storage.js";
 import { createBridge } from "./bridge/index.js";
 import { createMcpServer } from "./server.js";
-import type { CatalogData } from "./protocol.js";
+import { CatalogLoadError } from "./errors.js";
 
 // ── Args ───────────────────────────────────────────────────────────
 
@@ -17,22 +17,37 @@ const projectDir = resolve(
 
 // ── Catalog loader ─────────────────────────────────────────────────
 
-const loadCatalog = (dir: string): Effect.Effect<CatalogData, string> =>
-  Effect.try({
-    try: () => ({
-      json: JSON.parse(readFileSync(join(dir, "catalog.json"), "utf-8")),
-      prompt: readFileSync(join(dir, "catalog-prompt.txt"), "utf-8"),
+const catalogPath = resolve(projectDir, "catalog.ts");
+
+const loadCatalog = Effect.tryPromise({
+  try: () => import(catalogPath),
+  catch: (err): CatalogLoadError =>
+    new CatalogLoadError({
+      path: catalogPath,
+      reason: err instanceof Error ? err.message : String(err),
     }),
-    catch: () =>
-      `Failed to load catalog from ${dir}\n` +
-      `Expected: catalog.json + catalog-prompt.txt\n` +
-      `Generate them first or check --project-dir`,
-  });
+}).pipe(
+  Effect.map((mod) => mod.catalog as Catalog | undefined),
+  Effect.filterOrFail(
+    (c): c is Catalog => !!c && typeof c.prompt === "function",
+    () =>
+      new CatalogLoadError({
+        path: catalogPath,
+        reason: "Module does not export a valid Catalog as { catalog }",
+      }),
+  ),
+);
 
 // ── Boot ───────────────────────────────────────────────────────────
 
+const formatCatalogError = (err: CatalogLoadError) =>
+  `Failed to load catalog from ${err.path}\n` +
+  `${err.reason}\n\n` +
+  `Expected: catalog.ts exporting { catalog } (a @json-render/core Catalog)\n` +
+  `Check --project-dir or create catalog.ts in your project root`;
+
 const boot = Effect.gen(function* () {
-  const catalog = yield* loadCatalog(projectDir);
+  const catalog = yield* loadCatalog;
   const storage = createFileStorage(projectDir);
   const bridge = createBridge();
   const { port } = yield* Effect.promise(() => bridge.start());
@@ -41,7 +56,11 @@ const boot = Effect.gen(function* () {
   yield* Effect.promise(() => mcp.connect(new StdioServerTransport()));
 
   console.error(`[json-render-editor] Bridge: http://127.0.0.1:${port}`);
-});
+}).pipe(
+  Effect.catchTag("CatalogLoadError", (err) =>
+    Effect.failSync(() => formatCatalogError(err)),
+  ),
+);
 
 Effect.runPromise(boot).catch((err) => {
   console.error(typeof err === "string" ? err : (err?.message ?? err));
