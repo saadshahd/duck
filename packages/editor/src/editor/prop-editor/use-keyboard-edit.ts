@@ -4,6 +4,7 @@ import type { ZodTypeAny } from "zod";
 import type { EditorEvent } from "../machine/index.js";
 import { isEditable } from "../overlay/index.js";
 import { findSingleEditableProp } from "./find-editable-prop.js";
+import { isPrintable } from "./keyboard-predicates.js";
 
 type UseKeyboardEditProps = {
   spec: Spec;
@@ -12,9 +13,6 @@ type UseKeyboardEditProps = {
   getPropSchema: ((type: string) => ZodTypeAny | undefined) | undefined;
   send: (event: EditorEvent) => void;
 };
-
-const isPrintable = (e: KeyboardEvent): boolean =>
-  e.key.length === 1 && !e.metaKey && !e.ctrlKey && !e.altKey && !e.isComposing;
 
 export function useKeyboardEdit({
   spec,

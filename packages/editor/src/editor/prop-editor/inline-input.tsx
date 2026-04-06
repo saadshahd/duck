@@ -1,6 +1,7 @@
 import { useEffect } from "react";
 import type { FiberRegistry } from "../fiber/index.js";
 import type { InlineEditing } from "../machine/index.js";
+import { isPrintable } from "./keyboard-predicates.js";
 
 type UseInlineEditProps = {
   registry: FiberRegistry | null;
@@ -54,9 +55,21 @@ export function useInlineEdit({
 
       const onKeyDown = (e: KeyboardEvent) => {
         const action = keyActions[e.key];
-        if (!action) return;
-        e.preventDefault();
-        action();
+        if (action) {
+          e.preventDefault();
+          action();
+          return;
+        }
+
+        /*
+         * Take full control of printable key insertion to prevent native
+         * element behavior (e.g. button activation on space). Composition
+         * (IME) events pass through — isPrintable excludes them.
+         */
+        if (isPrintable(e)) {
+          e.preventDefault();
+          document.execCommand("insertText", false, e.key);
+        }
       };
 
       const onBlur = () => onCommit(el.textContent ?? "");
