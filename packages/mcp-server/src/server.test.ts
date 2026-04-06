@@ -74,12 +74,27 @@ const writePage = async (
     );
 };
 
-const callStatus = async (client: Client) => {
-  const result = await client.callTool({ name: "editor_status" });
+const callTool = async (
+  client: Client,
+  name: string,
+  args: Record<string, unknown> = {},
+) => {
+  const result = await client.callTool({ name, arguments: args });
   const text = (result.content as Array<{ type: string; text: string }>)[0]
     .text;
   return { data: JSON.parse(text), isError: result.isError };
 };
+
+const readSpecFile = (tmpDir: string, page: string) =>
+  fs
+    .readFile(path.join(tmpDir, "pages", page, "spec.json"), "utf-8")
+    .then(JSON.parse);
+
+const draftExists = (tmpDir: string, page: string) =>
+  fs
+    .access(path.join(tmpDir, "pages", page, "spec.draft.json"))
+    .then(() => true)
+    .catch(() => false);
 
 const connectAndReady = async (port: number, page: string) => {
   const ws = new WebSocket(`ws://127.0.0.1:${port}`);
@@ -97,7 +112,10 @@ describe("editor_status", () => {
   it("returns empty pages and viewers for a fresh project", async () => {
     const { bridge, connectClient, teardown } = await setup();
     try {
-      const { data, isError } = await callStatus(await connectClient());
+      const { data, isError } = await callTool(
+        await connectClient(),
+        "editor_status",
+      );
 
       expect(isError).toBeUndefined();
       expect(data).toEqual({
@@ -115,7 +133,7 @@ describe("editor_status", () => {
       await writePage(tmpDir, "landing", makeSpec(3));
       await writePage(tmpDir, "about", makeSpec(5));
 
-      const { data } = await callStatus(await connectClient());
+      const { data } = await callTool(await connectClient(), "editor_status");
       const sorted = data.pages.sort((a: any, b: any) =>
         a.name.localeCompare(b.name),
       );
@@ -134,7 +152,7 @@ describe("editor_status", () => {
     try {
       await writePage(tmpDir, "landing", makeSpec(2), makeSpec(4));
 
-      const { data } = await callStatus(await connectClient());
+      const { data } = await callTool(await connectClient(), "editor_status");
 
       expect(data.pages).toEqual([
         { name: "landing", elementCount: 2, hasDraft: true },
@@ -151,7 +169,7 @@ describe("editor_status", () => {
       const ws2 = await connectAndReady(bridge.port, "landing");
       const ws3 = await connectAndReady(bridge.port, "about");
 
-      const { data } = await callStatus(await connectClient());
+      const { data } = await callTool(await connectClient(), "editor_status");
 
       expect(data.bridge.port).toBe(bridge.port);
       expect(data.bridge.viewers).toEqual({ landing: 2, about: 1 });
@@ -159,6 +177,119 @@ describe("editor_status", () => {
       ws1.close();
       ws2.close();
       ws3.close();
+    } finally {
+      await teardown();
+    }
+  });
+});
+
+// ── editor_commit ────────────────────────────────────────────────
+
+describe("editor_commit", () => {
+  it("promotes draft to committed spec", async () => {
+    const { tmpDir, connectClient, teardown } = await setup();
+    try {
+      const original = makeSpec(2);
+      const draft = makeSpec(4);
+      await writePage(tmpDir, "landing", original, draft);
+
+      const client = await connectClient();
+      const { data, isError } = await callTool(client, "editor_commit", {
+        page: "landing",
+      });
+
+      expect(isError).toBeUndefined();
+      expect(data).toEqual({
+        committed: true,
+        page: "landing",
+        elementCount: 4,
+      });
+
+      const committed = await readSpecFile(tmpDir, "landing");
+      expect(committed).toEqual(draft);
+      expect(await draftExists(tmpDir, "landing")).toBe(false);
+    } finally {
+      await teardown();
+    }
+  });
+
+  it("broadcasts spec-update to connected viewers", async () => {
+    const { tmpDir, bridge, connectClient, teardown } = await setup();
+    try {
+      const draft = makeSpec(3);
+      await writePage(tmpDir, "landing", makeSpec(2), draft);
+
+      const ws = await connectAndReady(bridge.port, "landing");
+      const messages: unknown[] = [];
+      ws.onmessage = (e) => messages.push(JSON.parse(e.data as string));
+
+      const client = await connectClient();
+      await callTool(client, "editor_commit", { page: "landing" });
+      await Bun.sleep(50);
+
+      expect(messages).toEqual([{ type: "spec-update", spec: draft }]);
+
+      ws.close();
+    } finally {
+      await teardown();
+    }
+  });
+
+  it("returns NotFound when no draft exists", async () => {
+    const { tmpDir, connectClient, teardown } = await setup();
+    try {
+      await writePage(tmpDir, "landing", makeSpec(2));
+
+      const client = await connectClient();
+      const { data, isError } = await callTool(client, "editor_commit", {
+        page: "landing",
+      });
+
+      expect(isError).toBe(true);
+      expect(data.error).toBe("NotFound");
+    } finally {
+      await teardown();
+    }
+  });
+});
+
+// ── editor_discard ───────────────────────────────────────────────
+
+describe("editor_discard", () => {
+  it("deletes draft and leaves committed spec intact", async () => {
+    const { tmpDir, connectClient, teardown } = await setup();
+    try {
+      const original = makeSpec(2);
+      await writePage(tmpDir, "landing", original, makeSpec(5));
+
+      const client = await connectClient();
+      const { data, isError } = await callTool(client, "editor_discard", {
+        page: "landing",
+      });
+
+      expect(isError).toBeUndefined();
+      expect(data).toEqual({ discarded: true, page: "landing" });
+
+      expect(await draftExists(tmpDir, "landing")).toBe(false);
+      const committed = await readSpecFile(tmpDir, "landing");
+      expect(committed).toEqual(original);
+    } finally {
+      await teardown();
+    }
+  });
+
+  it("succeeds when no draft exists (idempotent)", async () => {
+    const { tmpDir, connectClient, teardown } = await setup();
+    try {
+      await writePage(tmpDir, "landing", makeSpec(2));
+
+      const client = await connectClient();
+      const { data, isError } = await callTool(client, "editor_discard", {
+        page: "landing",
+      });
+
+      expect(isError).toBeUndefined();
+      expect(data).toEqual({ discarded: true, page: "landing" });
     } finally {
       await teardown();
     }
