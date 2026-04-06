@@ -45,17 +45,18 @@ interface Storage {
 
 ## Tool model
 
-Five tools:
+Six tools:
 
 | Tool | Verb | Purpose |
 |------|------|---------|
 | `editor_status` | orient | Pages, bridge status, connection info |
-| `editor_query` | read | All reads: outline, element, selection, capture, search, catalog |
+| `editor_query` | read | Page-bound reads: outline, element, selection, capture, search |
+| `editor_manifest` | read | Catalog reads: component list, single component schema, prompt |
 | `editor_apply` | write | RFC 6902 patches → draft |
 | `editor_commit` | write | Promote draft → committed spec, push to browser via bridge |
 | `editor_discard` | write | Delete draft |
 
-`editor_query` is the unified read tool. Mode determined by `what` parameter:
+`editor_query` is the unified page read tool. Mode determined by `what` parameter:
 - `outline` — depth-limited tree (default depth: 2)
 - `element` — single element with full props + children
 - `subtree` — element + all descendants
@@ -63,7 +64,11 @@ Five tools:
 - `search` — text search across prop values
 - `selection` — what the user is focused on (bridge-dependent)
 - `capture` — screenshot saved as file (bridge-dependent)
-- `catalog` — component schemas (no page param needed)
+
+`editor_manifest` queries the component catalog. Mode determined by `what` parameter:
+- `components` — list all component names with descriptions and slot info
+- `component` — single component's full props schema (JSON Schema via Zod)
+- `prompt` — full LLM system prompt for the catalog
 
 ## Draft model
 
@@ -93,9 +98,11 @@ Five tools:
 
 ## Catalog
 
-- Pre-computed `catalog.json` + `catalog-prompt.txt` in project dir.
-- `writeCatalogFiles(catalog, dir)` export for consumers.
-- Read once at startup, cached. stdio servers are per-conversation.
+- Project dir has `catalog.ts` exporting `{ catalog }` (a `@json-render/core` `Catalog` instance).
+- MCP server dynamically imports it at startup. Per-conversation server = fresh each session.
+- No `catalog.json`, no `catalog-prompt.txt`, no generation step.
+- `editor_manifest` exposes catalog data progressively — agent queries what it needs.
+- On missing `catalog.ts`: typed `CatalogLoadError` with path and convention hint.
 
 ## Page lifecycle
 
