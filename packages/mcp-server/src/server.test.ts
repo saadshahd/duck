@@ -326,11 +326,34 @@ describe("editor_manifest", () => {
       );
 
       expect(isError).toBeUndefined();
-      expect(data.components).toEqual([
-        { name: "Box", description: "Layout container", hasSlots: true },
-        { name: "Text", description: "Paragraph text", hasSlots: false },
-      ]);
-      expect(data.actions).toEqual([]);
+      expect(data).toEqual({
+        components: [
+          {
+            name: "Box",
+            description: "Layout container",
+            slots: ["default"],
+            props: {
+              $schema: "https://json-schema.org/draft/2020-12/schema",
+              type: "object",
+              properties: {},
+              additionalProperties: false,
+            },
+          },
+          {
+            name: "Text",
+            description: "Paragraph text",
+            slots: [],
+            props: {
+              $schema: "https://json-schema.org/draft/2020-12/schema",
+              type: "object",
+              properties: { text: { type: "string" } },
+              required: ["text"],
+              additionalProperties: false,
+            },
+          },
+        ],
+        actions: [],
+      });
     } finally {
       await teardown();
     }

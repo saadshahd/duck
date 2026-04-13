@@ -21,6 +21,7 @@ export const createBridge = (): BridgeHandle => {
     ready(ws, msg) {
       ws.data.page = msg.page;
       pool.add(msg.page, ws);
+      pool.replayTo(msg.page, ws);
     },
     "selection-changed"(ws, msg) {
       if (ws.data.page)
@@ -66,6 +67,7 @@ export const createBridge = (): BridgeHandle => {
     },
 
     broadcast(page: string, spec: Spec) {
+      pool.setSnapshot(page, spec);
       const set = pool.forPage(page);
       if (!set) return;
       const payload = stringify({ type: "spec-update", spec });

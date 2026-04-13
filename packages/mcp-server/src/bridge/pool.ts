@@ -1,11 +1,15 @@
 import type { ServerWebSocket } from "bun";
-import type { SelectionData } from "../protocol.js";
+import type { Spec } from "@json-render/core";
+import type { SelectionData, ServerMessage } from "../protocol.js";
 
 export type WsData = { page: string | null };
+
+const stringify = (msg: ServerMessage) => JSON.stringify(msg);
 
 export const createPool = () => {
   const pages = new Map<string, Set<ServerWebSocket<WsData>>>();
   const selections = new Map<string, SelectionData>();
+  const snapshots = new Map<string, Spec>();
 
   const ensureSet = (page: string) => {
     let set = pages.get(page);
@@ -38,5 +42,14 @@ export const createPool = () => {
     lastSelection: (page: string) => selections.get(page) ?? null,
     viewers: () => Object.fromEntries([...pages].map(([p, s]) => [p, s.size])),
     hasViewers: (page: string) => (pages.get(page)?.size ?? 0) > 0,
+
+    /** Cache the latest spec for a page so new connections get it immediately. */
+    setSnapshot: (page: string, spec: Spec) => snapshots.set(page, spec),
+
+    /** Send the cached spec to a socket that just connected. No-op if none cached. */
+    replayTo: (page: string, ws: ServerWebSocket<WsData>) => {
+      const spec = snapshots.get(page);
+      if (spec) ws.send(stringify({ type: "spec-update", spec }));
+    },
   };
 };

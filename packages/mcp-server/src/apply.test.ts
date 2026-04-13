@@ -79,10 +79,14 @@ const readDraft = async (tmpDir: string, name: string): Promise<Spec> => {
   return JSON.parse(raw);
 };
 
-const callApply = async (client: Client, page: string, patches: unknown[]) => {
+const callApply = async (
+  client: Client,
+  page: string,
+  args: { patches: unknown[] } | { spec: Record<string, unknown> },
+) => {
   const result = await client.callTool({
     name: "editor_apply",
-    arguments: { page, patches },
+    arguments: { page, ...args },
   });
   const text = (result.content as Array<{ type: string; text: string }>)[0]
     .text;
@@ -98,12 +102,23 @@ describe("editor_apply", () => {
       await writePage(tmpDir, "landing", makeSpec());
       const client = await connectClient();
 
-      const { data, isError } = await callApply(client, "landing", [
-        { op: "replace", path: "/elements/heading/props/text", value: "World" },
-      ]);
+      const { data, isError } = await callApply(client, "landing", {
+        patches: [
+          {
+            op: "replace",
+            path: "/elements/heading/props/text",
+            value: "World",
+          },
+        ],
+      });
 
       expect(isError).toBeUndefined();
-      expect(data).toEqual({ applied: true, opCount: 1 });
+      expect(data).toEqual({
+        applied: true,
+        mode: "patch",
+        livePreview: true,
+        summary: { total: 2, sections: ["Text"] },
+      });
 
       const draft = await readDraft(tmpDir, "landing");
       expect(draft.elements.heading.props.text).toBe("World");
@@ -118,16 +133,19 @@ describe("editor_apply", () => {
       await writePage(tmpDir, "landing", makeSpec());
       const client = await connectClient();
 
-      const { data } = await callApply(client, "landing", [
-        { op: "replace", path: "/elements/heading/props/text", value: "A" },
-        {
-          op: "add",
-          path: "/elements/root/props/padding",
-          value: 16,
-        },
-      ]);
+      const { data } = await callApply(client, "landing", {
+        patches: [
+          { op: "replace", path: "/elements/heading/props/text", value: "A" },
+          { op: "add", path: "/elements/root/props/padding", value: 16 },
+        ],
+      });
 
-      expect(data).toEqual({ applied: true, opCount: 2 });
+      expect(data).toEqual({
+        applied: true,
+        mode: "patch",
+        livePreview: true,
+        summary: { total: 2, sections: ["Text"] },
+      });
 
       const draft = await readDraft(tmpDir, "landing");
       expect(draft.elements.heading.props.text).toBe("A");
@@ -143,11 +161,25 @@ describe("editor_apply", () => {
       await writePage(tmpDir, "landing", makeSpec());
       const client = await connectClient();
 
-      const { data, isError } = await callApply(client, "landing", [
-        { op: "replace", path: "/elements/heading/props/text", value: "OK" },
-        { op: "test", path: "/elements/heading/props/text", value: "WRONG" },
-        { op: "replace", path: "/elements/heading/props/text", value: "After" },
-      ]);
+      const { data, isError } = await callApply(client, "landing", {
+        patches: [
+          {
+            op: "replace",
+            path: "/elements/heading/props/text",
+            value: "OK",
+          },
+          {
+            op: "test",
+            path: "/elements/heading/props/text",
+            value: "WRONG",
+          },
+          {
+            op: "replace",
+            path: "/elements/heading/props/text",
+            value: "After",
+          },
+        ],
+      });
 
       expect(isError).toBe(true);
       expect(data.error).toBe("PatchError");
@@ -163,9 +195,15 @@ describe("editor_apply", () => {
       await writePage(tmpDir, "landing", makeSpec());
       const client = await connectClient();
 
-      await callApply(client, "landing", [
-        { op: "test", path: "/elements/heading/props/text", value: "WRONG" },
-      ]);
+      await callApply(client, "landing", {
+        patches: [
+          {
+            op: "test",
+            path: "/elements/heading/props/text",
+            value: "WRONG",
+          },
+        ],
+      });
 
       const draftExists = await fs
         .access(path.join(tmpDir, "pages", "landing", "spec.draft.json"))
@@ -184,16 +222,20 @@ describe("editor_apply", () => {
       await writePage(tmpDir, "landing", makeSpec());
       const client = await connectClient();
 
-      await callApply(client, "landing", [
-        {
-          op: "replace",
-          path: "/elements/heading/props/text",
-          value: "Draft1",
-        },
-      ]);
-      await callApply(client, "landing", [
-        { op: "add", path: "/elements/root/props/padding", value: 24 },
-      ]);
+      await callApply(client, "landing", {
+        patches: [
+          {
+            op: "replace",
+            path: "/elements/heading/props/text",
+            value: "Draft1",
+          },
+        ],
+      });
+      await callApply(client, "landing", {
+        patches: [
+          { op: "add", path: "/elements/root/props/padding", value: 24 },
+        ],
+      });
 
       const draft = await readDraft(tmpDir, "landing");
       expect(draft.elements.heading.props.text).toBe("Draft1");
@@ -209,9 +251,11 @@ describe("editor_apply", () => {
       await writePage(tmpDir, "landing", makeSpec());
       const client = await connectClient();
 
-      const { data } = await callApply(client, "landing", [
-        { op: "add", path: "/elements/heading/props/visible", value: true },
-      ]);
+      const { data } = await callApply(client, "landing", {
+        patches: [
+          { op: "add", path: "/elements/heading/props/visible", value: true },
+        ],
+      });
 
       expect(data.applied).toBe(true);
       expect(data.warnings).toBeDefined();
@@ -227,9 +271,11 @@ describe("editor_apply", () => {
       await writePage(tmpDir, "landing", makeSpec());
       const client = await connectClient();
 
-      const { data } = await callApply(client, "landing", [
-        { op: "add", path: "/elements/heading/props/visible", value: true },
-      ]);
+      const { data } = await callApply(client, "landing", {
+        patches: [
+          { op: "add", path: "/elements/heading/props/visible", value: true },
+        ],
+      });
 
       expect(data.fixes).toBeDefined();
       expect(data.fixes.length).toBeGreaterThan(0);
@@ -242,17 +288,63 @@ describe("editor_apply", () => {
     }
   });
 
-  it("returns NotFound for nonexistent page", async () => {
-    const { connectClient, teardown } = await setup();
+  it("auto-creates page on first apply", async () => {
+    const { tmpDir, connectClient, teardown } = await setup();
     try {
       const client = await connectClient();
 
-      const { data, isError } = await callApply(client, "nope", [
-        { op: "replace", path: "/root", value: "x" },
-      ]);
+      const { data, isError } = await callApply(client, "fresh", {
+        patches: [
+          { op: "add", path: "/root", value: "hero" },
+          {
+            op: "add",
+            path: "/elements/hero",
+            value: { type: "Text", props: { text: "Hello" } },
+          },
+        ],
+      });
 
-      expect(isError).toBe(true);
-      expect(data.error).toBe("NotFound");
+      expect(isError).toBeUndefined();
+      expect(data).toEqual({
+        applied: true,
+        mode: "patch",
+        livePreview: true,
+        summary: { total: 1, sections: [] },
+      });
+
+      const draft = await readDraft(tmpDir, "fresh");
+      expect(draft.root).toBe("hero");
+      expect(draft.elements.hero.props.text).toBe("Hello");
+    } finally {
+      await teardown();
+    }
+  });
+
+  it("merges partial spec into existing page", async () => {
+    const { tmpDir, connectClient, teardown } = await setup();
+    try {
+      await writePage(tmpDir, "landing", makeSpec());
+      const client = await connectClient();
+
+      const { data, isError } = await callApply(client, "landing", {
+        spec: {
+          elements: {
+            banner: { type: "Text", props: { text: "New section" } },
+          },
+        },
+      });
+
+      expect(isError).toBeUndefined();
+      expect(data).toEqual({
+        applied: true,
+        mode: "merge",
+        livePreview: true,
+        summary: { total: 3, sections: ["Text"] },
+      });
+
+      const draft = await readDraft(tmpDir, "landing");
+      expect(draft.elements.heading.props.text).toBe("Hello");
+      expect(draft.elements.banner.props.text).toBe("New section");
     } finally {
       await teardown();
     }

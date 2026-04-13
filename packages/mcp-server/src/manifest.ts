@@ -14,7 +14,8 @@ const components = (catalog: Catalog) =>
       return {
         name,
         description: def.description ?? "",
-        hasSlots: Array.isArray(def.slots) && def.slots.length > 0,
+        slots: def.slots ?? [],
+        props: def.props.toJSONSchema(),
       };
     }),
     actions: catalog.actionNames,
@@ -35,8 +36,17 @@ const component = (catalog: Catalog, componentType: string) => {
   });
 };
 
+const iterationRules = [
+  "SPEC FORMAT: A Spec is { root: string, elements: Record<string, UIElement> } — a FLAT map. root is an element ID. Each UIElement is { type, props, children?: string[] } where children are IDs referencing other elements in the flat map.",
+  "BUILD ITERATIVELY: One logical section per apply call. Verify the outline between sections before building the next.",
+  "DISCOVER FIRST: Fetch the component list with full schemas, then query individual types as needed before using them.",
+  "ONE SECTION AT A TIME: Build hero, verify. Build services, verify. Build footer, verify. Never dump an entire page in one call.",
+];
+
 const prompt = (catalog: Catalog) =>
-  Effect.succeed({ prompt: catalog.prompt() });
+  Effect.succeed({
+    prompt: catalog.prompt({ customRules: iterationRules, mode: "inline" }),
+  });
 
 const requireParam = (
   value: string | undefined,

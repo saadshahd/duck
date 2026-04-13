@@ -33,8 +33,31 @@ describe("dispatchManifest", () => {
 
       expect(result).toEqual({
         components: [
-          { name: "Box", description: "Layout container", hasSlots: true },
-          { name: "Text", description: "Paragraph text", hasSlots: false },
+          {
+            name: "Box",
+            description: "Layout container",
+            slots: ["default"],
+            props: {
+              $schema: "https://json-schema.org/draft/2020-12/schema",
+              type: "object",
+              properties: {
+                padding: { type: "string", enum: ["0", "4px", "8px"] },
+              },
+              additionalProperties: false,
+            },
+          },
+          {
+            name: "Text",
+            description: "Paragraph text",
+            slots: [],
+            props: {
+              $schema: "https://json-schema.org/draft/2020-12/schema",
+              type: "object",
+              properties: { text: { type: "string" } },
+              required: ["text"],
+              additionalProperties: false,
+            },
+          },
         ],
         actions: [],
       });

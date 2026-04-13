@@ -1,0 +1,367 @@
+{
+  "root": "page-root",
+  "elements": {
+    "hero-wrapper": {
+      "type": "Box",
+      "props": {
+        "style": {
+          "background": "#24292f",
+          "color": "#ffffff",
+          "fontFamily": "-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif"
+        }
+      },
+      "children": [
+        "hero-inner"
+      ]
+    },
+    "hero-inner": {
+      "type": "Stack",
+      "props": {
+        "direction": "vertical",
+        "gap": "2rem",
+        "style": {
+          "padding": "4rem",
+          "alignItems": "center",
+          "textAlign": "center"
+        }
+      },
+      "children": [
+        "hero-heading",
+        "hero-subtitle",
+        "hero-buttons"
+      ]
+    },
+    "hero-heading": {
+      "type": "Heading",
+      "props": {
+        "level": "h1",
+        "text": "We craft brands that move culture.",
+        "style": {
+          "fontSize": "3rem",
+          "color": "#ffffff",
+          "marginBottom": "0"
+        }
+      }
+    },
+    "hero-subtitle": {
+      "type": "Text",
+      "props": {
+        "text": "Strategy, design, and technology — woven together to build products people remember. We partner with ambitious teams to turn vision into momentum.",
+        "style": {
+          "fontSize": "1.25rem",
+          "color": "#8b949e",
+          "maxWidth": "640px",
+          "lineHeight": "1.75"
+        }
+      }
+    },
+    "hero-buttons": {
+      "type": "Stack",
+      "props": {
+        "direction": "horizontal",
+        "gap": "1rem",
+        "style": {
+          "alignItems": "center"
+        }
+      },
+      "children": [
+        "hero-cta-primary",
+        "hero-cta-secondary"
+      ]
+    },
+    "hero-cta-primary": {
+      "type": "Button",
+      "props": {
+        "label": "Start a project",
+        "variant": "primary"
+      }
+    },
+    "hero-cta-secondary": {
+      "type": "Button",
+      "props": {
+        "label": "See our work",
+        "variant": "secondary"
+      }
+    },
+    "page-root": {
+      "type": "Stack",
+      "props": {
+        "direction": "vertical",
+        "gap": "0"
+      },
+      "children": [
+        "hero-wrapper",
+        "services-section",
+        "cta-section"
+      ]
+    },
+    "services-section": {
+      "type": "Box",
+      "props": {
+        "style": {
+          "background": "#f6f8fa",
+          "padding": "4rem"
+        }
+      },
+      "children": [
+        "services-inner"
+      ]
+    },
+    "services-inner": {
+      "type": "Stack",
+      "props": {
+        "direction": "vertical",
+        "gap": "2.5rem",
+        "style": {
+          "maxWidth": "1048px",
+          "margin": "0 auto",
+          "alignItems": "center"
+        }
+      },
+      "children": [
+        "services-heading",
+        "services-subtitle",
+        "services-grid"
+      ]
+    },
+    "services-heading": {
+      "type": "Heading",
+      "props": {
+        "level": "h2",
+        "text": "What we do",
+        "style": {
+          "fontSize": "2.25rem",
+          "color": "#24292f",
+          "textAlign": "center",
+          "marginBottom": "0"
+        }
+      }
+    },
+    "services-subtitle": {
+      "type": "Text",
+      "props": {
+        "text": "Three disciplines, one team. Every engagement blends all three — no handoffs, no silos.",
+        "style": {
+          "fontSize": "1.125rem",
+          "color": "#57606a",
+          "textAlign": "center",
+          "maxWidth": "640px",
+          "lineHeight": "1.625"
+        }
+      }
+    },
+    "services-grid": {
+      "type": "Grid",
+      "props": {
+        "columns": 3,
+        "gap": "1.5rem"
+      },
+      "children": [
+        "card-strategy",
+        "card-design",
+        "card-technology"
+      ]
+    },
+    "card-strategy": {
+      "type": "Card",
+      "props": {
+        "style": {
+          "padding": "2rem",
+          "background": "#ffffff",
+          "borderRadius": "12px"
+        }
+      },
+      "children": [
+        "card-strategy-content"
+      ]
+    },
+    "card-strategy-content": {
+      "type": "Stack",
+      "props": {
+        "direction": "vertical",
+        "gap": "0.75rem"
+      },
+      "children": [
+        "card-strategy-title",
+        "card-strategy-text"
+      ]
+    },
+    "card-strategy-title": {
+      "type": "Heading",
+      "props": {
+        "level": "h3",
+        "text": "Strategy",
+        "style": {
+          "fontSize": "1.5rem",
+          "color": "#24292f",
+          "marginBottom": "0"
+        }
+      }
+    },
+    "card-strategy-text": {
+      "type": "Text",
+      "props": {
+        "text": "Market research, positioning, and go-to-market plans that give your brand a defensible edge.",
+        "style": {
+          "fontSize": "1rem",
+          "color": "#57606a",
+          "lineHeight": "1.625"
+        }
+      }
+    },
+    "card-design": {
+      "type": "Card",
+      "props": {
+        "style": {
+          "padding": "2rem",
+          "background": "#ffffff",
+          "borderRadius": "12px"
+        }
+      },
+      "children": [
+        "card-design-content"
+      ]
+    },
+    "card-design-content": {
+      "type": "Stack",
+      "props": {
+        "direction": "vertical",
+        "gap": "0.75rem"
+      },
+      "children": [
+        "card-design-title",
+        "card-design-text"
+      ]
+    },
+    "card-design-title": {
+      "type": "Heading",
+      "props": {
+        "level": "h3",
+        "text": "Design",
+        "style": {
+          "fontSize": "1.5rem",
+          "color": "#24292f",
+          "marginBottom": "0"
+        }
+      }
+    },
+    "card-design-text": {
+      "type": "Text",
+      "props": {
+        "text": "Identity systems, digital products, and campaigns designed to be felt before they're understood.",
+        "style": {
+          "fontSize": "1rem",
+          "color": "#57606a",
+          "lineHeight": "1.625"
+        }
+      }
+    },
+    "card-technology": {
+      "type": "Card",
+      "props": {
+        "style": {
+          "padding": "2rem",
+          "background": "#ffffff",
+          "borderRadius": "12px"
+        }
+      },
+      "children": [
+        "card-technology-content"
+      ]
+    },
+    "card-technology-content": {
+      "type": "Stack",
+      "props": {
+        "direction": "vertical",
+        "gap": "0.75rem"
+      },
+      "children": [
+        "card-technology-title",
+        "card-technology-text"
+      ]
+    },
+    "card-technology-title": {
+      "type": "Heading",
+      "props": {
+        "level": "h3",
+        "text": "Technology",
+        "style": {
+          "fontSize": "1.5rem",
+          "color": "#24292f",
+          "marginBottom": "0"
+        }
+      }
+    },
+    "card-technology-text": {
+      "type": "Text",
+      "props": {
+        "text": "Performant web platforms, design systems, and tooling built to scale with your ambition.",
+        "style": {
+          "fontSize": "1rem",
+          "color": "#57606a",
+          "lineHeight": "1.625"
+        }
+      }
+    },
+    "cta-section": {
+      "type": "Box",
+      "props": {
+        "style": {
+          "background": "#0969da",
+          "padding": "4rem"
+        }
+      },
+      "children": [
+        "cta-inner"
+      ]
+    },
+    "cta-inner": {
+      "type": "Stack",
+      "props": {
+        "direction": "vertical",
+        "gap": "1.5rem",
+        "style": {
+          "alignItems": "center",
+          "textAlign": "center",
+          "maxWidth": "640px",
+          "margin": "0 auto"
+        }
+      },
+      "children": [
+        "cta-heading",
+        "cta-text",
+        "cta-button"
+      ]
+    },
+    "cta-heading": {
+      "type": "Heading",
+      "props": {
+        "level": "h2",
+        "text": "Ready to build something that matters?",
+        "style": {
+          "fontSize": "2.25rem",
+          "color": "#ffffff",
+          "marginBottom": "0"
+        }
+      }
+    },
+    "cta-text": {
+      "type": "Text",
+      "props": {
+        "text": "Tell us where you're headed. We'll show you how to get there faster.",
+        "style": {
+          "fontSize": "1.25rem",
+          "color": "#f6f8fa",
+          "lineHeight": "1.625"
+        }
+      }
+    },
+    "cta-button": {
+      "type": "Button",
+      "props": {
+        "label": "Let's talk",
+        "variant": "secondary"
+      }
+    }
+  }
+}

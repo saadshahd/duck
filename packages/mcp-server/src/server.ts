@@ -25,25 +25,23 @@ type ToolError =
 
 // ── Effect → MCP boundary ──────────────────────────────────────────
 
+const json = (data: unknown): CallToolResult => ({
+  content: [{ type: "text", text: JSON.stringify(data) }],
+});
+
 const runTool = <T>(
   effect: Effect.Effect<T, ToolError>,
 ): Promise<CallToolResult> =>
   Effect.runPromise(
     effect.pipe(
-      Effect.map((data) => ({
-        content: [{ type: "text" as const, text: JSON.stringify(data) }],
-      })),
-      Effect.catchAll((err) =>
-        Effect.succeed({
-          content: [
-            {
-              type: "text" as const,
-              text: JSON.stringify({ error: err._tag, ...err }),
-            },
-          ],
+      Effect.map(json),
+      Effect.catchAll((err) => {
+        const { _tag, ...fields } = err;
+        return Effect.succeed({
+          ...json({ error: _tag, ...fields, hint: err.hint }),
           isError: true,
-        }),
-      ),
+        });
+      }),
     ),
   );
 
@@ -120,9 +118,23 @@ function registerTools(mcp: McpServer, ctx: McpContext) {
   mcp.registerTool(
     "editor_apply",
     {
-      description: "Apply RFC 6902 JSON patches to a page draft",
+      description:
+        "Edit a page spec. Creates the page automatically if it doesn't exist. " +
+        "Each apply immediately pushes to the browser for live preview. " +
+        "PREFERRED: Use 'spec' to merge a partial spec into the current page. " +
+        "SPEC FORMAT: { root: string, elements: Record<string, UIElement> } — a FLAT map keyed by element ID. " +
+        "Each UIElement: { type, props, children?: string[] } where children are IDs in the flat map. " +
+        "Example spec: { root: 'page', elements: { page: { type: 'Box', props: {}, children: ['hero'] }, hero: { type: 'Heading', props: { text: 'Hello' } } } } " +
+        "Build one section at a time — each response shows what's on the page so far.",
       inputSchema: {
         page: z.string().describe("Page name"),
+        spec: z
+          .object({})
+          .passthrough()
+          .optional()
+          .describe(
+            "Partial spec to deep-merge into the current page. Preferred over patches — just send the elements you want to add/update.",
+          ),
         patches: z
           .array(
             z.object({
@@ -132,7 +144,10 @@ function registerTools(mcp: McpServer, ctx: McpContext) {
               from: z.string().optional(),
             }),
           )
-          .describe("RFC 6902 JSON Patch operations"),
+          .optional()
+          .describe(
+            "RFC 6902 JSON Patch array for fine-grained updates. Use the spec parameter instead when adding new elements.",
+          ),
       },
     },
     (args) => runTool(applyPatches(ctx, args)),
@@ -183,7 +198,8 @@ function registerTools(mcp: McpServer, ctx: McpContext) {
     "editor_manifest",
     {
       description:
-        "Query the component catalog: list components, get a single component schema, or get the full prompt",
+        "Query the component catalog. Call with 'components' to get all types with full schemas in one call. " +
+        "Use 'component' for a single type's schema. Use 'prompt' for the full generation prompt.",
       inputSchema: {
         what: z.enum(["components", "component", "prompt"]),
         componentType: z
