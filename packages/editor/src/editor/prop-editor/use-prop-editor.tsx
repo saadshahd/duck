@@ -1,6 +1,6 @@
 import { useCallback, type ReactNode } from "react";
-import type { Spec } from "@json-render/core";
-import type { ZodTypeAny } from "zod";
+import type { Config, Data } from "@puckeditor/core";
+import { findById } from "@json-render-editor/spec";
 import type { FiberRegistry } from "../fiber/index.js";
 import type {
   EditorEvent,
@@ -8,35 +8,36 @@ import type {
   InlineEditing,
 } from "../machine/index.js";
 import { editProp } from "../spec-ops/index.js";
-import type { SpecPush } from "../types.js";
+import type { DataPush } from "../types.js";
 import { useDoubleClickEdit } from "./use-double-click-edit.js";
 import { useKeyboardEdit } from "./use-keyboard-edit.js";
 import { useInlineEdit } from "./inline-input.js";
 import { PropPopover } from "./prop-popover.js";
+import { useResolvedFields } from "./use-resolved-fields.js";
 
 type UsePropEditorProps = {
   registry: FiberRegistry | null;
-  spec: Spec;
+  data: Data;
+  config: Config;
   state: EditorSnapshot;
   send: (event: EditorEvent) => void;
-  push: SpecPush;
-  getPropSchema?: (type: string) => ZodTypeAny | undefined;
+  push: DataPush;
 };
 
 /** Orchestrates all prop-editing interactions. Returns popover element for the overlay. */
 export function usePropEditor({
   registry,
-  spec,
+  data,
+  config,
   state,
   send,
   push,
-  getPropSchema,
 }: UsePropEditorProps): ReactNode {
-  useDoubleClickEdit({ registry, spec, getPropSchema, send });
+  useDoubleClickEdit({ registry, data, config, send });
 
   const { pointer } = state.value as { pointer: string };
   const { lastSelectedId } = state.context;
-  useKeyboardEdit({ spec, lastSelectedId, pointer, getPropSchema, send });
+  useKeyboardEdit({ data, config, lastSelectedId, pointer, send });
 
   // --- Inline editing lifecycle ---
   const editing = state.context.editing;
@@ -45,17 +46,18 @@ export function usePropEditor({
   const commitInline = useCallback(
     (value: string) => {
       if (inline) {
-        editProp(spec, inline.elementId, inline.propKey, value).map((next) =>
-          push(
-            next,
-            `Edited text: "${String(value).slice(0, 30)}"`,
-            `prop:${inline.elementId}`,
-          ),
+        editProp(data, inline.elementId, [inline.propKey], value, config).map(
+          (next) =>
+            push(
+              next,
+              `Edited text: "${String(value).slice(0, 30)}"`,
+              `prop:${inline.elementId}`,
+            ),
         );
       }
       send({ type: "COMMIT_EDIT", newValue: value });
     },
-    [inline, spec, push, send],
+    [inline, data, config, push, send],
   );
 
   const cancelInline = useCallback(() => send({ type: "CANCEL_EDIT" }), [send]);
@@ -68,32 +70,37 @@ export function usePropEditor({
   });
 
   // --- Popover editing ---
-  const popoverSchema =
-    editing?.mode === "popover" && getPropSchema
-      ? getPropSchema(spec.elements[editing.elementId]?.type)
-      : undefined;
+  const popoverComponent =
+    editing?.mode === "popover" ? findById(data, editing.elementId) : null;
+
+  const { fields: popoverFields } = useResolvedFields(popoverComponent, config);
 
   const handlePropChange = useCallback(
     (propKey: string, value: unknown) => {
       if (!editing) return;
-      editProp(spec, editing.elementId, propKey, value).map((next) =>
+      editProp(data, editing.elementId, [propKey], value, config).map((next) =>
         push(next, `Changed ${propKey}`, `prop:${editing.elementId}`),
       );
     },
-    [editing, spec, push],
+    [editing, data, config, push],
   );
 
   const handleClose = useCallback(() => send({ type: "CANCEL_EDIT" }), [send]);
 
-  if (!editing || editing.mode !== "popover" || !popoverSchema || !registry)
+  if (
+    !editing ||
+    editing.mode !== "popover" ||
+    !popoverComponent ||
+    !registry
+  ) {
     return null;
+  }
 
   return (
     <PropPopover
       registry={registry}
-      spec={spec}
-      elementId={editing.elementId}
-      schema={popoverSchema}
+      component={popoverComponent}
+      fields={popoverFields}
       onPropChange={handlePropChange}
       onClose={handleClose}
     />

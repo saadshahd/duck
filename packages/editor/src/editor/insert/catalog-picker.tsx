@@ -6,13 +6,13 @@ import {
   shift,
   autoUpdate,
 } from "@floating-ui/react";
+import type { Config } from "@puckeditor/core";
 import {
   useShadowSheet,
   useOnClickOutside,
   useRegistryAnchor,
 } from "../overlay/index.js";
 import type { FiberRegistry } from "../fiber/index.js";
-import type { ComponentCatalog } from "../types.js";
 import css from "./insert.css?inline";
 
 const MIDDLEWARE = [offset(8), flip(), shift({ padding: 8 })];
@@ -20,15 +20,23 @@ const MIDDLEWARE = [offset(8), flip(), shift({ padding: 8 })];
 type CatalogPickerProps = {
   registry: FiberRegistry;
   elementId: string;
-  catalog: ComponentCatalog;
+  config: Config;
   onInsert: (componentType: string) => void;
   onClose: () => void;
 };
 
+type Entry = { name: string; label: string };
+
+const entriesOf = (config: Config): Entry[] =>
+  Object.entries(config.components ?? {}).map(([name, component]) => ({
+    name,
+    label: (component as { label?: string })?.label ?? name,
+  }));
+
 export function CatalogPicker({
   registry,
   elementId,
-  catalog,
+  config,
   onInsert,
   onClose,
 }: CatalogPickerProps) {
@@ -51,10 +59,10 @@ export function CatalogPicker({
   }, []);
 
   const needle = filter.toLowerCase();
-  const entries = Object.entries(catalog).filter(
-    ([type, { description }]) =>
-      type.toLowerCase().includes(needle) ||
-      description.toLowerCase().includes(needle),
+  const entries = entriesOf(config).filter(
+    ({ name, label }) =>
+      name.toLowerCase().includes(needle) ||
+      label.toLowerCase().includes(needle),
   );
 
   return (
@@ -76,18 +84,20 @@ export function CatalogPicker({
         {entries.length === 0 && (
           <div className="catalog-picker-empty">No matches</div>
         )}
-        {entries.map(([type, { description }]) => (
+        {entries.map(({ name, label }) => (
           <button
-            key={type}
+            key={name}
             type="button"
             className="catalog-picker-item"
             onClick={(e) => {
               e.stopPropagation();
-              onInsert(type);
+              onInsert(name);
             }}
           >
-            <span className="catalog-picker-item-type">{type}</span>
-            <span className="catalog-picker-item-desc">{description}</span>
+            <span className="catalog-picker-item-type">{name}</span>
+            {label !== name && (
+              <span className="catalog-picker-item-desc">{label}</span>
+            )}
           </button>
         ))}
       </div>

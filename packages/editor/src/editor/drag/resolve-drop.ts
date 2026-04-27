@@ -1,13 +1,13 @@
-import type { Spec } from "@json-render/core";
+import type { Data } from "@puckeditor/core";
 import { extractClosestEdge } from "@atlaskit/pragmatic-drag-and-drop-hitbox/closest-edge";
 import type { Result } from "neverthrow";
+import { getChildrenAt } from "@json-render-editor/spec";
 import type { FiberRegistry } from "../fiber/index.js";
-import type { SpecOpsError } from "../spec-ops/index.js";
-import { reorderChild, moveChild } from "../spec-ops/index.js";
+import { move, type SpecOpsError } from "../spec-ops/index.js";
 import type { EditorEvent } from "../machine/index.js";
 import {
   readData,
-  resolveParentAxis,
+  resolveSlotAxis,
   resolveDropIndex,
   resolveInsertIndex,
 } from "./helpers.js";
@@ -15,18 +15,18 @@ import {
 type TargetBag = { data: Record<string | symbol, unknown> };
 
 type DropResult = {
-  newSpec: Result<Spec, SpecOpsError>;
+  newData: Result<Data, SpecOpsError>;
   event: EditorEvent;
 };
 
 /**
- * Pure function: computes the spec mutation and machine event for a drop.
+ * Pure function: computes the data mutation and machine event for a drop.
  * Returns null when the drop should be cancelled (no target, self-drop, descendant).
  */
 export function resolveDrop(
   source: TargetBag,
   target: TargetBag | undefined,
-  spec: Spec,
+  data: Data,
   registry: FiberRegistry,
   descendantSet: ReadonlySet<string>,
 ): DropResult | null {
@@ -41,37 +41,50 @@ export function resolveDrop(
   )
     return null;
 
-  // Drop INTO container — append at end
+  // Drop INTO container — append at end of the targeted slot
   if (targetData.role === "container") {
-    const tgtChildren = spec.elements[targetData.elementId]?.children ?? [];
+    const slotKey = targetData.containerSlotKey ?? null;
+    const slotChildren = getChildrenAt(data, targetData.elementId, slotKey);
+    const toIndex = slotChildren?.length ?? 0;
     return {
-      newSpec: moveChild(
-        spec,
-        sourceData.parentId,
-        sourceData.index,
+      newData: move(
+        data,
+        sourceData.elementId,
         targetData.elementId,
-        tgtChildren.length,
+        slotKey,
+        toIndex,
       ),
       event: {
         type: "DROP",
         sourceParentId: sourceData.parentId,
         targetParentId: targetData.elementId,
         fromIndex: sourceData.index,
-        toIndex: tgtChildren.length,
+        toIndex,
       },
     };
   }
 
-  // Same-parent reorder
-  if (targetData.parentId === sourceData.parentId) {
+  // Same-slot reorder
+  if (
+    targetData.parentId === sourceData.parentId &&
+    targetData.slotKey === sourceData.slotKey
+  ) {
     const axis =
-      resolveParentAxis(spec, sourceData.parentId, registry) ?? "vertical";
+      resolveSlotAxis(
+        data,
+        sourceData.parentId,
+        sourceData.slotKey,
+        registry,
+      ) ?? "vertical";
     const to = resolveDropIndex(sourceData.index, target, axis);
     return {
-      newSpec:
-        sourceData.index !== to
-          ? reorderChild(spec, sourceData.parentId, sourceData.index, to)
-          : reorderChild(spec, sourceData.parentId, 0, 0), // will err with same-index — harmless
+      newData: move(
+        data,
+        sourceData.elementId,
+        sourceData.parentId,
+        sourceData.slotKey,
+        to,
+      ),
       event: {
         type: "DROP",
         sourceParentId: sourceData.parentId,
@@ -82,15 +95,15 @@ export function resolveDrop(
     };
   }
 
-  // Cross-parent sibling drop
+  // Cross-slot sibling drop
   const edge = extractClosestEdge(target.data);
   const insertIndex = resolveInsertIndex(targetData.index, edge);
   return {
-    newSpec: moveChild(
-      spec,
-      sourceData.parentId,
-      sourceData.index,
+    newData: move(
+      data,
+      sourceData.elementId,
       targetData.parentId,
+      targetData.slotKey,
       insertIndex,
     ),
     event: {

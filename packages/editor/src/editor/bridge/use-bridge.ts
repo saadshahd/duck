@@ -1,9 +1,13 @@
 import { useEffect, useRef, useState } from "react";
-import type { Spec } from "@json-render/core";
+import type { Data } from "@puckeditor/core";
 import equal from "fast-deep-equal";
-import { buildParentMap, getAncestry } from "@json-render-editor/spec";
-import type { SpecPush } from "../types.js";
-import type { BrowserMessage, ServerMessage } from "@json-render-editor/spec";
+import {
+  buildParentMap,
+  getAncestry,
+  type BrowserMessage,
+  type ServerMessage,
+} from "@json-render-editor/spec";
+import type { DataPush } from "../types.js";
 
 export type BridgeStatus = "connecting" | "connected" | "disconnected";
 
@@ -11,8 +15,8 @@ type UseBridgeOptions = {
   url: string;
   page: string;
   selectedId: string | null;
-  currentSpec: Spec;
-  push: SpecPush;
+  currentData: Data;
+  push: DataPush;
 };
 
 type SendFn = (msg: BrowserMessage) => void;
@@ -24,12 +28,12 @@ export function useBridge({
   url,
   page,
   selectedId,
-  currentSpec,
+  currentData,
   push,
 }: UseBridgeOptions): { status: BridgeStatus } {
   const [status, setStatus] = useState<BridgeStatus>("connecting");
-  const latest = useRef({ page, selectedId, currentSpec, push });
-  latest.current = { page, selectedId, currentSpec, push };
+  const latest = useRef({ page, selectedId, currentData, push });
+  latest.current = { page, selectedId, currentData, push };
 
   const sendRef = useRef<SendFn | null>(null);
 
@@ -50,10 +54,9 @@ export function useBridge({
         const msg = JSON.parse(event.data) as ServerMessage;
         const dispatch: Record<ServerMessage["type"], () => void> = {
           "spec-update": () => {
-            if (
-              !equal((msg as { spec: Spec }).spec, latest.current.currentSpec)
-            ) {
-              latest.current.push((msg as { spec: Spec }).spec, "Agent commit");
+            const incoming = (msg as { data: Data }).data;
+            if (!equal(incoming, latest.current.currentData)) {
+              latest.current.push(incoming, "Agent commit");
             }
           },
           "capture-request": () => {
@@ -76,7 +79,7 @@ export function useBridge({
           if (latest.current.selectedId) {
             send(
               selectionMessage(
-                latest.current.currentSpec,
+                latest.current.currentData,
                 latest.current.selectedId,
               ),
             );
@@ -114,19 +117,19 @@ export function useBridge({
   useEffect(
     function syncSelection() {
       if (!selectedId) return;
-      sendRef.current?.(selectionMessage(currentSpec, selectedId));
+      sendRef.current?.(selectionMessage(currentData, selectedId));
     },
-    [selectedId, currentSpec, page],
+    [selectedId, currentData, page],
   );
 
   return { status };
 }
 
-function selectionMessage(spec: Spec, elementId: string): BrowserMessage {
-  const parentMap = buildParentMap(spec);
+function selectionMessage(data: Data, elementId: string): BrowserMessage {
+  const parentMap = buildParentMap(data);
   return {
     type: "selection-changed",
     elementId,
-    ancestorIds: getAncestry(spec, parentMap, elementId).map((e) => e.id),
+    ancestorIds: getAncestry(parentMap, elementId).map((e) => e.id),
   };
 }

@@ -1,5 +1,5 @@
 import { useEffect, useRef } from "react";
-import type { Spec } from "@json-render/core";
+import type { Data } from "@puckeditor/core";
 import type { FiberRegistry } from "../fiber/index.js";
 import { ghostCandidateIds, isCollapsed } from "../layout/index.js";
 import { GHOST_MIN_HEIGHT } from "./constants.js";
@@ -33,14 +33,14 @@ const applyStyles = (el: HTMLElement, styles: SavedStyles): void => {
 
 // --- Reconciliation ---
 
-/** Spec heuristic + DOM measurement to find currently-collapsed elements. */
+/** Tree heuristic + DOM measurement to find currently-collapsed components. */
 const detectGhosts = (
-  spec: Spec,
+  data: Data,
   registry: FiberRegistry,
   active: Map<string, SavedStyles>,
 ): Set<string> =>
   new Set(
-    ghostCandidateIds(spec).filter((id) => {
+    ghostCandidateIds(data).filter((id) => {
       const dom = registry.get(id);
       if (!dom) return false;
       if (active.has(id)) return true;
@@ -63,7 +63,7 @@ const restoreStale = (
   }
 };
 
-/** Save originals and apply ghost styles to newly-detected elements. */
+/** Save originals and apply ghost styles to newly-detected components. */
 const styleNewGhosts = (
   detected: Set<string>,
   registry: FiberRegistry,
@@ -93,7 +93,7 @@ const restoreAll = (
 // --- Hook ---
 
 /**
- * Detect ghost elements (empty containers with no visual footprint)
+ * Detect ghost components (empty containers with no visual footprint)
  * and apply inline styles so they're visible and clickable.
  *
  * Trade-off: we inject min-height, min-width, and a dashed outline directly
@@ -103,7 +103,7 @@ const restoreAll = (
  * that reliably works. All styles are saved and restored on cleanup.
  */
 export function useGhostPlaceholders(
-  spec: Spec,
+  data: Data,
   registry: FiberRegistry | null,
 ): void {
   const savedRef = useRef(new Map<string, SavedStyles>());
@@ -112,10 +112,10 @@ export function useGhostPlaceholders(
     if (!registry) return;
 
     const active = savedRef.current;
-    const detected = detectGhosts(spec, registry, active);
+    const detected = detectGhosts(data, registry, active);
     restoreStale(detected, registry, active);
     styleNewGhosts(detected, registry, active);
 
     return () => restoreAll(registry, active);
-  }, [spec, registry]);
+  }, [data, registry]);
 }

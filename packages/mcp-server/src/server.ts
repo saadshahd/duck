@@ -7,27 +7,47 @@ import type {
   NotFound,
   StorageError,
   InvalidPageName,
-  PatchError,
   QueryError,
 } from "./errors.js";
+import { preOrder } from "@json-render-editor/spec";
+import type { Data } from "@puckeditor/core";
 import { dispatchQuery } from "./query/index.js";
 import { dispatchManifest } from "./manifest.js";
-import { applyPatches } from "./apply.js";
+import { applyOps, type ProgressNotice } from "./apply.js";
 
-// ── Error union for all tool handlers ──────────────────────────────
+// ── Error union for tool handlers ──────────────────────────────────
 
-type ToolError =
-  | NotFound
-  | StorageError
-  | InvalidPageName
-  | PatchError
-  | QueryError;
+type ToolError = NotFound | StorageError | InvalidPageName | QueryError;
 
 // ── Effect → MCP boundary ──────────────────────────────────────────
 
 const json = (data: unknown): CallToolResult => ({
   content: [{ type: "text", text: JSON.stringify(data) }],
 });
+
+type Notifier = {
+  readonly sendNotification?: (n: {
+    method: string;
+    params: Record<string, unknown>;
+  }) => Promise<void>;
+  readonly _meta?: { progressToken?: string | number };
+};
+
+const makeNotifier = (extra: Notifier) => (n: ProgressNotice) => {
+  const token = extra._meta?.progressToken;
+  if (token === undefined || !extra.sendNotification) return;
+  extra
+    .sendNotification({
+      method: "notifications/progress",
+      params: {
+        progressToken: token,
+        progress: n.value,
+        ...(n.total !== undefined ? { total: n.total } : {}),
+        ...(n.message !== undefined ? { message: n.message } : {}),
+      },
+    })
+    .catch(() => {});
+};
 
 const runTool = <T>(
   effect: Effect.Effect<T, ToolError>,
@@ -61,6 +81,34 @@ export const createMcpServer = (ctx: McpContext) => {
 
 const readOnly = { readOnlyHint: true, destructiveHint: false } as const;
 
+const opSchema = z.discriminatedUnion("op", [
+  z.object({
+    op: z.literal("add"),
+    parentId: z.string().nullable(),
+    slotKey: z.string().nullable(),
+    index: z.number().optional(),
+    component: z
+      .object({
+        type: z.string(),
+        props: z.record(z.string(), z.unknown()).optional(),
+      })
+      .passthrough(),
+  }),
+  z.object({
+    op: z.literal("update"),
+    id: z.string(),
+    props: z.record(z.string(), z.unknown()),
+  }),
+  z.object({ op: z.literal("remove"), id: z.string() }),
+  z.object({
+    op: z.literal("move"),
+    id: z.string(),
+    toParentId: z.string().nullable(),
+    toSlotKey: z.string().nullable(),
+    toIndex: z.number(),
+  }),
+]);
+
 function registerTools(mcp: McpServer, ctx: McpContext) {
   mcp.registerTool(
     "editor_status",
@@ -84,7 +132,7 @@ function registerTools(mcp: McpServer, ctx: McpContext) {
     "editor_query",
     {
       description:
-        "Read page spec data: outline, element, subtree, type, search, selection, capture",
+        "Read page data: outline, element, subtree, type, search, selection, capture",
       inputSchema: {
         page: z.string().optional().describe("Page name"),
         what: z.enum([
@@ -99,7 +147,7 @@ function registerTools(mcp: McpServer, ctx: McpContext) {
         id: z
           .string()
           .optional()
-          .describe("Element ID (for element/subtree modes)"),
+          .describe("Component ID (for element/subtree modes)"),
         depth: z
           .number()
           .optional()
@@ -119,44 +167,27 @@ function registerTools(mcp: McpServer, ctx: McpContext) {
     "editor_apply",
     {
       description:
-        "Edit a page spec. Creates the page automatically if it doesn't exist. " +
-        "Each apply immediately pushes to the browser for live preview. " +
-        "PREFERRED: Use 'spec' to merge a partial spec into the current page. " +
-        "SPEC FORMAT: { root: string, elements: Record<string, UIElement> } — a FLAT map keyed by element ID. " +
-        "Each UIElement: { type, props, children?: string[] } where children are IDs in the flat map. " +
-        "Example spec: { root: 'page', elements: { page: { type: 'Box', props: {}, children: ['hero'] }, hero: { type: 'Heading', props: { text: 'Hello' } } } } " +
-        "Build one section at a time — each response shows what's on the page so far.",
+        "Edit a page using structural ops. Each op streams: designer sees the change land via the bridge; agent sees per-op progress via notifications/progress. " +
+        "Op vocabulary: add (insert at parentId/slotKey/index), update (replace props), remove (delete by id), move (relocate by id).",
       inputSchema: {
         page: z.string().describe("Page name"),
-        spec: z
-          .object({})
-          .passthrough()
-          .optional()
-          .describe(
-            "Partial spec to deep-merge into the current page. Preferred over patches — just send the elements you want to add/update.",
-          ),
-        patches: z
-          .array(
-            z.object({
-              op: z.enum(["add", "remove", "replace", "move", "copy", "test"]),
-              path: z.string(),
-              value: z.unknown().optional(),
-              from: z.string().optional(),
-            }),
-          )
-          .optional()
-          .describe(
-            "RFC 6902 JSON Patch array for fine-grained updates. Use the spec parameter instead when adding new elements.",
-          ),
+        ops: z.array(opSchema).describe("Sequential structural ops"),
       },
     },
-    (args) => runTool(applyPatches(ctx, args)),
+    (args, extra) =>
+      runTool(
+        applyOps(
+          ctx,
+          args as { page: string; ops: any },
+          makeNotifier(extra as Notifier),
+        ),
+      ),
   );
 
   mcp.registerTool(
     "editor_commit",
     {
-      description: "Promote draft to committed spec and push to browser",
+      description: "Promote draft to committed data and push to browser",
       inputSchema: {
         page: z.string().describe("Page name"),
         label: z.string().optional().describe("History label for this commit"),
@@ -166,13 +197,13 @@ function registerTools(mcp: McpServer, ctx: McpContext) {
       runTool(
         ctx.storage.commitDraft(args.page).pipe(
           Effect.flatMap(() => ctx.storage.readSpec(args.page)),
-          Effect.tap((spec) =>
-            Effect.sync(() => ctx.bridge.broadcast(args.page, spec)),
+          Effect.tap((data) =>
+            Effect.sync(() => ctx.bridge.broadcast(args.page, data)),
           ),
-          Effect.map((spec) => ({
+          Effect.map((data) => ({
             committed: true,
             page: args.page,
-            elementCount: Object.keys(spec.elements).length,
+            componentCount: countComponents(data),
           })),
         ),
       ),
@@ -182,9 +213,7 @@ function registerTools(mcp: McpServer, ctx: McpContext) {
     "editor_discard",
     {
       description: "Delete draft for a page",
-      inputSchema: {
-        page: z.string().describe("Page name"),
-      },
+      inputSchema: { page: z.string().describe("Page name") },
     },
     (args) =>
       runTool(
@@ -198,8 +227,8 @@ function registerTools(mcp: McpServer, ctx: McpContext) {
     "editor_manifest",
     {
       description:
-        "Query the component catalog. Call with 'components' to get all types with full schemas in one call. " +
-        "Use 'component' for a single type's schema. Use 'prompt' for the full generation prompt.",
+        "Query the component catalog. 'components' lists all with fields and defaults. " +
+        "'component' returns one full schema. 'prompt' returns the LLM system prompt.",
       inputSchema: {
         what: z.enum(["components", "component", "prompt"]),
         componentType: z
@@ -209,6 +238,12 @@ function registerTools(mcp: McpServer, ctx: McpContext) {
       },
       annotations: readOnly,
     },
-    (args) => runTool(dispatchManifest(ctx.catalog, args)),
+    (args) => runTool(dispatchManifest(ctx.config, args)),
   );
 }
+
+const countComponents = (data: Data): number => {
+  let n = 0;
+  for (const _ of preOrder(data)) n++;
+  return n;
+};

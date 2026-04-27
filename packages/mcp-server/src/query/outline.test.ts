@@ -1,60 +1,62 @@
 import { describe, it, expect } from "bun:test";
-import type { Spec } from "@json-render/core";
+import type { Data } from "@puckeditor/core";
 import { Effect } from "effect";
 import { outline } from "./outline.js";
 
-const spec: Spec = {
-  root: "page",
-  elements: {
-    page: {
+const data: Data = {
+  root: { props: {} },
+  content: [
+    {
       type: "Box",
-      props: { bg: "white" },
-      children: ["stack", "footer"],
+      props: {
+        id: "page",
+        bg: "white",
+        children: [
+          {
+            type: "Stack",
+            props: {
+              id: "stack",
+              gap: "1rem",
+              children: [
+                { type: "Heading", props: { id: "heading", text: "Hello" } },
+                {
+                  type: "Card",
+                  props: {
+                    id: "card",
+                    children: [
+                      { type: "Text", props: { id: "body", text: "content" } },
+                    ],
+                  },
+                },
+              ],
+            },
+          },
+          { type: "Footer", props: { id: "footer", text: "bye" } },
+        ],
+      },
     },
-    stack: {
-      type: "Stack",
-      props: { gap: "1rem" },
-      children: ["heading", "card"],
-    },
-    heading: { type: "Heading", props: { text: "Hello" } },
-    card: { type: "Card", props: {}, children: ["body"] },
-    body: { type: "Text", props: { text: "content" } },
-    footer: { type: "Footer", props: { text: "bye" } },
-  },
+  ],
 };
 
 describe("outline", () => {
-  it("depth=1 returns summary for children", async () => {
-    const result = await Effect.runPromise(outline(spec, 1));
-    expect(result.totalElements).toBe(6);
-    expect(result.outline).toEqual({
-      id: "page",
-      type: "Box",
-      props: { bg: "white" },
-      children: [
-        { id: "stack", type: "Stack", childCount: 2 },
-        { id: "footer", type: "Footer", childCount: 0 },
-      ],
-    });
+  it("counts every component in tree", async () => {
+    const result = await Effect.runPromise(outline(data, 5));
+    expect(result.totalComponents).toBe(6);
   });
 
-  it("depth=3 includes props through card level", async () => {
-    const result = await Effect.runPromise(outline(spec, 3));
-    const stack = (result.outline as any).children[0];
-    expect(stack.props).toEqual({ gap: "1rem" });
-    const card = stack.children[1];
-    expect(card.props).toEqual({});
-    expect(card.children[0]).toEqual({
-      id: "body",
-      type: "Text",
-      childCount: 0,
-    });
+  it("returns one outline node per top-level content entry", async () => {
+    const result = await Effect.runPromise(outline(data, 1));
+    expect(result.outline).toHaveLength(1);
+    expect((result.outline[0] as { id: string }).id).toBe("page");
   });
 
-  it("defaults to depth=2", async () => {
-    const result = await Effect.runPromise(outline(spec));
-    const stack = (result.outline as any).children[0];
-    expect("props" in stack).toBe(true);
-    expect("childCount" in stack.children[0]).toBe(true);
+  it("collapses below maxDepth to a summary with childCount", async () => {
+    const result = await Effect.runPromise(outline(data, 1));
+    const page = result.outline[0] as {
+      slots: Record<string, Array<{ id: string; childCount: number }>>;
+    };
+    const stack = page.slots.children[0]!;
+    expect(stack.id).toBe("stack");
+    expect(stack.childCount).toBe(2);
   });
 });

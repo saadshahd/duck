@@ -1,169 +1,156 @@
 import { describe, it, expect } from "bun:test";
-import type { Spec } from "@json-render/core";
-import { moveChild } from "./reorder.js";
-import { collectDescendants } from "@json-render-editor/spec";
+import type { ComponentData, Data } from "@puckeditor/core";
+import { move } from "./move.js";
+import { findById } from "./helpers.js";
 
-// --- Factories ---
-
-/** Two parents (left, right) each with children under a shared root. */
-const twoParents = (): Spec => ({
-  root: "page",
-  elements: {
-    page: { type: "Box", props: {}, children: ["left", "right"] },
-    left: { type: "Stack", props: {}, children: ["a", "b"] },
-    right: { type: "Stack", props: {}, children: ["c", "d"] },
-    a: { type: "Text", props: { text: "A" } },
-    b: { type: "Text", props: { text: "B" } },
-    c: { type: "Text", props: { text: "C" } },
-    d: { type: "Text", props: { text: "D" } },
-  },
+const text = (id: string): ComponentData => ({
+  type: "Text",
+  props: { id, text: id },
 });
 
-/** Nested: page → parent → child → grandchild. */
-const nested = (): Spec => ({
-  root: "page",
-  elements: {
-    page: { type: "Box", props: {}, children: ["parent"] },
-    parent: { type: "Stack", props: {}, children: ["child"] },
-    child: { type: "Stack", props: {}, children: ["grandchild"] },
-    grandchild: { type: "Text", props: { text: "G" } },
-  },
+const stack = (id: string, items: ComponentData[]): ComponentData => ({
+  type: "Stack",
+  props: { id, items },
 });
 
-/** Target has an empty children array. */
-const emptyTarget = (): Spec => ({
-  root: "page",
-  elements: {
-    page: { type: "Box", props: {}, children: ["src", "tgt"] },
-    src: { type: "Stack", props: {}, children: ["a"] },
-    tgt: { type: "Stack", props: {}, children: [] },
-    a: { type: "Text", props: { text: "A" } },
-  },
+const twoStacks = (): Data => ({
+  root: { props: {} },
+  content: [
+    stack("left", [text("a"), text("b")]),
+    stack("right", [text("c"), text("d")]),
+  ],
 });
 
-/** Target has no children property at all. */
-const noChildrenTarget = (): Spec => ({
-  root: "page",
-  elements: {
-    page: { type: "Box", props: {}, children: ["src", "tgt"] },
-    src: { type: "Stack", props: {}, children: ["a"] },
-    tgt: { type: "Text", props: {} },
-    a: { type: "Text", props: { text: "A" } },
-  },
+const nested = (): Data => ({
+  root: { props: {} },
+  content: [stack("outer", [stack("inner", [text("leaf")])])],
 });
 
-// --- collectDescendants ---
+const flat = (): Data => ({
+  root: { props: {} },
+  content: [text("a"), text("b"), text("c")],
+});
 
-describe("collectDescendants", () => {
-  it("returns all descendants of a subtree", () => {
-    const s = nested();
-    const desc = collectDescendants(s, "parent");
-    expect(desc).toEqual(new Set(["child", "grandchild"]));
+const itemsOf = (data: Data, id: string): string[] =>
+  (findById(data, id)!.props.items as ComponentData[]).map(
+    (c) => c.props.id as string,
+  );
+
+describe("move — between slots", () => {
+  it("moves from one slot to another", () => {
+    const result = move(twoStacks(), "a", "right", "items", 0);
+    const next = result._unsafeUnwrap();
+    expect(itemsOf(next, "left")).toEqual(["b"]);
+    expect(itemsOf(next, "right")).toEqual(["a", "c", "d"]);
   });
 
-  it("returns empty set for leaf node", () => {
-    const s = nested();
-    expect(collectDescendants(s, "grandchild").size).toBe(0);
+  it("moves to end of target slot", () => {
+    const result = move(twoStacks(), "a", "right", "items", 2);
+    const next = result._unsafeUnwrap();
+    expect(itemsOf(next, "right")).toEqual(["c", "d", "a"]);
   });
 
-  it("returns empty set for nonexistent element", () => {
-    const s = nested();
-    expect(collectDescendants(s, "zzz").size).toBe(0);
+  it("moves between top-level and a slot", () => {
+    const result = move(flat(), "b", null, null, 2);
+    const next = result._unsafeUnwrap();
+    expect(next.content.map((c) => c.props.id)).toEqual(["a", "c", "b"]);
+  });
+
+  it("moves from top-level into a slot", () => {
+    const data: Data = {
+      root: { props: {} },
+      content: [text("solo"), stack("box", [])],
+    };
+    const result = move(data, "solo", "box", "items", 0);
+    const next = result._unsafeUnwrap();
+    expect(next.content.map((c) => c.props.id)).toEqual(["box"]);
+    expect(itemsOf(next, "box")).toEqual(["solo"]);
   });
 });
 
-// --- moveChild ---
-
-describe("moveChild", () => {
-  it("moves element from one parent to another", () => {
-    const result = moveChild(twoParents(), "left", 0, "right", 0);
-    expect(result.isOk()).toBe(true);
-    const s = result._unsafeUnwrap();
-    expect(s.elements.left.children).toEqual(["b"]);
-    expect(s.elements.right.children).toEqual(["a", "c", "d"]);
+describe("move — within slot", () => {
+  it("reorders within the same slot", () => {
+    const result = move(twoStacks(), "a", "left", "items", 1);
+    expect(itemsOf(result._unsafeUnwrap(), "left")).toEqual(["b", "a"]);
   });
 
-  it("moves element to end of target", () => {
-    const result = moveChild(twoParents(), "left", 0, "right", 2);
-    expect(result.isOk()).toBe(true);
-    const s = result._unsafeUnwrap();
-    expect(s.elements.left.children).toEqual(["b"]);
-    expect(s.elements.right.children).toEqual(["c", "d", "a"]);
+  it("reorders top-level entries", () => {
+    const result = move(flat(), "a", null, null, 2);
+    const next = result._unsafeUnwrap();
+    expect(next.content.map((c) => c.props.id)).toEqual(["b", "c", "a"]);
   });
 
-  it("moves into empty container", () => {
-    const result = moveChild(emptyTarget(), "src", 0, "tgt", 0);
+  it("returns same Data reference when toIndex equals current index", () => {
+    const original = twoStacks();
+    const result = move(original, "a", "left", "items", 0);
     expect(result.isOk()).toBe(true);
-    const s = result._unsafeUnwrap();
-    expect(s.elements.src.children).toEqual([]);
-    expect(s.elements.tgt.children).toEqual(["a"]);
+    expect(result._unsafeUnwrap()).toBe(original);
   });
 
-  it("moves into element with no children property (creates array)", () => {
-    const result = moveChild(noChildrenTarget(), "src", 0, "tgt", 0);
-    expect(result.isOk()).toBe(true);
-    const s = result._unsafeUnwrap();
-    expect(s.elements.src.children).toEqual([]);
-    expect(s.elements.tgt.children).toEqual(["a"]);
+  it("returns same reference for top-level no-op", () => {
+    const original = flat();
+    const result = move(original, "b", null, null, 1);
+    expect(result._unsafeUnwrap()).toBe(original);
+  });
+});
+
+describe("move — errors", () => {
+  it("element-not-found", () => {
+    const result = move(twoStacks(), "zzz", "right", "items", 0);
+    expect(result._unsafeUnwrapErr().tag).toBe("element-not-found");
   });
 
-  it("delegates to reorderChild for same parent", () => {
-    const result = moveChild(twoParents(), "left", 0, "left", 1);
-    expect(result.isOk()).toBe(true);
-    expect(result._unsafeUnwrap().elements.left.children).toEqual(["b", "a"]);
+  it("parent-not-found", () => {
+    const result = move(twoStacks(), "a", "missing", "items", 0);
+    expect(result._unsafeUnwrapErr().tag).toBe("parent-not-found");
   });
 
-  it("returns immutable result (original unchanged)", () => {
-    const original = twoParents();
-    const result = moveChild(original, "left", 0, "right", 0);
-    expect(result.isOk()).toBe(true);
+  it("slot-not-defined when slot key is not an array on parent", () => {
+    const result = move(twoStacks(), "a", "b", "items", 0);
+    expect(result._unsafeUnwrapErr().tag).toBe("slot-not-defined");
+  });
+
+  it("index-out-of-bounds for negative target", () => {
+    const result = move(twoStacks(), "a", "right", "items", -1);
+    expect(result._unsafeUnwrapErr().tag).toBe("index-out-of-bounds");
+  });
+
+  it("index-out-of-bounds for too-large target", () => {
+    const result = move(twoStacks(), "a", "right", "items", 99);
+    expect(result._unsafeUnwrapErr().tag).toBe("index-out-of-bounds");
+  });
+
+  it("circular-move: drop into self", () => {
+    const result = move(nested(), "outer", "outer", "items", 0);
+    expect(result._unsafeUnwrapErr().tag).toBe("circular-move");
+  });
+
+  it("circular-move: drop into descendant", () => {
+    const result = move(nested(), "outer", "inner", "items", 0);
+    expect(result._unsafeUnwrapErr().tag).toBe("circular-move");
+  });
+
+  it("circular-move: drop into deeper descendant", () => {
+    const data: Data = {
+      root: { props: {} },
+      content: [stack("a", [stack("b", [stack("c", [])])])],
+    };
+    const result = move(data, "a", "c", "items", 0);
+    expect(result._unsafeUnwrapErr().tag).toBe("circular-move");
+  });
+});
+
+describe("move — immutability", () => {
+  it("does not mutate the original on success", () => {
+    const original = twoStacks();
+    const snapshot = JSON.stringify(original);
+    move(original, "a", "right", "items", 0);
+    expect(JSON.stringify(original)).toBe(snapshot);
+  });
+
+  it("returns a new Data reference for actual moves", () => {
+    const original = twoStacks();
+    const result = move(original, "a", "right", "items", 0);
     expect(result._unsafeUnwrap()).not.toBe(original);
-    expect(original.elements.left.children).toEqual(["a", "b"]);
-    expect(original.elements.right.children).toEqual(["c", "d"]);
-  });
-
-  // --- Error cases ---
-
-  it("rejects circular move: drop parent into own child", () => {
-    const result = moveChild(nested(), "page", 0, "child", 0);
-    expect(result.isErr()).toBe(true);
-    expect(result._unsafeUnwrapErr().tag).toBe("circular-move");
-  });
-
-  it("rejects circular move: drop parent into own grandchild", () => {
-    const result = moveChild(nested(), "page", 0, "grandchild", 0);
-    expect(result.isErr()).toBe(true);
-    expect(result._unsafeUnwrapErr().tag).toBe("circular-move");
-  });
-
-  it("rejects circular move: drop into self", () => {
-    // "parent" is at index 0 of "page", try to move into "parent" itself
-    const result = moveChild(nested(), "page", 0, "parent", 0);
-    expect(result.isErr()).toBe(true);
-    expect(result._unsafeUnwrapErr().tag).toBe("circular-move");
-  });
-
-  it("rejects out-of-bounds source index", () => {
-    const result = moveChild(twoParents(), "left", 5, "right", 0);
-    expect(result.isErr()).toBe(true);
-    expect(result._unsafeUnwrapErr().tag).toBe("index-out-of-bounds");
-  });
-
-  it("rejects out-of-bounds target index", () => {
-    const result = moveChild(twoParents(), "left", 0, "right", 10);
-    expect(result.isErr()).toBe(true);
-    expect(result._unsafeUnwrapErr().tag).toBe("index-out-of-bounds");
-  });
-
-  it("rejects nonexistent source parent", () => {
-    const result = moveChild(twoParents(), "zzz", 0, "right", 0);
-    expect(result.isErr()).toBe(true);
-    expect(result._unsafeUnwrapErr().tag).toBe("element-not-found");
-  });
-
-  it("rejects nonexistent target parent", () => {
-    const result = moveChild(twoParents(), "left", 0, "zzz", 0);
-    expect(result.isErr()).toBe(true);
-    expect(result._unsafeUnwrapErr().tag).toBe("element-not-found");
   });
 });

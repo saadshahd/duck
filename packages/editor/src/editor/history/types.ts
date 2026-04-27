@@ -1,7 +1,7 @@
-import type { Spec } from "@json-render/core";
+import type { Data } from "@puckeditor/core";
 
 export type Snapshot = {
-  spec: Spec;
+  data: Data;
   label: string;
   timestamp: number;
   name?: string;
@@ -16,7 +16,7 @@ export type HistoryContext = {
 export type HistoryEvent =
   | {
       type: "PUSH";
-      spec: Spec;
+      data: Data;
       label: string;
       group?: string;
       timestamp: number;

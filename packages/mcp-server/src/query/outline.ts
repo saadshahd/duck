@@ -1,9 +1,15 @@
-import type { Spec } from "@json-render/core";
+import type { Data } from "@puckeditor/core";
 import { Effect } from "effect";
-import { outlineTree } from "@json-render-editor/spec";
+import { outlineTree, preOrder } from "@json-render-editor/spec";
 
-export const outline = (spec: Spec, maxDepth = 2) =>
+const countComponents = (data: Data): number => {
+  let n = 0;
+  for (const _ of preOrder(data)) n++;
+  return n;
+};
+
+export const outline = (data: Data, maxDepth = 2) =>
   Effect.succeed({
-    outline: outlineTree(spec, maxDepth),
-    totalElements: Object.keys(spec.elements).length,
+    outline: outlineTree(data, maxDepth),
+    totalComponents: countComponents(data),
   });

@@ -1,42 +1,40 @@
 import { useEffect } from "react";
-import type { Spec } from "@json-render/core";
-import type { ZodTypeAny } from "zod";
+import type { Config, Data } from "@puckeditor/core";
+import { findById } from "@json-render-editor/spec";
 import type { EditorEvent } from "../machine/index.js";
 import { isEditable } from "../overlay/index.js";
-import { findSingleEditableProp } from "./find-editable-prop.js";
+import { findEditableProp, type ResolvedFields } from "./find-editable-prop.js";
 import { isPrintable } from "./keyboard-predicates.js";
 
 type UseKeyboardEditProps = {
-  spec: Spec;
+  data: Data;
+  config: Config;
   lastSelectedId: string | null;
   pointer: string;
-  getPropSchema: ((type: string) => ZodTypeAny | undefined) | undefined;
   send: (event: EditorEvent) => void;
 };
 
 export function useKeyboardEdit({
-  spec,
+  data,
+  config,
   lastSelectedId,
   pointer,
-  getPropSchema,
   send,
 }: UseKeyboardEditProps): void {
   useEffect(
     function wireKeyboardEdit() {
-      if (!getPropSchema) return;
-
       const onKeyDown = (e: KeyboardEvent) => {
         if (pointer !== "selected" || !lastSelectedId) return;
         if (!isPrintable(e)) return;
         if (isEditable(e.target)) return;
 
-        const element = spec.elements[lastSelectedId];
-        if (!element) return;
+        const component = findById(data, lastSelectedId);
+        if (!component) return;
 
-        const schema = getPropSchema(element.type);
-        if (!schema) return;
+        const fields = config.components[component.type]?.fields;
+        if (!fields) return;
 
-        const match = findSingleEditableProp(element, schema);
+        const match = findEditableProp(component, fields as ResolvedFields);
         if (!match) return;
 
         e.preventDefault();
@@ -53,6 +51,6 @@ export function useKeyboardEdit({
       window.addEventListener("keydown", onKeyDown);
       return () => window.removeEventListener("keydown", onKeyDown);
     },
-    [spec, lastSelectedId, pointer, getPropSchema, send],
+    [data, config, lastSelectedId, pointer, send],
   );
 }

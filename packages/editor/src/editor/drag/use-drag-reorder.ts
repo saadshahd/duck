@@ -1,24 +1,29 @@
 import { useEffect, useRef, useState } from "react";
-import type { Spec } from "@json-render/core";
+import type { Data } from "@puckeditor/core";
 import {
   draggable,
   dropTargetForElements,
   monitorForElements,
 } from "@atlaskit/pragmatic-drag-and-drop/element/adapter";
 import { attachClosestEdge } from "@atlaskit/pragmatic-drag-and-drop-hitbox/closest-edge";
+import {
+  buildIndex,
+  collectDescendants,
+  findParent,
+  slotKeysOf,
+} from "@json-render-editor/spec";
 import type { FiberRegistry } from "../fiber/index.js";
 import type { EditorEvent, EditorSnapshot } from "../machine/index.js";
-import { findParent, collectDescendants } from "../spec-ops/index.js";
 import type { DropTarget } from "./drop-indicator.js";
 import type { DragData } from "./helpers.js";
 import {
   EDGES,
-  resolveParentAxis,
+  resolveSlotAxis,
   isInContainerZone,
   tagTransitionNames,
 } from "./helpers.js";
 import { animatedUpdate } from "../animated-update.js";
-import type { SpecPush } from "../types.js";
+import type { DataPush } from "../types.js";
 import { resolveIndicator } from "./resolve-indicator.js";
 import { resolveDrop } from "./resolve-drop.js";
 
@@ -26,10 +31,11 @@ import { resolveDrop } from "./resolve-drop.js";
 
 type Props = {
   registry: FiberRegistry | null;
-  spec: Spec;
+  data: Data;
+  index: ReturnType<typeof buildIndex>;
   state: EditorSnapshot;
   send: (event: EditorEvent) => void;
-  push: SpecPush;
+  push: DataPush;
 };
 
 const stateOf = (s: EditorSnapshot) =>
@@ -37,12 +43,21 @@ const stateOf = (s: EditorSnapshot) =>
 
 // --- Hook ---
 
-export function useDragReorder({ registry, spec, state, send, push }: Props): {
+export function useDragReorder({
+  registry,
+  data,
+  index,
+  state,
+  send,
+  push,
+}: Props): {
   dropTarget: DropTarget | null;
 } {
   const [dropTarget, setDropTarget] = useState<DropTarget | null>(null);
-  const specRef = useRef(spec);
-  specRef.current = spec;
+  const dataRef = useRef(data);
+  dataRef.current = data;
+  const indexRef = useRef(index);
+  indexRef.current = index;
   const pushRef = useRef(push);
   pushRef.current = push;
 
@@ -61,9 +76,8 @@ export function useDragReorder({ registry, spec, state, send, push }: Props): {
     )
       return;
 
-    const ctx = findParent(specRef.current, lastSelectedId);
-    if (ctx.isErr()) return;
-    const { parentId, childIndex } = ctx.value;
+    const parent = findParent(dataRef.current, lastSelectedId);
+    if (!parent) return;
 
     const sourceEl = registry.get(lastSelectedId);
     if (!sourceEl) return;
@@ -72,16 +86,16 @@ export function useDragReorder({ registry, spec, state, send, push }: Props): {
 
     return draggable({
       element: sourceEl,
-      getInitialData: () => ({
+      getInitialData: (): DragData => ({
         elementId: lastSelectedId,
-        parentId,
-        index: childIndex,
+        parentId: parent.parentId,
+        slotKey: parent.slotKey,
+        index: parent.index,
+        role: "sibling",
       }),
       onGenerateDragPreview: () => {
-        const allChildIds = Object.values(specRef.current.elements).flatMap(
-          (el) => el.children ?? [],
-        );
-        clearNames = tagTransitionNames(registry, allChildIds);
+        const allIds = [...indexRef.current.keys()];
+        clearNames = tagTransitionNames(registry, allIds);
       },
       onDragStart: () => send({ type: "DRAG_START", sourceId: lastSelectedId }),
       onDrop: () => {
@@ -91,29 +105,31 @@ export function useDragReorder({ registry, spec, state, send, push }: Props): {
     });
   }, [registry, lastSelectedId, singleSelected, pointer, send]);
 
-  // --- Effect 2: Register drop targets on ALL elements ---
+  // --- Effect 2: Register drop targets on every component ---
 
   useEffect(() => {
     if (!registry) return;
 
-    const s = specRef.current;
-    const containerIds = new Set(
-      Object.entries(s.elements)
-        .filter(([, el]) => el.children != null)
-        .map(([id]) => id),
-    );
+    const cleanups: (() => void)[] = [];
 
-    const cleanups = Object.keys(s.elements).flatMap((id) => {
+    for (const [id, { component, path }] of index) {
       const el = registry.get(id);
-      const parent = findParent(s, id);
-      if (!el || parent.isErr()) return [];
+      const parent = path.at(-1);
+      if (!el || !parent) continue;
 
-      const { parentId, childIndex } = parent.value;
-      const isContainer = containerIds.has(id);
+      const slots = slotKeysOf(component);
+      const isContainer = slots.length > 0;
       const edges =
-        EDGES[resolveParentAxis(s, parentId, registry) ?? "vertical"];
+        EDGES[
+          resolveSlotAxis(
+            dataRef.current,
+            parent.parentId,
+            parent.slotKey,
+            registry,
+          ) ?? "vertical"
+        ];
 
-      return [
+      cleanups.push(
         dropTargetForElements({
           element: el,
           canDrop: ({ source }) => (source.data.elementId as string) !== id,
@@ -124,24 +140,29 @@ export function useDragReorder({ registry, spec, state, send, push }: Props): {
             )
               return {
                 elementId: id,
+                parentId: parent.parentId,
+                slotKey: parent.slotKey,
+                index: parent.index,
                 role: "container",
-              } satisfies Partial<DragData>;
+                containerSlotKey: slots[0],
+              } satisfies DragData;
             return attachClosestEdge(
               {
                 elementId: id,
-                parentId,
-                index: childIndex,
+                parentId: parent.parentId,
+                slotKey: parent.slotKey,
+                index: parent.index,
                 role: "sibling",
               } satisfies DragData,
               { element, input, allowedEdges: edges },
             );
           },
         }),
-      ];
-    });
+      );
+    }
 
     return () => cleanups.forEach((fn) => fn());
-  }, [registry, spec]);
+  }, [registry, data, index]);
 
   // --- Effect 3: Global drop monitor ---
 
@@ -162,7 +183,7 @@ export function useDragReorder({ registry, spec, state, send, push }: Props): {
         resolveIndicator(
           source,
           location.current.dropTargets[0],
-          specRef.current,
+          dataRef.current,
           registry,
           descendants,
         ),
@@ -170,9 +191,8 @@ export function useDragReorder({ registry, spec, state, send, push }: Props): {
 
     return monitorForElements({
       onDragStart: ({ source }) => {
-        descendants = collectDescendants(
-          specRef.current,
-          source.data.elementId as string,
+        descendants = new Set(
+          collectDescendants(dataRef.current, source.data.elementId as string),
         );
       },
       onDrag: ({ source, location }) => indicator(source, location),
@@ -182,22 +202,22 @@ export function useDragReorder({ registry, spec, state, send, push }: Props): {
         const result = resolveDrop(
           source,
           location.current.dropTargets[0],
-          specRef.current,
+          dataRef.current,
           registry,
           descendants,
         );
         descendants = new Set();
         if (!result) return send({ type: "DRAG_CANCEL" });
-        result.newSpec.map((s) => {
+        result.newData.map((d) => {
           animatedUpdate(
             (next) => pushRef.current(next, "Reordered element"),
-            s,
+            d,
           );
         });
         send(result.event);
       },
     });
-  }, [registry, spec, send]);
+  }, [registry, data, send]);
 
   return { dropTarget };
 }

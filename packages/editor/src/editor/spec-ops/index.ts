@@ -1,39 +1,11 @@
-export {
-  collectDescendants,
-  nearestSibling,
-  topologicalRoots,
-} from "@json-render-editor/spec";
-export {
-  type SpecOpsError,
-  getElement,
-  getChildren,
-  checkBounds,
-  checkBoundsInclusive,
-  cloneAndMutate,
-  moveInArray,
-} from "./helpers.js";
-export { findParent, reorderChild, moveChild } from "./reorder.js";
+export { type SpecOpsError, cloneAndMutate } from "./helpers.js";
+export { add, type ComponentMap } from "./add.js";
+export { update } from "./update.js";
+export { remove } from "./remove.js";
+export { move } from "./move.js";
 export { editProp } from "./edit-prop.js";
-export {
-  deleteElement,
-  deleteElements,
-  type DeleteManyResult,
-} from "./delete.js";
-export {
-  type SpecFragment,
-  type DuplicateResult,
-  serializeFragment,
-  deserializeFragment,
-  insertFragment,
-  duplicate,
-} from "./clipboard.js";
-export {
-  nextInTreeOrder,
-  type NavDirection,
-  type NavTarget,
-} from "./navigation.js";
-export {
-  type InsertPosition,
-  type InsertResult,
-  insertElement,
-} from "./insert.js";
+export { copy, paste } from "./clipboard.js";
+export { nextInTreeOrder, type NavDirection } from "./navigation.js";
+export { slotKeysOf } from "@json-render-editor/spec";
+export { findById, findParent } from "@json-render-editor/spec";
+export { descendantIds as collectDescendants } from "./helpers.js";

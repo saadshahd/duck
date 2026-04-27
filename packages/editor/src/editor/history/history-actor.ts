@@ -1,5 +1,5 @@
 import { fromTransition } from "xstate";
-import type { Spec } from "@json-render/core";
+import type { Data } from "@puckeditor/core";
 import equal from "fast-deep-equal";
 import type { HistoryContext, HistoryEvent, Snapshot } from "./types.js";
 
@@ -22,7 +22,7 @@ const coalesce = (
   if (!atEnd || !event.group || current?.group !== event.group) return null;
 
   const prev = ctx.entries[ctx.currentIndex - 1];
-  if (prev && equal(event.spec, prev.spec)) {
+  if (prev && equal(event.data, prev.data)) {
     return {
       entries: ctx.entries.slice(0, ctx.currentIndex),
       currentIndex: ctx.currentIndex - 1,
@@ -31,7 +31,7 @@ const coalesce = (
 
   const entry = {
     ...current,
-    spec: event.spec,
+    data: event.data,
     label: event.label,
   };
   return {
@@ -45,10 +45,10 @@ const append = (
   event: Extract<HistoryEvent, { type: "PUSH" }>,
 ): HistoryContext => {
   const current = ctx.entries[ctx.currentIndex];
-  if (current && equal(event.spec, current.spec)) return ctx;
+  if (current && equal(event.data, current.data)) return ctx;
 
   const snapshot: Snapshot = {
-    spec: event.spec,
+    data: event.data,
     label: event.label,
     timestamp: event.timestamp,
     ...(event.group && { group: event.group }),
@@ -110,14 +110,14 @@ export const transition = (
   return handler ? handler(ctx, event) : ctx;
 };
 
-export type HistoryInput = { spec: Spec };
+export type HistoryInput = { data: Data };
 
 export const historyLogic = fromTransition(
   transition,
   ({ input }: { input: HistoryInput }): HistoryContext => ({
     entries: [
       {
-        spec: structuredClone(input.spec),
+        data: structuredClone(input.data),
         label: "Initial state",
         timestamp: Date.now(),
       },

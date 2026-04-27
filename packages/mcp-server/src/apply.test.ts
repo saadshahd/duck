@@ -2,349 +2,334 @@ import { describe, it, expect } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
 import * as os from "node:os";
-import { defineCatalog, type Spec } from "@json-render/core";
-import { schema } from "@json-render/react/schema";
-import { z } from "zod";
-import { Client } from "@modelcontextprotocol/sdk/client/index.js";
-import { InMemoryTransport } from "@modelcontextprotocol/sdk/inMemory.js";
-import { createMcpServer } from "./server.js";
+import { Effect } from "effect";
+import type { Config, Data } from "@puckeditor/core";
+import { applyOps } from "./apply.js";
 import { createFileStorage } from "./file-storage.js";
 import { createBridge } from "./bridge/index.js";
 
-const testCatalog = defineCatalog(schema, {
+const testConfig = {
   components: {
     Box: {
-      description: "Layout container",
-      slots: ["default"],
-      props: z.object({}),
+      defaultProps: {},
+      fields: { children: { type: "slot" } },
+      render: () => null as never,
     },
     Text: {
-      description: "Paragraph text",
-      props: z.object({ text: z.string() }),
+      defaultProps: { text: "" },
+      fields: { text: { type: "text" } },
+      render: () => null as never,
     },
   },
-  actions: {},
-});
+} as unknown as Config;
 
-// ── Factories ─────────────────────────────────────────────────────
-
-const makeSpec = (): Spec => ({
-  root: "root",
-  elements: {
-    root: { type: "Box", props: { gap: 8 }, children: ["heading"] },
-    heading: { type: "Text", props: { text: "Hello" } },
-  },
-});
+const initialData: Data = {
+  root: { props: {} },
+  content: [
+    {
+      type: "Box",
+      props: {
+        id: "root",
+        children: [{ type: "Text", props: { id: "heading", text: "Hello" } }],
+      },
+    },
+  ],
+};
 
 const setup = async () => {
   const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), "jre-apply-test-"));
+  const storage = createFileStorage(tmpDir);
   const bridge = createBridge();
   await bridge.start();
-
-  const connectClient = async () => {
-    const mcp = createMcpServer({
-      storage: createFileStorage(tmpDir),
-      catalog: testCatalog,
-      bridge,
-    });
-    const [clientTransport, serverTransport] =
-      InMemoryTransport.createLinkedPair();
-    const client = new Client({ name: "test-client", version: "0.0.1" });
-    await Promise.all([
-      client.connect(clientTransport),
-      mcp.connect(serverTransport),
-    ]);
-    return client;
-  };
-
+  const ctx = { storage, config: testConfig, bridge };
   const teardown = async () => {
     bridge.stop();
     await fs.rm(tmpDir, { recursive: true, force: true });
   };
-
-  return { tmpDir, connectClient, teardown };
+  return { tmpDir, ctx, teardown };
 };
 
-const writePage = async (tmpDir: string, name: string, spec: Spec) => {
-  const pageDir = path.join(tmpDir, "pages", name);
-  await fs.mkdir(pageDir, { recursive: true });
-  await fs.writeFile(path.join(pageDir, "spec.json"), JSON.stringify(spec));
+const writePage = async (tmpDir: string, name: string, data: Data) => {
+  const dir = path.join(tmpDir, "pages", name);
+  await fs.mkdir(dir, { recursive: true });
+  await fs.writeFile(path.join(dir, "data.json"), JSON.stringify(data));
 };
 
-const readDraft = async (tmpDir: string, name: string): Promise<Spec> => {
+const readDraft = async (tmpDir: string, name: string): Promise<Data> => {
   const raw = await fs.readFile(
-    path.join(tmpDir, "pages", name, "spec.draft.json"),
+    path.join(tmpDir, "pages", name, "data.draft.json"),
     "utf-8",
   );
   return JSON.parse(raw);
 };
 
-const callApply = async (
-  client: Client,
-  page: string,
-  args: { patches: unknown[] } | { spec: Record<string, unknown> },
-) => {
-  const result = await client.callTool({
-    name: "editor_apply",
-    arguments: { page, ...args },
-  });
-  const text = (result.content as Array<{ type: string; text: string }>)[0]
-    .text;
-  return { data: JSON.parse(text), isError: result.isError };
-};
-
-// ── Tests ─────────────────────────────────────────────────────────
-
-describe("editor_apply", () => {
-  it("applies a valid patch and creates a draft", async () => {
-    const { tmpDir, connectClient, teardown } = await setup();
+describe("applyOps", () => {
+  it("applies update op and writes draft", async () => {
+    const { tmpDir, ctx, teardown } = await setup();
     try {
-      await writePage(tmpDir, "landing", makeSpec());
-      const client = await connectClient();
+      await writePage(tmpDir, "landing", initialData);
+      const notices: Array<{ value: number; message?: string }> = [];
 
-      const { data, isError } = await callApply(client, "landing", {
-        patches: [
+      const result = await Effect.runPromise(
+        applyOps(
+          ctx,
           {
-            op: "replace",
-            path: "/elements/heading/props/text",
-            value: "World",
+            page: "landing",
+            ops: [{ op: "update", id: "heading", props: { text: "World" } }],
           },
-        ],
-      });
+          (n) => notices.push({ value: n.value, message: n.message }),
+        ),
+      );
 
-      expect(isError).toBeUndefined();
-      expect(data).toEqual({
-        applied: true,
-        mode: "patch",
-        livePreview: true,
-        summary: { total: 2, sections: ["Text"] },
-      });
-
+      expect(result.ok).toBe(true);
       const draft = await readDraft(tmpDir, "landing");
-      expect(draft.elements.heading.props.text).toBe("World");
+      const heading = (
+        draft.content[0]!.props as {
+          children: Array<{ props: { text: string } }>;
+        }
+      ).children[0]!.props.text;
+      expect(heading).toBe("World");
+      expect(notices).toEqual([{ value: 1, message: "op 0 ok" }]);
     } finally {
       await teardown();
     }
   });
 
-  it("applies multiple patches sequentially", async () => {
-    const { tmpDir, connectClient, teardown } = await setup();
+  it("applies multiple ops and emits progress per op", async () => {
+    const { tmpDir, ctx, teardown } = await setup();
     try {
-      await writePage(tmpDir, "landing", makeSpec());
-      const client = await connectClient();
+      await writePage(tmpDir, "landing", initialData);
+      const notices: Array<{ value: number; message?: string }> = [];
 
-      const { data } = await callApply(client, "landing", {
-        patches: [
-          { op: "replace", path: "/elements/heading/props/text", value: "A" },
-          { op: "add", path: "/elements/root/props/padding", value: 16 },
-        ],
-      });
-
-      expect(data).toEqual({
-        applied: true,
-        mode: "patch",
-        livePreview: true,
-        summary: { total: 2, sections: ["Text"] },
-      });
-
-      const draft = await readDraft(tmpDir, "landing");
-      expect(draft.elements.heading.props.text).toBe("A");
-      expect(draft.elements.root.props.padding).toBe(16);
-    } finally {
-      await teardown();
-    }
-  });
-
-  it("returns error with failedOpIndex on invalid patch", async () => {
-    const { tmpDir, connectClient, teardown } = await setup();
-    try {
-      await writePage(tmpDir, "landing", makeSpec());
-      const client = await connectClient();
-
-      const { data, isError } = await callApply(client, "landing", {
-        patches: [
+      const result = await Effect.runPromise(
+        applyOps(
+          ctx,
           {
-            op: "replace",
-            path: "/elements/heading/props/text",
-            value: "OK",
+            page: "landing",
+            ops: [
+              { op: "update", id: "heading", props: { text: "A" } },
+              {
+                op: "add",
+                parentId: "root",
+                slotKey: "children",
+                component: { type: "Text", props: { id: "n", text: "B" } },
+              },
+            ],
           },
-          {
-            op: "test",
-            path: "/elements/heading/props/text",
-            value: "WRONG",
-          },
-          {
-            op: "replace",
-            path: "/elements/heading/props/text",
-            value: "After",
-          },
-        ],
-      });
+          (n) => notices.push({ value: n.value, message: n.message }),
+        ),
+      );
 
-      expect(isError).toBe(true);
-      expect(data.error).toBe("PatchError");
-      expect(data.failedOpIndex).toBe(1);
+      expect(result.ok).toBe(true);
+      expect(notices.map((n) => n.value)).toEqual([1, 2]);
+      expect(notices.map((n) => n.message)).toEqual(["op 0 ok", "op 1 ok"]);
     } finally {
       await teardown();
     }
   });
 
-  it("does not write draft when a patch fails", async () => {
-    const { tmpDir, connectClient, teardown } = await setup();
+  it("returns failure with failedOpIndex when an op errors mid-stream", async () => {
+    const { tmpDir, ctx, teardown } = await setup();
     try {
-      await writePage(tmpDir, "landing", makeSpec());
-      const client = await connectClient();
+      await writePage(tmpDir, "landing", initialData);
+      const notices: Array<{ value: number; message?: string }> = [];
 
-      await callApply(client, "landing", {
-        patches: [
+      const result = await Effect.runPromise(
+        applyOps(
+          ctx,
           {
-            op: "test",
-            path: "/elements/heading/props/text",
-            value: "WRONG",
+            page: "landing",
+            ops: [
+              { op: "update", id: "heading", props: { text: "OK" } },
+              { op: "remove", id: "does-not-exist" },
+              { op: "update", id: "heading", props: { text: "After" } },
+            ],
           },
-        ],
-      });
+          (n) => notices.push({ value: n.value, message: n.message }),
+        ),
+      );
 
-      const draftExists = await fs
-        .access(path.join(tmpDir, "pages", "landing", "spec.draft.json"))
-        .then(() => true)
-        .catch(() => false);
-
-      expect(draftExists).toBe(false);
+      expect(result.ok).toBe(false);
+      if (!result.ok) {
+        expect(result.failedOpIndex).toBe(1);
+        expect(result.error.tag).toBe("element-not-found");
+      }
+      expect(notices.map((n) => n.value)).toEqual([1, 1]);
+      expect(notices[1]!.message).toContain("op 1 failed");
     } finally {
       await teardown();
     }
   });
 
-  it("applies to existing draft, not committed spec", async () => {
-    const { tmpDir, connectClient, teardown } = await setup();
+  it("broadcasts to bridge per successful op", async () => {
+    const { tmpDir, ctx, teardown } = await setup();
     try {
-      await writePage(tmpDir, "landing", makeSpec());
-      const client = await connectClient();
+      await writePage(tmpDir, "landing", initialData);
 
-      await callApply(client, "landing", {
-        patches: [
+      const ws = new WebSocket(`ws://127.0.0.1:${ctx.bridge.port}`);
+      await new Promise<void>((resolve) => {
+        ws.onopen = () => resolve();
+      });
+      ws.send(JSON.stringify({ type: "ready", page: "landing" }));
+      await Bun.sleep(20);
+
+      const messages: unknown[] = [];
+      ws.onmessage = (e) => messages.push(JSON.parse(e.data as string));
+
+      await Effect.runPromise(
+        applyOps(
+          ctx,
           {
-            op: "replace",
-            path: "/elements/heading/props/text",
-            value: "Draft1",
+            page: "landing",
+            ops: [
+              { op: "update", id: "heading", props: { text: "1" } },
+              { op: "update", id: "heading", props: { text: "2" } },
+            ],
           },
-        ],
-      });
-      await callApply(client, "landing", {
-        patches: [
-          { op: "add", path: "/elements/root/props/padding", value: 24 },
-        ],
-      });
+          () => {},
+        ),
+      );
 
-      const draft = await readDraft(tmpDir, "landing");
-      expect(draft.elements.heading.props.text).toBe("Draft1");
-      expect(draft.elements.root.props.padding).toBe(24);
-    } finally {
-      await teardown();
-    }
-  });
-
-  it("returns warnings for validation issues", async () => {
-    const { tmpDir, connectClient, teardown } = await setup();
-    try {
-      await writePage(tmpDir, "landing", makeSpec());
-      const client = await connectClient();
-
-      const { data } = await callApply(client, "landing", {
-        patches: [
-          { op: "add", path: "/elements/heading/props/visible", value: true },
-        ],
-      });
-
-      expect(data.applied).toBe(true);
-      expect(data.warnings).toBeDefined();
-      expect(data.warnings.length).toBeGreaterThan(0);
-    } finally {
-      await teardown();
-    }
-  });
-
-  it("auto-fixes fixable issues and reports fixes", async () => {
-    const { tmpDir, connectClient, teardown } = await setup();
-    try {
-      await writePage(tmpDir, "landing", makeSpec());
-      const client = await connectClient();
-
-      const { data } = await callApply(client, "landing", {
-        patches: [
-          { op: "add", path: "/elements/heading/props/visible", value: true },
-        ],
-      });
-
-      expect(data.fixes).toBeDefined();
-      expect(data.fixes.length).toBeGreaterThan(0);
-
-      const draft = await readDraft(tmpDir, "landing");
-      expect(draft.elements.heading.props.visible).toBeUndefined();
-      expect(draft.elements.heading.visible).toBe(true);
+      await Bun.sleep(30);
+      const updates = messages.filter(
+        (m) => (m as { type: string }).type === "spec-update",
+      );
+      expect(updates.length).toBe(2);
+      ws.close();
     } finally {
       await teardown();
     }
   });
 
   it("auto-creates page on first apply", async () => {
-    const { tmpDir, connectClient, teardown } = await setup();
+    const { tmpDir, ctx, teardown } = await setup();
     try {
-      const client = await connectClient();
-
-      const { data, isError } = await callApply(client, "fresh", {
-        patches: [
-          { op: "add", path: "/root", value: "hero" },
+      const result = await Effect.runPromise(
+        applyOps(
+          ctx,
           {
-            op: "add",
-            path: "/elements/hero",
-            value: { type: "Text", props: { text: "Hello" } },
+            page: "fresh",
+            ops: [
+              {
+                op: "add",
+                parentId: null,
+                slotKey: null,
+                component: { type: "Text", props: { id: "hero", text: "Hi" } },
+              },
+            ],
           },
-        ],
-      });
+          () => {},
+        ),
+      );
 
-      expect(isError).toBeUndefined();
-      expect(data).toEqual({
-        applied: true,
-        mode: "patch",
-        livePreview: true,
-        summary: { total: 1, sections: [] },
-      });
-
+      expect(result.ok).toBe(true);
       const draft = await readDraft(tmpDir, "fresh");
-      expect(draft.root).toBe("hero");
-      expect(draft.elements.hero.props.text).toBe("Hello");
+      expect(draft.content).toHaveLength(1);
+      expect((draft.content[0]!.props as { id: string }).id).toBe("hero");
     } finally {
       await teardown();
     }
   });
 
-  it("merges partial spec into existing page", async () => {
-    const { tmpDir, connectClient, teardown } = await setup();
+  it("rejects add with unknown component type", async () => {
+    const { tmpDir, ctx, teardown } = await setup();
     try {
-      await writePage(tmpDir, "landing", makeSpec());
-      const client = await connectClient();
-
-      const { data, isError } = await callApply(client, "landing", {
-        spec: {
-          elements: {
-            banner: { type: "Text", props: { text: "New section" } },
+      await writePage(tmpDir, "landing", initialData);
+      const result = await Effect.runPromise(
+        applyOps(
+          ctx,
+          {
+            page: "landing",
+            ops: [
+              {
+                op: "add",
+                parentId: null,
+                slotKey: null,
+                component: { type: "Unknown", props: { id: "x" } },
+              },
+            ],
           },
-        },
-      });
+          () => {},
+        ),
+      );
+      expect(result.ok).toBe(false);
+      if (!result.ok) expect(result.error.tag).toBe("unknown-component");
+    } finally {
+      await teardown();
+    }
+  });
 
-      expect(isError).toBeUndefined();
-      expect(data).toEqual({
-        applied: true,
-        mode: "merge",
-        livePreview: true,
-        summary: { total: 3, sections: ["Text"] },
-      });
+  it("rejects move that would create a cycle", async () => {
+    const { tmpDir, ctx, teardown } = await setup();
+    try {
+      await writePage(tmpDir, "landing", initialData);
+      const result = await Effect.runPromise(
+        applyOps(
+          ctx,
+          {
+            page: "landing",
+            ops: [
+              {
+                op: "move",
+                id: "root",
+                toParentId: "heading",
+                toSlotKey: "children",
+                toIndex: 0,
+              },
+            ],
+          },
+          () => {},
+        ),
+      );
+      // heading has no slots so this would actually fail with slot-not-defined.
+      // Use a parent-into-child cycle that does have a slot: move root into root.children
+      expect(result.ok).toBe(false);
+    } finally {
+      await teardown();
+    }
+  });
 
-      const draft = await readDraft(tmpDir, "landing");
-      expect(draft.elements.heading.props.text).toBe("Hello");
-      expect(draft.elements.banner.props.text).toBe("New section");
+  it("rejects circular move (parent into descendant)", async () => {
+    const { tmpDir, ctx, teardown } = await setup();
+    try {
+      const dataWithSlot: Data = {
+        root: { props: {} },
+        content: [
+          {
+            type: "Box",
+            props: {
+              id: "outer",
+              children: [
+                {
+                  type: "Box",
+                  props: { id: "inner", children: [] },
+                },
+              ],
+            },
+          },
+        ],
+      };
+      await writePage(tmpDir, "landing", dataWithSlot);
+      const result = await Effect.runPromise(
+        applyOps(
+          ctx,
+          {
+            page: "landing",
+            ops: [
+              {
+                op: "move",
+                id: "outer",
+                toParentId: "inner",
+                toSlotKey: "children",
+                toIndex: 0,
+              },
+            ],
+          },
+          () => {},
+        ),
+      );
+      expect(result.ok).toBe(false);
+      if (!result.ok) expect(result.error.tag).toBe("circular-move");
     } finally {
       await teardown();
     }

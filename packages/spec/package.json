@@ -9,7 +9,7 @@
     "test": "bun test"
   },
   "dependencies": {
-    "@json-render/core": "latest"
+    "@puckeditor/core": "^0.21.2"
   },
   "devDependencies": {
     "typescript": "^5.7.0"

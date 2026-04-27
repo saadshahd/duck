@@ -1,50 +1,61 @@
 import { describe, it, expect } from "bun:test";
-import type { Spec } from "@json-render/core";
+import type { ComponentData, Data } from "@puckeditor/core";
 import { foldTree } from "./fold-tree.js";
 
-const spec: Spec = {
-  root: "page",
-  elements: {
-    page: { type: "Box", props: {}, children: ["a", "b"] },
-    a: { type: "Stack", props: {}, children: ["c"] },
-    b: { type: "Text", props: { text: "hello" } },
-    c: { type: "Text", props: { text: "nested" } },
-  },
+const make = (
+  type: string,
+  id: string,
+  extra: Record<string, unknown> = {},
+): ComponentData =>
+  ({ type, props: { id, ...extra } }) as unknown as ComponentData;
+
+const data: Data = {
+  root: { props: {} },
+  content: [
+    make("Stack", "stack", {
+      items: [make("Heading", "h1"), make("Text", "t1", { text: "hello" })],
+    }),
+    make("Footer", "footer"),
+  ],
 };
 
 describe("foldTree", () => {
-  it("collects all IDs in pre-order via fold", () => {
-    const ids = foldTree<string[]>(spec, spec.root, (id, _el, children) => [
-      id,
-      ...children.flat(),
-    ]);
-    expect(ids).toEqual(["page", "a", "c", "b"]);
+  it("returns one result per data.content entry", () => {
+    const ids = foldTree<string>(data, (c) => c.props.id as string);
+    expect(ids).toEqual(["stack", "footer"]);
   });
 
-  it("counts total elements", () => {
-    const count = foldTree<number>(spec, spec.root, (_id, _el, children) =>
-      children.reduce((sum, c) => sum + c, 1),
+  it("counts total components per top-level subtree", () => {
+    const counts = foldTree<number>(data, (_c, slots) =>
+      Object.values(slots)
+        .flat()
+        .reduce((sum, n) => sum + n, 1),
     );
-    expect(count).toBe(4);
+    expect(counts).toEqual([3, 1]);
   });
 
-  it("builds a transformed tree", () => {
-    type Node = { id: string; kids: Node[] };
-    const tree = foldTree<Node>(spec, spec.root, (id, _el, children) => ({
-      id,
-      kids: children,
+  it("rebuilds a transformed tree with slot grouping", () => {
+    type Node = { id: string; slots: Record<string, Node[]> };
+    const trees = foldTree<Node>(data, (c, slots) => ({
+      id: c.props.id as string,
+      slots,
     }));
-    expect(tree).toEqual({
-      id: "page",
-      kids: [
-        { id: "a", kids: [{ id: "c", kids: [] }] },
-        { id: "b", kids: [] },
-      ],
-    });
+    expect(trees).toEqual([
+      {
+        id: "stack",
+        slots: {
+          items: [
+            { id: "h1", slots: {} },
+            { id: "t1", slots: {} },
+          ],
+        },
+      },
+      { id: "footer", slots: {} },
+    ]);
   });
 
-  it("handles missing element gracefully", () => {
-    const result = foldTree<string>(spec, "nope", (id) => id);
-    expect(result).toBe("nope");
+  it("returns empty array for empty content", () => {
+    const empty: Data = { root: { props: {} }, content: [] };
+    expect(foldTree(empty, () => 1)).toEqual([]);
   });
 });

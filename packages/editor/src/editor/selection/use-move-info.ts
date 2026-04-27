@@ -1,8 +1,8 @@
 import { useMemo } from "react";
-import type { Spec } from "@json-render/core";
+import type { Data } from "@puckeditor/core";
+import { getChildrenAt, findParent } from "@json-render-editor/spec";
 import type { FiberRegistry } from "../fiber/index.js";
-import { type Axis, resolveParentAxis } from "../layout/index.js";
-import { findParent } from "../spec-ops/index.js";
+import { type Axis, resolveSlotAxis } from "../layout/index.js";
 
 export type MoveInfo = {
   axis: Axis;
@@ -17,25 +17,26 @@ const DISABLED: MoveInfo = {
 };
 
 export function useMoveInfo(
-  spec: Spec,
+  data: Data,
   lastSelectedId: string | null,
   registry: FiberRegistry | null,
 ): MoveInfo {
   return useMemo(() => {
     if (!lastSelectedId || !registry) return DISABLED;
 
-    const parent = findParent(spec, lastSelectedId);
-    if (parent.isErr()) return DISABLED;
+    const parent = findParent(data, lastSelectedId);
+    if (!parent) return DISABLED;
 
-    const { parentId, childIndex } = parent.value;
-    const children = spec.elements[parentId]?.children;
-    if (!children) return DISABLED;
+    const siblings = getChildrenAt(data, parent.parentId, parent.slotKey);
+    if (!siblings) return DISABLED;
 
-    const axis = resolveParentAxis(spec, parentId, registry) ?? "vertical";
+    const axis =
+      resolveSlotAxis(data, parent.parentId, parent.slotKey, registry) ??
+      "vertical";
     return {
       axis,
-      canMovePrev: childIndex > 0,
-      canMoveNext: childIndex < children.length - 1,
+      canMovePrev: parent.index > 0,
+      canMoveNext: parent.index < siblings.length - 1,
     };
-  }, [spec, lastSelectedId, registry]);
+  }, [data, lastSelectedId, registry]);
 }

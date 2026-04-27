@@ -1,16 +1,16 @@
 import { useCallback, useEffect, useRef } from "react";
-import type { Spec } from "@json-render/core";
+import type { Data } from "@puckeditor/core";
 import { useActorRef, useSelector } from "@xstate/react";
 import { historyLogic } from "./history-actor.js";
 import { timelineVisibilityMachine } from "./timeline-visibility-machine.js";
 import type { HistoryContext, HistoryEvent } from "./types.js";
-import type { SpecPush } from "../types.js";
+import type { DataPush } from "../types.js";
 
 const NAVIGATION_EVENTS = new Set(["UNDO", "REDO", "RESTORE"]);
 
 type UseHistoryResult = {
-  currentSpec: Spec;
-  push: SpecPush;
+  currentData: Data;
+  push: DataPush;
   send: (event: HistoryEvent) => void;
   entries: HistoryContext["entries"];
   currentIndex: number;
@@ -20,20 +20,20 @@ type UseHistoryResult = {
 };
 
 export function useHistory(
-  initialSpec: Spec,
-  onSpecChange?: (spec: Spec) => void,
+  initialData: Data,
+  onDataChange?: (data: Data) => void,
 ): UseHistoryResult {
-  const actorRef = useActorRef(historyLogic, { input: { spec: initialSpec } });
+  const actorRef = useActorRef(historyLogic, { input: { data: initialData } });
   const visRef = useActorRef(timelineVisibilityMachine);
   const ctx = useSelector(actorRef, (s) => s.context);
   const visState = useSelector(visRef, (s) => s.value as string);
-  const currentSpec = ctx.entries[ctx.currentIndex]?.spec ?? initialSpec;
+  const currentData = ctx.entries[ctx.currentIndex]?.data ?? initialData;
 
-  const push: SpecPush = useCallback(
-    (spec, label, group) =>
+  const push: DataPush = useCallback(
+    (data, label, group) =>
       actorRef.send({
         type: "PUSH",
-        spec,
+        data,
         label,
         timestamp: Date.now(),
         group,
@@ -61,16 +61,16 @@ export function useHistory(
     [visRef],
   );
 
-  const specRef = useRef(currentSpec);
+  const dataRef = useRef(currentData);
   useEffect(() => {
-    if (currentSpec !== specRef.current) {
-      specRef.current = currentSpec;
-      onSpecChange?.(currentSpec);
+    if (currentData !== dataRef.current) {
+      dataRef.current = currentData;
+      onDataChange?.(currentData);
     }
-  }, [currentSpec, onSpecChange]);
+  }, [currentData, onDataChange]);
 
   return {
-    currentSpec,
+    currentData,
     push,
     send,
     entries: ctx.entries,

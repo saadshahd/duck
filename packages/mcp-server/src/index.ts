@@ -1,6 +1,6 @@
 import { resolve } from "node:path";
 import { Effect } from "effect";
-import type { Catalog } from "@json-render/core";
+import type { Config } from "@puckeditor/core";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { createFileStorage } from "./file-storage.js";
 import { createBridge } from "./bridge/index.js";
@@ -17,9 +17,9 @@ const projectDir = resolve(
 
 // ── Catalog loader ─────────────────────────────────────────────────
 
-const catalogPath = resolve(projectDir, "catalog.ts");
+const catalogPath = resolve(projectDir, "puck.config.ts");
 
-const loadCatalog = Effect.tryPromise({
+const loadConfig = Effect.tryPromise({
   try: () => import(catalogPath),
   catch: (err): CatalogLoadError =>
     new CatalogLoadError({
@@ -27,13 +27,13 @@ const loadCatalog = Effect.tryPromise({
       reason: err instanceof Error ? err.message : String(err),
     }),
 }).pipe(
-  Effect.map((mod) => mod.catalog as Catalog | undefined),
+  Effect.map((mod) => mod.config as Config | undefined),
   Effect.filterOrFail(
-    (c): c is Catalog => !!c && typeof c.prompt === "function",
+    (c): c is Config => !!c && typeof c === "object" && "components" in c,
     () =>
       new CatalogLoadError({
         path: catalogPath,
-        reason: "Module does not export a valid Catalog as { catalog }",
+        reason: "Module does not export a valid Puck Config as { config }",
       }),
   ),
 );
@@ -43,16 +43,16 @@ const loadCatalog = Effect.tryPromise({
 const formatCatalogError = (err: CatalogLoadError) =>
   `Failed to load catalog from ${err.path}\n` +
   `${err.reason}\n\n` +
-  `Expected: catalog.ts exporting { catalog } (a @json-render/core Catalog)\n` +
-  `Check --project-dir or create catalog.ts in your project root`;
+  `Expected: puck.config.ts exporting { config } (a @puckeditor/core Config)\n` +
+  `Check --project-dir or create puck.config.ts in your project root`;
 
 const boot = Effect.gen(function* () {
-  const catalog = yield* loadCatalog;
+  const config = yield* loadConfig;
   const storage = createFileStorage(projectDir);
   const bridge = createBridge();
   const { port } = yield* Effect.promise(() => bridge.start());
 
-  const mcp = createMcpServer({ storage, catalog, bridge });
+  const mcp = createMcpServer({ storage, config, bridge });
   yield* Effect.promise(() => mcp.connect(new StdioServerTransport()));
 
   console.error(`[json-render-editor] Bridge: http://127.0.0.1:${port}`);

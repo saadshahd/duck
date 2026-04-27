@@ -1,0 +1,233 @@
+{
+  "root": { "props": {} },
+  "content": [
+    {
+      "type": "Box",
+      "props": {
+        "id": "page",
+        "style": {
+          "maxWidth": "1048px",
+          "margin": "0 auto",
+          "fontFamily": "-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
+          "color": "#24292f"
+        },
+        "children": [
+          {
+            "type": "Stack",
+            "props": {
+              "id": "hero",
+              "direction": "vertical",
+              "gap": "1rem",
+              "style": {
+                "margin": "2rem 0",
+                "textAlign": "center",
+                "alignItems": "center"
+              },
+              "children": [
+                {
+                  "type": "Heading",
+                  "props": {
+                    "id": "hero-heading",
+                    "level": "h1",
+                    "text": "Visual Editor for json-render",
+                    "style": { "fontSize": "3rem" }
+                  }
+                },
+                {
+                  "type": "Text",
+                  "props": {
+                    "id": "hero-description",
+                    "text": "A zero-chrome editor where the rendered page IS the editing surface. AI agents compose via MCP, designers review and steer.",
+                    "style": {
+                      "fontSize": "1.25rem",
+                      "color": "#57606a",
+                      "maxWidth": "640px"
+                    }
+                  }
+                },
+                {
+                  "type": "Stack",
+                  "props": {
+                    "id": "hero-actions",
+                    "direction": "horizontal",
+                    "gap": "1rem",
+                    "style": {},
+                    "children": [
+                      {
+                        "type": "Button",
+                        "props": {
+                          "id": "hero-cta-primary",
+                          "label": "Get started",
+                          "variant": "primary"
+                        }
+                      },
+                      {
+                        "type": "Button",
+                        "props": {
+                          "id": "hero-cta-secondary",
+                          "label": "View docs",
+                          "variant": "secondary"
+                        }
+                      }
+                    ]
+                  }
+                }
+              ]
+            }
+          },
+          {
+            "type": "Stack",
+            "props": {
+              "id": "features",
+              "direction": "vertical",
+              "gap": "1rem",
+              "style": { "margin": "2rem 0" },
+              "children": [
+                {
+                  "type": "Heading",
+                  "props": {
+                    "id": "features-heading",
+                    "level": "h2",
+                    "text": "Features",
+                    "style": { "textAlign": "center" }
+                  }
+                },
+                {
+                  "type": "Grid",
+                  "props": {
+                    "id": "features-grid",
+                    "columns": 3,
+                    "gap": "1.5rem",
+                    "children": [
+                      {
+                        "type": "Card",
+                        "props": {
+                          "id": "feature-1",
+                          "style": {},
+                          "children": [
+                            {
+                              "type": "Heading",
+                              "props": {
+                                "id": "feature-1-title",
+                                "level": "h3",
+                                "text": "Zero Chrome",
+                                "style": {}
+                              }
+                            },
+                            {
+                              "type": "Text",
+                              "props": {
+                                "id": "feature-1-desc",
+                                "text": "No panels, no toolbars. The rendered page is the editor. Everything is contextual — appears on interaction, disappears when done.",
+                                "style": {}
+                              }
+                            }
+                          ]
+                        }
+                      },
+                      {
+                        "type": "Card",
+                        "props": {
+                          "id": "feature-2",
+                          "style": {},
+                          "children": [
+                            {
+                              "type": "Heading",
+                              "props": {
+                                "id": "feature-2-title",
+                                "level": "h3",
+                                "text": "MCP-Native",
+                                "style": {}
+                              }
+                            },
+                            {
+                              "type": "Text",
+                              "props": {
+                                "id": "feature-2-desc",
+                                "text": "AI agents connect via MCP and compose UIs. The editor is a review surface, not a creation tool. Designers steer, AI builds.",
+                                "style": {}
+                              }
+                            }
+                          ]
+                        }
+                      },
+                      {
+                        "type": "Card",
+                        "props": {
+                          "id": "feature-3",
+                          "style": {},
+                          "children": [
+                            {
+                              "type": "Heading",
+                              "props": {
+                                "id": "feature-3-title",
+                                "level": "h3",
+                                "text": "Catalog-Agnostic",
+                                "style": {}
+                              }
+                            },
+                            {
+                              "type": "Text",
+                              "props": {
+                                "id": "feature-3-desc",
+                                "text": "Works with any json-render catalog. Bring your own component library — Primer, shadcn, Radix, or plain HTML.",
+                                "style": {}
+                              }
+                            }
+                          ]
+                        }
+                      }
+                    ]
+                  }
+                }
+              ]
+            }
+          },
+          {
+            "type": "Stack",
+            "props": {
+              "id": "cta",
+              "direction": "vertical",
+              "gap": "1rem",
+              "style": {
+                "padding": "2rem",
+                "margin": "2rem 0",
+                "textAlign": "center",
+                "alignItems": "center",
+                "background": "#f6f8fa",
+                "borderRadius": "12px"
+              },
+              "children": [
+                {
+                  "type": "Heading",
+                  "props": {
+                    "id": "cta-heading",
+                    "level": "h2",
+                    "text": "Ready to try it?",
+                    "style": {}
+                  }
+                },
+                {
+                  "type": "Text",
+                  "props": {
+                    "id": "cta-desc",
+                    "text": "Install the editor, point it at your json-render catalog, and start editing.",
+                    "style": {}
+                  }
+                },
+                {
+                  "type": "Button",
+                  "props": {
+                    "id": "cta-button",
+                    "label": "Get started",
+                    "variant": "primary"
+                  }
+                }
+              ]
+            }
+          }
+        ]
+      }
+    }
+  ]
+}

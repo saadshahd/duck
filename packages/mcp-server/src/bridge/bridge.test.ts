@@ -1,15 +1,11 @@
 import { describe, it, expect } from "bun:test";
-import type { Spec } from "@json-render/core";
+import type { Data } from "@puckeditor/core";
 import { createBridge } from "./index.js";
-import type {
-  BridgeHandle,
-  BrowserMessage,
-  ServerMessage,
-} from "../protocol.js";
+import type { BrowserMessage, ServerMessage } from "../protocol.js";
 
-const miniSpec: Spec = {
-  root: "r",
-  elements: { r: { type: "Box", props: {} } },
+const miniData: Data = {
+  root: { props: {} },
+  content: [{ type: "Box", props: { id: "r" } }],
 };
 
 const setup = async () => {
@@ -74,11 +70,11 @@ describe("bridge", () => {
       const p1 = nextMessage(ws1);
       const p2 = nextMessage(ws2);
 
-      bridge.broadcast("landing", miniSpec);
+      bridge.broadcast("landing", miniData);
 
       const [msg1, msg2] = await Promise.all([p1, p2]);
-      expect(msg1).toEqual({ type: "spec-update", spec: miniSpec });
-      expect(msg2).toEqual({ type: "spec-update", spec: miniSpec });
+      expect(msg1).toEqual({ type: "spec-update", data: miniData });
+      expect(msg2).toEqual({ type: "spec-update", data: miniData });
       ws1.close();
       ws2.close();
     } finally {
@@ -98,7 +94,7 @@ describe("bridge", () => {
       };
 
       const pLanding = nextMessage(wsLanding);
-      bridge.broadcast("landing", miniSpec);
+      bridge.broadcast("landing", miniData);
       await pLanding;
 
       await Bun.sleep(50);

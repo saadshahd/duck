@@ -1,8 +1,8 @@
 import { Effect } from "effect";
-import type { BridgeHandle } from "../protocol.js";
+import type { Bridge } from "../bridge/index.js";
 import { QueryError } from "../errors.js";
 
-export const capture = (bridge: BridgeHandle, page: string) => {
+export const capture = (bridge: Bridge, page: string) => {
   if (!bridge.hasViewers(page))
     return Effect.fail(
       new QueryError({

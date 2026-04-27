@@ -1,158 +1,70 @@
-import type { Spec, UIElement } from "@json-render/core";
+import type { ComponentData, Data } from "@puckeditor/core";
 import { err, ok, type Result } from "neverthrow";
-import { collectDescendants, topologicalRoots } from "@json-render-editor/spec";
-import { type SpecOpsError, getElement, cloneAndMutate } from "./helpers.js";
-import { findParent } from "./reorder.js";
-import type { InsertPosition } from "./insert.js";
+import { slotKeysOf } from "@json-render-editor/spec";
+import { add, type ComponentMap } from "./add.js";
+import { type SpecOpsError, cloneData, findById } from "./helpers.js";
 
-// --- Types ---
+const randomSuffix = (): string => Math.random().toString(36).slice(2, 8);
 
-export type SpecFragment = {
-  _type: "json-render-fragment";
-  roots: string[];
-  elements: Record<string, UIElement>;
+const generateId = (type: string, taken: ReadonlySet<string>): string => {
+  const prefix = type.toLowerCase();
+  let id = `${prefix}-${randomSuffix()}`;
+  while (taken.has(id)) id = `${prefix}-${randomSuffix()}`;
+  return id;
 };
 
-export type DuplicateResult = { spec: Spec; newRootIds: string[] };
-
-// --- Operations ---
-
-export function serializeFragment(
-  spec: Spec,
-  elementIds: ReadonlySet<string>,
-): Result<SpecFragment, SpecOpsError> {
-  const roots = topologicalRoots(spec, elementIds);
-  if (roots.length === 0)
-    return err({
-      tag: "element-not-found",
-      elementId: [...elementIds][0] ?? "",
-    });
-
-  const allIds = roots.flatMap((id) => [id, ...collectDescendants(spec, id)]);
-  return ok({
-    _type: "json-render-fragment" as const,
-    roots,
-    elements: Object.fromEntries(allIds.map((id) => [id, spec.elements[id]])),
-  });
-}
-
-export function deserializeFragment(
-  fragment: SpecFragment,
-  existingIds: ReadonlySet<string>,
-): SpecFragment {
-  const taken = new Set(existingIds);
-
-  const nextId = (type: string): string => {
-    const prefix = type.toLowerCase();
-    let n = 1;
-    while (taken.has(`${prefix}-${n}`)) n++;
-    const id = `${prefix}-${n}`;
-    taken.add(id);
-    return id;
+const collectIds = (data: Data): Set<string> => {
+  const ids = new Set<string>();
+  const visit = (node: ComponentData): void => {
+    if (typeof node.props.id === "string") ids.add(node.props.id);
+    for (const slotKey of slotKeysOf(node)) {
+      const children = node.props[slotKey] as ComponentData[];
+      for (const child of children) visit(child);
+    }
   };
+  for (const top of data.content) visit(top);
+  return ids;
+};
 
-  const idMap = new Map(
-    Object.entries(fragment.elements).map(([oldId, el]) => [
-      oldId,
-      nextId(el.type),
-    ]),
-  );
-  const remap = (id: string) => idMap.get(id)!;
-
-  return {
-    _type: "json-render-fragment",
-    roots: fragment.roots.map(remap),
-    elements: Object.fromEntries(
-      Object.entries(fragment.elements).map(([oldId, el]) => [
-        remap(oldId),
-        {
-          ...el,
-          ...(el.children && { children: el.children.map(remap) }),
-        },
-      ]),
-    ),
-  };
-}
-
-const insertInto = (
-  spec: Spec,
-  fragment: SpecFragment,
-  parentId: string,
-): Spec =>
-  cloneAndMutate(spec, (draft) => {
-    Object.assign(draft.elements, fragment.elements);
-    draft.elements[parentId].children!.push(...fragment.roots);
-  });
-
-const insertAfter = (
-  spec: Spec,
-  fragment: SpecFragment,
-  parentId: string,
-  childIndex: number,
-): Spec =>
-  cloneAndMutate(spec, (draft) => {
-    Object.assign(draft.elements, fragment.elements);
-    draft.elements[parentId].children!.splice(
-      childIndex + 1,
-      0,
-      ...fragment.roots,
-    );
-  });
-
-export function insertFragment(
-  spec: Spec,
-  fragment: SpecFragment,
-  targetId: string,
-  position: InsertPosition,
-): Result<Spec, SpecOpsError> {
-  if (position.tag === "child") {
-    return getElement(spec, targetId).andThen((target) =>
-      target.children
-        ? ok(insertInto(spec, fragment, targetId))
-        : err({ tag: "no-children" as const, parentId: targetId }),
-    );
+/** Walk `component` (mutating in place) and replace every props.id with a fresh,
+ *  globally-unique id. `taken` is updated as ids are minted. */
+const regenerateIds = (component: ComponentData, taken: Set<string>): void => {
+  const next = generateId(component.type, taken);
+  taken.add(next);
+  component.props.id = next;
+  for (const slotKey of slotKeysOf(component)) {
+    const children = component.props[slotKey] as ComponentData[];
+    for (const child of children) regenerateIds(child, taken);
   }
+};
 
-  return findParent(spec, targetId).map(({ parentId, childIndex }) =>
-    insertAfter(spec, fragment, parentId, childIndex),
-  );
-}
+/** Deep-clone the subtree at `id`. Errors: `element-not-found`. */
+export const copy = (
+  data: Data,
+  id: string,
+): Result<ComponentData, SpecOpsError> => {
+  const found = findById(data, id);
+  if (!found) return err({ tag: "element-not-found", id });
+  return ok(cloneData(found));
+};
 
-export function duplicate(
-  spec: Spec,
-  elementIds: ReadonlySet<string>,
-): Result<DuplicateResult, SpecOpsError> {
-  const allRoots = topologicalRoots(spec, elementIds);
-  if (allRoots.length === 0)
-    return err({
-      tag: "element-not-found",
-      elementId: [...elementIds][0] ?? "",
-    });
-
-  const roots = allRoots.filter((id) => id !== spec.root);
-  if (roots.length === 0)
-    return err({ tag: "cannot-duplicate-root", elementId: spec.root });
-
-  let current = spec;
-  const newRootIds: string[] = [];
-
-  // Reverse order: inserting after later siblings first avoids index shifts
-  for (let i = roots.length - 1; i >= 0; i--) {
-    const id = roots[i];
-    const result = serializeFragment(current, new Set([id]))
-      .map((frag) =>
-        deserializeFragment(frag, new Set(Object.keys(current.elements))),
-      )
-      .andThen((remapped) =>
-        insertFragment(current, remapped, id, { tag: "after" }).map(
-          (newSpec) => {
-            current = newSpec;
-            newRootIds.unshift(remapped.roots[0]);
-          },
-        ),
-      );
-    if (result.isErr()) return err(result._unsafeUnwrapErr());
-  }
-
-  return ok({ spec: current, newRootIds });
-}
+/** Insert `component` (and its full subtree) at `(parentId, slotKey)` after
+ *  regenerating every id to avoid collisions. Index defaults to append.
+ *  Returns the updated data and the id of the inserted top-level component. */
+export const paste = (
+  data: Data,
+  parentId: string | null,
+  slotKey: string | null,
+  component: ComponentData,
+  components: ComponentMap,
+  index?: number,
+): Result<{ data: Data; id: string }, SpecOpsError> => {
+  const cloned = cloneData(component);
+  regenerateIds(cloned, collectIds(data));
+  const id = cloned.props.id as string;
+  return add(
+    data,
+    { parentId, slotKey, component: cloned, index },
+    components,
+  ).map((data) => ({ data, id }));
+};

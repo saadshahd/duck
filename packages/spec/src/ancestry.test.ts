@@ -1,57 +1,85 @@
 import { describe, it, expect } from "bun:test";
-import type { Spec } from "@json-render/core";
+import type { ComponentData, Data } from "@puckeditor/core";
 import { buildParentMap, getAncestry } from "./ancestry.js";
 
-const spec: Spec = {
-  root: "page",
-  elements: {
-    page: { type: "Box", props: {}, children: ["stack"] },
-    stack: { type: "Stack", props: {}, children: ["heading", "card"] },
-    heading: { type: "Heading", props: {} },
-    card: { type: "Card", props: {}, children: ["body"] },
-    body: { type: "CardBody", props: {} },
-  },
+const make = (
+  type: string,
+  id: string,
+  extra: Record<string, unknown> = {},
+): ComponentData =>
+  ({ type, props: { id, ...extra } }) as unknown as ComponentData;
+
+const data: Data = {
+  root: { props: {} },
+  content: [
+    make("Box", "page", {
+      children: [
+        make("Stack", "stack", {
+          items: [
+            make("Heading", "heading"),
+            make("Card", "card", {
+              body: [make("CardBody", "body")],
+            }),
+          ],
+        }),
+      ],
+    }),
+  ],
 };
 
 describe("buildParentMap", () => {
-  it("maps every non-root element to its parent", () => {
-    const map = buildParentMap(spec);
-    expect(map.get("stack")).toBe("page");
-    expect(map.get("heading")).toBe("stack");
-    expect(map.get("card")).toBe("stack");
-    expect(map.get("body")).toBe("card");
-  });
-
-  it("does not include root", () => {
-    expect(buildParentMap(spec).has("page")).toBe(false);
+  it("maps every component to its parent location", () => {
+    const map = buildParentMap(data);
+    expect(map.get("page")).toMatchObject({
+      parentId: null,
+      slotKey: null,
+      index: 0,
+    });
+    expect(map.get("stack")).toMatchObject({
+      parentId: "page",
+      slotKey: "children",
+      index: 0,
+    });
+    expect(map.get("heading")).toMatchObject({
+      parentId: "stack",
+      slotKey: "items",
+      index: 0,
+    });
+    expect(map.get("card")).toMatchObject({
+      parentId: "stack",
+      slotKey: "items",
+      index: 1,
+    });
+    expect(map.get("body")).toMatchObject({
+      parentId: "card",
+      slotKey: "body",
+      index: 0,
+    });
   });
 });
 
 describe("getAncestry", () => {
-  const parentMap = buildParentMap(spec);
+  const parentMap = buildParentMap(data);
 
-  it("returns empty for root", () => {
-    expect(getAncestry(spec, parentMap, "page")).toEqual([]);
+  it("returns empty for top-level component", () => {
+    expect(getAncestry(parentMap, "page")).toEqual([]);
   });
 
-  it("returns root for direct child", () => {
-    expect(getAncestry(spec, parentMap, "stack")).toEqual([
-      { id: "page", type: "Box" },
+  it("returns single entry for second-level component", () => {
+    expect(getAncestry(parentMap, "stack")).toEqual([
+      { id: "page", slotKey: null, index: 0 },
     ]);
   });
 
-  it("returns full chain for deeply nested element", () => {
-    expect(getAncestry(spec, parentMap, "body")).toEqual([
-      { id: "page", type: "Box" },
-      { id: "stack", type: "Stack" },
-      { id: "card", type: "Card" },
+  it("returns oldest-first chain for deeply nested component", () => {
+    expect(getAncestry(parentMap, "body")).toEqual([
+      { id: "page", slotKey: null, index: 0 },
+      { id: "stack", slotKey: "children", index: 0 },
+      { id: "card", slotKey: "items", index: 1 },
     ]);
   });
 
-  it("returns chain for mid-level element", () => {
-    expect(getAncestry(spec, parentMap, "heading")).toEqual([
-      { id: "page", type: "Box" },
-      { id: "stack", type: "Stack" },
-    ]);
+  it("returns empty for unknown id", () => {
+    expect(getAncestry(parentMap, "missing")).toEqual([]);
   });
 });

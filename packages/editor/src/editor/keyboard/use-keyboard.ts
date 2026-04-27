@@ -1,6 +1,6 @@
 import { useEffect, useRef } from "react";
 import { tinykeys } from "tinykeys";
-import type { Spec } from "@json-render/core";
+import type { Data } from "@puckeditor/core";
 import { nextInTreeOrder, type NavTarget } from "../spec-ops/index.js";
 import type { ClipboardActions } from "../clipboard/index.js";
 import { isEditable } from "../overlay/index.js";
@@ -10,7 +10,7 @@ import { arrowToDirection } from "./navigation.js";
 type Send = (event: any) => void;
 
 type NavContext = {
-  spec: Spec;
+  data: Data;
   lastSelectedId: string | null;
   pointer: string;
 };
@@ -81,7 +81,7 @@ const arrowBindings = (send: Send, navRef: React.RefObject<NavContext>) =>
         e.preventDefault();
         sendNavTarget(
           send,
-          nextInTreeOrder(nav.spec, nav.lastSelectedId!, direction),
+          nextInTreeOrder(nav.data, nav.lastSelectedId!, direction),
         );
       },
     ]),

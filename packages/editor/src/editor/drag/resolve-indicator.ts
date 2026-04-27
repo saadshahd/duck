@@ -1,8 +1,8 @@
-import type { Spec } from "@json-render/core";
+import type { Data } from "@puckeditor/core";
 import { extractClosestEdge } from "@atlaskit/pragmatic-drag-and-drop-hitbox/closest-edge";
 import type { FiberRegistry } from "../fiber/index.js";
 import type { DropTarget } from "./drop-indicator.js";
-import { readData, resolveParentAxis, resolveDropIndex } from "./helpers.js";
+import { readData, resolveSlotAxis, resolveDropIndex } from "./helpers.js";
 
 type TargetBag = { data: Record<string | symbol, unknown> };
 
@@ -13,7 +13,7 @@ type TargetBag = { data: Record<string | symbol, unknown> };
 export function resolveIndicator(
   source: TargetBag,
   target: TargetBag | undefined,
-  spec: Spec,
+  data: Data,
   registry: FiberRegistry,
   descendantSet: ReadonlySet<string>,
 ): DropTarget | null {
@@ -32,12 +32,16 @@ export function resolveIndicator(
     return { kind: "container", elementId: targetData.elementId };
 
   const axis =
-    resolveParentAxis(spec, targetData.parentId, registry) ?? "vertical";
+    resolveSlotAxis(data, targetData.parentId, targetData.slotKey, registry) ??
+    "vertical";
   const edge = extractClosestEdge(target.data);
   if (!edge) return null;
 
-  // Same-parent: hide indicator when drop would be a no-op
-  if (targetData.parentId === sourceData.parentId) {
+  // Same-slot: hide indicator when drop would be a no-op
+  if (
+    targetData.parentId === sourceData.parentId &&
+    targetData.slotKey === sourceData.slotKey
+  ) {
     const to = resolveDropIndex(sourceData.index, target, axis);
     if (to === sourceData.index) return null;
   }

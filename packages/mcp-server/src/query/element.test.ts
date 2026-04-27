@@ -1,42 +1,56 @@
 import { describe, it, expect } from "bun:test";
-import type { Spec } from "@json-render/core";
+import type { Data } from "@puckeditor/core";
 import { Effect } from "effect";
 import { element } from "./element.js";
 
-const spec: Spec = {
-  root: "page",
-  elements: {
-    page: { type: "Box", props: {}, children: ["stack"] },
-    stack: { type: "Stack", props: { gap: "1rem" }, children: ["heading"] },
-    heading: { type: "Heading", props: { text: "Hello" } },
-  },
+const data: Data = {
+  root: { props: {} },
+  content: [
+    {
+      type: "Box",
+      props: {
+        id: "page",
+        children: [
+          {
+            type: "Stack",
+            props: {
+              id: "stack",
+              gap: "1rem",
+              children: [
+                { type: "Heading", props: { id: "heading", text: "Hello" } },
+              ],
+            },
+          },
+        ],
+      },
+    },
+  ],
 };
 
 describe("element", () => {
-  it("returns full element with ancestry", async () => {
-    const result = await Effect.runPromise(element(spec, "heading"));
-    expect(result).toEqual({
-      id: "heading",
-      type: "Heading",
-      props: { text: "Hello" },
-      children: [],
-      ancestry: [
-        { id: "page", type: "Box" },
-        { id: "stack", type: "Stack" },
-      ],
-    });
+  it("returns full element with ancestry and slot summary", async () => {
+    const result = await Effect.runPromise(element(data, "heading"));
+    expect(result.id).toBe("heading");
+    expect(result.type).toBe("Heading");
+    expect(result.props).toEqual({ id: "heading", text: "Hello" });
+    expect(result.slots).toEqual({});
+    expect(result.ancestry.map((a) => a.id)).toEqual(["page", "stack"]);
   });
 
-  it("returns empty ancestry for root", async () => {
-    const result = await Effect.runPromise(element(spec, "page"));
+  it("returns slot child counts for components with slots", async () => {
+    const result = await Effect.runPromise(element(data, "stack"));
+    expect(result.slots).toEqual({ children: 1 });
+    expect(result.props.gap).toBe("1rem");
+    expect(result.props.children).toBeUndefined();
+  });
+
+  it("returns empty ancestry for top-level", async () => {
+    const result = await Effect.runPromise(element(data, "page"));
     expect(result.ancestry).toEqual([]);
   });
 
-  it("fails with available IDs for unknown element", async () => {
-    const result = await Effect.runPromiseExit(element(spec, "nope"));
-    expect(result._tag).toBe("Failure");
-    const err = (result as any).cause.error;
-    expect(err._tag).toBe("QueryError");
-    expect(err.context.availableIds).toEqual(["page", "stack", "heading"]);
+  it("fails for unknown element", async () => {
+    const exit = await Effect.runPromiseExit(element(data, "nope"));
+    expect(exit._tag).toBe("Failure");
   });
 });

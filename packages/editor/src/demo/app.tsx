@@ -1,14 +1,8 @@
 import { useState } from "react";
-import type { Spec } from "@json-render/core";
-import { registry } from "./registry.js";
-import { catalog } from "./catalog.js";
+import type { Data } from "@puckeditor/core";
+import { config } from "./puck.config.js";
 import { EditorShell } from "../editor/shell.js";
-import sampleDoc from "./sample-document.json";
-
-/** String-keyed prop schema lookup — decouples the editor from the catalog's literal type. */
-const PROP_SCHEMAS = Object.fromEntries(
-  Object.entries(catalog.data.components).map(([k, v]) => [k, v.props]),
-);
+import sampleData from "./sample-data.json";
 
 const params = new URLSearchParams(window.location.search);
 const bridge = (() => {
@@ -18,15 +12,13 @@ const bridge = (() => {
 })();
 
 export function App() {
-  const [spec, setSpec] = useState<Spec>(sampleDoc as Spec);
+  const [data, setData] = useState<Data>(sampleData as Data);
 
   return (
     <EditorShell
-      spec={spec}
-      registry={registry}
-      onSpecChange={setSpec}
-      getPropSchema={(type) => PROP_SCHEMAS[type]}
-      componentCatalog={catalog.data.components}
+      data={data}
+      config={config}
+      onDataChange={setData}
       bridge={bridge}
     />
   );

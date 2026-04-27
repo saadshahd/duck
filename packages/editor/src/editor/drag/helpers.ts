@@ -11,9 +11,12 @@ import type { Axis } from "../layout/index.js";
 /** Typed shape stored in pragmatic-dnd's untyped userData bag. */
 export type DragData = {
   elementId: string;
-  parentId: string;
+  parentId: string | null;
+  slotKey: string | null;
   index: number;
   role: "sibling" | "container";
+  /** Slot of a container drop target — populated only when `role === "container"`. */
+  containerSlotKey?: string;
 };
 
 /** Single boundary cast — all downstream code is type-safe. */
@@ -22,7 +25,7 @@ export const readData = (bag: Record<string | symbol, unknown>) =>
 
 // --- Axis & edges ---
 
-export { type Axis, detectAxis, resolveParentAxis } from "../layout/index.js";
+export { type Axis, detectAxis, resolveSlotAxis } from "../layout/index.js";
 
 export const EDGES: Record<Axis, Edge[]> = {
   vertical: ["top", "bottom"],
@@ -50,7 +53,7 @@ export const isInContainerZone = (
 
 // --- Drop index ---
 
-/** Resolve a same-parent reorder destination index. */
+/** Resolve a same-slot reorder destination index. */
 export const resolveDropIndex = (
   sourceIndex: number,
   target: { data: Record<string | symbol, unknown> },
@@ -65,7 +68,7 @@ export const resolveDropIndex = (
   });
 };
 
-/** Resolve a cross-parent insert index from edge position. */
+/** Resolve a cross-slot insert index from edge position. */
 export const resolveInsertIndex = (
   targetIndex: number,
   edge: Edge | null,

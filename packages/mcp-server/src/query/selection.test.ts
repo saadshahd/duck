@@ -1,16 +1,16 @@
 import { describe, it, expect } from "bun:test";
 import { Effect } from "effect";
-import type { BridgeHandle } from "../protocol.js";
+import type { Bridge } from "../bridge/index.js";
 import { selection } from "./selection.js";
 
 const makeBridge = (
-  sel: ReturnType<BridgeHandle["lastSelection"]>,
+  sel: ReturnType<Bridge["lastSelection"]>,
   hasViewers: boolean,
-): BridgeHandle =>
+): Bridge =>
   ({
     lastSelection: () => sel,
     hasViewers: () => hasViewers,
-  }) as unknown as BridgeHandle;
+  }) as unknown as Bridge;
 
 describe("selection", () => {
   it("returns selection data when available", async () => {

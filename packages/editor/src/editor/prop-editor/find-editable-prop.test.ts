@@ -1,136 +1,116 @@
 import { describe, it, expect } from "bun:test";
-import { z } from "zod";
-import type { UIElement } from "@json-render/core";
-import {
-  findEditableProp,
-  findSingleEditableProp,
-} from "./find-editable-prop.js";
+import type { ComponentData, Field } from "@puckeditor/core";
+import { findEditableProp, type ResolvedFields } from "./find-editable-prop.js";
 
-const el = (type: string, props: Record<string, unknown>): UIElement => ({
+const component = (
+  type: string,
+  props: Record<string, unknown>,
+): ComponentData => ({
   type,
-  props,
+  props: { id: `${type}-1`, ...props },
 });
 
-const headingSchema = z.object({
-  level: z.enum(["h1", "h2", "h3"]).optional(),
-  text: z.string(),
-  style: z.record(z.unknown()).optional(),
-});
-
-const buttonSchema = z.object({
-  label: z.string(),
-  variant: z.enum(["primary", "secondary"]).optional(),
-});
+const text: Field = { type: "text" };
+const textarea: Field = { type: "textarea" };
+const number: Field = { type: "number" };
+const select: Field = {
+  type: "select",
+  options: [{ label: "H1", value: "h1" }],
+};
 
 describe("findEditableProp", () => {
-  it("matches text prop by rendered text", () => {
-    const element = el("Heading", { text: "Hello World", level: "h1" });
-    expect(findEditableProp(element, headingSchema, "Hello World")).toEqual({
+  it("uses hint.propKey when field is text and value is non-empty string", () => {
+    const fields: ResolvedFields = { text, level: select };
+    const data = component("Heading", { text: "Hello World", level: "h1" });
+    expect(findEditableProp(data, fields, { propKey: "text" })).toEqual({
       propKey: "text",
+      propPath: ["text"],
       value: "Hello World",
+      field: text,
     });
   });
 
-  it("matches label prop on button", () => {
-    const element = el("Button", { label: "Get started", variant: "primary" });
-    expect(findEditableProp(element, buttonSchema, "Get started")).toEqual({
+  it("uses hint.propKey for textarea field", () => {
+    const fields: ResolvedFields = { body: textarea };
+    const data = component("Article", { body: "Long form text" });
+    expect(findEditableProp(data, fields, { propKey: "body" })).toEqual({
+      propKey: "body",
+      propPath: ["body"],
+      value: "Long form text",
+      field: textarea,
+    });
+  });
+
+  it("falls back to first text/textarea field when hint.propKey is missing", () => {
+    const fields: ResolvedFields = { level: select, text };
+    const data = component("Heading", { text: "Hello", level: "h1" });
+    expect(findEditableProp(data, fields)).toEqual({
+      propKey: "text",
+      propPath: ["text"],
+      value: "Hello",
+      field: text,
+    });
+  });
+
+  it("falls back when hint.propKey targets a non-text field", () => {
+    const fields: ResolvedFields = { level: select, text };
+    const data = component("Heading", { text: "Hello", level: "h1" });
+    expect(findEditableProp(data, fields, { propKey: "level" })).toEqual({
+      propKey: "text",
+      propPath: ["text"],
+      value: "Hello",
+      field: text,
+    });
+  });
+
+  it("falls back when hint.propKey field is text but value isn't a string", () => {
+    const fields: ResolvedFields = { count: text, label: text };
+    const data = component("Item", { count: 5, label: "Items" });
+    expect(findEditableProp(data, fields, { propKey: "count" })).toEqual({
       propKey: "label",
-      value: "Get started",
+      propPath: ["label"],
+      value: "Items",
+      field: text,
     });
   });
 
-  it("normalizes whitespace for comparison", () => {
-    const element = el("Text", { text: "Hello  World" });
-    const schema = z.object({ text: z.string() });
-    // Rendered text collapses double space
-    expect(findEditableProp(element, schema, "Hello World")).toEqual({
-      propKey: "text",
-      value: "Hello  World",
+  it("falls back when hint.propKey value is empty string", () => {
+    const fields: ResolvedFields = { title: text, subtitle: text };
+    const data = component("Card", { title: "", subtitle: "Sub" });
+    expect(findEditableProp(data, fields, { propKey: "title" })).toEqual({
+      propKey: "subtitle",
+      propPath: ["subtitle"],
+      value: "Sub",
+      field: text,
     });
   });
 
-  it("trims whitespace", () => {
-    const element = el("Text", { text: "Hello" });
-    const schema = z.object({ text: z.string() });
-    expect(findEditableProp(element, schema, "  Hello  ")).toEqual({
-      propKey: "text",
-      value: "Hello",
-    });
+  it("returns null when no fields are editable text", () => {
+    const fields: ResolvedFields = { count: number, level: select };
+    const data = component("Box", { count: 1, level: "h1" });
+    expect(findEditableProp(data, fields)).toBeNull();
   });
 
-  it("returns null when no string props exist", () => {
-    const element = el("Box", { style: { padding: "1rem" } });
-    const schema = z.object({ style: z.record(z.unknown()).optional() });
-    expect(findEditableProp(element, schema, "anything")).toBeNull();
+  it("returns null when text/textarea fields have non-string values", () => {
+    const fields: ResolvedFields = { title: text };
+    const data = component("Card", { title: 42 });
+    expect(findEditableProp(data, fields)).toBeNull();
   });
 
-  it("returns null when text doesn't match any string prop", () => {
-    const element = el("Heading", { text: "Hello", level: "h1" });
-    expect(findEditableProp(element, headingSchema, "Goodbye")).toBeNull();
+  it("returns null when text/textarea fields have empty string values", () => {
+    const fields: ResolvedFields = { title: text, body: textarea };
+    const data = component("Article", { title: "", body: "" });
+    expect(findEditableProp(data, fields)).toBeNull();
   });
 
-  it("returns null when ambiguous (multiple string props match same text)", () => {
-    const element = el("Custom", { title: "Same", subtitle: "Same" });
-    const schema = z.object({ title: z.string(), subtitle: z.string() });
-    expect(findEditableProp(element, schema, "Same")).toBeNull();
+  it("returns null when fields object is empty", () => {
+    const data = component("Box", { padding: "1rem" });
+    expect(findEditableProp(data, {})).toBeNull();
   });
 
-  it("ignores non-string props even if value looks like a string", () => {
-    const element = el("Heading", {
-      text: "Hello",
-      level: "h1",
-      style: { color: "red" },
-    });
-    // level is an enum, not a string — shouldn't match "h1"
-    expect(findEditableProp(element, headingSchema, "h1")).toBeNull();
-  });
-
-  it("handles optional string props", () => {
-    const schema = z.object({ text: z.string().optional() });
-    const element = el("Text", { text: "Optional text" });
-    expect(findEditableProp(element, schema, "Optional text")).toEqual({
-      propKey: "text",
-      value: "Optional text",
-    });
-  });
-
-  it("skips string props with undefined value", () => {
-    const schema = z.object({
-      text: z.string(),
-      subtitle: z.string().optional(),
-    });
-    const element = el("Custom", { text: "Hello" });
-    expect(findEditableProp(element, schema, "Hello")).toEqual({
-      propKey: "text",
-      value: "Hello",
-    });
-  });
-});
-
-describe("findSingleEditableProp", () => {
-  it("returns the single string prop", () => {
-    const element = el("Heading", { text: "Hello", level: "h1" });
-    expect(findSingleEditableProp(element, headingSchema)).toEqual({
-      propKey: "text",
-      value: "Hello",
-    });
-  });
-
-  it("returns null when no string props exist", () => {
-    const element = el("Box", { padding: "1rem" });
-    const schema = z.object({ padding: z.number() });
-    expect(findSingleEditableProp(element, schema)).toBeNull();
-  });
-
-  it("returns null when multiple string props exist", () => {
-    const element = el("Custom", { title: "A", subtitle: "B" });
-    const schema = z.object({ title: z.string(), subtitle: z.string() });
-    expect(findSingleEditableProp(element, schema)).toBeNull();
-  });
-
-  it("returns null when string prop value is undefined", () => {
-    const schema = z.object({ text: z.string().optional() });
-    const element = el("Text", {});
-    expect(findSingleEditableProp(element, schema)).toBeNull();
+  it("preserves field iteration order for fallback", () => {
+    const fields: ResolvedFields = { title: text, body: textarea };
+    const data = component("Card", { title: "Title", body: "Body" });
+    expect(findEditableProp(data, fields)?.propKey).toBe("title");
   });
 });

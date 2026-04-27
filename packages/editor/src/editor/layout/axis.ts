@@ -1,4 +1,5 @@
-import type { Spec } from "@json-render/core";
+import type { Data } from "@puckeditor/core";
+import { getChildrenAt } from "@json-render-editor/spec";
 import type { FiberRegistry } from "../fiber/index.js";
 
 export type Axis = "vertical" | "horizontal";
@@ -10,16 +11,18 @@ export const detectAxis = (a: DOMRect, b: DOMRect): Axis => {
   return dy > dx ? "vertical" : "horizontal";
 };
 
-/** Resolve axis for a parent by measuring its first two children. */
-export const resolveParentAxis = (
-  spec: Spec,
-  parentId: string,
+/** Resolve axis for a slot by measuring its first two children.
+ *  `parentId === null && slotKey === null` measures the top-level (`data.content`). */
+export const resolveSlotAxis = (
+  data: Data,
+  parentId: string | null,
+  slotKey: string | null,
   registry: FiberRegistry,
 ): Axis | null => {
-  const children = spec.elements[parentId]?.children;
+  const children = getChildrenAt(data, parentId, slotKey);
   if (!children || children.length < 2) return null;
-  const a = registry.get(children[0]);
-  const b = registry.get(children[1]);
+  const a = registry.get(children[0].props.id as string);
+  const b = registry.get(children[1].props.id as string);
   if (!a || !b) return null;
   return detectAxis(a.getBoundingClientRect(), b.getBoundingClientRect());
 };

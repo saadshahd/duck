@@ -1,60 +1,68 @@
 import { describe, it, expect } from "bun:test";
-import type { Spec } from "@json-render/core";
+import type { ComponentData, Data } from "@puckeditor/core";
 import { outlineTree } from "./outline-tree.js";
 
-const spec: Spec = {
-  root: "page",
-  elements: {
-    page: {
-      type: "Box",
-      props: { style: { margin: 0 } },
-      children: ["stack", "footer"],
-    },
-    stack: {
-      type: "Stack",
-      props: { gap: "1rem" },
-      children: ["heading", "card"],
-    },
-    heading: { type: "Heading", props: { text: "Hello" } },
-    card: { type: "Card", props: {}, children: ["body"] },
-    body: { type: "Text", props: { text: "content" } },
-    footer: { type: "Footer", props: { text: "bye" } },
-  },
+const make = (
+  type: string,
+  id: string,
+  extra: Record<string, unknown> = {},
+): ComponentData =>
+  ({ type, props: { id, ...extra } }) as unknown as ComponentData;
+
+const data: Data = {
+  root: { props: {} },
+  content: [
+    make("Stack", "stack", {
+      gap: "1rem",
+      items: [
+        make("Heading", "h1", { text: "Hello" }),
+        make("Card", "card", { body: [make("Text", "body", { text: "x" })] }),
+      ],
+    }),
+    make("Footer", "footer", { text: "bye" }),
+  ],
 };
 
 describe("outlineTree", () => {
-  it("depth=1 shows full root, summary children", () => {
-    const tree = outlineTree(spec, 1);
-    expect(tree).toEqual({
-      id: "page",
-      type: "Box",
-      props: { style: { margin: 0 } },
-      children: [
-        { id: "stack", type: "Stack", childCount: 2 },
-        { id: "footer", type: "Footer", childCount: 0 },
-      ],
-    });
+  it("default depth is 2", () => {
+    const tree = outlineTree(data);
+    const stack = tree[0] as Extract<(typeof tree)[number], { props: unknown }>;
+    expect("props" in stack).toBe(true);
+    const h1 = stack.slots.items[0];
+    expect("childCount" in h1).toBe(true);
+    expect(h1).toEqual({ id: "h1", type: "Heading", childCount: 0 });
   });
 
-  it("depth=3 shows full detail through card→body", () => {
-    const tree = outlineTree(spec, 3);
-    expect("props" in tree).toBe(true);
-    const stack = (tree as any).children[0];
-    expect("props" in stack).toBe(true);
-    const card = stack.children[1];
+  it("excludes slot keys from props in FullNode", () => {
+    const tree = outlineTree(data, 1);
+    const stack = tree[0] as Extract<(typeof tree)[number], { props: unknown }>;
+    expect(stack.props).toEqual({ id: "stack", gap: "1rem" });
+    expect(stack.props).not.toHaveProperty("items");
+  });
+
+  it("childCount sums children across all slots", () => {
+    const tree = outlineTree(data, 0);
+    expect(tree[0]).toEqual({ id: "stack", type: "Stack", childCount: 2 });
+  });
+
+  it("recurses through multiple levels at higher depth", () => {
+    const tree = outlineTree(data, 3);
+    const stack = tree[0] as Extract<(typeof tree)[number], { props: unknown }>;
+    const card = stack.slots.items[1] as Extract<
+      (typeof tree)[number],
+      { props: unknown }
+    >;
     expect("props" in card).toBe(true);
-    expect(card.children[0]).toEqual({
+    expect(card.slots.body[0]).toEqual({
       id: "body",
       type: "Text",
       childCount: 0,
     });
   });
 
-  it("default depth is 2", () => {
-    const tree = outlineTree(spec);
-    const stack = (tree as any).children[0];
-    expect("props" in stack).toBe(true);
-    const heading = stack.children[0];
-    expect("childCount" in heading).toBe(true);
+  it("returns one entry per data.content[i]", () => {
+    const tree = outlineTree(data, 1);
+    expect(tree).toHaveLength(2);
+    expect(tree[1]).toMatchObject({ id: "footer", type: "Footer" });
   });
 });

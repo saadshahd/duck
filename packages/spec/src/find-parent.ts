@@ -1,15 +1,18 @@
-import type { Spec } from "@json-render/core";
+import type { Data } from "@puckeditor/core";
+import { preOrder } from "./pre-order.js";
 
 export type ParentInfo = {
-  readonly parentId: string;
-  readonly childIndex: number;
+  readonly parentId: string | null;
+  readonly slotKey: string | null;
+  readonly index: number;
 };
 
-/** Find the parent of `childId` by scanning all elements. Returns null if not found. */
-export const findParent = (spec: Spec, childId: string): ParentInfo | null => {
-  for (const [id, el] of Object.entries(spec.elements)) {
-    const idx = el.children?.indexOf(childId) ?? -1;
-    if (idx !== -1) return { parentId: id, childIndex: idx };
+/** Locate `childId` in the tree. Returns the last step of its path
+ *  (parent + slot + index), or null if not found.
+ *  Top-level children get `{ parentId: null, slotKey: null, index }`. */
+export const findParent = (data: Data, childId: string): ParentInfo | null => {
+  for (const { component, path } of preOrder(data)) {
+    if (component.props.id === childId) return path[path.length - 1];
   }
   return null;
 };

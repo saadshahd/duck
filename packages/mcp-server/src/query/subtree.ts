@@ -1,36 +1,21 @@
-import type { Spec } from "@json-render/core";
+import type { Data } from "@puckeditor/core";
 import { Effect } from "effect";
 import {
   buildParentMap,
-  foldTree,
+  findById,
   getAncestry,
 } from "@json-render-editor/spec";
 import { QueryError } from "../errors.js";
 
-type SubtreeNode = {
-  readonly id: string;
-  readonly type: string;
-  readonly props: Record<string, unknown>;
-  readonly children: SubtreeNode[];
-};
-
-export const subtree = (spec: Spec, elementId: string) => {
-  if (!spec.elements[elementId])
+export const subtree = (data: Data, id: string) => {
+  const node = findById(data, id);
+  if (!node)
     return Effect.fail(
-      new QueryError({
-        message: `Element '${elementId}' not found`,
-        context: { availableIds: Object.keys(spec.elements) },
-      }),
+      new QueryError({ message: `Element '${id}' not found` }),
     );
-  const parentMap = buildParentMap(spec);
-  const tree = foldTree<SubtreeNode>(spec, elementId, (id, el, children) => ({
-    id,
-    type: el.type,
-    props: el.props as Record<string, unknown>,
-    children,
-  }));
+  const parentMap = buildParentMap(data);
   return Effect.succeed({
-    ...tree,
-    ancestry: getAncestry(spec, parentMap, elementId),
+    component: node,
+    ancestry: getAncestry(parentMap, id),
   });
 };

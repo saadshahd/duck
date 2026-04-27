@@ -1,43 +1,52 @@
 import { describe, it, expect } from "bun:test";
-import type { Spec } from "@json-render/core";
+import type { Data } from "@puckeditor/core";
 import { Effect } from "effect";
 import { subtree } from "./subtree.js";
 
-const spec: Spec = {
-  root: "page",
-  elements: {
-    page: { type: "Box", props: {}, children: ["stack"] },
-    stack: { type: "Stack", props: { gap: "1rem" }, children: ["a", "b"] },
-    a: { type: "Text", props: { text: "A" } },
-    b: { type: "Card", props: {}, children: ["c"] },
-    c: { type: "Text", props: { text: "C" } },
-  },
+const data: Data = {
+  root: { props: {} },
+  content: [
+    {
+      type: "Box",
+      props: {
+        id: "page",
+        children: [
+          {
+            type: "Stack",
+            props: {
+              id: "stack",
+              gap: "1rem",
+              children: [
+                { type: "Text", props: { id: "a", text: "A" } },
+                {
+                  type: "Card",
+                  props: {
+                    id: "b",
+                    children: [{ type: "Text", props: { id: "c", text: "C" } }],
+                  },
+                },
+              ],
+            },
+          },
+        ],
+      },
+    },
+  ],
 };
 
 describe("subtree", () => {
-  it("returns element with all descendants", async () => {
-    const result = await Effect.runPromise(subtree(spec, "stack"));
-    expect(result).toEqual({
-      id: "stack",
-      type: "Stack",
-      props: { gap: "1rem" },
-      children: [
-        { id: "a", type: "Text", props: { text: "A" }, children: [] },
-        {
-          id: "b",
-          type: "Card",
-          props: {},
-          children: [
-            { id: "c", type: "Text", props: { text: "C" }, children: [] },
-          ],
-        },
-      ],
-      ancestry: [{ id: "page", type: "Box" }],
-    });
+  it("returns the component plus its ancestry", async () => {
+    const result = await Effect.runPromise(subtree(data, "stack"));
+    expect((result.component.props as { id: string }).id).toBe("stack");
+    expect(result.component.type).toBe("Stack");
+    expect(
+      (result.component.props as unknown as { children: unknown[] }).children,
+    ).toHaveLength(2);
+    expect(result.ancestry.map((a) => a.id)).toEqual(["page"]);
   });
 
-  it("fails with available IDs for unknown element", async () => {
-    const result = await Effect.runPromiseExit(subtree(spec, "nope"));
-    expect(result._tag).toBe("Failure");
+  it("fails for unknown element", async () => {
+    const exit = await Effect.runPromiseExit(subtree(data, "nope"));
+    expect(exit._tag).toBe("Failure");
   });
 });

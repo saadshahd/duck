@@ -32,17 +32,6 @@ export class InvalidPageName extends Data.TaggedError("InvalidPageName")<{
   }
 }
 
-export class PatchError extends Data.TaggedError("PatchError")<{
-  readonly message: string;
-  readonly failedOpIndex?: number;
-}> {
-  get hint() {
-    return this.failedOpIndex !== undefined
-      ? `Patch at index ${this.failedOpIndex} failed: ${this.message}. No changes applied.`
-      : this.message;
-  }
-}
-
 export class QueryError extends Data.TaggedError("QueryError")<{
   readonly message: string;
   readonly context?: Record<string, unknown>;

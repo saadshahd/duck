@@ -1,14 +1,25 @@
-import type { Spec, UIElement } from "@json-render/core";
+import type { ComponentData, Data } from "@puckeditor/core";
+import { slotKeysOf } from "./slot-keys-of.js";
 
-/** Bottom-up fold over the spec tree. Children are visited first,
- *  their results passed to the visitor for the parent. */
-export const foldTree = <T>(
-  spec: Spec,
-  id: string,
-  visit: (id: string, element: UIElement, children: T[]) => T,
+const foldComponent = <T>(
+  component: ComponentData,
+  visit: (component: ComponentData, slots: Record<string, T[]>) => T,
 ): T => {
-  const el = spec.elements[id];
-  if (!el) return visit(id, { type: "unknown", props: {} } as UIElement, []);
-  const children = (el.children ?? []).map((c) => foldTree(spec, c, visit));
-  return visit(id, el, children);
+  const slots = Object.fromEntries(
+    slotKeysOf(component).map((slotKey) => [
+      slotKey,
+      (component.props[slotKey] as ComponentData[]).map((child) =>
+        foldComponent(child, visit),
+      ),
+    ]),
+  );
+  return visit(component, slots);
 };
+
+/** Bottom-up fold over the whole tree. Each visit receives the component and a
+ *  per-slot map of already-folded child results, in order. Returns one entry
+ *  per `data.content[i]`. */
+export const foldTree = <T>(
+  data: Data,
+  visit: (component: ComponentData, slots: Record<string, T[]>) => T,
+): T[] => data.content.map((component) => foldComponent(component, visit));

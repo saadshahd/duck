@@ -1,17 +1,19 @@
-import type { Spec } from "@json-render/core";
+import type { ComponentData, Data } from "@puckeditor/core";
+import { findById } from "./find-by-id.js";
+import { slotKeysOf } from "./slot-keys-of.js";
 
-/** All descendant IDs below `ancestorId` (exclusive of ancestor). */
-export const collectDescendants = (
-  spec: Spec,
-  ancestorId: string,
-): ReadonlySet<string> => {
-  const result = new Set<string>();
-  const stack = [...(spec.elements[ancestorId]?.children ?? [])];
-  while (stack.length > 0) {
-    const id = stack.pop()!;
-    result.add(id);
-    const children = spec.elements[id]?.children;
-    if (children) stack.push(...children);
-  }
-  return result;
+const descendantsOf = (component: ComponentData): string[] =>
+  slotKeysOf(component).flatMap((slotKey) => {
+    const children = component.props[slotKey] as ComponentData[];
+    return children.flatMap((child) => [
+      child.props.id as string,
+      ...descendantsOf(child),
+    ]);
+  });
+
+/** All descendant ids of `id`, excluding `id` itself.
+ *  Empty if id has no children or doesn't exist. */
+export const collectDescendants = (data: Data, id: string): string[] => {
+  const root = findById(data, id);
+  return root === null ? [] : descendantsOf(root);
 };

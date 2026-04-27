@@ -1,170 +1,86 @@
-import { describe, test, expect } from "bun:test";
+import { describe, it, expect } from "bun:test";
+import type { ComponentData, Data } from "@puckeditor/core";
 import { nextInTreeOrder } from "./navigation.js";
-import type { Spec } from "@json-render/core";
 
-// Pre-order: page, stack, heading, text, card, card-body, footer
-const spec: Spec = {
-  root: "page",
-  elements: {
-    page: { type: "Page", props: {}, children: ["stack", "footer"] },
-    stack: { type: "Stack", props: {}, children: ["heading", "text", "card"] },
-    heading: { type: "Heading", props: {} },
-    text: { type: "Text", props: {} },
-    card: { type: "Card", props: {}, children: ["card-body"] },
-    "card-body": { type: "CardBody", props: {} },
-    footer: { type: "Footer", props: {} },
-  },
+const text = (id: string): ComponentData => ({
+  type: "Text",
+  props: { id, text: id },
+});
+
+const stack = (id: string, items: ComponentData[]): ComponentData => ({
+  type: "Stack",
+  props: { id, items },
+});
+
+// Pre-order: outer, head, body, b1, b2, foot
+const data: Data = {
+  root: { props: {} },
+  content: [
+    stack("outer", [
+      text("head"),
+      stack("body", [text("b1"), text("b2")]),
+      text("foot"),
+    ]),
+  ],
 };
 
-// --- Forward traversal (depth-first pre-order) ---
-
-describe("forward traversal", () => {
-  test("root → first child", () => {
-    expect(nextInTreeOrder(spec, "page", "forward")).toEqual({
-      tag: "select",
-      targetId: "stack",
-    });
+describe("nextInTreeOrder — forward", () => {
+  it("walks into the first child of a parent", () => {
+    expect(nextInTreeOrder(data, "outer", "forward")).toBe("head");
   });
 
-  test("parent → first child (enter container)", () => {
-    expect(nextInTreeOrder(spec, "stack", "forward")).toEqual({
-      tag: "select",
-      targetId: "heading",
-    });
+  it("moves to next sibling", () => {
+    expect(nextInTreeOrder(data, "head", "forward")).toBe("body");
   });
 
-  test("sibling → next sibling", () => {
-    expect(nextInTreeOrder(spec, "heading", "forward")).toEqual({
-      tag: "select",
-      targetId: "text",
-    });
+  it("descends into a slot", () => {
+    expect(nextInTreeOrder(data, "body", "forward")).toBe("b1");
   });
 
-  test("sibling → next sibling (to container)", () => {
-    expect(nextInTreeOrder(spec, "text", "forward")).toEqual({
-      tag: "select",
-      targetId: "card",
-    });
+  it("crosses out of a slot to uncle", () => {
+    expect(nextInTreeOrder(data, "b2", "forward")).toBe("foot");
   });
 
-  test("container → first child", () => {
-    expect(nextInTreeOrder(spec, "card", "forward")).toEqual({
-      tag: "select",
-      targetId: "card-body",
-    });
-  });
-
-  test("last child crosses to uncle (parent's next sibling)", () => {
-    expect(nextInTreeOrder(spec, "card-body", "forward")).toEqual({
-      tag: "select",
-      targetId: "footer",
-    });
-  });
-
-  test("last element in doc → deselect", () => {
-    expect(nextInTreeOrder(spec, "footer", "forward")).toEqual({
-      tag: "deselect",
-    });
+  it("returns null at document end", () => {
+    expect(nextInTreeOrder(data, "foot", "forward")).toBeNull();
   });
 });
 
-// --- Backward traversal (reverse pre-order) ---
-
-describe("backward traversal", () => {
-  test("root → deselect (nothing before root)", () => {
-    expect(nextInTreeOrder(spec, "page", "backward")).toEqual({
-      tag: "deselect",
-    });
+describe("nextInTreeOrder — backward", () => {
+  it("returns null before first element", () => {
+    expect(nextInTreeOrder(data, "outer", "backward")).toBeNull();
   });
 
-  test("first child → parent", () => {
-    expect(nextInTreeOrder(spec, "stack", "backward")).toEqual({
-      tag: "select",
-      targetId: "page",
-    });
+  it("moves to previous sibling", () => {
+    expect(nextInTreeOrder(data, "b2", "backward")).toBe("b1");
   });
 
-  test("sibling → prev sibling", () => {
-    expect(nextInTreeOrder(spec, "text", "backward")).toEqual({
-      tag: "select",
-      targetId: "heading",
-    });
+  it("crosses up to parent's tail", () => {
+    expect(nextInTreeOrder(data, "foot", "backward")).toBe("b2");
   });
 
-  test("uncle → deepest descendant of prev subtree", () => {
-    expect(nextInTreeOrder(spec, "footer", "backward")).toEqual({
-      tag: "select",
-      targetId: "card-body",
-    });
-  });
-
-  test("first child of nested → parent", () => {
-    expect(nextInTreeOrder(spec, "card-body", "backward")).toEqual({
-      tag: "select",
-      targetId: "card",
-    });
-  });
-
-  test("first grandchild → parent", () => {
-    expect(nextInTreeOrder(spec, "heading", "backward")).toEqual({
-      tag: "select",
-      targetId: "stack",
-    });
+  it("first child returns parent", () => {
+    expect(nextInTreeOrder(data, "head", "backward")).toBe("outer");
   });
 });
 
-// --- Full walk ---
+describe("nextInTreeOrder — unknown id", () => {
+  it("returns null", () => {
+    expect(nextInTreeOrder(data, "zzz", "forward")).toBeNull();
+    expect(nextInTreeOrder(data, "zzz", "backward")).toBeNull();
+  });
+});
 
-describe("full document walk", () => {
-  test("forward walk visits every element in pre-order", () => {
-    const visited: string[] = [];
-    let current = "page";
-    visited.push(current);
+describe("nextInTreeOrder — full walk", () => {
+  it("forward visits every element in pre-order", () => {
+    const visited: string[] = ["outer"];
+    let current: string | null = "outer";
     for (let i = 0; i < 20; i++) {
-      const result = nextInTreeOrder(spec, current, "forward");
-      if (result.tag === "deselect") break;
-      visited.push(result.targetId);
-      current = result.targetId;
+      const next = nextInTreeOrder(data, current!, "forward");
+      if (next === null) break;
+      visited.push(next);
+      current = next;
     }
-    expect(visited).toEqual([
-      "page",
-      "stack",
-      "heading",
-      "text",
-      "card",
-      "card-body",
-      "footer",
-    ]);
-  });
-
-  test("backward walk from last visits every element in reverse", () => {
-    const visited: string[] = [];
-    let current = "footer";
-    visited.push(current);
-    for (let i = 0; i < 20; i++) {
-      const result = nextInTreeOrder(spec, current, "backward");
-      if (result.tag === "deselect") break;
-      visited.push(result.targetId);
-      current = result.targetId;
-    }
-    expect(visited).toEqual([
-      "footer",
-      "card-body",
-      "card",
-      "text",
-      "heading",
-      "stack",
-      "page",
-    ]);
-  });
-});
-
-// --- Edge cases ---
-
-describe("edge cases", () => {
-  test("unknown element → deselect", () => {
-    expect(nextInTreeOrder(spec, "nonexistent", "forward")).toEqual({
-      tag: "deselect",
-    });
+    expect(visited).toEqual(["outer", "head", "body", "b1", "b2", "foot"]);
   });
 });

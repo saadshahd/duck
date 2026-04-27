@@ -1,17 +1,28 @@
-import type { Spec } from "@json-render/core";
+import type { Data } from "@puckeditor/core";
 import { Effect } from "effect";
-import { buildParentMap, getAncestry } from "@json-render-editor/spec";
+import {
+  buildParentMap,
+  getAncestry,
+  preOrder,
+} from "@json-render-editor/spec";
 
-export const typeQuery = (spec: Spec, componentType: string) => {
-  const parentMap = buildParentMap(spec);
-  const elements = Object.entries(spec.elements)
-    .filter(([, el]) => el.type === componentType)
-    .map(([id, el]) => ({
+export const typeQuery = (data: Data, componentType: string) => {
+  const parentMap = buildParentMap(data);
+  const elements: Array<{
+    id: string;
+    type: string;
+    props: Record<string, unknown>;
+    ancestry: ReturnType<typeof getAncestry>;
+  }> = [];
+  for (const { component } of preOrder(data)) {
+    if (component.type !== componentType) continue;
+    const id = (component.props as { id?: string })?.id ?? "";
+    elements.push({
       id,
-      type: el.type,
-      props: el.props,
-      children: el.children ?? [],
-      ancestry: getAncestry(spec, parentMap, id),
-    }));
+      type: component.type,
+      props: component.props,
+      ancestry: getAncestry(parentMap, id),
+    });
+  }
   return Effect.succeed({ elements, count: elements.length });
 };

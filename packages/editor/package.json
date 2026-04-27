@@ -1,5 +1,5 @@
 {
-  "name": "@json-render-editor/editor",
+  "name": "duck",
   "version": "0.0.1",
   "private": true,
   "type": "module",
@@ -12,9 +12,8 @@
     "@atlaskit/pragmatic-drag-and-drop": "^1.7.9",
     "@atlaskit/pragmatic-drag-and-drop-hitbox": "^1.1.0",
     "@floating-ui/react": "^0.27.19",
-    "@json-render/core": "latest",
     "@json-render-editor/spec": "workspace:*",
-    "@json-render/react": "latest",
+    "@puckeditor/core": "^0.21.2",
     "@xstate/react": "^6.1.0",
     "bippy": "^0.5.32",
     "fast-deep-equal": "^3.1.3",
@@ -22,8 +21,7 @@
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
     "react-shadow": "^20.6.0",
-    "xstate": "^5.29.0",
-    "zod": "~4.3.0"
+    "xstate": "^5.29.0"
   },
   "devDependencies": {
     "@happy-dom/global-registrator": "^20.8.9",

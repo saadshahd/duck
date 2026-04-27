@@ -1,6 +1,7 @@
 import { Effect } from "effect";
-import type { Spec } from "@json-render/core";
-import type { McpContext, BridgeHandle } from "../protocol.js";
+import type { Data } from "@puckeditor/core";
+import type { McpContext } from "../protocol.js";
+import type { Bridge } from "../bridge/index.js";
 import { QueryError } from "../errors.js";
 import { readSpecOrDraft } from "./read-spec-or-draft.js";
 import { outline } from "./outline.js";
@@ -20,34 +21,30 @@ type QueryArgs = {
   readonly q?: string;
 };
 
-// ── Mode tables ───────────────────────────────────────────────────
-
-const specModes: Record<
+const dataModes: Record<
   string,
-  (spec: Spec, args: QueryArgs) => Effect.Effect<unknown, QueryError>
+  (data: Data, args: QueryArgs) => Effect.Effect<unknown, QueryError>
 > = {
-  outline: (spec, args) => outline(spec, args.depth),
-  element: (spec, args) =>
-    requireParam(args.id, "id").pipe(Effect.andThen((id) => element(spec, id))),
-  subtree: (spec, args) =>
-    requireParam(args.id, "id").pipe(Effect.andThen((id) => subtree(spec, id))),
-  type: (spec, args) =>
+  outline: (data, args) => outline(data, args.depth),
+  element: (data, args) =>
+    requireParam(args.id, "id").pipe(Effect.andThen((id) => element(data, id))),
+  subtree: (data, args) =>
+    requireParam(args.id, "id").pipe(Effect.andThen((id) => subtree(data, id))),
+  type: (data, args) =>
     requireParam(args.componentType, "componentType").pipe(
-      Effect.andThen((t) => typeQuery(spec, t)),
+      Effect.andThen((t) => typeQuery(data, t)),
     ),
-  search: (spec, args) =>
-    requireParam(args.q, "q").pipe(Effect.andThen((q) => search(spec, q))),
+  search: (data, args) =>
+    requireParam(args.q, "q").pipe(Effect.andThen((q) => search(data, q))),
 };
 
 const bridgeModes: Record<
   string,
-  (bridge: BridgeHandle, page: string) => Effect.Effect<unknown, QueryError>
+  (bridge: Bridge, page: string) => Effect.Effect<unknown, QueryError>
 > = {
   selection: (bridge, page) => selection(bridge, page),
   capture: (bridge, page) => capture(bridge, page),
 };
-
-// ── Helpers ───────────────────────────────────────────────────────
 
 const requireParam = (
   value: string | undefined,
@@ -61,14 +58,12 @@ const requireParam = (
 
 const requirePage = (page: string | undefined) => requireParam(page, "page");
 
-// ── Dispatch ──────────────────────────────────────────────────────
-
 export const dispatchQuery = (ctx: McpContext, args: QueryArgs) => {
-  const specHandler = specModes[args.what];
-  if (specHandler)
+  const dataHandler = dataModes[args.what];
+  if (dataHandler)
     return requirePage(args.page).pipe(
       Effect.andThen((page) => readSpecOrDraft(ctx.storage, page)),
-      Effect.andThen((spec) => specHandler(spec, args)),
+      Effect.andThen((data) => dataHandler(data, args)),
     );
 
   const bridgeHandler = bridgeModes[args.what];

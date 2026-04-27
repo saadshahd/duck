@@ -1,5 +1,5 @@
 import { Effect } from "effect";
-import type { Catalog } from "@json-render/core";
+import type { Config } from "@puckeditor/core";
 import { NotFound, QueryError } from "./errors.js";
 
 type ManifestArgs = {
@@ -7,46 +7,122 @@ type ManifestArgs = {
   readonly componentType?: string;
 };
 
-const components = (catalog: Catalog) =>
-  Effect.succeed({
-    components: catalog.componentNames.map((name) => {
-      const def = (catalog.data as any).components[name];
-      return {
-        name,
-        description: def.description ?? "",
-        slots: def.slots ?? [],
-        props: def.props.toJSONSchema(),
-      };
-    }),
-    actions: catalog.actionNames,
-  });
+type ComponentEntry = {
+  readonly name: string;
+  readonly label?: string;
+  readonly fields: Record<string, unknown>;
+  readonly defaultProps: Record<string, unknown>;
+  readonly slots: string[];
+};
 
-const component = (catalog: Catalog, componentType: string) => {
-  const def = (catalog.data as any).components[componentType];
-  if (!def)
-    return Effect.fail(
-      new NotFound({ entity: "component", key: componentType }),
-    );
+const componentDef = (
+  config: Config,
+  name: string,
+):
+  | {
+      label?: string;
+      fields?: Record<string, { type: string }>;
+      defaultProps?: Record<string, unknown>;
+    }
+  | undefined =>
+  (
+    config.components as Record<
+      string,
+      {
+        label?: string;
+        fields?: Record<string, { type: string }>;
+        defaultProps?: Record<string, unknown>;
+      }
+    >
+  )[name];
 
+const slotKeys = (
+  fields: Record<string, { type: string }> | undefined,
+): string[] =>
+  fields
+    ? Object.entries(fields)
+        .filter(([, f]) => f?.type === "slot")
+        .map(([k]) => k)
+    : [];
+
+const describeComponent = (
+  config: Config,
+  name: string,
+): ComponentEntry | null => {
+  const def = componentDef(config, name);
+  if (!def) return null;
+  return {
+    name,
+    label: def.label,
+    fields: (def.fields ?? {}) as Record<string, unknown>,
+    defaultProps: def.defaultProps ?? {},
+    slots: slotKeys(def.fields),
+  };
+};
+
+const components = (config: Config) => {
+  const names = Object.keys(config.components ?? {});
   return Effect.succeed({
-    name: componentType,
-    description: def.description ?? "",
-    slots: def.slots ?? [],
-    props: def.props.toJSONSchema(),
+    components: names
+      .map((name) => describeComponent(config, name))
+      .filter((c): c is ComponentEntry => c !== null),
   });
 };
 
-const iterationRules = [
-  "SPEC FORMAT: A Spec is { root: string, elements: Record<string, UIElement> } — a FLAT map. root is an element ID. Each UIElement is { type, props, children?: string[] } where children are IDs referencing other elements in the flat map.",
-  "BUILD ITERATIVELY: One logical section per apply call. Verify the outline between sections before building the next.",
-  "DISCOVER FIRST: Fetch the component list with full schemas, then query individual types as needed before using them.",
-  "ONE SECTION AT A TIME: Build hero, verify. Build services, verify. Build footer, verify. Never dump an entire page in one call.",
-];
+const component = (config: Config, name: string) => {
+  const entry = describeComponent(config, name);
+  if (!entry)
+    return Effect.fail(new NotFound({ entity: "component", key: name }));
+  return Effect.succeed(entry);
+};
 
-const prompt = (catalog: Catalog) =>
-  Effect.succeed({
-    prompt: catalog.prompt({ customRules: iterationRules, mode: "inline" }),
-  });
+const requiredOptional = (
+  fields: Record<string, { type: string }> | undefined,
+) => {
+  if (!fields) return { required: [], optional: [] };
+  const required: string[] = [];
+  const optional: string[] = [];
+  for (const [key, f] of Object.entries(fields)) {
+    if (f?.type === "slot") continue;
+    optional.push(key);
+  }
+  return { required, optional };
+};
+
+const promptText = (config: Config): string => {
+  const lines: string[] = [
+    "# Component catalog",
+    "",
+    "Compose pages with editor_apply ops: add / update / remove / move.",
+    "",
+    "Rules:",
+    "- Build one logical section per call. Verify the outline between sections before building the next.",
+    "- Discover fields with editor_manifest before adding a component type.",
+    '- Slots are field keys of type: "slot". Children live at component.props.<slotKey> as an array.',
+    "- Top-level placement: parentId=null, slotKey=null. Nested placement: parentId=<id>, slotKey=<slotName>.",
+    "",
+    "## Components",
+    "",
+  ];
+  const names = Object.keys(config.components ?? {});
+  for (const name of names) {
+    const def = componentDef(config, name);
+    if (!def) continue;
+    const slots = slotKeys(def.fields);
+    const { required, optional } = requiredOptional(def.fields);
+    lines.push(`### ${name}${def.label ? ` — ${def.label}` : ""}`);
+    if (slots.length > 0) lines.push(`Slots: ${slots.join(", ")}`);
+    if (required.length > 0)
+      lines.push(`Required props: ${required.join(", ")}`);
+    if (optional.length > 0)
+      lines.push(`Optional props: ${optional.join(", ")}`);
+    lines.push("");
+  }
+  return lines.join("\n");
+};
+
+const prompt = (config: Config) =>
+  Effect.succeed({ prompt: promptText(config) });
 
 const requireParam = (
   value: string | undefined,
@@ -59,21 +135,21 @@ const requireParam = (
       );
 
 type Handler = (
-  catalog: Catalog,
+  config: Config,
   args: ManifestArgs,
 ) => Effect.Effect<unknown, NotFound | QueryError>;
 
 const modes: Record<string, Handler> = {
-  components: (catalog) => components(catalog),
-  component: (catalog, args) =>
+  components: (config) => components(config),
+  component: (config, args) =>
     requireParam(args.componentType, "componentType").pipe(
-      Effect.andThen((t) => component(catalog, t)),
+      Effect.andThen((t) => component(config, t)),
     ),
-  prompt: (catalog) => prompt(catalog),
+  prompt: (config) => prompt(config),
 };
 
 export const dispatchManifest = (
-  catalog: Catalog,
+  config: Config,
   args: ManifestArgs,
 ): Effect.Effect<unknown, NotFound | QueryError> =>
   (
@@ -82,4 +158,4 @@ export const dispatchManifest = (
       Effect.fail(
         new QueryError({ message: `Unknown manifest mode: ${args.what}` }),
       ))
-  )(catalog, args);
+  )(config, args);

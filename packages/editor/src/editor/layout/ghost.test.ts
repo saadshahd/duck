@@ -1,61 +1,43 @@
 import { describe, it, expect } from "bun:test";
-import type { Spec } from "@json-render/core";
+import type { ComponentData, Data } from "@puckeditor/core";
 import { ghostCandidateIds } from "./ghost.js";
 
-const spec = (elements: Spec["elements"]): Spec => ({
-  root: "page",
-  elements,
+const data = (content: ComponentData[]): Data => ({
+  root: { props: {} },
+  content,
+});
+
+const box = (id: string, items: ComponentData[]): ComponentData => ({
+  type: "Box",
+  props: { id, items },
+});
+
+const text = (id: string): ComponentData => ({
+  type: "Text",
+  props: { id, text: "hi" },
 });
 
 describe("ghostCandidateIds", () => {
-  it("returns elements with empty children array", () => {
-    const result = ghostCandidateIds(
-      spec({
-        page: { type: "Box", props: {}, children: ["a"] },
-        a: { type: "Box", props: {}, children: [] },
-      }),
-    );
-    expect(result).toEqual(["a"]);
+  it("returns components with empty slots", () => {
+    expect(ghostCandidateIds(data([box("a", [])]))).toEqual(["a"]);
   });
 
-  it("excludes elements with children", () => {
-    const result = ghostCandidateIds(
-      spec({
-        page: { type: "Box", props: {}, children: ["a"] },
-        a: { type: "Box", props: {}, children: ["b"] },
-        b: { type: "Text", props: { text: "hi" } },
-      }),
-    );
-    expect(result).toEqual([]);
+  it("excludes components with non-empty slot", () => {
+    expect(ghostCandidateIds(data([box("a", [text("b")])]))).toEqual([]);
   });
 
-  it("excludes elements without children property", () => {
-    const result = ghostCandidateIds(
-      spec({
-        page: { type: "Box", props: {}, children: ["a"] },
-        a: { type: "Text", props: { text: "hi" } },
-      }),
-    );
-    expect(result).toEqual([]);
+  it("excludes components with no slots", () => {
+    expect(ghostCandidateIds(data([text("a")]))).toEqual([]);
   });
 
   it("returns multiple ghosts", () => {
-    const result = ghostCandidateIds(
-      spec({
-        page: { type: "Box", props: {}, children: ["a", "b"] },
-        a: { type: "Box", props: {}, children: [] },
-        b: { type: "Box", props: {}, children: [] },
-      }),
-    );
-    expect(result).toEqual(["a", "b"]);
+    expect(ghostCandidateIds(data([box("a", []), box("b", [])]))).toEqual([
+      "a",
+      "b",
+    ]);
   });
 
-  it("returns empty for spec with no ghost candidates", () => {
-    const result = ghostCandidateIds(
-      spec({
-        page: { type: "Text", props: { text: "hi" } },
-      }),
-    );
-    expect(result).toEqual([]);
+  it("returns empty when no candidates", () => {
+    expect(ghostCandidateIds(data([text("a")]))).toEqual([]);
   });
 });

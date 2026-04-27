@@ -1,13 +1,6 @@
 import { useMemo, useRef, useState } from "react";
-import type { Spec } from "@json-render/core";
-import type { ZodTypeAny } from "zod";
-import {
-  Renderer,
-  StateProvider,
-  VisibilityProvider,
-  ActionProvider,
-} from "@json-render/react";
-import type { ComponentRegistry } from "@json-render/react";
+import type { Data, Config } from "@puckeditor/core";
+import { buildIndex } from "@json-render-editor/spec";
 import { useMachine } from "@xstate/react";
 import { editorMachine } from "./machine/index.js";
 import {
@@ -32,32 +25,29 @@ import { useContextMenu, ContextMenu } from "./context-menu/index.js";
 import { useClipboard } from "./clipboard/index.js";
 import { CatalogPicker, useInsert } from "./insert/index.js";
 import { useBridge } from "./bridge/use-bridge.js";
+import { RenderHost } from "./duck-render/index.js";
 import { ConnectionDot } from "./bridge/connection-dot.js";
 import { ReconnectPrompt } from "./bridge/reconnect-prompt.js";
-import type { ComponentCatalog, SpecPush } from "./types.js";
+import type { DataPush } from "./types.js";
 
 type BridgeConfig = { url: string; page: string };
 
 type EditorShellProps = {
-  spec: Spec;
-  registry: ComponentRegistry;
-  onSpecChange?: (spec: Spec) => void;
-  getPropSchema?: (componentType: string) => ZodTypeAny | undefined;
-  componentCatalog?: ComponentCatalog;
+  data: Data;
+  config: Config;
+  onDataChange?: (data: Data) => void;
   bridge?: BridgeConfig;
 };
 
 export function EditorShell({
-  spec,
-  registry,
-  onSpecChange,
-  getPropSchema,
-  componentCatalog,
+  data,
+  config,
+  onDataChange,
   bridge,
 }: EditorShellProps) {
   const [bridgeUrl, setBridgeUrl] = useState(bridge?.url ?? null);
   const {
-    currentSpec,
+    currentData,
     push,
     send: historySend,
     entries,
@@ -65,41 +55,40 @@ export function EditorShell({
     visibilityState,
     onMouseEnter: timelineMouseEnter,
     onMouseLeave: timelineMouseLeave,
-  } = useHistory(spec, onSpecChange);
+  } = useHistory(data, onDataChange);
   const [state, send] = useMachine(editorMachine);
 
-  const elementIds = useMemo(
-    () => new Set(Object.keys(currentSpec.elements)),
-    [currentSpec],
-  );
+  const index = useMemo(() => buildIndex(currentData), [currentData]);
+  const elementIds = useMemo(() => new Set(index.keys()), [index]);
   const { registry: fiberRegistry, containerRef } = useFiberRegistry(
     elementIds,
-    currentSpec,
+    currentData,
   );
 
   useEditorSelection(fiberRegistry, send);
   const { dropTarget } = useDragReorder({
     registry: fiberRegistry,
-    spec: currentSpec,
+    data: currentData,
+    index,
     state,
     send,
     push,
   });
   const popover = usePropEditor({
     registry: fiberRegistry,
-    spec: currentSpec,
+    data: currentData,
+    config,
     state,
     send,
     push,
-    getPropSchema,
   });
 
   const { selectedIds, lastSelectedId } = state.context;
   const singleSelected = selectedIds.size === 1 ? lastSelectedId : null;
 
-  const moveInfo = useMoveInfo(currentSpec, singleSelected, fiberRegistry);
+  const moveInfo = useMoveInfo(currentData, singleSelected, fiberRegistry);
   const handleAction = useActionHandler({
-    spec: currentSpec,
+    data: currentData,
     state,
     send,
     push,
@@ -113,8 +102,8 @@ export function EditorShell({
   const { hoveredId } = state.context;
 
   const clipboard = useClipboard({
-    spec: currentSpec,
-    selectedIds,
+    data: currentData,
+    config,
     lastSelectedId,
     push,
     onSelect: (ids) =>
@@ -127,9 +116,9 @@ export function EditorShell({
   });
 
   const { onInsert } = useInsert({
-    spec: currentSpec,
+    data: currentData,
+    config,
     lastSelectedId,
-    catalog: componentCatalog ?? {},
     send,
     push,
   });
@@ -137,15 +126,15 @@ export function EditorShell({
   useKeyboard({
     machine: send,
     history: historySend,
-    nav: { spec: currentSpec, lastSelectedId, pointer },
+    nav: { data: currentData, lastSelectedId, pointer },
     clipboard,
     onDelete: () => handleAction({ tag: "delete" }),
   });
 
-  const selectParent = createSelectParent(currentSpec, lastSelectedId, send);
+  const selectParent = createSelectParent(currentData, lastSelectedId, send);
   const toolbarRef = useRef<HTMLElement | null>(null);
 
-  useGhostPlaceholders(currentSpec, fiberRegistry);
+  useGhostPlaceholders(currentData, fiberRegistry);
   const {
     menu,
     close: closeMenu,
@@ -177,14 +166,10 @@ export function EditorShell({
     hasSelection && pointer === "selected" && singleSelected;
 
   return (
-    <StateProvider initialState={{}}>
-      <VisibilityProvider>
-        <ActionProvider handlers={{}}>
-          <div ref={containerRef} style={{ display: "contents" }}>
-            <Renderer spec={currentSpec} registry={registry} />
-          </div>
-        </ActionProvider>
-      </VisibilityProvider>
+    <>
+      <div ref={containerRef} style={{ display: "contents" }}>
+        <RenderHost config={config} data={currentData} />
+      </div>
 
       <style>{`
         body { user-select: none; }
@@ -196,7 +181,7 @@ export function EditorShell({
           <HoverHighlight
             registry={fiberRegistry}
             elementId={highlightId}
-            elementType={currentSpec.elements[highlightId]?.type}
+            elementType={index.get(highlightId)?.component.type}
           />
         )}
         {hasSelection && (
@@ -208,7 +193,7 @@ export function EditorShell({
               <SelectionLabel
                 registry={fiberRegistry}
                 elementId={lastSelectedId}
-                elementType={currentSpec.elements[lastSelectedId]?.type}
+                elementType={index.get(lastSelectedId)?.component.type}
                 selectionCount={selectedIds.size}
                 toolbarRef={toolbarRef}
                 onSelectParent={selectParent}
@@ -233,7 +218,7 @@ export function EditorShell({
                 axis={moveInfo.axis}
                 canMovePrev={moveInfo.canMovePrev}
                 canMoveNext={moveInfo.canMoveNext}
-                canInsert={!!componentCatalog}
+                canInsert
                 onAction={handleAction}
                 toolbarRef={toolbarRef}
               />
@@ -241,13 +226,12 @@ export function EditorShell({
             {pointer === "editing" && singleSelected && popover}
             {pointer === "inserting" &&
               singleSelected &&
-              componentCatalog &&
               fiberRegistry &&
               lastSelectedId && (
                 <CatalogPicker
                   registry={fiberRegistry}
                   elementId={lastSelectedId}
-                  catalog={componentCatalog}
+                  config={config}
                   onInsert={onInsert}
                   onClose={() => send({ type: "ESCAPE" })}
                 />
@@ -259,7 +243,7 @@ export function EditorShell({
             <DropIndicator registry={fiberRegistry} target={dropTarget} />
             <DropZoneLabel
               registry={fiberRegistry}
-              spec={currentSpec}
+              data={currentData}
               target={dropTarget}
             />
           </>
@@ -269,7 +253,7 @@ export function EditorShell({
             x={menu.x}
             y={menu.y}
             elementIds={menu.elementIds}
-            spec={currentSpec}
+            data={currentData}
             lastSelectedId={lastSelectedId}
             send={send}
             clipboard={clipboard}
@@ -293,13 +277,13 @@ export function EditorShell({
             url={bridgeUrl}
             page={bridge.page}
             selectedId={lastSelectedId}
-            currentSpec={currentSpec}
+            currentData={currentData}
             push={push}
             onReconnect={setBridgeUrl}
           />
         )}
       </OverlayRoot>
-    </StateProvider>
+    </>
   );
 }
 
@@ -307,18 +291,18 @@ function BridgeConnector({
   url,
   page,
   selectedId,
-  currentSpec,
+  currentData,
   push,
   onReconnect,
 }: {
   url: string;
   page: string;
   selectedId: string | null;
-  currentSpec: Spec;
-  push: SpecPush;
+  currentData: Data;
+  push: DataPush;
   onReconnect: (url: string) => void;
 }) {
-  const { status } = useBridge({ url, page, selectedId, currentSpec, push });
+  const { status } = useBridge({ url, page, selectedId, currentData, push });
 
   return (
     <>

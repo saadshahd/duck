@@ -1,7 +1,7 @@
 import { Effect } from "effect";
-import type { BridgeHandle } from "../protocol.js";
+import type { Bridge } from "../bridge/index.js";
 
-export const selection = (bridge: BridgeHandle, page: string) => {
+export const selection = (bridge: Bridge, page: string) => {
   const data = bridge.lastSelection(page);
   return Effect.succeed(
     data

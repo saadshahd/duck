@@ -1,4 +1,4 @@
-export { type Axis, detectAxis, resolveParentAxis } from "./axis.js";
+export { type Axis, detectAxis, resolveSlotAxis } from "./axis.js";
 export { ghostCandidateIds } from "./ghost.js";
 export {
   type Edges,

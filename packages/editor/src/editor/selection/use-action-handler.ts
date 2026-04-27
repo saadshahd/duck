@@ -1,16 +1,12 @@
 import { useCallback } from "react";
-import type { Spec } from "@json-render/core";
+import type { Data } from "@puckeditor/core";
+import { findById, findParent, nearestSibling } from "@json-render-editor/spec";
+import { ok, type Result } from "neverthrow";
 import type { EditorEvent, EditorSnapshot } from "../machine/index.js";
 import type { Axis } from "../layout/index.js";
-import {
-  findParent,
-  reorderChild,
-  deleteElement,
-  deleteElements,
-  nearestSibling,
-} from "../spec-ops/index.js";
+import { move, remove, type SpecOpsError } from "../spec-ops/index.js";
 import { animatedUpdate } from "../animated-update.js";
-import type { SpecPush } from "../types.js";
+import type { DataPush } from "../types.js";
 import type { EditorAction } from "./action-bar.js";
 
 const MOVE_LABELS: Record<Axis, { prev: string; next: string }> = {
@@ -18,17 +14,26 @@ const MOVE_LABELS: Record<Axis, { prev: string; next: string }> = {
   horizontal: { prev: "left", next: "right" },
 };
 
+const removeMany = (
+  data: Data,
+  ids: readonly string[],
+): Result<Data, SpecOpsError> =>
+  ids.reduce<Result<Data, SpecOpsError>>(
+    (acc, id) => acc.andThen((d) => remove(d, id)),
+    ok(data),
+  );
+
 export function useActionHandler({
-  spec,
+  data,
   state,
   send,
   push,
   axis,
 }: {
-  spec: Spec;
+  data: Data;
   state: EditorSnapshot;
   send: (event: EditorEvent) => void;
-  push: SpecPush;
+  push: DataPush;
   axis: Axis;
 }): (action: EditorAction) => void {
   return useCallback(
@@ -36,7 +41,7 @@ export function useActionHandler({
       const { selectedIds, lastSelectedId } = state.context;
       if (selectedIds.size === 0 || !lastSelectedId) return;
 
-      const type = spec.elements[lastSelectedId]?.type ?? "element";
+      const type = findById(data, lastSelectedId)?.type ?? "element";
       const labels = MOVE_LABELS[axis];
 
       switch (action.tag) {
@@ -47,63 +52,53 @@ export function useActionHandler({
           send({ type: "OPEN_POPOVER" });
           break;
         case "move-up":
+        case "move-down": {
           if (selectedIds.size > 1) return;
-          findParent(spec, lastSelectedId)
-            .andThen(({ parentId, childIndex }) =>
-              reorderChild(spec, parentId, childIndex, childIndex - 1),
-            )
-            .map((next) =>
-              animatedUpdate(
-                (s) =>
-                  push(
-                    s,
-                    `Moved ${type} ${labels.prev}`,
-                    `move:${lastSelectedId}`,
-                  ),
-                next,
-              ),
-            );
+          const parent = findParent(data, lastSelectedId);
+          if (!parent) return;
+          const direction = action.tag === "move-up" ? -1 : 1;
+          const label = action.tag === "move-up" ? labels.prev : labels.next;
+          move(
+            data,
+            lastSelectedId,
+            parent.parentId,
+            parent.slotKey,
+            parent.index + direction,
+          ).map((next) =>
+            animatedUpdate(
+              (d) =>
+                push(d, `Moved ${type} ${label}`, `move:${lastSelectedId}`),
+              next,
+            ),
+          );
           break;
-        case "move-down":
-          if (selectedIds.size > 1) return;
-          findParent(spec, lastSelectedId)
-            .andThen(({ parentId, childIndex }) =>
-              reorderChild(spec, parentId, childIndex, childIndex + 1),
-            )
-            .map((next) =>
-              animatedUpdate(
-                (s) =>
-                  push(
-                    s,
-                    `Moved ${type} ${labels.next}`,
-                    `move:${lastSelectedId}`,
-                  ),
-                next,
-              ),
-            );
-          break;
-        case "delete":
-          if (selectedIds.size > 1) {
-            deleteElements(spec, selectedIds).map(({ spec: next }) => {
-              push(next, `Deleted ${selectedIds.size} elements`);
+        }
+        case "delete": {
+          const ids = [...selectedIds];
+          const parentBefore = findParent(data, lastSelectedId);
+          removeMany(data, ids).map((next) => {
+            if (ids.length > 1) {
+              push(next, `Deleted ${ids.length} elements`);
               send({ type: "DESELECT" });
-            });
-          } else {
-            deleteElement(spec, lastSelectedId).map(
-              ({ spec: next, parentId }) => {
-                push(next, `Deleted ${type}`);
-                send({
-                  type: "SELECT",
-                  elementId: nearestSibling(spec, parentId, lastSelectedId),
-                });
-              },
-            );
-          }
+            } else {
+              push(next, `Deleted ${type}`);
+              send({
+                type: "SELECT",
+                elementId: nearestSibling(
+                  data,
+                  parentBefore?.parentId ?? null,
+                  parentBefore?.slotKey ?? null,
+                  lastSelectedId,
+                ),
+              });
+            }
+          });
           break;
+        }
       }
     },
     [
-      spec,
+      data,
       state.context.selectedIds,
       state.context.lastSelectedId,
       push,

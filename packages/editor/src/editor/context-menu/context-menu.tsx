@@ -1,6 +1,7 @@
 import { useEffect } from "react";
 import { useFloating, flip, shift } from "@floating-ui/react";
-import type { Spec } from "@json-render/core";
+import type { Data } from "@puckeditor/core";
+import { findById } from "@json-render-editor/spec";
 import { useShadowSheet, useOnClickOutside } from "../overlay/index.js";
 import type { EditorEvent } from "../machine/index.js";
 import type { ClipboardActions } from "../clipboard/index.js";
@@ -10,7 +11,7 @@ import css from "./context-menu.css?inline";
 const MIDDLEWARE = [flip(), shift({ padding: 8 })];
 
 const isMac = navigator.platform.startsWith("Mac");
-const MOD = isMac ? "\u2318" : "Ctrl+";
+const MOD = isMac ? "⌘" : "Ctrl+";
 
 const CLIPBOARD_ITEMS: {
   label: string;
@@ -48,7 +49,7 @@ type ContextMenuProps = {
   x: number;
   y: number;
   elementIds: string[];
-  spec: Spec;
+  data: Data;
   lastSelectedId: string | null;
   send: (event: EditorEvent) => void;
   clipboard: ClipboardActions;
@@ -60,7 +61,7 @@ export function ContextMenu({
   x,
   y,
   elementIds,
-  spec,
+  data,
   lastSelectedId,
   send,
   clipboard,
@@ -123,8 +124,8 @@ export function ContextMenu({
       onClick={(e) => e.stopPropagation()}
     >
       {elementIds.map((id, i) => {
-        const element = spec.elements[id];
-        if (!element) return null;
+        const component = findById(data, id);
+        if (!component) return null;
         return (
           <div
             key={id}
@@ -139,7 +140,7 @@ export function ContextMenu({
             }}
             onClick={() => select(i)}
           >
-            <span className="context-menu-item-type">{element.type}</span>
+            <span className="context-menu-item-type">{component.type}</span>
             <span className="context-menu-item-id">{id}</span>
           </div>
         );

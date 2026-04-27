@@ -1,33 +1,31 @@
 import { useFloating, offset, shift, autoUpdate } from "@floating-ui/react";
-import type { Spec } from "@json-render/core";
+import type { Data } from "@puckeditor/core";
+import { findById, findParent } from "@json-render-editor/spec";
 import { useShadowSheet, useRegistryAnchor } from "../overlay/index.js";
 import type { FiberRegistry } from "../fiber/index.js";
-import { findParent } from "../spec-ops/index.js";
 import type { DropTarget } from "./drop-indicator.js";
 import css from "./drag.css?inline";
 
 export function resolveContainerId(
-  spec: Spec,
+  data: Data,
   target: DropTarget,
 ): string | null {
   if (target.kind === "container") return target.elementId;
-  return findParent(spec, target.elementId)
-    .map(({ parentId }) => parentId)
-    .unwrapOr(null);
+  return findParent(data, target.elementId)?.parentId ?? null;
 }
 
 type DropZoneLabelProps = {
   registry: FiberRegistry;
-  spec: Spec;
+  data: Data;
   target: DropTarget;
 };
 
-export function DropZoneLabel({ registry, spec, target }: DropZoneLabelProps) {
+export function DropZoneLabel({ registry, data, target }: DropZoneLabelProps) {
   useShadowSheet(css);
 
-  const containerId = resolveContainerId(spec, target);
+  const containerId = resolveContainerId(data, target);
   const containerType = containerId
-    ? spec.elements[containerId]?.type
+    ? (findById(data, containerId)?.type ?? undefined)
     : undefined;
 
   const { refs, floatingStyles } = useFloating({

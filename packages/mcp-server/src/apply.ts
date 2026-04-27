@@ -1,96 +1,103 @@
 import { Effect } from "effect";
-import {
-  applySpecPatch,
-  deepMergeSpec,
-  validateSpec,
-  autoFixSpec,
-  type Spec,
-} from "@json-render/core";
+import type { Data } from "@puckeditor/core";
+import { outlineTree, preOrder } from "@json-render-editor/spec";
 import type { McpContext } from "./protocol.js";
-import { PatchError } from "./errors.js";
+import type { InvalidPageName, NotFound, StorageError } from "./errors.js";
+import { applyOp, type Op, type OpError } from "./ops.js";
 import { readSpecOrDraft } from "./query/read-spec-or-draft.js";
 
-type PatchOp = {
-  readonly op: "add" | "remove" | "replace" | "move" | "copy" | "test";
-  readonly path: string;
-  readonly value?: unknown;
-  readonly from?: string;
-};
-
-type ApplyArgs = {
+export type ApplyArgs = {
   readonly page: string;
-  readonly patches?: readonly PatchOp[];
-  readonly spec?: Record<string, unknown>;
+  readonly ops: readonly Op[];
 };
 
-const emptySpec: Spec = { root: "", elements: {} };
+export type ProgressNotice = {
+  readonly value: number;
+  readonly total?: number;
+  readonly message?: string;
+};
+
+type OpFailure = {
+  readonly tag: OpError["tag"];
+  readonly details: Record<string, unknown>;
+};
+
+type ApplyResult =
+  | {
+      readonly ok: true;
+      readonly summary: {
+        readonly total: number;
+        readonly topLevel: number;
+        readonly types: Record<string, number>;
+      };
+      readonly outline: ReturnType<typeof outlineTree>;
+    }
+  | {
+      readonly ok: false;
+      readonly failedOpIndex: number;
+      readonly error: OpFailure;
+    };
+
+const emptyData: Data = { root: { props: {} }, content: [] };
 
 const readOrCreate = (ctx: McpContext, page: string) =>
   readSpecOrDraft(ctx.storage, page).pipe(
     Effect.catchTag("NotFound", () =>
-      ctx.storage.writeSpec(page, emptySpec).pipe(Effect.map(() => emptySpec)),
+      ctx.storage.writeSpec(page, emptyData).pipe(Effect.map(() => emptyData)),
     ),
   );
 
-const mergeSpec = (base: Spec, partial: Record<string, unknown>) =>
-  Effect.try({
-    try: () => deepMergeSpec(base as Record<string, unknown>, partial) as Spec,
-    catch: (err) =>
-      new PatchError({
-        message: err instanceof Error ? err.message : String(err),
-      }),
-  });
-
-const patchSpec = (base: Spec, patches: readonly PatchOp[]) => {
-  const clone = structuredClone(base);
-  return applySequentially(clone, patches).pipe(Effect.map(() => clone));
+const summarize = (data: Data) => {
+  const types: Record<string, number> = {};
+  let total = 0;
+  for (const { component } of preOrder(data)) {
+    types[component.type] = (types[component.type] ?? 0) + 1;
+    total++;
+  }
+  return { total, topLevel: data.content.length, types };
 };
 
-/** What the agent needs to orient after an apply: what's on the page now. */
-const summarize = (spec: Spec) => {
-  const root = spec.elements[spec.root];
-  const sections = (root?.children ?? [])
-    .map((id) => spec.elements[id]?.type)
-    .filter(Boolean);
-
-  return { total: Object.keys(spec.elements).length, sections };
-};
-
-export const applyPatches = (ctx: McpContext, args: ApplyArgs) =>
+export const applyOps = (
+  ctx: McpContext,
+  args: ApplyArgs,
+  notifyProgress: (n: ProgressNotice) => void,
+): Effect.Effect<ApplyResult, NotFound | StorageError | InvalidPageName> =>
   Effect.gen(function* () {
     const base = yield* readOrCreate(ctx, args.page);
+    let current: Data = base;
+    const total = args.ops.length;
 
-    const spec = yield* args.spec
-      ? mergeSpec(base, args.spec)
-      : patchSpec(base, args.patches ?? []);
-
-    const { valid, issues } = validateSpec(spec);
-    const warnings = issues.map((i) => i.message);
-    const { spec: final, fixes } = valid
-      ? { spec, fixes: [] }
-      : autoFixSpec(spec);
-
-    yield* ctx.storage.writeDraft(args.page, final);
-    ctx.bridge.broadcast(args.page, final);
+    for (let i = 0; i < total; i++) {
+      const op = args.ops[i]!;
+      const result = yield* applyOp(current, op, ctx.config).pipe(
+        Effect.either,
+      );
+      if (result._tag === "Left") {
+        const err = result.left;
+        notifyProgress({
+          value: i,
+          total,
+          message: `op ${i} failed: ${err.tag}`,
+        });
+        return {
+          ok: false,
+          failedOpIndex: i,
+          error: { tag: err.tag, details: err.details },
+        } as const;
+      }
+      current = result.right;
+      yield* ctx.storage.writeDraft(args.page, current);
+      ctx.bridge.broadcast(args.page, current);
+      notifyProgress({
+        value: i + 1,
+        total,
+        message: `op ${i} ok`,
+      });
+    }
 
     return {
-      applied: true,
-      mode: args.spec ? "merge" : "patch",
-      livePreview: true,
-      summary: summarize(final),
-      ...(warnings.length > 0 ? { warnings } : {}),
-      ...(fixes.length > 0 ? { fixes } : {}),
-    };
+      ok: true,
+      summary: summarize(current),
+      outline: outlineTree(current, 2),
+    } as const;
   });
-
-const applySequentially = (spec: Spec, patches: readonly PatchOp[]) =>
-  Effect.forEach(patches, (patch, i) =>
-    Effect.try({
-      try: () => applySpecPatch(spec, patch),
-      catch: (err) =>
-        new PatchError({
-          message: err instanceof Error ? err.message : String(err),
-          failedOpIndex: i,
-        }),
-    }),
-  );

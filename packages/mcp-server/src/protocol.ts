@@ -1,36 +1,25 @@
-export type {
-  BrowserMessage,
-  ServerMessage,
-  CaptureMode,
-  SelectionData,
-  CaptureResult,
-} from "@json-render-editor/spec";
-
-import type { Spec, Catalog } from "@json-render/core";
+import type { Config, Data } from "@puckeditor/core";
 import type { Storage } from "./storage.js";
-import type {
-  CaptureMode,
-  CaptureResult,
-  SelectionData,
-} from "@json-render-editor/spec";
-
-// ── Bridge handle ──────────────────────────────────────────────────
-
-export type BridgeHandle = {
-  start(): Promise<{ port: number }>;
-  stop(): void;
-  readonly port: number;
-  broadcast(page: string, spec: Spec): void;
-  lastSelection(page: string): SelectionData | null;
-  capture(page: string, mode: CaptureMode): Promise<CaptureResult>;
-  viewers(): Record<string, number>;
-  hasViewers(page: string): boolean;
-};
-
-// ── MCP context (runtime deps for tool handlers) ───────────────────
+import type { Bridge } from "./bridge/index.js";
 
 export type McpContext = {
   readonly storage: Storage;
-  readonly catalog: Catalog;
-  readonly bridge: BridgeHandle;
+  readonly config: Config;
+  readonly bridge: Bridge;
 };
+
+export type {
+  BrowserMessage,
+  CaptureMode,
+  SelectionData,
+  CaptureResult,
+} from "@json-render-editor/spec";
+
+import type { CaptureMode } from "@json-render-editor/spec";
+
+/** Bridge server → browser. Mirrors the @json-render-editor/spec contract:
+ *  spec-update carries Puck Data under `data`. Defined locally until the
+ *  spec package's bridge-protocol.ts is migrated. */
+export type ServerMessage =
+  | { type: "spec-update"; data: Data }
+  | ({ type: "capture-request"; id: string } & CaptureMode);

@@ -3,26 +3,15 @@ import * as fs from "node:fs/promises";
 import * as path from "node:path";
 import * as os from "node:os";
 import { Effect } from "effect";
-import type { Spec } from "@json-render/core";
+import type { Data } from "@puckeditor/core";
 import { createFileStorage } from "./file-storage.js";
-import type { Storage } from "./storage.js";
 
-const makeSpec = (elementCount = 2): Spec => ({
-  root: "root",
-  elements: Object.fromEntries([
-    [
-      "root",
-      {
-        type: "Box",
-        props: {},
-        children: Array.from({ length: elementCount - 1 }, (_, i) => `el-${i}`),
-      },
-    ],
-    ...Array.from({ length: elementCount - 1 }, (_, i) => [
-      `el-${i}`,
-      { type: "Text", props: { text: `Item ${i}` } },
-    ]),
-  ]),
+const makeData = (componentCount = 2): Data => ({
+  root: { props: {} },
+  content: Array.from({ length: componentCount }, (_, i) => ({
+    type: "Text",
+    props: { id: `el-${i}`, text: `Item ${i}` },
+  })),
 });
 
 const expectFailTag = async <E extends { readonly _tag: string }>(
@@ -42,16 +31,16 @@ const setup = async () => {
 };
 
 describe("FileStorage", () => {
-  it("writes and reads back a spec", async () => {
+  it("writes and reads back data", async () => {
     const { storage, teardown } = await setup();
     try {
-      const spec = makeSpec(5);
+      const data = makeData(5);
       const result = await Effect.runPromise(
         storage
-          .writeSpec("landing", spec)
+          .writeSpec("landing", data)
           .pipe(Effect.flatMap(() => storage.readSpec("landing"))),
       );
-      expect(result).toEqual(spec);
+      expect(result).toEqual(data);
     } finally {
       await teardown();
     }
@@ -60,8 +49,8 @@ describe("FileStorage", () => {
   it("draft lifecycle: write → read → commit → verify → gone", async () => {
     const { storage, teardown } = await setup();
     try {
-      const original = makeSpec(2);
-      const draft = makeSpec(4);
+      const original = makeData(2);
+      const draft = makeData(4);
 
       await Effect.runPromise(storage.writeSpec("landing", original));
       await Effect.runPromise(storage.writeDraft("landing", draft));
@@ -74,10 +63,8 @@ describe("FileStorage", () => {
       const committed = await Effect.runPromise(storage.readSpec("landing"));
       expect(committed).toEqual(draft);
 
-      const draftAfterCommit = await Effect.runPromise(
-        storage.readDraft("landing"),
-      );
-      expect(draftAfterCommit).toBeNull();
+      const after = await Effect.runPromise(storage.readDraft("landing"));
+      expect(after).toBeNull();
     } finally {
       await teardown();
     }
@@ -86,8 +73,8 @@ describe("FileStorage", () => {
   it("discard: write draft → discard → gone", async () => {
     const { storage, teardown } = await setup();
     try {
-      await Effect.runPromise(storage.writeSpec("landing", makeSpec()));
-      await Effect.runPromise(storage.writeDraft("landing", makeSpec(3)));
+      await Effect.runPromise(storage.writeSpec("landing", makeData()));
+      await Effect.runPromise(storage.writeDraft("landing", makeData(3)));
       await Effect.runPromise(storage.discardDraft("landing"));
 
       const result = await Effect.runPromise(storage.readDraft("landing"));
@@ -100,7 +87,7 @@ describe("FileStorage", () => {
   it("discard non-existent draft succeeds", async () => {
     const { storage, teardown } = await setup();
     try {
-      await Effect.runPromise(storage.writeSpec("landing", makeSpec()));
+      await Effect.runPromise(storage.writeSpec("landing", makeData()));
       await Effect.runPromise(storage.discardDraft("landing"));
     } finally {
       await teardown();
@@ -110,7 +97,7 @@ describe("FileStorage", () => {
   it("commit without draft fails with NotFound", async () => {
     const { storage, teardown } = await setup();
     try {
-      await Effect.runPromise(storage.writeSpec("landing", makeSpec()));
+      await Effect.runPromise(storage.writeSpec("landing", makeData()));
       const err = await expectFailTag(
         storage.commitDraft("landing"),
         "NotFound",
@@ -124,18 +111,18 @@ describe("FileStorage", () => {
   it("list pages returns correct info", async () => {
     const { storage, teardown } = await setup();
     try {
-      await Effect.runPromise(storage.writeSpec("landing", makeSpec(3)));
-      await Effect.runPromise(storage.writeSpec("about", makeSpec(5)));
-      await Effect.runPromise(storage.writeSpec("contact", makeSpec(2)));
-      await Effect.runPromise(storage.writeDraft("about", makeSpec(6)));
+      await Effect.runPromise(storage.writeSpec("landing", makeData(3)));
+      await Effect.runPromise(storage.writeSpec("about", makeData(5)));
+      await Effect.runPromise(storage.writeSpec("contact", makeData(2)));
+      await Effect.runPromise(storage.writeDraft("about", makeData(6)));
 
       const pages = await Effect.runPromise(storage.listPages());
       const sorted = pages.sort((a, b) => a.name.localeCompare(b.name));
 
       expect(sorted).toEqual([
-        { name: "about", elementCount: 5, hasDraft: true },
-        { name: "contact", elementCount: 2, hasDraft: false },
-        { name: "landing", elementCount: 3, hasDraft: false },
+        { name: "about", componentCount: 5, hasDraft: true },
+        { name: "contact", componentCount: 2, hasDraft: false },
+        { name: "landing", componentCount: 3, hasDraft: false },
       ]);
     } finally {
       await teardown();
@@ -189,14 +176,14 @@ describe("FileStorage", () => {
     }
   });
 
-  it("atomic write preserves integrity for large specs", async () => {
+  it("atomic write preserves integrity for large data", async () => {
     const { storage, teardown } = await setup();
     try {
-      const largeSpec = makeSpec(200);
-      await Effect.runPromise(storage.writeSpec("big", largeSpec));
+      const big = makeData(200);
+      await Effect.runPromise(storage.writeSpec("big", big));
       const result = await Effect.runPromise(storage.readSpec("big"));
-      expect(result).toEqual(largeSpec);
-      expect(Object.keys(result.elements)).toHaveLength(200);
+      expect(result).toEqual(big);
+      expect(result.content).toHaveLength(200);
     } finally {
       await teardown();
     }

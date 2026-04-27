@@ -1,26 +1,33 @@
 import { describe, test, expect } from "bun:test";
-import type { Spec } from "@json-render/core";
+import type { ComponentData, Data } from "@puckeditor/core";
 import type { FiberRegistry } from "../fiber/index.js";
 import { resolveIndicator } from "./resolve-indicator.js";
 import type { DragData } from "./helpers.js";
 
 // --- Factories ---
 
-const spec = (): Spec => ({
-  root: "page",
-  elements: {
-    page: { type: "Box", props: {}, children: ["a", "b", "c"] },
-    a: { type: "Text", props: { text: "A" } },
-    b: { type: "Text", props: { text: "B" } },
-    c: { type: "Text", props: { text: "C" } },
-    box: { type: "Box", props: {}, children: ["d", "e"] },
-    d: { type: "Text", props: { text: "D" } },
-    e: { type: "Text", props: { text: "E" } },
-  },
+const text = (id: string): ComponentData => ({
+  type: "Text",
+  props: { id, text: id },
 });
 
-const bag = (data: DragData) => ({
-  data: data as Record<string | symbol, unknown>,
+const box = (id: string, items: ComponentData[]): ComponentData => ({
+  type: "Box",
+  props: { id, items },
+});
+
+const data = (): Data => ({
+  root: { props: {} },
+  content: [
+    text("a"),
+    text("b"),
+    text("c"),
+    box("box", [text("d"), text("e")]),
+  ],
+});
+
+const bag = (d: DragData) => ({
+  data: d as unknown as Record<string | symbol, unknown>,
 });
 
 const stubRegistry = (rects: Record<string, DOMRect>): FiberRegistry => ({
@@ -40,53 +47,58 @@ describe("resolveIndicator", () => {
   test("returns null when target is undefined", () => {
     const source = bag({
       elementId: "a",
-      parentId: "page",
+      parentId: null,
+      slotKey: null,
       index: 0,
       role: "sibling",
     });
     expect(
-      resolveIndicator(source, undefined, spec(), emptyRegistry, new Set()),
+      resolveIndicator(source, undefined, data(), emptyRegistry, new Set()),
     ).toBeNull();
   });
 
   test("returns null for self-drop", () => {
     const source = bag({
       elementId: "a",
-      parentId: "page",
+      parentId: null,
+      slotKey: null,
       index: 0,
       role: "sibling",
     });
     const target = bag({
       elementId: "a",
-      parentId: "page",
+      parentId: null,
+      slotKey: null,
       index: 0,
       role: "sibling",
     });
     expect(
-      resolveIndicator(source, target, spec(), emptyRegistry, new Set()),
+      resolveIndicator(source, target, data(), emptyRegistry, new Set()),
     ).toBeNull();
   });
 
   test("returns null when target is a descendant", () => {
     const source = bag({
-      elementId: "page",
-      parentId: "page",
-      index: 0,
-      role: "container",
+      elementId: "box",
+      parentId: null,
+      slotKey: null,
+      index: 3,
+      role: "sibling",
     });
     const target = bag({
-      elementId: "b",
-      parentId: "page",
-      index: 1,
+      elementId: "d",
+      parentId: "box",
+      slotKey: "items",
+      index: 0,
       role: "sibling",
     });
     expect(
       resolveIndicator(
         source,
         target,
-        spec(),
+        data(),
         emptyRegistry,
-        new Set(["a", "b", "c"]),
+        new Set(["d", "e"]),
       ),
     ).toBeNull();
   });
@@ -94,18 +106,21 @@ describe("resolveIndicator", () => {
   test("container target returns container indicator", () => {
     const source = bag({
       elementId: "a",
-      parentId: "page",
+      parentId: null,
+      slotKey: null,
       index: 0,
       role: "sibling",
     });
     const target = bag({
       elementId: "box",
-      parentId: "page",
-      index: 0,
+      parentId: null,
+      slotKey: null,
+      index: 3,
       role: "container",
+      containerSlotKey: "items",
     });
     expect(
-      resolveIndicator(source, target, spec(), emptyRegistry, new Set()),
+      resolveIndicator(source, target, data(), emptyRegistry, new Set()),
     ).toEqual({
       kind: "container",
       elementId: "box",
@@ -113,16 +128,17 @@ describe("resolveIndicator", () => {
   });
 
   test("returns null when edge is null (no atlaskit symbol)", () => {
-    // Non-container cross-parent target without edge data → extractClosestEdge returns null → early return null
     const source = bag({
       elementId: "a",
-      parentId: "page",
+      parentId: null,
+      slotKey: null,
       index: 0,
       role: "sibling",
     });
     const target = bag({
       elementId: "d",
       parentId: "box",
+      slotKey: "items",
       index: 0,
       role: "sibling",
     });
@@ -131,30 +147,31 @@ describe("resolveIndicator", () => {
       e: new DOMRect(0, 60, 100, 50),
     });
     expect(
-      resolveIndicator(source, target, spec(), registry, new Set()),
+      resolveIndicator(source, target, data(), registry, new Set()),
     ).toBeNull();
   });
 
-  test("same-parent with null edge returns null", () => {
-    // Without atlaskit edge symbol, extractClosestEdge returns null → early return null
+  test("same-slot with null edge returns null", () => {
     const registry = stubRegistry({
       a: new DOMRect(0, 0, 100, 50),
       b: new DOMRect(0, 60, 100, 50),
     });
     const source = bag({
       elementId: "a",
-      parentId: "page",
+      parentId: null,
+      slotKey: null,
       index: 0,
       role: "sibling",
     });
     const target = bag({
       elementId: "b",
-      parentId: "page",
+      parentId: null,
+      slotKey: null,
       index: 1,
       role: "sibling",
     });
     expect(
-      resolveIndicator(source, target, spec(), registry, new Set()),
+      resolveIndicator(source, target, data(), registry, new Set()),
     ).toBeNull();
   });
 });

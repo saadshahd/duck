@@ -1,14 +1,26 @@
-import type { Spec } from "@json-render/core";
+import type { Data } from "@puckeditor/core";
 import type {
-  BridgeHandle,
   BrowserMessage,
   CaptureMode,
+  CaptureResult,
+  SelectionData,
   ServerMessage,
 } from "../protocol.js";
 import { createPool, type WsData } from "./pool.js";
 import { createCaptures } from "./captures.js";
 
-export const createBridge = (): BridgeHandle => {
+export type Bridge = {
+  start(): Promise<{ port: number }>;
+  stop(): void;
+  readonly port: number;
+  broadcast(page: string, data: Data): void;
+  lastSelection(page: string): SelectionData | null;
+  capture(page: string, mode: CaptureMode): Promise<CaptureResult>;
+  viewers(): Record<string, number>;
+  hasViewers(page: string): boolean;
+};
+
+export const createBridge = (): Bridge => {
   const pool = createPool();
   const caps = createCaptures();
   let server: ReturnType<typeof Bun.serve<WsData>> | null = null;
@@ -42,7 +54,7 @@ export const createBridge = (): BridgeHandle => {
 
     async start() {
       server = Bun.serve<WsData>({
-        port: Number(process.env.BRIDGE_PORT) || 4400,
+        port: process.env.BRIDGE_PORT ? Number(process.env.BRIDGE_PORT) : 0,
         hostname: "127.0.0.1",
         fetch: (req, srv) => route(req, srv, pool),
         websocket: {
@@ -66,11 +78,11 @@ export const createBridge = (): BridgeHandle => {
       server = null;
     },
 
-    broadcast(page: string, spec: Spec) {
-      pool.setSnapshot(page, spec);
+    broadcast(page: string, data: Data) {
+      pool.setSnapshot(page, data);
       const set = pool.forPage(page);
       if (!set) return;
-      const payload = stringify({ type: "spec-update", spec });
+      const payload = stringify({ type: "spec-update", data });
       for (const ws of set) ws.send(payload);
     },
 

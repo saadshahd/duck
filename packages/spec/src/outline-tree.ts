@@ -1,10 +1,11 @@
-import type { Spec, UIElement } from "@json-render/core";
+import type { ComponentData, Data } from "@puckeditor/core";
+import { slotKeysOf } from "./slot-keys-of.js";
 
 type FullNode = {
   readonly id: string;
   readonly type: string;
   readonly props: Record<string, unknown>;
-  readonly children: OutlineNode[];
+  readonly slots: Record<string, OutlineNode[]>;
 };
 
 type SummaryNode = {
@@ -15,26 +16,51 @@ type SummaryNode = {
 
 export type OutlineNode = FullNode | SummaryNode;
 
+const totalChildren = (component: ComponentData): number =>
+  slotKeysOf(component).reduce(
+    (sum, key) => sum + (component.props[key] as ComponentData[]).length,
+    0,
+  );
+
+const nonSlotProps = (
+  component: ComponentData,
+  slotKeys: readonly string[],
+): Record<string, unknown> =>
+  Object.fromEntries(
+    Object.entries(component.props).filter(([key]) => !slotKeys.includes(key)),
+  );
+
 const walk = (
-  spec: Spec,
-  id: string,
+  component: ComponentData,
   depth: number,
   maxDepth: number,
 ): OutlineNode => {
-  const el = spec.elements[id];
-  if (!el) return { id, type: "unknown", childCount: 0 };
-  const children = el.children ?? [];
-  if (depth >= maxDepth)
-    return { id, type: el.type, childCount: children.length };
+  const id = component.props.id as string;
+  const slotKeys = slotKeysOf(component);
+  if (slotKeys.length === 0) {
+    return { id, type: component.type, childCount: 0 };
+  }
+  if (depth >= maxDepth) {
+    return { id, type: component.type, childCount: totalChildren(component) };
+  }
+  const slots = Object.fromEntries(
+    slotKeys.map((key) => [
+      key,
+      (component.props[key] as ComponentData[]).map((child) =>
+        walk(child, depth + 1, maxDepth),
+      ),
+    ]),
+  );
   return {
     id,
-    type: el.type,
-    props: el.props as Record<string, unknown>,
-    children: children.map((c) => walk(spec, c, depth + 1, maxDepth)),
+    type: component.type,
+    props: nonSlotProps(component, slotKeys),
+    slots,
   };
 };
 
-/** Depth-limited tree view. Above maxDepth: full node with props and children.
- *  At or below maxDepth: summary with childCount only. */
-export const outlineTree = (spec: Spec, maxDepth = 2): OutlineNode =>
-  walk(spec, spec.root, 0, maxDepth);
+/** Depth-limited tree view. At depth >= maxDepth, components collapse to a
+ *  SummaryNode with `childCount` (total across all slots). One entry per
+ *  `data.content[i]`. */
+export const outlineTree = (data: Data, maxDepth = 2): OutlineNode[] =>
+  data.content.map((component) => walk(component, 0, maxDepth));

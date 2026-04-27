@@ -90,6 +90,12 @@
   padding-left: 8px;
 }
 
+.prop-popover-hint {
+  font-size: 12px;
+  color: var(--text-bar-muted);
+  margin: 0;
+}
+
 .inline-input {
   pointer-events: auto;
   background: transparent;

@@ -1,53 +1,65 @@
 import { describe, it, expect } from "bun:test";
-import type { Spec } from "@json-render/core";
+import type { ComponentData, Config, Data } from "@puckeditor/core";
 import { editProp } from "./edit-prop.js";
+import { findById } from "./helpers.js";
 
-// --- Factories ---
-
-const spec = (): Spec => ({
-  root: "page",
-  elements: {
-    page: { type: "Box", props: {}, children: ["heading"] },
-    heading: {
-      type: "Heading",
-      props: { text: "Hello", level: "h1" },
+const config = {
+  components: {
+    Heading: {
+      defaultProps: { text: "Untitled", level: "h1", style: { color: "blue" } },
     },
   },
+} as unknown as Config;
+
+const sample = (): Data => ({
+  root: { props: {} },
+  content: [
+    {
+      type: "Heading",
+      props: {
+        id: "h1",
+        text: "Hello",
+        level: "h2",
+        style: { color: "red", weight: 700 },
+      },
+    } as ComponentData,
+  ],
 });
 
-// --- editProp ---
-
 describe("editProp", () => {
-  it("updates a string prop", () => {
-    const result = editProp(spec(), "heading", "text", "World");
-    expect(result.isOk() && result.value.elements.heading.props.text).toBe(
-      "World",
+  it("updates a top-level prop", () => {
+    const result = editProp(sample(), "h1", ["text"], "World", config);
+    expect(findById(result._unsafeUnwrap(), "h1")!.props.text).toBe("World");
+  });
+
+  it("updates a nested prop via path", () => {
+    const result = editProp(
+      sample(),
+      "h1",
+      ["style", "color"],
+      "green",
+      config,
     );
+    const next = findById(result._unsafeUnwrap(), "h1")!;
+    const style = next.props.style as Record<string, unknown>;
+    expect(style.color).toBe("green");
+    expect(style.weight).toBe(700);
   });
 
-  it("updates an enum prop", () => {
-    const result = editProp(spec(), "heading", "level", "h2");
-    expect(result.isOk() && result.value.elements.heading.props.level).toBe(
-      "h2",
-    );
+  it("preserves id", () => {
+    const result = editProp(sample(), "h1", ["text"], "X", config);
+    expect(findById(result._unsafeUnwrap(), "h1")!.props.id).toBe("h1");
   });
 
-  it("returns new spec (immutable)", () => {
-    const original = spec();
-    const result = editProp(original, "heading", "text", "New");
-    expect(result.isOk() && result.value).not.toBe(original);
-    expect(original.elements.heading.props.text).toBe("Hello");
+  it("does not mutate the original", () => {
+    const original = sample();
+    editProp(original, "h1", ["text"], "X", config);
+    expect(findById(original, "h1")!.props.text).toBe("Hello");
   });
 
-  it("fails for nonexistent element", () => {
-    const result = editProp(spec(), "zzz", "text", "x");
-    expect(result.isErr() && result.error.tag).toBe("element-not-found");
-  });
-
-  it("creates prop when key does not exist", () => {
-    const result = editProp(spec(), "heading", "color", "red");
-    expect(result.isOk() && result.value.elements.heading.props.color).toBe(
-      "red",
-    );
+  it("element-not-found for unknown id", () => {
+    const result = editProp(sample(), "zzz", ["text"], "X", config);
+    expect(result.isErr()).toBe(true);
+    expect(result._unsafeUnwrapErr().tag).toBe("element-not-found");
   });
 });

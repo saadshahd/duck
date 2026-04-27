@@ -49,8 +49,8 @@ export type EditorEvent =
   | { type: "DRAG_START"; sourceId: string }
   | {
       type: "DROP";
-      sourceParentId: string;
-      targetParentId: string;
+      sourceParentId: string | null;
+      targetParentId: string | null;
       fromIndex: number;
       toIndex: number;
     }

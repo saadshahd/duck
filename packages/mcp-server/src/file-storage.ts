@@ -1,7 +1,8 @@
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
 import { Effect, Option } from "effect";
-import type { Spec } from "@json-render/core";
+import type { Data } from "@puckeditor/core";
+import { preOrder } from "@json-render-editor/spec";
 import type { Storage, PageInfo } from "./storage.js";
 import { InvalidPageName, NotFound, StorageError } from "./errors.js";
 
@@ -27,20 +28,20 @@ const validatePageName = (
         }),
       );
 
-const specPath = (pagesDir: string, page: string): string =>
-  path.join(pagesDir, page, "spec.json");
+const dataPath = (pagesDir: string, page: string): string =>
+  path.join(pagesDir, page, "data.json");
 
 const draftPath = (pagesDir: string, page: string): string =>
-  path.join(pagesDir, page, "spec.draft.json");
+  path.join(pagesDir, page, "data.draft.json");
 
-const readJsonFile = (filePath: string): Effect.Effect<Spec, StorageError> =>
+const readJsonFile = (filePath: string): Effect.Effect<Data, StorageError> =>
   Effect.tryPromise({
     try: () => fs.readFile(filePath, "utf-8"),
     catch: (err) => storageErr(`Failed to read ${filePath}`, err),
   }).pipe(
     Effect.flatMap((text) =>
       Effect.try({
-        try: () => JSON.parse(text) as Spec,
+        try: () => JSON.parse(text) as Data,
         catch: (err) => storageErr(`Invalid JSON in ${filePath}`, err),
       }),
     ),
@@ -83,6 +84,12 @@ const fileExists = (filePath: string): Effect.Effect<boolean, StorageError> =>
     ),
   );
 
+const componentCount = (data: Data): number => {
+  let n = 0;
+  for (const _ of preOrder(data)) n++;
+  return n;
+};
+
 export const createFileStorage = (projectDir: string): Storage => {
   const pagesDir = path.join(projectDir, "pages");
 
@@ -103,13 +110,13 @@ export const createFileStorage = (projectDir: string): Storage => {
           .map((e) => e.name);
 
         const options = yield* Effect.forEach(dirNames, (name) =>
-          readJsonFile(specPath(pagesDir, name)).pipe(
-            Effect.flatMap((spec) =>
+          readJsonFile(dataPath(pagesDir, name)).pipe(
+            Effect.flatMap((data) =>
               fileExists(draftPath(pagesDir, name)).pipe(
                 Effect.map(
                   (hasDraft): PageInfo => ({
                     name,
-                    elementCount: Object.keys(spec.elements).length,
+                    componentCount: componentCount(data),
                     hasDraft,
                   }),
                 ),
@@ -125,21 +132,21 @@ export const createFileStorage = (projectDir: string): Storage => {
 
     readSpec(
       page: string,
-    ): Effect.Effect<Spec, NotFound | StorageError | InvalidPageName> {
+    ): Effect.Effect<Data, NotFound | StorageError | InvalidPageName> {
       return validatePageName(page).pipe(
         Effect.flatMap(() =>
           Effect.tryPromise({
-            try: () => fs.readFile(specPath(pagesDir, page), "utf-8"),
+            try: () => fs.readFile(dataPath(pagesDir, page), "utf-8"),
             catch: (err): NotFound | StorageError =>
               isEnoent(err)
                 ? new NotFound({ entity: "page", key: page })
-                : storageErr(`Failed to read spec for ${page}`, err),
+                : storageErr(`Failed to read data for ${page}`, err),
           }),
         ),
         Effect.flatMap((text) =>
           Effect.try({
-            try: () => JSON.parse(text) as Spec,
-            catch: (err) => storageErr(`Invalid JSON in spec for ${page}`, err),
+            try: () => JSON.parse(text) as Data,
+            catch: (err) => storageErr(`Invalid JSON in data for ${page}`, err),
           }),
         ),
       );
@@ -147,22 +154,22 @@ export const createFileStorage = (projectDir: string): Storage => {
 
     writeSpec(
       page: string,
-      spec: Spec,
+      data: Data,
     ): Effect.Effect<void, StorageError | InvalidPageName> {
       return validatePageName(page).pipe(
         Effect.flatMap(() =>
-          atomicWrite(specPath(pagesDir, page), JSON.stringify(spec, null, 2)),
+          atomicWrite(dataPath(pagesDir, page), JSON.stringify(data, null, 2)),
         ),
       );
     },
 
     readDraft(
       page: string,
-    ): Effect.Effect<Spec | null, StorageError | InvalidPageName> {
+    ): Effect.Effect<Data | null, StorageError | InvalidPageName> {
       return validatePageName(page).pipe(
         Effect.flatMap(() =>
           readJsonFile(draftPath(pagesDir, page)).pipe(
-            Effect.map((spec): Spec | null => spec),
+            Effect.map((data): Data | null => data),
             Effect.catchTag("StorageError", (err) =>
               isEnoent(err.cause) ? Effect.succeed(null) : Effect.fail(err),
             ),
@@ -173,11 +180,11 @@ export const createFileStorage = (projectDir: string): Storage => {
 
     writeDraft(
       page: string,
-      spec: Spec,
+      data: Data,
     ): Effect.Effect<void, StorageError | InvalidPageName> {
       return validatePageName(page).pipe(
         Effect.flatMap(() =>
-          atomicWrite(draftPath(pagesDir, page), JSON.stringify(spec, null, 2)),
+          atomicWrite(draftPath(pagesDir, page), JSON.stringify(data, null, 2)),
         ),
       );
     },
@@ -189,7 +196,7 @@ export const createFileStorage = (projectDir: string): Storage => {
         Effect.flatMap(() =>
           Effect.tryPromise({
             try: () =>
-              fs.rename(draftPath(pagesDir, page), specPath(pagesDir, page)),
+              fs.rename(draftPath(pagesDir, page), dataPath(pagesDir, page)),
             catch: (err): NotFound | StorageError =>
               isEnoent(err)
                 ? new NotFound({ entity: "draft", key: page })

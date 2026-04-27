@@ -4,46 +4,40 @@ import * as path from "node:path";
 import * as os from "node:os";
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { InMemoryTransport } from "@modelcontextprotocol/sdk/inMemory.js";
-import { defineCatalog, type Spec } from "@json-render/core";
-import { schema } from "@json-render/react/schema";
-import { z } from "zod";
+import type { Config, Data } from "@puckeditor/core";
 import { createMcpServer } from "./server.js";
 import { createFileStorage } from "./file-storage.js";
 import { createBridge } from "./bridge/index.js";
 
-const testCatalog = defineCatalog(schema, {
+const testConfig = {
   components: {
     Box: {
-      description: "Layout container",
-      slots: ["default"],
-      props: z.object({}),
+      defaultProps: {},
+      fields: { children: { type: "slot" } },
+      render: () => null as never,
     },
     Text: {
-      description: "Paragraph text",
-      props: z.object({ text: z.string() }),
+      defaultProps: { text: "" },
+      fields: { text: { type: "text" } },
+      render: () => null as never,
     },
   },
-  actions: {},
-});
+} as unknown as Config;
 
-// ── Factories ─────────────────────────────────────────────────────
-
-const makeSpec = (elementCount = 2): Spec => ({
-  root: "root",
-  elements: Object.fromEntries([
-    [
-      "root",
-      {
-        type: "Box",
-        props: {},
-        children: Array.from({ length: elementCount - 1 }, (_, i) => `el-${i}`),
+const makeData = (componentCount = 2): Data => ({
+  root: { props: {} },
+  content: [
+    {
+      type: "Box",
+      props: {
+        id: "root",
+        children: Array.from({ length: componentCount - 1 }, (_, i) => ({
+          type: "Text",
+          props: { id: `el-${i}`, text: `Item ${i}` },
+        })),
       },
-    ],
-    ...Array.from({ length: elementCount - 1 }, (_, i) => [
-      `el-${i}`,
-      { type: "Text", props: { text: `Item ${i}` } },
-    ]),
-  ]),
+    },
+  ],
 });
 
 const setup = async () => {
@@ -54,7 +48,7 @@ const setup = async () => {
   const connectClient = async () => {
     const mcp = createMcpServer({
       storage: createFileStorage(tmpDir),
-      catalog: testCatalog,
+      config: testConfig,
       bridge,
     });
     const [clientTransport, serverTransport] =
@@ -78,15 +72,15 @@ const setup = async () => {
 const writePage = async (
   tmpDir: string,
   name: string,
-  spec: Spec,
-  draft?: Spec,
+  data: Data,
+  draft?: Data,
 ) => {
   const pageDir = path.join(tmpDir, "pages", name);
   await fs.mkdir(pageDir, { recursive: true });
-  await fs.writeFile(path.join(pageDir, "spec.json"), JSON.stringify(spec));
+  await fs.writeFile(path.join(pageDir, "data.json"), JSON.stringify(data));
   if (draft)
     await fs.writeFile(
-      path.join(pageDir, "spec.draft.json"),
+      path.join(pageDir, "data.draft.json"),
       JSON.stringify(draft),
     );
 };
@@ -102,14 +96,14 @@ const callTool = async (
   return { data: JSON.parse(text), isError: result.isError };
 };
 
-const readSpecFile = (tmpDir: string, page: string) =>
+const readDataFile = (tmpDir: string, page: string) =>
   fs
-    .readFile(path.join(tmpDir, "pages", page, "spec.json"), "utf-8")
+    .readFile(path.join(tmpDir, "pages", page, "data.json"), "utf-8")
     .then(JSON.parse);
 
 const draftExists = (tmpDir: string, page: string) =>
   fs
-    .access(path.join(tmpDir, "pages", page, "spec.draft.json"))
+    .access(path.join(tmpDir, "pages", page, "data.draft.json"))
     .then(() => true)
     .catch(() => false);
 
@@ -123,8 +117,6 @@ const connectAndReady = async (port: number, page: string) => {
   return ws;
 };
 
-// ── Tests ─────────────────────────────────────────────────────────
-
 describe("editor_status", () => {
   it("returns empty pages and viewers for a fresh project", async () => {
     const { bridge, connectClient, teardown } = await setup();
@@ -133,7 +125,6 @@ describe("editor_status", () => {
         await connectClient(),
         "editor_status",
       );
-
       expect(isError).toBeUndefined();
       expect(data).toEqual({
         pages: [],
@@ -144,20 +135,21 @@ describe("editor_status", () => {
     }
   });
 
-  it("returns pages with element counts", async () => {
+  it("returns pages with component counts", async () => {
     const { tmpDir, connectClient, teardown } = await setup();
     try {
-      await writePage(tmpDir, "landing", makeSpec(3));
-      await writePage(tmpDir, "about", makeSpec(5));
+      await writePage(tmpDir, "landing", makeData(3));
+      await writePage(tmpDir, "about", makeData(5));
 
       const { data } = await callTool(await connectClient(), "editor_status");
-      const sorted = data.pages.sort((a: any, b: any) =>
-        a.name.localeCompare(b.name),
+      const sorted = data.pages.sort(
+        (a: { name: string }, b: { name: string }) =>
+          a.name.localeCompare(b.name),
       );
 
       expect(sorted).toEqual([
-        { name: "about", elementCount: 5, hasDraft: false },
-        { name: "landing", elementCount: 3, hasDraft: false },
+        { name: "about", componentCount: 5, hasDraft: false },
+        { name: "landing", componentCount: 3, hasDraft: false },
       ]);
     } finally {
       await teardown();
@@ -167,12 +159,12 @@ describe("editor_status", () => {
   it("reports hasDraft when draft exists", async () => {
     const { tmpDir, connectClient, teardown } = await setup();
     try {
-      await writePage(tmpDir, "landing", makeSpec(2), makeSpec(4));
+      await writePage(tmpDir, "landing", makeData(2), makeData(4));
 
       const { data } = await callTool(await connectClient(), "editor_status");
 
       expect(data.pages).toEqual([
-        { name: "landing", elementCount: 2, hasDraft: true },
+        { name: "landing", componentCount: 2, hasDraft: true },
       ]);
     } finally {
       await teardown();
@@ -200,14 +192,12 @@ describe("editor_status", () => {
   });
 });
 
-// ── editor_commit ────────────────────────────────────────────────
-
 describe("editor_commit", () => {
-  it("promotes draft to committed spec", async () => {
+  it("promotes draft to committed data", async () => {
     const { tmpDir, connectClient, teardown } = await setup();
     try {
-      const original = makeSpec(2);
-      const draft = makeSpec(4);
+      const original = makeData(2);
+      const draft = makeData(4);
       await writePage(tmpDir, "landing", original, draft);
 
       const client = await connectClient();
@@ -219,10 +209,10 @@ describe("editor_commit", () => {
       expect(data).toEqual({
         committed: true,
         page: "landing",
-        elementCount: 4,
+        componentCount: 4,
       });
 
-      const committed = await readSpecFile(tmpDir, "landing");
+      const committed = await readDataFile(tmpDir, "landing");
       expect(committed).toEqual(draft);
       expect(await draftExists(tmpDir, "landing")).toBe(false);
     } finally {
@@ -233,8 +223,8 @@ describe("editor_commit", () => {
   it("broadcasts spec-update to connected viewers", async () => {
     const { tmpDir, bridge, connectClient, teardown } = await setup();
     try {
-      const draft = makeSpec(3);
-      await writePage(tmpDir, "landing", makeSpec(2), draft);
+      const draft = makeData(3);
+      await writePage(tmpDir, "landing", makeData(2), draft);
 
       const ws = await connectAndReady(bridge.port, "landing");
       const messages: unknown[] = [];
@@ -244,7 +234,7 @@ describe("editor_commit", () => {
       await callTool(client, "editor_commit", { page: "landing" });
       await Bun.sleep(50);
 
-      expect(messages).toEqual([{ type: "spec-update", spec: draft }]);
+      expect(messages).toEqual([{ type: "spec-update", data: draft }]);
 
       ws.close();
     } finally {
@@ -255,7 +245,7 @@ describe("editor_commit", () => {
   it("returns NotFound when no draft exists", async () => {
     const { tmpDir, connectClient, teardown } = await setup();
     try {
-      await writePage(tmpDir, "landing", makeSpec(2));
+      await writePage(tmpDir, "landing", makeData(2));
 
       const client = await connectClient();
       const { data, isError } = await callTool(client, "editor_commit", {
@@ -270,14 +260,12 @@ describe("editor_commit", () => {
   });
 });
 
-// ── editor_discard ───────────────────────────────────────────────
-
 describe("editor_discard", () => {
-  it("deletes draft and leaves committed spec intact", async () => {
+  it("deletes draft and leaves committed data intact", async () => {
     const { tmpDir, connectClient, teardown } = await setup();
     try {
-      const original = makeSpec(2);
-      await writePage(tmpDir, "landing", original, makeSpec(5));
+      const original = makeData(2);
+      await writePage(tmpDir, "landing", original, makeData(5));
 
       const client = await connectClient();
       const { data, isError } = await callTool(client, "editor_discard", {
@@ -288,7 +276,7 @@ describe("editor_discard", () => {
       expect(data).toEqual({ discarded: true, page: "landing" });
 
       expect(await draftExists(tmpDir, "landing")).toBe(false);
-      const committed = await readSpecFile(tmpDir, "landing");
+      const committed = await readDataFile(tmpDir, "landing");
       expect(committed).toEqual(original);
     } finally {
       await teardown();
@@ -298,7 +286,7 @@ describe("editor_discard", () => {
   it("succeeds when no draft exists (idempotent)", async () => {
     const { tmpDir, connectClient, teardown } = await setup();
     try {
-      await writePage(tmpDir, "landing", makeSpec(2));
+      await writePage(tmpDir, "landing", makeData(2));
 
       const client = await connectClient();
       const { data, isError } = await callTool(client, "editor_discard", {
@@ -313,10 +301,47 @@ describe("editor_discard", () => {
   });
 });
 
-// ── editor_manifest ─────────────────────────────────────────────
+describe("editor_apply", () => {
+  it("applies an update op via tool call", async () => {
+    const { tmpDir, connectClient, teardown } = await setup();
+    try {
+      await writePage(tmpDir, "landing", makeData(2));
+      const client = await connectClient();
+
+      const { data, isError } = await callTool(client, "editor_apply", {
+        page: "landing",
+        ops: [{ op: "update", id: "el-0", props: { text: "Updated" } }],
+      });
+
+      expect(isError).toBeUndefined();
+      expect(data.ok).toBe(true);
+    } finally {
+      await teardown();
+    }
+  });
+
+  it("returns ok:false on op failure", async () => {
+    const { tmpDir, connectClient, teardown } = await setup();
+    try {
+      await writePage(tmpDir, "landing", makeData(2));
+      const client = await connectClient();
+
+      const { data } = await callTool(client, "editor_apply", {
+        page: "landing",
+        ops: [{ op: "remove", id: "missing-id" }],
+      });
+
+      expect(data.ok).toBe(false);
+      expect(data.failedOpIndex).toBe(0);
+      expect(data.error.tag).toBe("element-not-found");
+    } finally {
+      await teardown();
+    }
+  });
+});
 
 describe("editor_manifest", () => {
-  it("lists components with descriptions", async () => {
+  it("lists components", async () => {
     const { connectClient, teardown } = await setup();
     try {
       const { data, isError } = await callTool(
@@ -324,36 +349,11 @@ describe("editor_manifest", () => {
         "editor_manifest",
         { what: "components" },
       );
-
       expect(isError).toBeUndefined();
-      expect(data).toEqual({
-        components: [
-          {
-            name: "Box",
-            description: "Layout container",
-            slots: ["default"],
-            props: {
-              $schema: "https://json-schema.org/draft/2020-12/schema",
-              type: "object",
-              properties: {},
-              additionalProperties: false,
-            },
-          },
-          {
-            name: "Text",
-            description: "Paragraph text",
-            slots: [],
-            props: {
-              $schema: "https://json-schema.org/draft/2020-12/schema",
-              type: "object",
-              properties: { text: { type: "string" } },
-              required: ["text"],
-              additionalProperties: false,
-            },
-          },
-        ],
-        actions: [],
-      });
+      const names = (data.components as Array<{ name: string }>).map(
+        (c) => c.name,
+      );
+      expect(names.sort()).toEqual(["Box", "Text"]);
     } finally {
       await teardown();
     }
@@ -367,12 +367,9 @@ describe("editor_manifest", () => {
         "editor_manifest",
         { what: "component", componentType: "Text" },
       );
-
       expect(isError).toBeUndefined();
       expect(data.name).toBe("Text");
-      expect(data.description).toBe("Paragraph text");
-      expect(data.props).toHaveProperty("properties");
-      expect(data.props.properties).toHaveProperty("text");
+      expect(data.fields).toHaveProperty("text");
     } finally {
       await teardown();
     }
@@ -386,7 +383,6 @@ describe("editor_manifest", () => {
         "editor_manifest",
         { what: "component", componentType: "DoesNotExist" },
       );
-
       expect(isError).toBe(true);
       expect(data.error).toBe("NotFound");
     } finally {
@@ -402,7 +398,6 @@ describe("editor_manifest", () => {
         "editor_manifest",
         { what: "prompt" },
       );
-
       expect(isError).toBeUndefined();
       expect(typeof data.prompt).toBe("string");
       expect(data.prompt.length).toBeGreaterThan(0);

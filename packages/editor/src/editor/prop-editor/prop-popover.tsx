@@ -6,11 +6,11 @@ import {
   shift,
   autoUpdate,
 } from "@floating-ui/react";
-import type { Spec } from "@json-render/core";
-import type { ZodTypeAny } from "zod";
+import type { ComponentData } from "@puckeditor/core";
 import { useShadowSheet } from "../overlay/index.js";
 import type { FiberRegistry } from "../fiber/index.js";
-import { ZodFields } from "./zod-fields.js";
+import { PuckFields } from "./puck-fields.js";
+import type { ResolvedFields } from "./find-editable-prop.js";
 import { useOnClickOutside } from "../overlay/index.js";
 import css from "./prop-editor.css?inline";
 
@@ -30,22 +30,20 @@ const ZERO_RECT: DOMRect = {
 
 type PropPopoverProps = {
   registry: FiberRegistry;
-  spec: Spec;
-  elementId: string;
-  schema: ZodTypeAny;
+  component: ComponentData;
+  fields: ResolvedFields;
   onPropChange: (propKey: string, value: unknown) => void;
   onClose: () => void;
 };
 
 /**
- * Schema-driven floating popover for editing all props of a selected element.
- * Positioned via @floating-ui, styled via overlay.css.
+ * Floating popover for editing all props of a selected component.
+ * Positioned via @floating-ui, styled via prop-editor.css.
  */
 export function PropPopover({
   registry,
-  spec,
-  elementId,
-  schema,
+  component,
+  fields,
   onPropChange,
   onClose,
 }: PropPopoverProps) {
@@ -56,6 +54,8 @@ export function PropPopover({
     whileElementsMounted: (ref, floating, update) =>
       autoUpdate(ref, floating, update, { animationFrame: true }),
   });
+
+  const elementId = (component.props as { id?: string }).id ?? "";
 
   useEffect(
     function trackElement() {
@@ -69,7 +69,6 @@ export function PropPopover({
 
   useOnClickOutside(refs.floating, onClose);
 
-  // Close on Escape
   useEffect(
     function handleEscape() {
       const onKeyDown = (e: KeyboardEvent) => {
@@ -81,8 +80,9 @@ export function PropPopover({
     [onClose],
   );
 
-  const element = spec.elements[elementId];
-  if (!element) return null;
+  const readOnlyFields = component.readOnly as
+    | Partial<Record<string, boolean>>
+    | undefined;
 
   return (
     <div
@@ -91,9 +91,10 @@ export function PropPopover({
       className="prop-popover"
       data-role="prop-popover"
     >
-      <ZodFields
-        schema={schema}
-        values={element.props}
+      <PuckFields
+        fields={fields}
+        values={component.props as Record<string, unknown>}
+        readOnlyFields={readOnlyFields}
         onChange={onPropChange}
       />
     </div>

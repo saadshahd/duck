@@ -1,19 +1,19 @@
 import { describe, it, expect } from "bun:test";
 import { Effect } from "effect";
-import type { BridgeHandle } from "../protocol.js";
+import type { Bridge } from "../bridge/index.js";
 import { capture } from "./capture.js";
 
 const makeBridge = (
   hasViewers: boolean,
   captureResult?: { image: string },
-): BridgeHandle =>
+): Bridge =>
   ({
     hasViewers: () => hasViewers,
     capture: () =>
       captureResult
         ? Promise.resolve(captureResult)
         : Promise.reject(new Error("timeout")),
-  }) as unknown as BridgeHandle;
+  }) as unknown as Bridge;
 
 describe("capture", () => {
   it("returns capture result when browser connected", async () => {
