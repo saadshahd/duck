@@ -17,7 +17,9 @@ export const nextInTreeOrder = (
   const idx = order.indexOf(id);
   if (idx === -1) return null;
 
-  const nextIdx = direction === "forward" ? idx + 1 : idx - 1;
-  if (nextIdx < 0 || nextIdx >= order.length) return null;
+  const nextIdx =
+    direction === "forward"
+      ? (idx + 1) % order.length
+      : (idx - 1 + order.length) % order.length;
   return order[nextIdx];
 };

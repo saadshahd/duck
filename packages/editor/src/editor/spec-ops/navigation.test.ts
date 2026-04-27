@@ -41,14 +41,14 @@ describe("nextInTreeOrder — forward", () => {
     expect(nextInTreeOrder(data, "b2", "forward")).toBe("foot");
   });
 
-  it("returns null at document end", () => {
-    expect(nextInTreeOrder(data, "foot", "forward")).toBeNull();
+  it("wraps from last element to first", () => {
+    expect(nextInTreeOrder(data, "foot", "forward")).toBe("outer");
   });
 });
 
 describe("nextInTreeOrder — backward", () => {
-  it("returns null before first element", () => {
-    expect(nextInTreeOrder(data, "outer", "backward")).toBeNull();
+  it("wraps from first element to last", () => {
+    expect(nextInTreeOrder(data, "outer", "backward")).toBe("foot");
   });
 
   it("moves to previous sibling", () => {
@@ -72,14 +72,15 @@ describe("nextInTreeOrder — unknown id", () => {
 });
 
 describe("nextInTreeOrder — full walk", () => {
-  it("forward visits every element in pre-order", () => {
-    const visited: string[] = ["outer"];
-    let current: string | null = "outer";
+  it("forward visits every element in pre-order before wrapping", () => {
+    const start = "outer";
+    const visited: string[] = [start];
+    let current = start;
     for (let i = 0; i < 20; i++) {
-      const next = nextInTreeOrder(data, current!, "forward");
-      if (next === null) break;
-      visited.push(next);
-      current = next;
+      const next = nextInTreeOrder(data, current, "forward");
+      if (next === start) break;
+      visited.push(next!);
+      current = next!;
     }
     expect(visited).toEqual(["outer", "head", "body", "b1", "b2", "foot"]);
   });
