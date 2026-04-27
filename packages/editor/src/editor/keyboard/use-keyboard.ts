@@ -1,7 +1,7 @@
 import { useEffect, useRef } from "react";
 import { tinykeys } from "tinykeys";
 import type { Data } from "@puckeditor/core";
-import { nextInTreeOrder, type NavTarget } from "../spec-ops/index.js";
+import { nextInTreeOrder } from "../spec-ops/index.js";
 import type { ClipboardActions } from "../clipboard/index.js";
 import { isEditable } from "../overlay/index.js";
 import { arrowToDirection } from "./navigation.js";
@@ -62,9 +62,9 @@ const eventBindings = (
 
 const ARROW_KEYS = ["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight"];
 
-const sendNavTarget = (send: Send, target: NavTarget) =>
-  target.tag === "select"
-    ? send({ type: "SELECT", elementId: target.targetId })
+const sendNavTarget = (send: Send, targetId: string | null) =>
+  targetId !== null
+    ? send({ type: "SELECT", elementId: targetId })
     : send({ type: "DESELECT" });
 
 const arrowBindings = (send: Send, navRef: React.RefObject<NavContext>) =>
