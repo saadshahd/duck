@@ -2,6 +2,7 @@ import { autoUpdate } from "@floating-ui/react";
 import { useState, useCallback, useEffect } from "react";
 import type { FiberRegistry } from "../fiber/index.js";
 import { readBoxModel, type BoxModelData } from "./read-box-model.js";
+import { ZERO_RECT } from "../layout/index.js";
 
 /** Reactive box model data for a selected element, synced via autoUpdate. */
 export function useBoxModel(
@@ -18,7 +19,13 @@ export function useBoxModel(
   useEffect(() => {
     const el = registry && elementId ? registry.get(elementId) : null;
     if (!el) return void setData(null);
-    const vRef = { getBoundingClientRect: () => el.getBoundingClientRect() };
+    const vRef = {
+      getBoundingClientRect: () =>
+        (registry && elementId
+          ? registry.get(elementId)
+          : null
+        )?.getBoundingClientRect() ?? ZERO_RECT,
+    };
     return autoUpdate(vRef, el, sync, { animationFrame: true });
   }, [registry, elementId, sync]);
 

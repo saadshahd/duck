@@ -1,6 +1,7 @@
 import { autoUpdate } from "@floating-ui/react";
 import { useEffect, useRef, useCallback } from "react";
 import type { FiberRegistry } from "../fiber/index.js";
+import { ZERO_RECT } from "../layout/index.js";
 
 export const INSET = -2; // border extends outside element bounds (system.md)
 export const EXPAND = 4; // 2px border on each side
@@ -37,7 +38,10 @@ export function useHighlightRef(
       if (div) clearRect(div);
       return;
     }
-    const vRef = { getBoundingClientRect: () => el.getBoundingClientRect() };
+    const vRef = {
+      getBoundingClientRect: () =>
+        registry.get(elementId)?.getBoundingClientRect() ?? ZERO_RECT,
+    };
     return autoUpdate(vRef, div, sync, { animationFrame: true });
   }, [registry, elementId, sync]);
 
