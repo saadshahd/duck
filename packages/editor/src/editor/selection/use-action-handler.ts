@@ -82,15 +82,15 @@ export function useActionHandler({
               send({ type: "DESELECT" });
             } else {
               push(next, `Deleted ${type}`);
-              send({
-                type: "SELECT",
-                elementId: nearestSibling(
-                  data,
-                  parentBefore?.parentId ?? null,
-                  parentBefore?.slotKey ?? null,
-                  lastSelectedId,
-                ),
-              });
+              const target = nearestSibling(
+                data,
+                parentBefore?.parentId ?? null,
+                parentBefore?.slotKey ?? null,
+                lastSelectedId,
+              );
+              target
+                ? send({ type: "SELECT", elementId: target })
+                : send({ type: "DESELECT" });
             }
           });
           break;
