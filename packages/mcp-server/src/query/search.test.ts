@@ -13,7 +13,7 @@ const data: Data = {
         children: [
           {
             type: "Text",
-            props: { id: "hero", text: "Visual Editor for json-render" },
+            props: { id: "hero", text: "Duck — Puck without the iframe" },
           },
           {
             type: "Button",
@@ -27,7 +27,7 @@ const data: Data = {
 
 describe("search", () => {
   it("finds case-insensitive matches in prop values", async () => {
-    const result = await Effect.runPromise(search(data, "visual"));
+    const result = await Effect.runPromise(search(data, "puck"));
     expect(result.count).toBe(1);
     expect(result.results[0]!.id).toBe("hero");
     expect(result.results[0]!.propPath).toBe("text");
@@ -48,7 +48,7 @@ describe("search", () => {
   });
 
   it("includes ancestry in results", async () => {
-    const result = await Effect.runPromise(search(data, "visual"));
+    const result = await Effect.runPromise(search(data, "puck"));
     expect(result.results[0]!.ancestry.map((a) => a.id)).toEqual(["page"]);
   });
 });
