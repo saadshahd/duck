@@ -54,7 +54,9 @@ export function useBridge({
         const msg = JSON.parse(event.data) as ServerMessage;
         const dispatch: Record<ServerMessage["type"], () => void> = {
           "spec-update": () => {
-            const incoming = (msg as { data: Data }).data;
+            const incoming = (
+              msg as Extract<ServerMessage, { type: "spec-update" }>
+            ).data;
             if (!equal(incoming, latest.current.currentData)) {
               latest.current.push(incoming, "Agent commit");
             }
