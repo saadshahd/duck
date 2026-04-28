@@ -1,7 +1,7 @@
 import { useEffect } from "react";
 import { useFloating, flip, shift } from "@floating-ui/react";
 import type { Data } from "@puckeditor/core";
-import { findById } from "@json-render-editor/spec";
+import { findById } from "@duck/spec";
 import { useShadowSheet, useOnClickOutside } from "../overlay/index.js";
 import type { EditorEvent } from "../machine/index.js";
 import type { ClipboardActions } from "../types.js";

@@ -6,7 +6,7 @@ import {
   getAncestry,
   type BrowserMessage,
   type ServerMessage,
-} from "@json-render-editor/spec";
+} from "@duck/spec";
 import type { DataPush } from "../types.js";
 
 export type BridgeStatus = "connecting" | "connected" | "disconnected";

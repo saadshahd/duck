@@ -4,7 +4,7 @@ import {
   findParent,
   getChildrenAt,
   slotKeysOf,
-} from "@json-render-editor/spec";
+} from "@duck/spec";
 import { err, ok, type Result } from "neverthrow";
 
 export { findById, findParent };

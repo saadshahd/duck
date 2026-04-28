@@ -1,5 +1,5 @@
 import type { Data } from "@puckeditor/core";
-import { getChildrenAt } from "@json-render-editor/spec";
+import { getChildrenAt } from "@duck/spec";
 import type { FiberRegistry } from "../fiber/index.js";
 
 export type Axis = "vertical" | "horizontal";

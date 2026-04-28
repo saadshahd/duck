@@ -1,6 +1,6 @@
 import { useMemo, useRef, useState } from "react";
 import type { Data, Config } from "@puckeditor/core";
-import { buildIndex } from "@json-render-editor/spec";
+import { buildIndex } from "@duck/spec";
 import { useMachine } from "@xstate/react";
 import { editorMachine } from "./machine/index.js";
 import {

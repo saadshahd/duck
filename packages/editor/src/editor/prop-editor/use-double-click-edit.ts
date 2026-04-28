@@ -1,6 +1,6 @@
 import { useEffect } from "react";
 import type { Config, Data } from "@puckeditor/core";
-import { findById } from "@json-render-editor/spec";
+import { findById } from "@duck/spec";
 import type { FiberRegistry } from "../fiber/index.js";
 import { resolveHit, isFromShadowDom } from "../fiber/index.js";
 import type { EditorEvent } from "../machine/index.js";

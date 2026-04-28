@@ -2,7 +2,7 @@ import * as fs from "node:fs/promises";
 import * as path from "node:path";
 import { Effect, Option } from "effect";
 import type { Data } from "@puckeditor/core";
-import { preOrder } from "@json-render-editor/spec";
+import { preOrder } from "@duck/spec";
 import type { Storage, PageInfo } from "./storage.js";
 import { InvalidPageName, NotFound, StorageError } from "./errors.js";
 

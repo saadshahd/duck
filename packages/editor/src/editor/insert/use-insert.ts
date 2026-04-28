@@ -6,7 +6,7 @@ import {
   findParent,
   getChildrenAt,
   slotKeysOf,
-} from "@json-render-editor/spec";
+} from "@duck/spec";
 import { add, type ComponentMap } from "../spec-ops/index.js";
 import type { EditorEvent } from "../machine/index.js";
 import type { DataPush } from "../types.js";

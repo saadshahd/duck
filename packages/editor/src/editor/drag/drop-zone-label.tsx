@@ -1,6 +1,6 @@
 import { useFloating, offset, shift, autoUpdate } from "@floating-ui/react";
 import type { Data } from "@puckeditor/core";
-import { findById, findParent } from "@json-render-editor/spec";
+import { findById, findParent } from "@duck/spec";
 import { useShadowSheet, useRegistryAnchor } from "../overlay/index.js";
 import type { FiberRegistry } from "../fiber/index.js";
 import type { DropTarget } from "./drop-indicator.js";

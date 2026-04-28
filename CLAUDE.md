@@ -29,7 +29,7 @@ When adding a dependency or utility:
 
 When touching Puck data:
 - Use `@puckeditor/core` types (`Data`, `Config`, `ComponentData`) directly. Do NOT redeclare them.
-- Use tree-traversal helpers from `@json-render-editor/spec` (`findById`, `findParent`, `buildIndex`, `slotKeysOf`, `preOrder`, etc.). Do NOT reimplement tree walking.
+- Use tree-traversal helpers from `@duck/spec` (`findById`, `findParent`, `buildIndex`, `slotKeysOf`, `preOrder`, etc.). Do NOT reimplement tree walking.
 - Ops are four verbs: `add`, `update`, `remove`, `move`. Do NOT use RFC 6902 JSON Patch.
 - `update` semantics: `{ ...defaults, ...newProps, id: original.id }` — replace, not merge. Slot fields are overwritable; history is the undo safety net.
 

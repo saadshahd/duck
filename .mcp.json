@@ -3,7 +3,7 @@
     "fallow": {
       "command": "node_modules/.bin/fallow-mcp"
     },
-    "json-render-editor": {
+    "duck": {
       "command": "bun",
       "args": [
         "run",

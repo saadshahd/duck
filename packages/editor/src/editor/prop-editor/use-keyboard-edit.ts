@@ -1,6 +1,6 @@
 import { useEffect } from "react";
 import type { Config, Data } from "@puckeditor/core";
-import { findById } from "@json-render-editor/spec";
+import { findById } from "@duck/spec";
 import type { EditorEvent } from "../machine/index.js";
 import { isEditable } from "../overlay/index.js";
 import { findEditableProp, type ResolvedFields } from "./find-editable-prop.js";

@@ -9,7 +9,7 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@json-render-editor/spec": "workspace:*",
+    "@duck/spec": "workspace:*",
     "@modelcontextprotocol/sdk": "^1.28.0",
     "@puckeditor/core": "^0.21.2",
     "effect": "^3.21.0",

@@ -1,6 +1,6 @@
 import { useCallback } from "react";
 import type { Data } from "@puckeditor/core";
-import { findById, findParent, nearestSibling } from "@json-render-editor/spec";
+import { findById, findParent, nearestSibling } from "@duck/spec";
 import { ok, type Result } from "neverthrow";
 import type { EditorEvent, EditorSnapshot } from "../machine/index.js";
 import type { Axis } from "../layout/index.js";

@@ -1,5 +1,5 @@
 import type { ComponentData, Data } from "@puckeditor/core";
-import { preOrder, slotKeysOf } from "@json-render-editor/spec";
+import { preOrder, slotKeysOf } from "@duck/spec";
 
 const isEmptyContainer = (component: ComponentData): boolean => {
   const slots = slotKeysOf(component);

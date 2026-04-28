@@ -1,5 +1,5 @@
 {
-  "name": "@json-render-editor/patterns",
+  "name": "@duck/patterns",
   "version": "0.0.1",
   "private": true,
   "type": "module",
@@ -9,7 +9,7 @@
     "test": "bun test"
   },
   "dependencies": {
-    "@json-render-editor/spec": "workspace:*",
+    "@duck/spec": "workspace:*",
     "@puckeditor/core": "^0.21.2",
     "neverthrow": "^8.2.0"
   },

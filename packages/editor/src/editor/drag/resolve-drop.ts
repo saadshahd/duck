@@ -1,7 +1,7 @@
 import type { Data } from "@puckeditor/core";
 import { extractClosestEdge } from "@atlaskit/pragmatic-drag-and-drop-hitbox/closest-edge";
 import type { Result } from "neverthrow";
-import { getChildrenAt } from "@json-render-editor/spec";
+import { getChildrenAt } from "@duck/spec";
 import type { FiberRegistry } from "../fiber/index.js";
 import { move, type SpecOpsError } from "../spec-ops/index.js";
 import type { EditorEvent } from "../machine/index.js";

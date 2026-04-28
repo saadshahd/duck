@@ -12,7 +12,7 @@
     "@atlaskit/pragmatic-drag-and-drop": "^1.7.9",
     "@atlaskit/pragmatic-drag-and-drop-hitbox": "^1.1.0",
     "@floating-ui/react": "^0.27.19",
-    "@json-render-editor/spec": "workspace:*",
+    "@duck/spec": "workspace:*",
     "@puckeditor/core": "^0.21.2",
     "@xstate/react": "^6.1.0",
     "bippy": "^0.5.32",

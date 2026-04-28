@@ -1,4 +1,4 @@
-# Visual Identity — json-render-editor
+# Visual Identity — duck
 
 ## Intent
 

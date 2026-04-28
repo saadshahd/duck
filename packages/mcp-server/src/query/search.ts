@@ -5,7 +5,7 @@ import {
   getAncestry,
   preOrder,
   slotKeysOf,
-} from "@json-render-editor/spec";
+} from "@duck/spec";
 
 type Match = {
   readonly id: string;

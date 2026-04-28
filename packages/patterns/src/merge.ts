@@ -1,6 +1,6 @@
 import type { ComponentData } from "@puckeditor/core";
 import { ok, err, type Result } from "neverthrow";
-import { mapComponent, slotKeysOf } from "@json-render-editor/spec";
+import { mapComponent, slotKeysOf } from "@duck/spec";
 import {
   type PatternSlot,
   type SectionPattern,

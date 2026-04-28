@@ -11,7 +11,7 @@ import {
   collectDescendants,
   findParent,
   slotKeysOf,
-} from "@json-render-editor/spec";
+} from "@duck/spec";
 import type { FiberRegistry } from "../fiber/index.js";
 import type { EditorEvent, EditorSnapshot } from "../machine/index.js";
 import type { DropTarget } from "./drop-indicator.js";

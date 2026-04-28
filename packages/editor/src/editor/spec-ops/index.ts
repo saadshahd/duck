@@ -5,4 +5,4 @@ export { move } from "./move.js";
 export { editProp } from "./edit-prop.js";
 export { copy, paste } from "./clipboard.js";
 export { nextInTreeOrder } from "./navigation.js";
-export { findParent } from "@json-render-editor/spec";
+export { findParent } from "@duck/spec";

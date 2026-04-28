@@ -1,6 +1,6 @@
 import type { ComponentData, Data } from "@puckeditor/core";
 import { err, ok, type Result } from "neverthrow";
-import { getChildrenAt, slotKeysOf } from "@json-render-editor/spec";
+import { getChildrenAt, slotKeysOf } from "@duck/spec";
 import {
   type SpecOpsError,
   cloneAndMutate,

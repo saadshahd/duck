@@ -14,4 +14,4 @@ export type {
   CaptureMode,
   SelectionData,
   CaptureResult,
-} from "@json-render-editor/spec";
+} from "@duck/spec";
