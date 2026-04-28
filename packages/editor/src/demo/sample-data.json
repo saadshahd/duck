@@ -29,7 +29,7 @@
                   "props": {
                     "id": "hero-heading",
                     "level": "h1",
-                    "text": "Visual Editor for json-render",
+                    "text": "Duck — Puck without the iframe",
                     "style": { "fontSize": "3rem" }
                   }
                 },
@@ -170,7 +170,7 @@
                               "type": "Text",
                               "props": {
                                 "id": "feature-3-desc",
-                                "text": "Works with any json-render catalog. Bring your own component library — Primer, shadcn, Radix, or plain HTML.",
+                                "text": "Bring your own Puck Config — Primer, shadcn, Radix, or plain HTML. Drop in as-is, no migration needed.",
                                 "style": {}
                               }
                             }
@@ -211,7 +211,7 @@
                   "type": "Text",
                   "props": {
                     "id": "cta-desc",
-                    "text": "Install the editor, point it at your json-render catalog, and start editing.",
+                    "text": "Install the editor, point it at your Puck Config, and start editing.",
                     "style": {}
                   }
                 },
