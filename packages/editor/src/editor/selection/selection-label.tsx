@@ -1,4 +1,4 @@
-import { type RefObject } from "react";
+import { type RefObject, type ReactNode } from "react";
 import { useFloating, offset, shift, autoUpdate } from "@floating-ui/react";
 import type { Middleware } from "@floating-ui/react";
 import { useShadowSheet, useRegistryAnchor } from "../overlay/index.js";
@@ -41,6 +41,7 @@ export function SelectionLabel({
   selectionCount,
   toolbarRef,
   onSelectParent,
+  children,
 }: {
   registry: FiberRegistry;
   elementId: string;
@@ -48,6 +49,7 @@ export function SelectionLabel({
   selectionCount?: number;
   toolbarRef: RefObject<HTMLElement | null>;
   onSelectParent?: () => void;
+  children?: ReactNode;
 }) {
   useShadowSheet(css);
 
@@ -78,7 +80,7 @@ export function SelectionLabel({
     >
       <span
         data-side={side}
-        className={`element-label${onSelectParent ? " element-label--interactive" : ""}`}
+        className={`element-label${onSelectParent ? " element-label--interactive" : ""}${children ? " element-label--has-trailing" : ""}`}
         onClick={onSelectParent}
       >
         {onSelectParent && <span className="element-label__arrow">↑</span>}
@@ -87,6 +89,11 @@ export function SelectionLabel({
           <span className="element-label__count"> +{selectionCount - 1}</span>
         )}
       </span>
+      {children && (
+        <span className="label-trailing" data-side={side}>
+          {children}
+        </span>
+      )}
     </div>
   );
 }

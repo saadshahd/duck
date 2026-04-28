@@ -39,7 +39,11 @@ export function useDoubleClickEdit({
         if (!fields) return;
 
         const match = findEditableProp(component, fields as ResolvedFields);
-        if (!match) return;
+        if (!match) {
+          e.preventDefault();
+          send({ type: "OPEN_POPOVER" });
+          return;
+        }
 
         e.preventDefault();
         send({

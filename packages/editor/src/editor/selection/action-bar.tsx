@@ -17,8 +17,7 @@ export type EditorAction =
   | { tag: "move-up" }
   | { tag: "move-down" }
   | { tag: "delete" }
-  | { tag: "edit" }
-  | { tag: "more" };
+  | { tag: "edit" };
 
 const MOVE_LABELS: Record<Axis, { prev: string; next: string }> = {
   vertical: { prev: "↑", next: "↓" },
@@ -83,17 +82,6 @@ export function FloatingActionBar({
   return (
     <div ref={mergedRef} style={{ ...floatingStyles, zIndex: 1 }}>
       <div className="action-bar" role="toolbar">
-        {canInsert && (
-          <button
-            type="button"
-            onClick={(e) => {
-              e.stopPropagation();
-              onAction({ tag: "insert" });
-            }}
-          >
-            +
-          </button>
-        )}
         <button
           type="button"
           disabled={!canMovePrev}
@@ -114,9 +102,17 @@ export function FloatingActionBar({
         <button type="button" onClick={() => onAction({ tag: "edit" })}>
           ✏
         </button>
-        <button type="button" onClick={() => onAction({ tag: "more" })}>
-          ⋮
-        </button>
+        {canInsert && (
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              onAction({ tag: "insert" });
+            }}
+          >
+            +
+          </button>
+        )}
         {children}
       </div>
     </div>
