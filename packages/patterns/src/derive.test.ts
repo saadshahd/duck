@@ -2,7 +2,8 @@ import { describe, it, expect } from "bun:test";
 import type { Config } from "@puckeditor/core";
 import { deriveVariations } from "./derive.js";
 
-const makeConfig = (components: Config["components"]): Config =>
+// @ts-ignore - test mock that doesn't need valid render function
+const makeConfig = (components: any): Config =>
   ({ components, root: { render: () => null } }) as unknown as Config;
 
 describe("deriveVariations", () => {
