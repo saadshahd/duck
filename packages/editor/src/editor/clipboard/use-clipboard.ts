@@ -2,7 +2,7 @@ import { useCallback, useRef } from "react";
 import type { ComponentData, Config, Data } from "@puckeditor/core";
 import { findParent } from "@json-render-editor/spec";
 import { copy, paste, remove, type ComponentMap } from "../spec-ops/index.js";
-import type { DataPush } from "../types.js";
+import type { ClipboardActions, DataPush } from "../types.js";
 
 // --- Types ---
 
@@ -13,13 +13,6 @@ type ClipboardDeps = {
   push: DataPush;
   onSelect: (elementIds: string[]) => void;
   onDeselect: () => void;
-};
-
-export type ClipboardActions = {
-  onCopy: () => void;
-  onCut: () => void;
-  onPaste: () => void;
-  onDuplicate: () => void;
 };
 
 // --- Clipboard I/O ---

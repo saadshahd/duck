@@ -4,7 +4,7 @@ import type { Data } from "@puckeditor/core";
 import { findById } from "@json-render-editor/spec";
 import { useShadowSheet, useOnClickOutside } from "../overlay/index.js";
 import type { EditorEvent } from "../machine/index.js";
-import type { ClipboardActions } from "../clipboard/index.js";
+import type { ClipboardActions } from "../types.js";
 import { useMenuKeyboard } from "./use-menu-keyboard.js";
 import css from "./context-menu.css?inline";
 

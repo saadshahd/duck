@@ -2,7 +2,7 @@ import { useEffect, useRef } from "react";
 import { tinykeys } from "tinykeys";
 import type { Data } from "@puckeditor/core";
 import { nextInTreeOrder } from "../spec-ops/index.js";
-import type { ClipboardActions } from "../clipboard/index.js";
+import type { ClipboardActions } from "../types.js";
 import { isEditable } from "../overlay/index.js";
 import { arrowToDirection } from "./navigation.js";
 

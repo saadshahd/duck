@@ -1,0 +1,72 @@
+{
+  "$schema": "https://raw.githubusercontent.com/fallow-rs/fallow/main/schema.json",
+  "ignoreDependencies": ["bun:test"],
+  "boundaries": {
+    "zones": [
+      { "name": "spec-pkg", "patterns": ["packages/spec/**"] },
+      { "name": "mcp-server-pkg", "patterns": ["packages/mcp-server/**"] },
+      {
+        "name": "editor-shell",
+        "root": "packages/editor/",
+        "patterns": ["src/editor/shell.tsx", "src/editor/shell/**"]
+      },
+      {
+        "name": "editor-infra",
+        "root": "packages/editor/",
+        "patterns": [
+          "src/editor/fiber/**",
+          "src/editor/overlay/**",
+          "src/editor/machine/**",
+          "src/editor/layout/**",
+          "src/editor/spec-ops/**",
+          "src/editor/bridge/**",
+          "src/editor/duck-render/**",
+          "src/editor/animated-update.ts",
+          "src/editor/types.ts"
+        ]
+      },
+      { "name": "editor-domain-selection",    "root": "packages/editor/", "patterns": ["src/editor/selection/**"] },
+      { "name": "editor-domain-drag",          "root": "packages/editor/", "patterns": ["src/editor/drag/**"] },
+      { "name": "editor-domain-box-model",     "root": "packages/editor/", "patterns": ["src/editor/box-model/**"] },
+      { "name": "editor-domain-prop-editor",   "root": "packages/editor/", "patterns": ["src/editor/prop-editor/**"] },
+      { "name": "editor-domain-history",       "root": "packages/editor/", "patterns": ["src/editor/history/**"] },
+      { "name": "editor-domain-keyboard",      "root": "packages/editor/", "patterns": ["src/editor/keyboard/**"] },
+      { "name": "editor-domain-context-menu",  "root": "packages/editor/", "patterns": ["src/editor/context-menu/**"] },
+      { "name": "editor-domain-clipboard",     "root": "packages/editor/", "patterns": ["src/editor/clipboard/**"] },
+      { "name": "editor-domain-insert",        "root": "packages/editor/", "patterns": ["src/editor/insert/**"] },
+      { "name": "editor-domain-ghost",         "root": "packages/editor/", "patterns": ["src/editor/ghost/**"] }
+    ],
+    "rules": [
+      { "from": "spec-pkg",       "allow": [] },
+      { "from": "mcp-server-pkg", "allow": ["spec-pkg"] },
+      { "from": "editor-infra",   "allow": ["spec-pkg"] },
+      {
+        "from": "editor-shell",
+        "allow": [
+          "editor-infra",
+          "editor-domain-selection",
+          "editor-domain-drag",
+          "editor-domain-box-model",
+          "editor-domain-prop-editor",
+          "editor-domain-history",
+          "editor-domain-keyboard",
+          "editor-domain-context-menu",
+          "editor-domain-clipboard",
+          "editor-domain-insert",
+          "editor-domain-ghost",
+          "spec-pkg"
+        ]
+      },
+      { "from": "editor-domain-selection",   "allow": ["editor-infra", "spec-pkg"] },
+      { "from": "editor-domain-drag",         "allow": ["editor-infra", "spec-pkg"] },
+      { "from": "editor-domain-box-model",    "allow": ["editor-infra", "spec-pkg"] },
+      { "from": "editor-domain-prop-editor",  "allow": ["editor-infra", "spec-pkg"] },
+      { "from": "editor-domain-history",      "allow": ["editor-infra", "spec-pkg"] },
+      { "from": "editor-domain-keyboard",     "allow": ["editor-infra", "spec-pkg"] },
+      { "from": "editor-domain-context-menu", "allow": ["editor-infra", "spec-pkg"] },
+      { "from": "editor-domain-clipboard",    "allow": ["editor-infra", "spec-pkg"] },
+      { "from": "editor-domain-insert",       "allow": ["editor-infra", "spec-pkg"] },
+      { "from": "editor-domain-ghost",        "allow": ["editor-infra", "spec-pkg"] }
+    ]
+  }
+}

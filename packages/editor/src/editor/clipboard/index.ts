@@ -1,1 +1,2 @@
-export { useClipboard, type ClipboardActions } from "./use-clipboard.js";
+export { useClipboard } from "./use-clipboard.js";
+export type { ClipboardActions } from "../types.js";
