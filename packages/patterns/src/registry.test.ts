@@ -45,7 +45,6 @@ const splitPattern: SectionPattern = {
   name: "Split hero",
   description: "Horizontal split",
   tags: { topology: "split", treatment: ["full-bleed"], interaction: "static" },
-  appliesTo: ["Stack"],
   slots: [
     { name: "heading", accepts: ["heading"], cardinality: { kind: "first" } },
     { name: "body", accepts: ["body"], cardinality: { kind: "optional" } },
@@ -57,7 +56,6 @@ const cardPattern: SectionPattern = {
   name: "Card layout",
   description: "Card with image",
   tags: { topology: "stacked", treatment: ["framed"], interaction: "static" },
-  appliesTo: ["Stack"],
   slots: [
     { name: "figure", accepts: ["figure"], cardinality: { kind: "optional" } },
     { name: "heading", accepts: ["heading"], cardinality: { kind: "first" } },
@@ -85,7 +83,7 @@ describe("createPatternRegistry", () => {
   const registry = createPatternRegistry(puckConfig, patternConfig);
 
   describe("findApplicable", () => {
-    it("returns patterns matching selection fingerprint and applicability", () => {
+    it("returns patterns whose slots accommodate the selection content", () => {
       const selection = make("Stack", "s1", {
         items: [make("Heading", "h1")],
       });

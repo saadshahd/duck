@@ -6,6 +6,7 @@ export type {
   PatternSlot,
   DerivedVariation,
   MergeError,
+  ComponentType,
   ComponentSlotType,
   LayoutTopology,
   VisualTreatment,

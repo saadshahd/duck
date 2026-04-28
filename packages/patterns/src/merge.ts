@@ -75,11 +75,11 @@ function remintChildren(
 }
 
 export function merge(
-  selection: ComponentData,
+  data: ComponentData,
   pattern: SectionPattern,
   config: PatternConfig,
 ): Result<ComponentData, MergeError> {
-  const topLevel = collectTopLevel(selection, config.componentRoles);
+  const topLevel = collectTopLevel(data, config.componentRoles);
 
   const distinctRoles = [
     ...new Set(
@@ -96,15 +96,15 @@ export function merge(
   );
 
   let working = structuredClone(pattern.data) as ComponentData;
-  if (selection.type === pattern.data.type) {
-    const scalarSelectionProps = Object.fromEntries(
-      Object.entries(selection.props).filter(
+  if (data.type === pattern.data.type) {
+    const scalarDataProps = Object.fromEntries(
+      Object.entries(data.props).filter(
         ([, v]) => !isNonEmptyComponentDataArray(v),
       ),
     );
     (working.props as Record<string, unknown>) = {
       ...working.props,
-      ...scalarSelectionProps,
+      ...scalarDataProps,
       id: working.props.id,
     };
   }

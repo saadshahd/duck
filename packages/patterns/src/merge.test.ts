@@ -33,7 +33,6 @@ const simplePattern: SectionPattern = {
   name: "Simple",
   description: "test",
   tags: { topology: "stacked", treatment: ["open"], interaction: "static" },
-  appliesTo: ["Stack"],
   slots: [
     { name: "heading", accepts: ["heading"], cardinality: { kind: "first" } },
     { name: "body", accepts: ["body"], cardinality: { kind: "optional" } },
@@ -145,7 +144,6 @@ describe("merge — root container exception", () => {
     });
     const gridPattern: SectionPattern = {
       ...simplePattern,
-      appliesTo: ["Stack"],
       data: gridTemplate,
       slots: [
         {

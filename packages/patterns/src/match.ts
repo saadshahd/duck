@@ -6,7 +6,6 @@ import type {
   SectionPattern,
 } from "./types.js";
 import { isNonEmptyComponentDataArray } from "./types.js";
-import { fingerprint } from "./fingerprint.js";
 
 function isRequired(cardinality: Cardinality): boolean {
   return cardinality.kind === "first" || cardinality.kind === "many";
@@ -31,8 +30,6 @@ export function isApplicable(
   pattern: SectionPattern,
   config: PatternConfig,
 ): boolean {
-  if (!pattern.appliesTo.includes(fingerprint(component))) return false;
-
   const topLevel = collectTopLevel(component, config.componentRoles);
 
   const selectionRoles = new Set(

@@ -28,7 +28,6 @@ const splitPattern: SectionPattern = {
   name: "Split hero",
   description: "desc",
   tags: { topology: "split", treatment: ["full-bleed"], interaction: "static" },
-  appliesTo: ["Stack"],
   slots: [
     { name: "figure", accepts: ["figure"], cardinality: { kind: "optional" } },
     { name: "heading", accepts: ["heading"], cardinality: { kind: "first" } },
@@ -42,7 +41,6 @@ const headingOnlyPattern: SectionPattern = {
   name: "Text only",
   description: "desc",
   tags: { topology: "stacked", treatment: ["open"], interaction: "static" },
-  appliesTo: ["Stack"],
   slots: [
     { name: "heading", accepts: ["heading"], cardinality: { kind: "first" } },
   ],
@@ -98,13 +96,14 @@ describe("collectTopLevel", () => {
 });
 
 describe("isApplicable", () => {
-  it("returns false when fingerprint not in appliesTo", () => {
+  it("returns true for same content in a different container type", () => {
+    // matching is role-based — Grid with a Heading satisfies splitPattern just as Stack would
     const grid = make("Grid", "g1", { items: [make("Heading", "h1")] });
     const gridConfig: PatternConfig = {
       ...config,
       componentRoles: { ...config.componentRoles, Grid: "container" },
     };
-    expect(isApplicable(grid, splitPattern, gridConfig)).toBe(false);
+    expect(isApplicable(grid, splitPattern, gridConfig)).toBe(true);
   });
 
   it("returns true when all conditions met", () => {

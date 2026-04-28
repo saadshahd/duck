@@ -7,7 +7,6 @@ import type {
   DerivedVariation,
   MergeError,
 } from "./types.js";
-import { fingerprint } from "./fingerprint.js";
 import { isApplicable } from "./match.js";
 import { merge } from "./merge.js";
 import { deriveVariations } from "./derive.js";
@@ -16,16 +15,6 @@ export function createPatternRegistry(
   puckConfig: Config,
   patternConfig: PatternConfig,
 ): PatternRegistry {
-  const allFingerprints = [
-    ...new Set(patternConfig.patterns.flatMap((p) => p.appliesTo)),
-  ];
-  const patternsByFingerprint = new Map<string, SectionPattern[]>(
-    allFingerprints.map((fp) => [
-      fp,
-      patternConfig.patterns.filter((p) => p.appliesTo.includes(fp)),
-    ]),
-  );
-
   const derivedByType = new Map<string, DerivedVariation[]>(
     Object.keys(puckConfig.components).map((type) => [
       type,
@@ -33,22 +22,20 @@ export function createPatternRegistry(
     ]),
   );
 
-  function findApplicable(selection: ComponentData): SectionPattern[] {
-    const fp = fingerprint(selection);
-    const candidates = patternsByFingerprint.get(fp) ?? [];
-    return candidates.filter((p) => isApplicable(selection, p, patternConfig));
+  function findApplicable(data: ComponentData): SectionPattern[] {
+    return patternConfig.patterns.filter((p) =>
+      isApplicable(data, p, patternConfig),
+    );
   }
 
   return {
     findApplicable,
     apply: (
-      selection: ComponentData,
+      data: ComponentData,
       pattern: SectionPattern,
-    ): Result<ComponentData, MergeError> =>
-      merge(selection, pattern, patternConfig),
+    ): Result<ComponentData, MergeError> => merge(data, pattern, patternConfig),
     derive: (componentType: string): DerivedVariation[] =>
       derivedByType.get(componentType) ?? [],
-    count: (selection: ComponentData): number =>
-      findApplicable(selection).length,
+    count: (data: ComponentData): number => findApplicable(data).length,
   };
 }

@@ -1,6 +1,9 @@
 import type { ComponentData, Config } from "@puckeditor/core";
 import type { Result } from "neverthrow";
 
+// Puck component type name, e.g. "Stack", "Heading" — key in componentRoles
+export type ComponentType = string;
+
 // 'container' is the only built-in structural role; all other role names are consumer-defined
 export type ComponentSlotType = string;
 
@@ -37,7 +40,6 @@ export type SectionPattern = {
   };
   slots: [PatternSlot, ...PatternSlot[]]; // non-empty
   data: ComponentData; // template with default instances
-  appliesTo: [string, ...string[]]; // fingerprint strings — non-empty
 };
 
 export type DerivedVariation = {
@@ -47,7 +49,7 @@ export type DerivedVariation = {
 };
 
 export type PatternConfig = {
-  componentRoles: Record<string, ComponentSlotType>; // component type name → role
+  componentRoles: Record<ComponentType, ComponentSlotType>;
   patterns: SectionPattern[];
 };
 
@@ -62,17 +64,14 @@ export function isNonEmptyComponentDataArray(
   );
 }
 
-export type MergeError =
-  | { kind: "no-figure-slot"; figuretype: string }
-  | { kind: "required-slot-empty"; slotName: string }
-  | { kind: "invalid-path"; path: string };
+export type MergeError = { kind: "required-slot-empty"; slotName: string };
 
 export type PatternRegistry = {
-  findApplicable: (selection: ComponentData) => SectionPattern[];
+  findApplicable: (data: ComponentData) => SectionPattern[];
   apply: (
-    selection: ComponentData,
+    data: ComponentData,
     pattern: SectionPattern,
   ) => Result<ComponentData, MergeError>;
-  derive: (componentType: string) => DerivedVariation[];
-  count: (selection: ComponentData) => number;
+  derive: (componentType: ComponentType) => DerivedVariation[];
+  count: (data: ComponentData) => number;
 };
