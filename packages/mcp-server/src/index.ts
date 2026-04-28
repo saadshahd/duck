@@ -55,7 +55,7 @@ const boot = Effect.gen(function* () {
   const mcp = createMcpServer({ storage, config, bridge });
   yield* Effect.promise(() => mcp.connect(new StdioServerTransport()));
 
-  console.error(`[json-render-editor] Bridge: http://127.0.0.1:${port}`);
+  console.error(`[duck] Bridge: http://127.0.0.1:${port}`);
 }).pipe(
   Effect.catchTag("CatalogLoadError", (err) =>
     Effect.failSync(() => formatCatalogError(err)),

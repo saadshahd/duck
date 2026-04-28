@@ -69,7 +69,7 @@ const runTool = <T>(
 
 export const createMcpServer = (ctx: McpContext) => {
   const mcp = new McpServer(
-    { name: "json-render-editor", version: "0.0.1" },
+    { name: "duck", version: "0.0.1" },
     { capabilities: { tools: {} } },
   );
 

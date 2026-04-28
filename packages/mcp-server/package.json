@@ -1,5 +1,5 @@
 {
-  "name": "@json-render-editor/mcp-server",
+  "name": "duck-mcp-server",
   "version": "0.0.1",
   "private": true,
   "type": "module",
