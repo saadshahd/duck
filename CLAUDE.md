@@ -7,6 +7,7 @@ Zero-chrome visual editor for Puck documents. AI agents compose via MCP, designe
 Bun monorepo. TypeScript ESM. Each package owns its own test environment (`bunfig.toml`, preloads, dev deps).
 - `packages/editor` — React 19 + Vite. Uses `happy-dom` via `bunfig.toml` preload for DOM globals in unit tests.
 - `packages/mcp-server` — Bun + Effect v3
+- `packages/patterns` — Pure TypeScript. Structural alternative engine: `createPatternRegistry`, `findApplicable`, `apply`, `remintIds`. No DOM, no React. `apply()` returns `Result<{ data, preservedIds }, MergeError>` — caller must call `remintIds(data, preservedIds)` before inserting into a document to guarantee ID uniqueness.
 
 ## Response format
 

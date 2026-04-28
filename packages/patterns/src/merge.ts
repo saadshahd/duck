@@ -6,6 +6,7 @@ import {
   type SectionPattern,
   type PatternConfig,
   type MergeError,
+  type MergeResult,
 } from "./types.js";
 import { isContainerRole, buildRoleIndex } from "./role.js";
 import { isRequired, isPlural } from "./cardinality.js";
@@ -87,9 +88,13 @@ export function merge(
   data: ComponentData,
   pattern: SectionPattern,
   config: PatternConfig,
-): Result<ComponentData, MergeError> {
+): Result<MergeResult, MergeError> {
   const topLevel = collectTopLevel(data, config.componentRoles);
   const pool = buildRoleIndex(topLevel, config.componentRoles);
+  const preservedIds = new Set([
+    String(data.props.id),
+    ...topLevel.map((c) => String(c.props.id)),
+  ]);
 
   const template = structuredClone(pattern.data) as ComponentData;
   const base = {
@@ -127,5 +132,5 @@ export function merge(
         }),
       ok({ working: base, pool }),
     )
-    .map(({ working }) => working);
+    .map(({ working }) => ({ data: working, preservedIds }));
 }

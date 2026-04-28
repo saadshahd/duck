@@ -1,4 +1,5 @@
 export { createPatternRegistry } from "./registry.js";
+export { remintIds } from "./id.js";
 export { CONTAINER_ROLE } from "./role.js";
 export type {
   PatternConfig,
@@ -7,6 +8,7 @@ export type {
   PatternSlot,
   DerivedVariation,
   MergeError,
+  MergeResult,
   ComponentType,
   ComponentSlotType,
   Cardinality,

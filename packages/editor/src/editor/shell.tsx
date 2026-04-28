@@ -1,6 +1,6 @@
 import { useMemo, useRef, useState } from "react";
 import type { Data, Config } from "@puckeditor/core";
-import { buildIndex } from "@duck/spec";
+import { buildIndex, findById } from "@duck/spec";
 import { useMachine } from "@xstate/react";
 import { editorMachine } from "./machine/index.js";
 import {
@@ -28,7 +28,17 @@ import { useBridge } from "./bridge/use-bridge.js";
 import { RenderHost } from "./duck-render/index.js";
 import { ConnectionDot } from "./bridge/connection-dot.js";
 import { ReconnectPrompt } from "./bridge/reconnect-prompt.js";
+import {
+  useMorph,
+  MorphButton,
+  MorphPicker,
+  MorphOverlay,
+} from "./morph/index.js";
 import type { DataPush } from "./types.js";
+import {
+  createPatternRegistry,
+  type PatternConfig,
+} from "@duck/patterns";
 
 type BridgeConfig = { url: string; page: string };
 
@@ -37,6 +47,7 @@ type EditorShellProps = {
   config: Config;
   onDataChange?: (data: Data) => void;
   bridge?: BridgeConfig;
+  patternConfig?: PatternConfig;
 };
 
 export function EditorShell({
@@ -44,6 +55,7 @@ export function EditorShell({
   config,
   onDataChange,
   bridge,
+  patternConfig,
 }: EditorShellProps) {
   const [bridgeUrl, setBridgeUrl] = useState(bridge?.url ?? null);
   const {
@@ -133,6 +145,7 @@ export function EditorShell({
 
   const selectParent = createSelectParent(currentData, lastSelectedId, send);
   const toolbarRef = useRef<HTMLElement | null>(null);
+  const morphButtonRef = useRef<HTMLButtonElement | null>(null);
 
   useGhostPlaceholders(currentData, fiberRegistry);
   const {
@@ -165,6 +178,37 @@ export function EditorShell({
   const showActionBar =
     hasSelection && pointer === "selected" && singleSelected;
 
+  const patternRegistry = useMemo(
+    () => (patternConfig ? createPatternRegistry(config, patternConfig) : null),
+    [config, patternConfig],
+  );
+
+  const morph = useMorph({
+    registry: patternRegistry,
+    selectedId: singleSelected,
+    data: currentData,
+    push,
+  });
+
+  const morphSelectedElement = useMemo(
+    () =>
+      morph.isOpen && morph.activePattern && singleSelected
+        ? findById(currentData, singleSelected)
+        : null,
+    [morph.isOpen, morph.activePattern, singleSelected, currentData],
+  );
+
+  const morphOverlayData = useMemo(() => {
+    if (!morphSelectedElement || !patternRegistry || !morph.activePattern)
+      return null;
+    const result = patternRegistry.apply(
+      morphSelectedElement,
+      morph.activePattern,
+    );
+    if (result.isErr()) return null;
+    return result.value.data;
+  }, [morphSelectedElement, patternRegistry, morph.activePattern]);
+
   return (
     <>
       <div ref={containerRef} style={{ display: "contents" }}>
@@ -175,6 +219,15 @@ export function EditorShell({
         body { user-select: none; }
         ::view-transition-group(*) { animation-duration: 200ms; animation-timing-function: ease; }
       `}</style>
+
+      {morph.isOpen && morphOverlayData && singleSelected && fiberRegistry && (
+        <MorphOverlay
+          config={config}
+          element={morphOverlayData}
+          fiberRegistry={fiberRegistry}
+          elementId={singleSelected}
+        />
+      )}
 
       <OverlayRoot>
         {highlightId && fiberRegistry && (
@@ -221,7 +274,16 @@ export function EditorShell({
                 canInsert
                 onAction={handleAction}
                 toolbarRef={toolbarRef}
-              />
+              >
+                {patternRegistry && (
+                  <MorphButton
+                    count={morph.count}
+                    elementId={singleSelected}
+                    onClick={morph.openPicker}
+                    buttonRef={morphButtonRef}
+                  />
+                )}
+              </FloatingActionBar>
             )}
             {pointer === "editing" && singleSelected && popover}
             {pointer === "inserting" &&
@@ -236,6 +298,23 @@ export function EditorShell({
                   onClose={() => send({ type: "ESCAPE" })}
                 />
               )}
+            {morph.isOpen && singleSelected && (
+              <MorphPicker
+                patterns={morph.patterns}
+                activeIndex={
+                  morph.activePattern
+                    ? morph.patterns.indexOf(morph.activePattern)
+                    : -1
+                }
+                onHover={(i) =>
+                  morph.setActivePattern(i >= 0 ? morph.patterns[i] : null)
+                }
+                onCommit={(i) => morph.commit(morph.patterns[i])}
+                onClose={morph.closePicker}
+                commitError={morph.commitError}
+                anchorRef={morphButtonRef}
+              />
+            )}
           </>
         )}
         {drag === "dragging" && dropTarget && fiberRegistry && (

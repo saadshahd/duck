@@ -1,0 +1,110 @@
+/* Morph domain — structural alternative picker */
+
+.morph-picker {
+  pointer-events: auto;
+  z-index: 2;
+  background: var(--surface-bar);
+  border-radius: 8px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.24), 0 0 0 1px rgba(255, 255, 255, 0.06);
+  font-family: var(--font-system);
+  min-width: 180px;
+  max-height: 280px;
+  overflow-y: auto;
+  padding: 4px;
+}
+
+.morph-picker-item {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 7px 8px;
+  border-radius: 4px;
+  cursor: pointer;
+  user-select: none;
+  transition: background 80ms ease;
+}
+
+.morph-picker-item:hover,
+.morph-picker-item[data-active] {
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.morph-picker-item[data-active] {
+  background: var(--accent-hover);
+}
+
+.morph-picker-name {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-bar);
+  line-height: 1;
+}
+
+.morph-picker-desc {
+  font-size: 11px;
+  color: var(--text-bar-muted);
+  line-height: 1.3;
+}
+
+.morph-picker-error {
+  font-size: 11px;
+  color: #f87171;
+  line-height: 1;
+  margin-top: 2px;
+}
+
+/* Diamond button — injected into action bar via children slot */
+
+.morph-btn {
+  position: relative;
+  width: 28px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  background: transparent;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 14px;
+  color: var(--text-bar);
+  padding: 0;
+}
+
+.morph-btn:hover {
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.morph-btn:disabled {
+  opacity: 0.3;
+  pointer-events: none;
+  cursor: default;
+}
+
+.morph-btn[data-has-patterns] {
+  color: var(--accent);
+}
+
+.morph-btn[data-pulse] {
+  animation: morph-pulse 200ms ease forwards;
+}
+
+@keyframes morph-pulse {
+  0%   { transform: scale(1); }
+  50%  { transform: scale(1.15); }
+  100% { transform: scale(1); }
+}
+
+.morph-badge {
+  position: absolute;
+  top: 2px;
+  right: 2px;
+  background: var(--accent);
+  color: #fff;
+  font-size: 8px;
+  font-weight: 700;
+  line-height: 1;
+  padding: 1px 3px;
+  border-radius: 4px;
+  pointer-events: none;
+}

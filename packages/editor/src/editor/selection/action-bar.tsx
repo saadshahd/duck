@@ -1,4 +1,4 @@
-import { useEffect, type RefObject } from "react";
+import { useEffect, type ReactNode, type RefObject } from "react";
 import {
   useFloating,
   offset,
@@ -48,6 +48,7 @@ export function FloatingActionBar({
   canInsert,
   onAction,
   toolbarRef,
+  children,
 }: {
   registry: FiberRegistry;
   elementId: string;
@@ -57,6 +58,7 @@ export function FloatingActionBar({
   canInsert: boolean;
   onAction: (action: EditorAction) => void;
   toolbarRef: RefObject<HTMLElement | null>;
+  children?: ReactNode;
 }) {
   useShadowSheet(css);
   const { refs, floatingStyles } = useFloating({
@@ -115,6 +117,7 @@ export function FloatingActionBar({
         <button type="button" onClick={() => onAction({ tag: "more" })}>
           ⋮
         </button>
+        {children}
       </div>
     </div>
   );
