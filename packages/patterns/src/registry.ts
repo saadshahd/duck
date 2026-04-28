@@ -1,11 +1,9 @@
 import type { Config, ComponentData } from "@puckeditor/core";
-import type { Result } from "neverthrow";
 import type {
   SectionPattern,
   PatternConfig,
   PatternRegistry,
   DerivedVariation,
-  MergeError,
 } from "./types.js";
 import { isApplicable } from "./match.js";
 import { merge } from "./merge.js";
@@ -30,10 +28,8 @@ export function createPatternRegistry(
 
   return {
     findApplicable,
-    apply: (
-      data: ComponentData,
-      pattern: SectionPattern,
-    ): Result<ComponentData, MergeError> => merge(data, pattern, patternConfig),
+    apply: (data: ComponentData, pattern: SectionPattern) =>
+      merge(data, pattern, patternConfig),
     derive: (componentType: string): DerivedVariation[] =>
       derivedByType.get(componentType) ?? [],
     count: (data: ComponentData): number => findApplicable(data).length,

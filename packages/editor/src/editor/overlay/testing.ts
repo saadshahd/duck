@@ -92,6 +92,76 @@ export const getDropZoneLabelText = (page: Page) =>
         ?.textContent ?? null,
   ) as Promise<string | null>;
 
+// --- Selection helpers ---
+
+export const selectParentElement = (page: Page) =>
+  page.evaluate(() => {
+    for (const d of document.querySelectorAll("div")) {
+      if (!d.shadowRoot || d.style.position !== "fixed") continue;
+      const chip = d.shadowRoot.querySelector(
+        ".element-label--interactive",
+      ) as HTMLElement | null;
+      chip?.click();
+      return;
+    }
+  });
+
+// --- Morph helpers ---
+
+export const getMorphButtonState = (page: Page) =>
+  shadowQuery(page, (r) => {
+    const btn = r.querySelector(".morph-btn") as HTMLButtonElement | null;
+    if (!btn) return null;
+    const badge = btn.querySelector(".morph-badge");
+    return {
+      disabled: btn.disabled,
+      count: badge ? parseInt(badge.textContent ?? "0", 10) : 0,
+    };
+  }) as Promise<{ disabled: boolean; count: number } | null>;
+
+export const clickMorphButton = (page: Page) =>
+  page.evaluate(() => {
+    for (const d of document.querySelectorAll("div")) {
+      if (!d.shadowRoot || d.style.position !== "fixed") continue;
+      const btn = d.shadowRoot.querySelector(".morph-btn") as
+        | HTMLElement
+        | undefined;
+      btn?.click();
+      return;
+    }
+  });
+
+export const getMorphPickerItems = (page: Page) =>
+  shadowQuery(page, (r) => {
+    const picker = r.querySelector("[data-role='morph-picker']");
+    if (!picker) return null;
+    return [...picker.querySelectorAll(".morph-picker-item")].map(
+      (el) => el.querySelector(".morph-picker-name")?.textContent ?? "",
+    );
+  }) as Promise<string[] | null>;
+
+export const clickMorphPickerItem = (page: Page, name: string) =>
+  page.evaluate((itemName) => {
+    for (const d of document.querySelectorAll("div")) {
+      if (!d.shadowRoot || d.style.position !== "fixed") continue;
+      const picker = d.shadowRoot.querySelector("[data-role='morph-picker']");
+      if (!picker) continue;
+      const items = picker.querySelectorAll(".morph-picker-item");
+      for (const item of items) {
+        const label = item.querySelector(".morph-picker-name")?.textContent;
+        if (label === itemName) {
+          (item as HTMLElement).click();
+          return;
+        }
+      }
+    }
+  }, name);
+
+export const hasMorphOverlay = (page: Page) =>
+  page.evaluate(
+    () => document.querySelector("[data-role='morph-overlay']") !== null,
+  );
+
 // --- Animation & measurement helpers ---
 
 /** Wait for exactly N animation frames to elapse. */

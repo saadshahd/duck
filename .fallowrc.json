@@ -43,7 +43,8 @@
       { "name": "editor-domain-context-menu",  "root": "packages/editor/", "patterns": ["src/editor/context-menu/**"] },
       { "name": "editor-domain-clipboard",     "root": "packages/editor/", "patterns": ["src/editor/clipboard/**"] },
       { "name": "editor-domain-insert",        "root": "packages/editor/", "patterns": ["src/editor/insert/**"] },
-      { "name": "editor-domain-ghost",         "root": "packages/editor/", "patterns": ["src/editor/ghost/**"] }
+      { "name": "editor-domain-ghost",         "root": "packages/editor/", "patterns": ["src/editor/ghost/**"] },
+      { "name": "editor-domain-morph",         "root": "packages/editor/", "patterns": ["src/editor/morph/**"] }
     ],
     "rules": [
       { "from": "spec-pkg",       "allow": [] },
@@ -64,7 +65,9 @@
           "editor-domain-clipboard",
           "editor-domain-insert",
           "editor-domain-ghost",
-          "spec-pkg"
+          "editor-domain-morph",
+          "spec-pkg",
+          "patterns-pkg"
         ]
       },
       { "from": "editor-domain-selection",   "allow": ["editor-infra", "spec-pkg"] },
@@ -76,7 +79,8 @@
       { "from": "editor-domain-context-menu", "allow": ["editor-infra", "spec-pkg"] },
       { "from": "editor-domain-clipboard",    "allow": ["editor-infra", "spec-pkg"] },
       { "from": "editor-domain-insert",       "allow": ["editor-infra", "spec-pkg"] },
-      { "from": "editor-domain-ghost",        "allow": ["editor-infra", "spec-pkg"] }
+      { "from": "editor-domain-ghost",        "allow": ["editor-infra", "spec-pkg"] },
+      { "from": "editor-domain-morph",        "allow": ["editor-infra", "spec-pkg", "patterns-pkg"] }
     ]
   }
 }

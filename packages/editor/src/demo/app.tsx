@@ -1,6 +1,7 @@
 import { useState } from "react";
 import type { Data } from "@puckeditor/core";
 import { config } from "./puck.config.js";
+import { patternConfig } from "./pattern.config.js";
 import { EditorShell } from "../editor/shell.js";
 import sampleData from "./sample-data.json";
 
@@ -18,6 +19,7 @@ export function App() {
     <EditorShell
       data={data}
       config={config}
+      patternConfig={patternConfig}
       onDataChange={setData}
       bridge={bridge}
     />

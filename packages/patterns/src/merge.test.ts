@@ -39,7 +39,7 @@ function mergeItems(
 ): ComponentData[] {
   const result = merge(selection, pattern, config);
   expect(result.isOk()).toBe(true);
-  return result._unsafeUnwrap().props.items as ComponentData[];
+  return result._unsafeUnwrap().data.props.items as ComponentData[];
 }
 
 describe("merge — cardinality cases", () => {
@@ -86,13 +86,13 @@ describe("merge — cardinality cases", () => {
     expect(items.some((c) => c.props.id === "t1")).toBe(true);
   });
 
-  // Case 5: optional, 0 matches → keep template default
+  // Case 5: optional, 0 matches → keep template default (id re-minted, type preserved)
   it("(optional, 0 matches) keeps template default for body slot", () => {
     const selection = make("Stack", "s1", {
       items: [make("Heading", "h1")],
     });
     const items = mergeItems(selection);
-    expect(items.some((c) => c.props.id === "tmpl-t")).toBe(true);
+    expect(items.some((c) => c.type === "Text")).toBe(true);
   });
 
   // Case 6: many → all components in document order
@@ -148,12 +148,40 @@ describe("merge — root container exception", () => {
     const result = merge(selection, gridPattern, config);
     expect(result.isOk()).toBe(true);
     // Result root should be Grid (from template), not Stack
-    expect(result._unsafeUnwrap().type).toBe("Grid");
+    expect(result._unsafeUnwrap().data.type).toBe("Grid");
   });
 });
 
-describe("merge — ID preservation", () => {
-  it("preserves IDs of merged content nodes", () => {
+describe("merge — preservedIds", () => {
+  it("includes root ID in preservedIds", () => {
+    const selection = make("Stack", "s1", {
+      items: [make("Heading", "h1")],
+    });
+    const result = merge(selection, simplePattern, config);
+    expect(result.isOk()).toBe(true);
+    expect(result._unsafeUnwrap().preservedIds.has("s1")).toBe(true);
+  });
+
+  it("includes content node IDs in preservedIds", () => {
+    const selection = make("Stack", "s1", {
+      items: [make("Heading", "my-heading-id")],
+    });
+    const result = merge(selection, simplePattern, config);
+    expect(result.isOk()).toBe(true);
+    expect(result._unsafeUnwrap().preservedIds.has("my-heading-id")).toBe(true);
+  });
+
+  it("does NOT include template default IDs in preservedIds", () => {
+    const selection = make("Stack", "s1", {
+      items: [make("Heading", "h1")],
+    });
+    const result = merge(selection, simplePattern, config);
+    expect(result.isOk()).toBe(true);
+    // tmpl-t is a template default — caller must remint it
+    expect(result._unsafeUnwrap().preservedIds.has("tmpl-t")).toBe(false);
+  });
+
+  it("content node IDs appear in merged data", () => {
     const selection = make("Stack", "s1", {
       items: [make("Heading", "my-heading-id")],
     });

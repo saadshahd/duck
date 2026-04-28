@@ -130,14 +130,16 @@ describe("createPatternRegistry", () => {
   });
 
   describe("apply", () => {
-    it("returns Ok with merged ComponentData", () => {
+    it("returns Ok with merged data and preservedIds", () => {
       const selection = make("Stack", "s1", {
         items: [make("Heading", "h1", { text: "Hello" })],
       });
       const result = registry.apply(selection, splitPattern);
       expect(result.isOk()).toBe(true);
-      const tree = result._unsafeUnwrap();
-      expect(tree.type).toBe("Stack");
+      const { data, preservedIds } = result._unsafeUnwrap();
+      expect(data.type).toBe("Stack");
+      expect(preservedIds.has("s1")).toBe(true);
+      expect(preservedIds.has("h1")).toBe(true);
     });
 
     it("returns Err when required slot has no match", () => {
