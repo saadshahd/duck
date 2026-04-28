@@ -60,6 +60,5 @@ globs: packages/mcp-server/**
 
 - `try/catch` or `throw`
 - `Effect.runSync` (all storage is async)
-- `Schema` for spec validation (`@json-render/core` owns that)
 - God-object error types
 - `Effect.all` with `concurrency: "unbounded"` for filesystem ops

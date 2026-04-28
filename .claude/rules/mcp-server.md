@@ -23,22 +23,22 @@ All spec I/O goes through `Storage`. Tools NEVER access files directly.
 ```ts
 interface Storage {
   listPages(): Effect<PageInfo[], StorageError>
-  readSpec(page: string): Effect<Spec, NotFound | StorageError>
-  writeSpec(page: string, spec: Spec): Effect<void, StorageError>
-  readDraft(page: string): Effect<Spec | null, StorageError>
-  writeDraft(page: string, spec: Spec): Effect<void, StorageError>
+  readData(page: string): Effect<Data, NotFound | StorageError>
+  writeData(page: string, data: Data): Effect<void, StorageError>
+  readDraft(page: string): Effect<Data | null, StorageError>
+  writeDraft(page: string, data: Data): Effect<void, StorageError>
   commitDraft(page: string): Effect<void, NotFound | StorageError>
   discardDraft(page: string): Effect<void, StorageError>
 }
 ```
 
 - `FileStorage` is the default. CMS adapters implement the same interface.
-- MCP server only sees `Spec`. CMS concerns (refs, i18n, metadata) live in the adapter.
+- MCP server only sees `Data`. CMS concerns (refs, i18n, metadata) live in the adapter.
 
 ## Effect v3
 
 - Effect for the full pipeline: read → validate → transform → write → respond.
-- Typed errors: `NotFound`, `StorageError`, `PatchError`.
+- Typed errors: `NotFound`, `StorageError`, `SpecOpsError`.
 - `Effect.runPromise()` at the MCP handler boundary.
 - No neverthrow — Effect is the one error model in this package.
 - No try/catch.
@@ -52,8 +52,8 @@ Six tools:
 | `editor_status` | orient | Pages, bridge status, connection info |
 | `editor_query` | read | Page-bound reads: outline, element, selection, capture, search |
 | `editor_manifest` | read | Catalog reads: component list, single component schema, prompt |
-| `editor_apply` | write | RFC 6902 patches → draft |
-| `editor_commit` | write | Promote draft → committed spec, push to browser via bridge |
+| `editor_apply` | write | add/update/remove/move ops → draft |
+| `editor_commit` | write | Promote draft → committed data, push to browser via bridge |
 | `editor_discard` | write | Delete draft |
 
 `editor_query` is the unified page read tool. Mode determined by `what` parameter:
@@ -78,12 +78,14 @@ Six tools:
 - `editor_discard` deletes. Idempotent.
 - Orphaned drafts reported by `editor_status`.
 
-## Patch application
+## Op application
 
-- Deep-clone spec before applying. `applySpecPatch` may mutate.
-- Apply sequentially. Failure at op N → return original, report `failedOpIndex`.
-- Post-apply: `validateSpec` (advisory), `autoFixSpec` if fixable.
-- Never return full spec in `editor_apply` response.
+- Four verbs: `add`, `update`, `remove`, `move`. Each returns `Result<Data, SpecOpsError>` from spec-ops.
+- Deep-clone data before applying. Apply ops sequentially via an Effect pipeline.
+- Failure at op N → stop, broadcast last-good state, report `{ ok: false, failedOpIndex: N, error }`.
+- On success: return `{ ok: true, summary, outline }` so the agent has next-turn context without an extra query.
+- Never return full `Data` in `editor_apply` response.
+- Per-op: after each success, `storage.writeData(page, draft)` then `bridge.broadcast(page, draft)`.
 
 ## Bridge
 
@@ -92,17 +94,17 @@ Six tools:
 - Multiple tabs on same page: broadcast on commit, latest selection wins.
 - Multiple MCP servers: separate bridge ports, separate browser tabs.
 - Protocol:
-  - Server → browser: `spec-update`, `capture-request`
+  - Server → browser: `spec-update` (carries `data: Data`), `capture-request`
   - Browser → server: `ready`, `selection-changed`, `capture-response`
 - Bridge-dependent queries degrade gracefully: "No browser connected."
 
 ## Catalog
 
-- Project dir has `catalog.ts` exporting `{ catalog }` (a `@json-render/core` `Catalog` instance).
+- Project dir has `puck.config.ts` (or `catalog.ts`) exporting `{ config }` (a `@puckeditor/core` `Config` object).
 - MCP server dynamically imports it at startup. Per-conversation server = fresh each session.
 - No `catalog.json`, no `catalog-prompt.txt`, no generation step.
 - `editor_manifest` exposes catalog data progressively — agent queries what it needs.
-- On missing `catalog.ts`: typed `CatalogLoadError` with path and convention hint.
+- On missing config file: typed `CatalogLoadError` with path and convention hint.
 
 ## Page lifecycle
 

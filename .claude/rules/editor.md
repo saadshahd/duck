@@ -21,7 +21,7 @@ When updating the rendered preview:
 
 When writing editor logic:
 - Never reference specific component types (Heading, Button, Card).
-- The editor is catalog-agnostic. It works with ANY json-render catalog.
+- The editor is catalog-agnostic. It works with ANY Puck Config.
 - Test with the demo catalog only.
 
 ## State machines (XState v5)
