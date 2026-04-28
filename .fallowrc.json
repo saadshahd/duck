@@ -12,6 +12,7 @@
   "boundaries": {
     "zones": [
       { "name": "spec-pkg", "patterns": ["packages/spec/**"] },
+      { "name": "patterns-pkg", "patterns": ["packages/patterns/**"] },
       { "name": "mcp-server-pkg", "patterns": ["packages/mcp-server/**"] },
       {
         "name": "editor-shell",
@@ -46,6 +47,7 @@
     ],
     "rules": [
       { "from": "spec-pkg",       "allow": [] },
+      { "from": "patterns-pkg",   "allow": [] },
       { "from": "mcp-server-pkg", "allow": ["spec-pkg"] },
       { "from": "editor-infra",   "allow": ["spec-pkg"] },
       {
