@@ -1,17 +1,15 @@
 import type { ComponentData } from "@puckeditor/core";
 import type {
+  Cardinality,
   ComponentSlotType,
   PatternConfig,
   SectionPattern,
 } from "./types.js";
+import { isComponentDataArray } from "./types.js";
 import { fingerprint } from "./fingerprint.js";
 
-function isComponentDataArray(value: unknown): value is ComponentData[] {
-  return (
-    Array.isArray(value) &&
-    value.length > 0 &&
-    typeof (value[0] as Record<string, unknown>)?.type === "string"
-  );
+function isRequired(cardinality: Cardinality): boolean {
+  return cardinality.kind === "first" || cardinality.kind === "many";
 }
 
 export function collectTopLevel(
@@ -45,9 +43,7 @@ export function isApplicable(
   }
 
   return pattern.slots.every((slot) => {
-    if (slot.cardinality.kind !== "first" && slot.cardinality.kind !== "many") {
-      return true;
-    }
+    if (!isRequired(slot.cardinality)) return true;
     return topLevel.some((c) => {
       const role = config.componentRoles[c.type];
       return role !== undefined && slot.accepts.includes(role);

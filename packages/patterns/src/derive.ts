@@ -10,6 +10,7 @@ const LAYOUT_KEYS = [
   "layout",
 ] as const;
 
+// substring match — intentionally catches compound prop names (e.g. flexDirection, columnGap)
 function isLayoutKey(key: string): boolean {
   return LAYOUT_KEYS.some((k) => key.includes(k));
 }

@@ -55,6 +55,14 @@ export type PatternConfig = {
   patterns: SectionPattern[];
 };
 
+export function isComponentDataArray(value: unknown): value is ComponentData[] {
+  return (
+    Array.isArray(value) &&
+    value.length > 0 &&
+    typeof (value[0] as Record<string, unknown>)?.type === "string"
+  );
+}
+
 export type MergeError =
   | { kind: "no-figure-slot"; figuretype: string }
   | { kind: "required-slot-empty"; slotName: string }

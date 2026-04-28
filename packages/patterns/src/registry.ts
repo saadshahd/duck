@@ -16,14 +16,15 @@ export function createPatternRegistry(
   puckConfig: Config,
   patternConfig: PatternConfig,
 ): PatternRegistry {
-  const patternsByFingerprint = new Map<string, SectionPattern[]>();
-  for (const pattern of patternConfig.patterns) {
-    for (const fp of pattern.appliesTo) {
-      const existing = patternsByFingerprint.get(fp) ?? [];
-      existing.push(pattern);
-      patternsByFingerprint.set(fp, existing);
-    }
-  }
+  const allFingerprints = [
+    ...new Set(patternConfig.patterns.flatMap((p) => p.appliesTo)),
+  ];
+  const patternsByFingerprint = new Map<string, SectionPattern[]>(
+    allFingerprints.map((fp) => [
+      fp,
+      patternConfig.patterns.filter((p) => p.appliesTo.includes(fp)),
+    ]),
+  );
 
   const derivedByType = new Map<string, DerivedVariation[]>(
     Object.keys(puckConfig.components).map((type) => [
