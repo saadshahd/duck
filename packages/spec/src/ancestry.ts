@@ -7,7 +7,7 @@ export type AncestryEntry = {
   readonly index: number;
 };
 
-export type ParentMapEntry = {
+type ParentMapEntry = {
   readonly parentId: string | null;
 } & AncestryEntry;
 

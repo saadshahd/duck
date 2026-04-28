@@ -3,7 +3,7 @@ import type { Page } from "@playwright/test";
 // --- Shadow DOM access ---
 
 /** Evaluate a function against the editor overlay's shadow root. */
-export async function shadowQuery<T>(
+async function shadowQuery<T>(
   page: Page,
   fn: (root: ShadowRoot) => T,
 ): Promise<T | null> {
@@ -73,7 +73,7 @@ export const hasDropIndicator = (page: Page) =>
     (r) => r.querySelector("[data-role='drop-indicator']") !== null,
   ) as Promise<boolean>;
 
-export const getDropIndicatorRect = (page: Page) =>
+const getDropIndicatorRect = (page: Page) =>
   shadowQuery(page, (r) => {
     const el = r.querySelector(
       "[data-role='drop-indicator']",

@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from "react";
 import type { FiberRegistry } from "../fiber/index.js";
 import { isFromShadowDom } from "../fiber/index.js";
 
-export type MenuState = {
+type MenuState = {
   x: number;
   y: number;
   elementIds: string[];

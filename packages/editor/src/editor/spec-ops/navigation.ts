@@ -1,7 +1,7 @@
 import type { Data } from "@puckeditor/core";
 import { preOrder } from "@json-render-editor/spec";
 
-export type NavDirection = "forward" | "backward";
+type NavDirection = "forward" | "backward";
 
 /** Next/previous element id in pre-order. Returns null at document boundaries
  *  or for unknown ids. */

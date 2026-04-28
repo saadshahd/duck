@@ -4,7 +4,7 @@ import { getChildrenAt, findParent } from "@json-render-editor/spec";
 import type { FiberRegistry } from "../fiber/index.js";
 import { type Axis, resolveSlotAxis } from "../layout/index.js";
 
-export type MoveInfo = {
+type MoveInfo = {
   axis: Axis;
   canMovePrev: boolean;
   canMoveNext: boolean;

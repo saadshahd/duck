@@ -25,7 +25,7 @@ export const readData = (bag: Record<string | symbol, unknown>) =>
 
 // --- Axis & edges ---
 
-export { type Axis, detectAxis, resolveSlotAxis } from "../layout/index.js";
+export { resolveSlotAxis } from "../layout/index.js";
 
 export const EDGES: Record<Axis, Edge[]> = {
   vertical: ["top", "bottom"],

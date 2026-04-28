@@ -1,11 +1,8 @@
-export { type SpecOpsError, cloneAndMutate } from "./helpers.js";
+export { type SpecOpsError } from "./helpers.js";
 export { add, type ComponentMap } from "./add.js";
-export { update } from "./update.js";
 export { remove } from "./remove.js";
 export { move } from "./move.js";
 export { editProp } from "./edit-prop.js";
 export { copy, paste } from "./clipboard.js";
-export { nextInTreeOrder, type NavDirection } from "./navigation.js";
-export { slotKeysOf } from "@json-render-editor/spec";
-export { findById, findParent } from "@json-render-editor/spec";
-export { descendantIds as collectDescendants } from "./helpers.js";
+export { nextInTreeOrder } from "./navigation.js";
+export { findParent } from "@json-render-editor/spec";

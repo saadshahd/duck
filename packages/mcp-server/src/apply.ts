@@ -6,7 +6,7 @@ import type { InvalidPageName, NotFound, StorageError } from "./errors.js";
 import { applyOp, type Op, type OpError } from "./ops.js";
 import { readDataOrDraft } from "./query/read-spec-or-draft.js";
 
-export type ApplyArgs = {
+type ApplyArgs = {
   readonly page: string;
   readonly ops: readonly Op[];
 };

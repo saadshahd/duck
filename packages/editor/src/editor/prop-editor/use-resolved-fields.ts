@@ -1,7 +1,6 @@
 import { useEffect, useRef, useState } from "react";
-import type { ComponentData, Config, Field } from "@puckeditor/core";
-
-export type ResolvedFields = Record<string, Field>;
+import type { ComponentData, Config } from "@puckeditor/core";
+import type { ResolvedFields } from "./find-editable-prop.js";
 
 const EMPTY_FIELDS: ResolvedFields = {};
 

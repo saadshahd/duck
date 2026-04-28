@@ -2,7 +2,7 @@ import type { ComponentData, Field } from "@puckeditor/core";
 
 export type ResolvedFields = Record<string, Field>;
 
-export type EditablePropResult = {
+type EditablePropResult = {
   readonly propKey: string;
   readonly propPath: readonly (string | number)[];
   readonly value: string;

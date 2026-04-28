@@ -110,7 +110,7 @@ export const transition = (
   return handler ? handler(ctx, event) : ctx;
 };
 
-export type HistoryInput = { data: Data };
+type HistoryInput = { data: Data };
 
 export const historyLogic = fromTransition(
   transition,

@@ -1,20 +1,15 @@
 import { describe, test, expect } from "bun:test";
-import type { ComponentData, Data } from "@puckeditor/core";
-import type { FiberRegistry } from "../fiber/index.js";
+import type { Data } from "@puckeditor/core";
 import { resolveDrop } from "./resolve-drop.js";
-import type { DragData } from "./helpers.js";
+import {
+  text,
+  box,
+  bag,
+  stubRegistry,
+  emptyRegistry,
+} from "./drag-test-fixtures.js";
 
 // --- Factories ---
-
-const text = (id: string): ComponentData => ({
-  type: "Text",
-  props: { id, text: id },
-});
-
-const box = (id: string, items: ComponentData[]): ComponentData => ({
-  type: "Box",
-  props: { id, items },
-});
 
 const data = (): Data => ({
   root: { props: {} },
@@ -26,21 +21,6 @@ const data = (): Data => ({
     box("empty", []),
   ],
 });
-
-const bag = (d: DragData) => ({
-  data: d as unknown as Record<string | symbol, unknown>,
-});
-
-const stubRegistry = (rects: Record<string, DOMRect>): FiberRegistry => ({
-  get: (id) => {
-    const r = rects[id];
-    return r ? ({ getBoundingClientRect: () => r } as HTMLElement) : undefined;
-  },
-  getNodeId: () => undefined,
-  dispose: () => {},
-});
-
-const emptyRegistry = stubRegistry({});
 
 // --- Tests ---
 

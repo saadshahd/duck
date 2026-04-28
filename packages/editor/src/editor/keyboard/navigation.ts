@@ -1,4 +1,4 @@
-export type NavDirection = "forward" | "backward";
+type NavDirection = "forward" | "backward";
 
 const ARROW_DIRECTION: Record<string, NavDirection> = {
   ArrowDown: "forward",

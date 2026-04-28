@@ -351,7 +351,7 @@ const renderers = {
 >;
 
 /** Render a single Puck field with the appropriate input. */
-export function PuckFieldInput(props: FieldProps): ReactNode {
+function PuckFieldInput(props: FieldProps): ReactNode {
   const Renderer = (renderers as Record<string, unknown>)[props.field.type] as
     | ((p: FieldProps<never, unknown>) => ReactNode)
     | undefined;

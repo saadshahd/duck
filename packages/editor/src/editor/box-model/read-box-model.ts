@@ -1,7 +1,5 @@
 import { type Edges, expandRect, insetRect } from "../layout/rect.js";
 
-export type { Edges };
-
 export type GapInfo = { row: number; column: number };
 
 export type BoxModelData = {

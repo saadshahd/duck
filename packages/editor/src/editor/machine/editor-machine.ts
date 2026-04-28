@@ -13,12 +13,12 @@ type InlineEditBase = {
 export type InlineEditing = InlineEditBase &
   ({ trigger: "select" } | { trigger: "replace"; char: string });
 
-export type PopoverEditing = {
+type PopoverEditing = {
   elementId: string;
   mode: "popover";
 };
 
-export type Editing = InlineEditing | PopoverEditing;
+type Editing = InlineEditing | PopoverEditing;
 
 export type EditorContext = {
   hoveredId: string | null;

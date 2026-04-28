@@ -35,6 +35,7 @@ export class OpError extends EffectData.TaggedError("OpError")<{
     | "unknown-component";
   readonly details: Record<string, unknown>;
 }> {
+  // fallow-ignore-next-line unused-class-member
   get hint() {
     return `Op failed (${this.tag}): ${JSON.stringify(this.details)}`;
   }
