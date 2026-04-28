@@ -1,12 +1,8 @@
 import type { ComponentData, Config } from "@puckeditor/core";
 import type { Result } from "neverthrow";
 
-export type ComponentSlotType =
-  | "figure" // self-contained visual/interactive unit — opaque to parent
-  | "heading" // dominant text
-  | "body" // supporting text
-  | "action" // CTA / trigger
-  | "container"; // structural — always from template, never merged
+// 'container' is the only built-in structural role; all other role names are consumer-defined
+export type ComponentSlotType = string;
 
 export type LayoutTopology =
   | "split"
@@ -55,7 +51,10 @@ export type PatternConfig = {
   patterns: SectionPattern[];
 };
 
-export function isComponentDataArray(value: unknown): value is ComponentData[] {
+// returns false for empty arrays — callers rely on value[0].type being present
+export function isNonEmptyComponentDataArray(
+  value: unknown,
+): value is ComponentData[] {
   return (
     Array.isArray(value) &&
     value.length > 0 &&

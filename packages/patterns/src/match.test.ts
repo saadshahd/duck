@@ -139,6 +139,25 @@ describe("isApplicable", () => {
     expect(isApplicable(stack, headingOnlyPattern, config)).toBe(false);
   });
 
+  it("returns false when selection has body role but pattern has no body slot", () => {
+    // headingOnlyPattern has no body slot — Text (body role) triggers lossless invariant
+    const stack = make("Stack", "s1", {
+      items: [make("Heading", "h1"), make("Text", "t1")],
+    });
+    expect(isApplicable(stack, headingOnlyPattern, config)).toBe(false);
+  });
+
+  it("returns false when selection has consumer-defined role that pattern cannot accommodate", () => {
+    const customConfig: PatternConfig = {
+      ...config,
+      componentRoles: { ...config.componentRoles, Video: "media" },
+    };
+    const stack = make("Stack", "s1", {
+      items: [make("Video", "v1"), make("Heading", "h1")],
+    });
+    expect(isApplicable(stack, splitPattern, customConfig)).toBe(false);
+  });
+
   it("returns true when selection has figure and pattern has figure slot", () => {
     const stack = make("Stack", "s1", {
       items: [make("Image", "img1"), make("Heading", "h1")],

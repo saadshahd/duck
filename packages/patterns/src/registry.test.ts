@@ -111,15 +111,15 @@ describe("createPatternRegistry", () => {
       expect(result.some((p) => p.name === "Card layout")).toBe(true);
     });
 
-    it("returns multiple patterns when all apply", () => {
-      // Both patterns apply: heading present, no figure
+    it("returns only patterns that accommodate all selection roles", () => {
+      // Selection has heading (heading) and Text (body)
+      // cardPattern has no body slot → lossless invariant excludes it
+      // splitPattern has heading (first) + body (optional) → applies
       const selection = make("Stack", "s1", {
         items: [make("Heading", "h1"), make("Text", "t1")],
       });
       const result = registry.findApplicable(selection);
-      // cardPattern has optional figure — should still apply without one
-      // splitPattern has required heading — present, should apply
-      expect(result.length).toBe(2);
+      expect(result).toEqual([splitPattern]);
     });
   });
 

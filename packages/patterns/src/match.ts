@@ -5,7 +5,7 @@ import type {
   PatternConfig,
   SectionPattern,
 } from "./types.js";
-import { isComponentDataArray } from "./types.js";
+import { isNonEmptyComponentDataArray } from "./types.js";
 import { fingerprint } from "./fingerprint.js";
 
 function isRequired(cardinality: Cardinality): boolean {
@@ -17,7 +17,7 @@ export function collectTopLevel(
   roles: Record<string, ComponentSlotType>,
 ): ComponentData[] {
   return Object.values(component.props).flatMap((value) => {
-    if (!isComponentDataArray(value)) return [];
+    if (!isNonEmptyComponentDataArray(value)) return [];
     return value.flatMap((child) =>
       roles[child.type] === "container"
         ? collectTopLevel(child, roles)
@@ -35,11 +35,13 @@ export function isApplicable(
 
   const topLevel = collectTopLevel(component, config.componentRoles);
 
-  const hasFigure = topLevel.some(
-    (c) => config.componentRoles[c.type] === "figure",
+  const selectionRoles = new Set(
+    topLevel
+      .map((c) => config.componentRoles[c.type])
+      .filter((role): role is string => role !== undefined),
   );
-  if (hasFigure && !pattern.slots.some((s) => s.accepts.includes("figure"))) {
-    return false;
+  for (const role of selectionRoles) {
+    if (!pattern.slots.some((s) => s.accepts.includes(role))) return false;
   }
 
   return pattern.slots.every((slot) => {

@@ -1,12 +1,7 @@
 import type { ComponentData } from "@puckeditor/core";
 import { ok, err, type Result } from "neverthrow";
-import type {
-  ComponentSlotType,
-  SectionPattern,
-  PatternConfig,
-  MergeError,
-} from "./types.js";
-import { isComponentDataArray } from "./types.js";
+import type { SectionPattern, PatternConfig, MergeError } from "./types.js";
+import { isNonEmptyComponentDataArray } from "./types.js";
 import { collectTopLevel } from "./match.js";
 
 function mintId(counter: { n: number }): string {
@@ -15,15 +10,15 @@ function mintId(counter: { n: number }): string {
 
 function replacePlaceholder(
   node: ComponentData,
-  accepts: ComponentSlotType[],
-  roles: Record<string, ComponentSlotType>,
+  accepts: string[],
+  roles: Record<string, string>,
   targetNth: number,
   replacements: ComponentData[],
   seen: { n: number },
 ): ComponentData {
   const newProps: Record<string, unknown> = {};
   for (const [key, value] of Object.entries(node.props)) {
-    if (!isComponentDataArray(value)) {
+    if (!isNonEmptyComponentDataArray(value)) {
       newProps[key] = value;
       continue;
     }
@@ -59,18 +54,24 @@ function replacePlaceholder(
 
 function remintChildren(
   node: ComponentData,
-  roles: Record<string, ComponentSlotType>,
+  roles: Record<string, string>,
   counter: { n: number },
-): void {
-  for (const value of Object.values(node.props)) {
-    if (!isComponentDataArray(value)) continue;
-    for (const child of value as ComponentData[]) {
-      if (roles[child.type] === "container") {
-        (child.props as Record<string, unknown>).id = mintId(counter);
-      }
-      remintChildren(child, roles, counter);
+): ComponentData {
+  const newProps: Record<string, unknown> = {};
+  for (const [key, value] of Object.entries(node.props)) {
+    if (!isNonEmptyComponentDataArray(value)) {
+      newProps[key] = value;
+      continue;
     }
+    newProps[key] = (value as ComponentData[]).map((child) => {
+      const withNewId =
+        roles[child.type] === "container"
+          ? { ...child, props: { ...child.props, id: mintId(counter) } }
+          : child;
+      return remintChildren(withNewId, roles, counter);
+    });
   }
+  return { ...node, props: newProps } as ComponentData;
 }
 
 export function merge(
@@ -80,14 +81,15 @@ export function merge(
 ): Result<ComponentData, MergeError> {
   const topLevel = collectTopLevel(selection, config.componentRoles);
 
-  const contentRoles: ComponentSlotType[] = [
-    "figure",
-    "heading",
-    "body",
-    "action",
+  const distinctRoles = [
+    ...new Set(
+      topLevel
+        .map((c) => config.componentRoles[c.type])
+        .filter((r): r is string => r !== undefined && r !== "container"),
+    ),
   ];
-  const multimap = new Map<ComponentSlotType, ComponentData[]>(
-    contentRoles.map((role) => [
+  const multimap = new Map<string, ComponentData[]>(
+    distinctRoles.map((role) => [
       role,
       topLevel.filter((c) => config.componentRoles[c.type] === role),
     ]),
@@ -97,7 +99,7 @@ export function merge(
   if (selection.type === pattern.data.type) {
     const scalarSelectionProps = Object.fromEntries(
       Object.entries(selection.props).filter(
-        ([, v]) => !isComponentDataArray(v),
+        ([, v]) => !isNonEmptyComponentDataArray(v),
       ),
     );
     (working.props as Record<string, unknown>) = {
@@ -110,7 +112,7 @@ export function merge(
   const slotIndexByAccepts = new Map<string, number>();
 
   for (const slot of pattern.slots) {
-    const acceptsKey = slot.accepts.join(",");
+    const acceptsKey = [...slot.accepts].sort().join(",");
     const nth = slotIndexByAccepts.get(acceptsKey) ?? 0;
 
     const matched: ComponentData[] = slot.accepts.flatMap(
@@ -170,7 +172,7 @@ export function merge(
     slotIndexByAccepts.set(acceptsKey, nth + 1);
   }
 
-  remintChildren(working, config.componentRoles, { n: 0 });
+  const minted = remintChildren(working, config.componentRoles, { n: 0 });
 
-  return ok(working);
+  return ok(minted);
 }
