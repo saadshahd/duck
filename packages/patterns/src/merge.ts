@@ -8,9 +8,8 @@ import type {
 } from "./types.js";
 import { collectTopLevel } from "./match.js";
 
-let _idCounter = 0;
-function mintId(): string {
-  return `pattern-node-${++_idCounter}`;
+function mintId(counter: { n: number }): string {
+  return `pattern-node-${++counter.n}`;
 }
 
 function isComponentDataArray(value: unknown): value is ComponentData[] {
@@ -61,16 +60,17 @@ function replacePlaceholder(
 function remintContainerIds(
   node: ComponentData,
   roles: Record<string, ComponentSlotType>,
+  counter: { n: number },
   isRoot: boolean = false,
 ): void {
   const role = roles[node.type];
   if (!isRoot && role === "container") {
-    (node.props as Record<string, unknown>).id = mintId();
+    (node.props as Record<string, unknown>).id = mintId(counter);
   }
   for (const value of Object.values(node.props)) {
     if (!isComponentDataArray(value)) continue;
     for (const child of value) {
-      remintContainerIds(child, roles);
+      remintContainerIds(child, roles, counter);
     }
   }
 }
@@ -187,7 +187,7 @@ export function merge(
   }
 
   // Step 4: re-mint IDs for structural container nodes that came from the template
-  remintContainerIds(working, config.componentRoles, true);
+  remintContainerIds(working, config.componentRoles, { n: 0 }, true);
 
   return ok(working);
 }
