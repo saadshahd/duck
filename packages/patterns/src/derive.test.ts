@@ -50,18 +50,18 @@ describe("deriveVariations", () => {
         },
       },
     });
-    const result = deriveVariations(config, "Stack");
-    expect(result).toHaveLength(2);
-    expect(result[0]).toEqual({
-      name: "Horizontal",
-      componentType: "Stack",
-      props: { direction: "horizontal", gap: 4 },
-    });
-    expect(result[1]).toEqual({
-      name: "Vertical",
-      componentType: "Stack",
-      props: { direction: "vertical", gap: 4 },
-    });
+    expect(deriveVariations(config, "Stack")).toEqual([
+      {
+        name: "Horizontal",
+        componentType: "Stack",
+        props: { direction: "horizontal", gap: 4 },
+      },
+      {
+        name: "Vertical",
+        componentType: "Stack",
+        props: { direction: "vertical", gap: 4 },
+      },
+    ]);
   });
 
   it("returns variations for 'columns' select field", () => {
@@ -80,10 +80,10 @@ describe("deriveVariations", () => {
         },
       },
     });
-    const result = deriveVariations(config, "Grid");
-    expect(result).toHaveLength(2);
-    expect(result[0].name).toBe("2 Columns");
-    expect(result[0].props.columns).toBe(2);
+    expect(deriveVariations(config, "Grid")).toEqual([
+      { name: "2 Columns", componentType: "Grid", props: { columns: 2 } },
+      { name: "3 Columns", componentType: "Grid", props: { columns: 3 } },
+    ]);
   });
 
   it("returns variations for 'variant' radio field", () => {
@@ -102,9 +102,18 @@ describe("deriveVariations", () => {
         },
       },
     });
-    const result = deriveVariations(config, "Button");
-    expect(result).toHaveLength(2);
-    expect(result[0].componentType).toBe("Button");
+    expect(deriveVariations(config, "Button")).toEqual([
+      {
+        name: "Primary",
+        componentType: "Button",
+        props: { variant: "primary" },
+      },
+      {
+        name: "Secondary",
+        componentType: "Button",
+        props: { variant: "secondary" },
+      },
+    ]);
   });
 
   it("combines variations from multiple layout fields", () => {
@@ -130,8 +139,28 @@ describe("deriveVariations", () => {
         },
       },
     });
-    const result = deriveVariations(config, "Flex");
-    expect(result).toHaveLength(4); // 2 from direction + 2 from align
+    expect(deriveVariations(config, "Flex")).toEqual([
+      {
+        name: "Row",
+        componentType: "Flex",
+        props: { direction: "row", align: "start" },
+      },
+      {
+        name: "Column",
+        componentType: "Flex",
+        props: { direction: "column", align: "start" },
+      },
+      {
+        name: "Start",
+        componentType: "Flex",
+        props: { direction: "row", align: "start" },
+      },
+      {
+        name: "Center",
+        componentType: "Flex",
+        props: { direction: "row", align: "center" },
+      },
+    ]);
   });
 
   it("uses empty object as default props when none defined", () => {
@@ -146,7 +175,8 @@ describe("deriveVariations", () => {
         },
       },
     });
-    const result = deriveVariations(config, "Box");
-    expect(result[0].props).toEqual({ layout: "full" });
+    expect(deriveVariations(config, "Box")).toEqual([
+      { name: "Full", componentType: "Box", props: { layout: "full" } },
+    ]);
   });
 });

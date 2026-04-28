@@ -58,29 +58,21 @@ describe("collectTopLevel", () => {
   it("returns direct content children", () => {
     const heading = make("Heading", "h1");
     const stack = make("Stack", "s1", { items: [heading] });
-    const result = collectTopLevel(stack, config.componentRoles);
-    expect(result).toHaveLength(1);
-    expect(result[0].type).toBe("Heading");
+    expect(collectTopLevel(stack, config.componentRoles)).toEqual([heading]);
   });
 
   it("recurses into container children", () => {
     const heading = make("Heading", "h1");
     const card = make("Card", "c1", { items: [heading] });
     const stack = make("Stack", "s1", { items: [card] });
-    // Card is container so we recurse — find Heading inside it
-    const result = collectTopLevel(stack, config.componentRoles);
-    expect(result).toHaveLength(1);
-    expect(result[0].type).toBe("Heading");
+    expect(collectTopLevel(stack, config.componentRoles)).toEqual([heading]);
   });
 
   it("does not recurse into figure children (figure is opaque)", () => {
     const heading = make("Heading", "h1");
     const image = make("Image", "img1", { items: [heading] });
     const stack = make("Stack", "s1", { items: [image] });
-    // Image is figure — opaque, do not look inside
-    const result = collectTopLevel(stack, config.componentRoles);
-    expect(result).toHaveLength(1);
-    expect(result[0].type).toBe("Image");
+    expect(collectTopLevel(stack, config.componentRoles)).toEqual([image]);
   });
 
   it("preserves document order", () => {
@@ -88,26 +80,20 @@ describe("collectTopLevel", () => {
     const t1 = make("Text", "t1");
     const b1 = make("Button", "b1");
     const stack = make("Stack", "s1", { items: [h1, t1, b1] });
-    const result = collectTopLevel(stack, config.componentRoles);
-    expect(result.map((c) => c.type)).toEqual(["Heading", "Text", "Button"]);
+    expect(collectTopLevel(stack, config.componentRoles)).toEqual([h1, t1, b1]);
   });
 
   it("flattens deeply nested containers", () => {
     const heading = make("Heading", "h1");
     const inner = make("Stack", "s2", { items: [heading] });
     const outer = make("Stack", "s1", { items: [inner] });
-    const result = collectTopLevel(outer, config.componentRoles);
-    expect(result).toHaveLength(1);
-    expect(result[0].type).toBe("Heading");
+    expect(collectTopLevel(outer, config.componentRoles)).toEqual([heading]);
   });
 
   it("finds children in any prop field that holds an array", () => {
     const heading = make("Heading", "h1");
-    // children in 'content' prop instead of 'items'
     const stack = make("Stack", "s1", { content: [heading] });
-    const result = collectTopLevel(stack, config.componentRoles);
-    expect(result).toHaveLength(1);
-    expect(result[0].type).toBe("Heading");
+    expect(collectTopLevel(stack, config.componentRoles)).toEqual([heading]);
   });
 });
 
