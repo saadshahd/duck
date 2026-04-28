@@ -47,7 +47,7 @@
     ],
     "rules": [
       { "from": "spec-pkg",       "allow": [] },
-      { "from": "patterns-pkg",   "allow": [] },
+      { "from": "patterns-pkg",   "allow": ["spec-pkg"] },
       { "from": "mcp-server-pkg", "allow": ["spec-pkg"] },
       { "from": "editor-infra",   "allow": ["spec-pkg"] },
       {

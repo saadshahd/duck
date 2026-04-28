@@ -2,13 +2,7 @@ import { describe, it, expect } from "bun:test";
 import type { ComponentData, Config } from "@puckeditor/core";
 import type { PatternConfig, SectionPattern } from "./types.js";
 import { createPatternRegistry } from "./registry.js";
-
-const make = (
-  type: string,
-  id: string,
-  extra: Record<string, unknown> = {},
-): ComponentData =>
-  ({ type, props: { id, ...extra } }) as unknown as ComponentData;
+import { make } from "./testing.js";
 
 // Minimal puck config with layout-intent fields for derive
 const puckConfig: Config = {
@@ -44,7 +38,6 @@ const templateRoot = make("Stack", "tmpl", {
 const splitPattern: SectionPattern = {
   name: "Split hero",
   description: "Horizontal split",
-  tags: { topology: "split", treatment: ["full-bleed"], interaction: "static" },
   slots: [
     { name: "heading", accepts: ["heading"], cardinality: { kind: "first" } },
     { name: "body", accepts: ["body"], cardinality: { kind: "optional" } },
@@ -55,7 +48,6 @@ const splitPattern: SectionPattern = {
 const cardPattern: SectionPattern = {
   name: "Card layout",
   description: "Card with image",
-  tags: { topology: "stacked", treatment: ["framed"], interaction: "static" },
   slots: [
     { name: "figure", accepts: ["figure"], cardinality: { kind: "optional" } },
     { name: "heading", accepts: ["heading"], cardinality: { kind: "first" } },

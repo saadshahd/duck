@@ -8,9 +8,7 @@ const makeConfig = (components: any): Config =>
 
 describe("deriveVariations", () => {
   it("returns empty array for component with no fields", () => {
-    const config = makeConfig({
-      Stack: { render: () => null },
-    });
+    const config = makeConfig({ Stack: { render: () => null } });
     expect(deriveVariations(config, "Stack")).toEqual([]);
   });
 
@@ -19,74 +17,28 @@ describe("deriveVariations", () => {
     expect(deriveVariations(config, "Unknown")).toEqual([]);
   });
 
-  it("returns empty array for field with non-layout key", () => {
+  it("enumerates select field options regardless of key name", () => {
     const config = makeConfig({
-      Stack: {
+      Card: {
         render: () => null,
         fields: {
           padding: {
             type: "select",
-            options: [{ label: "Small", value: "sm" }],
-          },
-        },
-      },
-    });
-    expect(deriveVariations(config, "Stack")).toEqual([]);
-  });
-
-  it("returns variations for 'direction' select field", () => {
-    const config = makeConfig({
-      Stack: {
-        render: () => null,
-        defaultProps: { direction: "vertical", gap: 4 },
-        fields: {
-          direction: {
-            type: "select",
             options: [
-              { label: "Horizontal", value: "horizontal" },
-              { label: "Vertical", value: "vertical" },
+              { label: "Small", value: "sm" },
+              { label: "Large", value: "lg" },
             ],
           },
         },
       },
     });
-    expect(deriveVariations(config, "Stack")).toEqual([
-      {
-        name: "Horizontal",
-        componentType: "Stack",
-        props: { direction: "horizontal", gap: 4 },
-      },
-      {
-        name: "Vertical",
-        componentType: "Stack",
-        props: { direction: "vertical", gap: 4 },
-      },
+    expect(deriveVariations(config, "Card")).toEqual([
+      { name: "Small", componentType: "Card", props: { padding: "sm" } },
+      { name: "Large", componentType: "Card", props: { padding: "lg" } },
     ]);
   });
 
-  it("returns variations for 'columns' select field", () => {
-    const config = makeConfig({
-      Grid: {
-        render: () => null,
-        defaultProps: { columns: 2 },
-        fields: {
-          columns: {
-            type: "select",
-            options: [
-              { label: "2 Columns", value: 2 },
-              { label: "3 Columns", value: 3 },
-            ],
-          },
-        },
-      },
-    });
-    expect(deriveVariations(config, "Grid")).toEqual([
-      { name: "2 Columns", componentType: "Grid", props: { columns: 2 } },
-      { name: "3 Columns", componentType: "Grid", props: { columns: 3 } },
-    ]);
-  });
-
-  it("returns variations for 'variant' radio field", () => {
+  it("enumerates radio field options", () => {
     const config = makeConfig({
       Button: {
         render: () => null,
@@ -116,7 +68,7 @@ describe("deriveVariations", () => {
     ]);
   });
 
-  it("combines variations from multiple layout fields", () => {
+  it("combines choices from multiple fields", () => {
     const config = makeConfig({
       Flex: {
         render: () => null,
@@ -163,7 +115,7 @@ describe("deriveVariations", () => {
     ]);
   });
 
-  it("uses empty object as default props when none defined", () => {
+  it("uses empty object as defaults when none defined", () => {
     const config = makeConfig({
       Box: {
         render: () => null,
@@ -178,5 +130,89 @@ describe("deriveVariations", () => {
     expect(deriveVariations(config, "Box")).toEqual([
       { name: "Full", componentType: "Box", props: { layout: "full" } },
     ]);
+  });
+
+  it("recurses into object fields", () => {
+    const config = makeConfig({
+      Grid: {
+        render: () => null,
+        defaultProps: { grid: { columns: 2, gap: 4 } },
+        fields: {
+          grid: {
+            type: "object",
+            objectFields: {
+              columns: {
+                type: "select",
+                options: [
+                  { label: "2 cols", value: 2 },
+                  { label: "3 cols", value: 3 },
+                ],
+              },
+            },
+          },
+        },
+      },
+    });
+    expect(deriveVariations(config, "Grid")).toEqual([
+      {
+        name: "2 cols",
+        componentType: "Grid",
+        props: { grid: { columns: 2, gap: 4 } },
+      },
+      {
+        name: "3 cols",
+        componentType: "Grid",
+        props: { grid: { columns: 3, gap: 4 } },
+      },
+    ]);
+  });
+
+  it("recurses into array fields using defaultItemProps", () => {
+    const config = makeConfig({
+      List: {
+        render: () => null,
+        fields: {
+          items: {
+            type: "array",
+            defaultItemProps: { size: "md", label: "" },
+            arrayFields: {
+              size: {
+                type: "select",
+                options: [
+                  { label: "Small", value: "sm" },
+                  { label: "Large", value: "lg" },
+                ],
+              },
+            },
+          },
+        },
+      },
+    });
+    expect(deriveVariations(config, "List")).toEqual([
+      {
+        name: "Small",
+        componentType: "List",
+        props: { items: [{ size: "sm", label: "" }] },
+      },
+      {
+        name: "Large",
+        componentType: "List",
+        props: { items: [{ size: "lg", label: "" }] },
+      },
+    ]);
+  });
+
+  it("skips open fields (text, number, textarea)", () => {
+    const config = makeConfig({
+      Hero: {
+        render: () => null,
+        fields: {
+          title: { type: "text" },
+          count: { type: "number" },
+          body: { type: "textarea" },
+        },
+      },
+    });
+    expect(deriveVariations(config, "Hero")).toEqual([]);
   });
 });

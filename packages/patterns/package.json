@@ -9,6 +9,7 @@
     "test": "bun test"
   },
   "dependencies": {
+    "@json-render-editor/spec": "workspace:*",
     "@puckeditor/core": "^0.21.2",
     "neverthrow": "^8.2.0"
   },

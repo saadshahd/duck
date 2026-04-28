@@ -2,13 +2,7 @@ import { describe, it, expect } from "bun:test";
 import type { ComponentData } from "@puckeditor/core";
 import type { SectionPattern, PatternConfig } from "./types.js";
 import { merge } from "./merge.js";
-
-const make = (
-  type: string,
-  id: string,
-  extra: Record<string, unknown> = {},
-): ComponentData =>
-  ({ type, props: { id, ...extra } }) as unknown as ComponentData;
+import { make } from "./testing.js";
 
 const config: PatternConfig = {
   componentRoles: {
@@ -32,7 +26,6 @@ const stackTemplate = make("Stack", "tmpl-root", {
 const simplePattern: SectionPattern = {
   name: "Simple",
   description: "test",
-  tags: { topology: "stacked", treatment: ["open"], interaction: "static" },
   slots: [
     { name: "heading", accepts: ["heading"], cardinality: { kind: "first" } },
     { name: "body", accepts: ["body"], cardinality: { kind: "optional" } },
@@ -40,17 +33,22 @@ const simplePattern: SectionPattern = {
   data: stackTemplate,
 };
 
+function mergeItems(
+  selection: ComponentData,
+  pattern: SectionPattern = simplePattern,
+): ComponentData[] {
+  const result = merge(selection, pattern, config);
+  expect(result.isOk()).toBe(true);
+  return result._unsafeUnwrap().props.items as ComponentData[];
+}
+
 describe("merge — cardinality cases", () => {
   // Case 1: first, exactly 1 match
   it("(first, 1 match) places the heading", () => {
     const selection = make("Stack", "s1", {
       items: [make("Heading", "h1", { text: "My Heading" })],
     });
-    const result = merge(selection, simplePattern, config);
-    expect(result.isOk()).toBe(true);
-    const tree = result._unsafeUnwrap();
-    // Tree is a Stack; its items should contain Heading with id 'h1'
-    const items = tree.props.items as ComponentData[];
+    const items = mergeItems(selection);
     expect(items.some((c) => c.props.id === "h1")).toBe(true);
   });
 
@@ -75,9 +73,7 @@ describe("merge — cardinality cases", () => {
         make("Heading", "h2", { text: "Second" }),
       ],
     });
-    const result = merge(selection, simplePattern, config);
-    expect(result.isOk()).toBe(true);
-    const items = result._unsafeUnwrap().props.items as ComponentData[];
+    const items = mergeItems(selection);
     expect(items.some((c) => c.props.id === "h1")).toBe(true);
   });
 
@@ -86,21 +82,16 @@ describe("merge — cardinality cases", () => {
     const selection = make("Stack", "s1", {
       items: [make("Heading", "h1"), make("Text", "t1", { text: "My body" })],
     });
-    const result = merge(selection, simplePattern, config);
-    expect(result.isOk()).toBe(true);
-    const items = result._unsafeUnwrap().props.items as ComponentData[];
+    const items = mergeItems(selection);
     expect(items.some((c) => c.props.id === "t1")).toBe(true);
   });
 
   // Case 5: optional, 0 matches → keep template default
   it("(optional, 0 matches) keeps template default for body slot", () => {
     const selection = make("Stack", "s1", {
-      items: [make("Heading", "h1")], // no body
+      items: [make("Heading", "h1")],
     });
-    const result = merge(selection, simplePattern, config);
-    expect(result.isOk()).toBe(true);
-    const items = result._unsafeUnwrap().props.items as ComponentData[];
-    // template default has id 'tmpl-t'
+    const items = mergeItems(selection);
     expect(items.some((c) => c.props.id === "tmpl-t")).toBe(true);
   });
 
@@ -120,9 +111,7 @@ describe("merge — cardinality cases", () => {
     const selection = make("Stack", "s1", {
       items: [make("Heading", "h1"), make("Text", "t1"), make("Text", "t2")],
     });
-    const result = merge(selection, manyPattern, config);
-    expect(result.isOk()).toBe(true);
-    const items = result._unsafeUnwrap().props.items as ComponentData[];
+    const items = mergeItems(selection, manyPattern);
     expect(items.some((c) => c.props.id === "t1")).toBe(true);
     expect(items.some((c) => c.props.id === "t2")).toBe(true);
   });
@@ -168,9 +157,7 @@ describe("merge — ID preservation", () => {
     const selection = make("Stack", "s1", {
       items: [make("Heading", "my-heading-id")],
     });
-    const result = merge(selection, simplePattern, config);
-    expect(result.isOk()).toBe(true);
-    const items = result._unsafeUnwrap().props.items as ComponentData[];
+    const items = mergeItems(selection);
     expect(items.some((c) => c.props.id === "my-heading-id")).toBe(true);
   });
 });

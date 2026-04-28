@@ -1,15 +1,7 @@
 import { describe, it, expect } from "bun:test";
-import type { ComponentData } from "@puckeditor/core";
 import type { PatternConfig, SectionPattern } from "./types.js";
 import { collectTopLevel, isApplicable } from "./match.js";
-
-// Factory helpers
-const make = (
-  type: string,
-  id: string,
-  extra: Record<string, unknown> = {},
-): ComponentData =>
-  ({ type, props: { id, ...extra } }) as unknown as ComponentData;
+import { make } from "./testing.js";
 
 const config: PatternConfig = {
   componentRoles: {
@@ -27,7 +19,6 @@ const config: PatternConfig = {
 const splitPattern: SectionPattern = {
   name: "Split hero",
   description: "desc",
-  tags: { topology: "split", treatment: ["full-bleed"], interaction: "static" },
   slots: [
     { name: "figure", accepts: ["figure"], cardinality: { kind: "optional" } },
     { name: "heading", accepts: ["heading"], cardinality: { kind: "first" } },
@@ -40,7 +31,6 @@ const splitPattern: SectionPattern = {
 const headingOnlyPattern: SectionPattern = {
   name: "Text only",
   description: "desc",
-  tags: { topology: "stacked", treatment: ["open"], interaction: "static" },
   slots: [
     { name: "heading", accepts: ["heading"], cardinality: { kind: "first" } },
   ],

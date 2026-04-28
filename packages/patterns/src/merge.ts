@@ -1,12 +1,15 @@
 import type { ComponentData } from "@puckeditor/core";
 import { ok, err, type Result } from "neverthrow";
-import type { SectionPattern, PatternConfig, MergeError } from "./types.js";
-import { isNonEmptyComponentDataArray } from "./types.js";
+import { mapComponent, slotKeysOf } from "@json-render-editor/spec";
+import {
+  type PatternSlot,
+  type SectionPattern,
+  type PatternConfig,
+  type MergeError,
+} from "./types.js";
+import { isContainerRole, buildRoleIndex } from "./role.js";
+import { isRequired, isPlural } from "./cardinality.js";
 import { collectTopLevel } from "./match.js";
-
-function mintId(counter: { n: number }): string {
-  return `pattern-node-${++counter.n}`;
-}
 
 function replacePlaceholder(
   node: ComponentData,
@@ -14,64 +17,70 @@ function replacePlaceholder(
   roles: Record<string, string>,
   targetNth: number,
   replacements: ComponentData[],
-  seen: { n: number },
 ): ComponentData {
-  const newProps: Record<string, unknown> = {};
-  for (const [key, value] of Object.entries(node.props)) {
-    if (!isNonEmptyComponentDataArray(value)) {
-      newProps[key] = value;
-      continue;
+  const seen = { n: 0 };
+
+  function visit(child: ComponentData): ComponentData[] {
+    const role = roles[child.type];
+    if (accepts.includes(role)) {
+      return seen.n++ === targetNth ? replacements : [child];
     }
-    const newArr: ComponentData[] = [];
-    for (const child of value) {
-      const role = roles[child.type];
-      if (role !== undefined && accepts.includes(role)) {
-        if (seen.n === targetNth) {
-          newArr.push(...replacements);
-        } else {
-          newArr.push(child);
-        }
-        seen.n++;
-      } else if (role === "container") {
-        newArr.push(
-          replacePlaceholder(
-            child,
-            accepts,
-            roles,
-            targetNth,
-            replacements,
-            seen,
-          ),
-        );
-      } else {
-        newArr.push(child);
-      }
-    }
-    newProps[key] = newArr;
+    return isContainerRole(role) ? [mapComponent(child, visit)] : [child];
   }
-  return { ...node, props: newProps } as ComponentData;
+
+  return mapComponent(node, visit);
 }
 
-function remintChildren(
-  node: ComponentData,
-  roles: Record<string, string>,
-  counter: { n: number },
-): ComponentData {
-  const newProps: Record<string, unknown> = {};
-  for (const [key, value] of Object.entries(node.props)) {
-    if (!isNonEmptyComponentDataArray(value)) {
-      newProps[key] = value;
-      continue;
-    }
-    newProps[key] = (value as ComponentData[]).map((child) => {
-      const withNewId =
-        roles[child.type] === "container"
-          ? { ...child, props: { ...child.props, id: mintId(counter) } }
-          : child;
-      return remintChildren(withNewId, roles, counter);
-    });
+function selectContent(
+  slot: PatternSlot,
+  matched: ComponentData[],
+): Result<ComponentData[] | null, MergeError> {
+  if (matched.length === 0) {
+    return isRequired(slot.cardinality)
+      ? err({ kind: "required-slot-empty", slotName: slot.name })
+      : ok(null);
   }
-  return { ...node, props: newProps } as ComponentData;
+  return ok(isPlural(slot.cardinality) ? matched : [matched[0]]);
+}
+
+function precomputeNths(
+  slots: readonly PatternSlot[],
+): Map<PatternSlot, number> {
+  const counter = new Map<string, number>();
+  return new Map(
+    slots.map((slot) => {
+      const key = [...slot.accepts].sort().join(",");
+      const nth = counter.get(key) ?? 0;
+      counter.set(key, nth + 1);
+      return [slot, nth] as [PatternSlot, number];
+    }),
+  );
+}
+
+function drainPlaced(
+  pool: Map<string, ComponentData[]>,
+  placed: ComponentData[],
+): Map<string, ComponentData[]> {
+  const placedSet = new Set(placed);
+  return new Map(
+    [...pool.entries()].map(([role, items]) => [
+      role,
+      items.filter((c) => !placedSet.has(c)),
+    ]),
+  );
+}
+
+function inheritRootProps(
+  data: ComponentData,
+  template: ComponentData,
+): Record<string, unknown> {
+  if (data.type !== template.type) return {};
+  const slotKeys = new Set(slotKeysOf(data));
+  return Object.fromEntries(
+    Object.entries(data.props).filter(
+      ([key]) => !slotKeys.has(key) && key !== "id",
+    ),
+  );
 }
 
 export function merge(
@@ -80,99 +89,43 @@ export function merge(
   config: PatternConfig,
 ): Result<ComponentData, MergeError> {
   const topLevel = collectTopLevel(data, config.componentRoles);
+  const pool = buildRoleIndex(topLevel, config.componentRoles);
 
-  const distinctRoles = [
-    ...new Set(
-      topLevel
-        .map((c) => config.componentRoles[c.type])
-        .filter((r): r is string => r !== undefined && r !== "container"),
-    ),
-  ];
-  const multimap = new Map<string, ComponentData[]>(
-    distinctRoles.map((role) => [
-      role,
-      topLevel.filter((c) => config.componentRoles[c.type] === role),
-    ]),
-  );
+  const template = structuredClone(pattern.data) as ComponentData;
+  const base = {
+    ...template,
+    props: {
+      ...template.props,
+      ...inheritRootProps(data, template),
+      id: data.props.id,
+    },
+  } as ComponentData;
 
-  let working = structuredClone(pattern.data) as ComponentData;
-  if (data.type === pattern.data.type) {
-    const scalarDataProps = Object.fromEntries(
-      Object.entries(data.props).filter(
-        ([, v]) => !isNonEmptyComponentDataArray(v),
-      ),
-    );
-    (working.props as Record<string, unknown>) = {
-      ...working.props,
-      ...scalarDataProps,
-      id: working.props.id,
-    };
-  }
+  const nths = precomputeNths(pattern.slots);
 
-  const slotIndexByAccepts = new Map<string, number>();
+  type State = { working: ComponentData; pool: Map<string, ComponentData[]> };
 
-  for (const slot of pattern.slots) {
-    const acceptsKey = [...slot.accepts].sort().join(",");
-    const nth = slotIndexByAccepts.get(acceptsKey) ?? 0;
-
-    const matched: ComponentData[] = slot.accepts.flatMap(
-      (role) => multimap.get(role) ?? [],
-    );
-
-    let toPlace: ComponentData[];
-
-    switch (slot.cardinality.kind) {
-      case "first":
-        if (matched.length === 0) {
-          return err({ kind: "required-slot-empty", slotName: slot.name });
-        }
-        toPlace = [matched[0]];
-        break;
-      case "optional":
-        if (matched.length === 0) {
-          slotIndexByAccepts.set(acceptsKey, nth + 1);
-          continue;
-        }
-        toPlace = [matched[0]];
-        break;
-      case "many":
-        if (matched.length === 0) {
-          return err({ kind: "required-slot-empty", slotName: slot.name });
-        }
-        toPlace = matched;
-        break;
-      case "any":
-        if (matched.length === 0) {
-          slotIndexByAccepts.set(acceptsKey, nth + 1);
-          continue;
-        }
-        toPlace = matched;
-        break;
-    }
-
-    working = replacePlaceholder(
-      working,
-      slot.accepts,
-      config.componentRoles,
-      nth,
-      toPlace,
-      { n: 0 },
-    );
-
-    for (const placed of toPlace) {
-      const role = config.componentRoles[placed.type];
-      if (role === undefined) continue;
-      const bucket = multimap.get(role) ?? [];
-      multimap.set(
-        role,
-        bucket.filter((c) => c !== placed),
-      );
-    }
-
-    slotIndexByAccepts.set(acceptsKey, nth + 1);
-  }
-
-  const minted = remintChildren(working, config.componentRoles, { n: 0 });
-
-  return ok(minted);
+  return pattern.slots
+    .reduce<Result<State, MergeError>>(
+      (acc, slot) =>
+        acc.andThen(({ working, pool: currentPool }) => {
+          const nth = nths.get(slot)!;
+          const matched = slot.accepts.flatMap(
+            (role) => currentPool.get(role) ?? [],
+          );
+          return selectContent(slot, matched).map((content) => {
+            if (!content) return { working, pool: currentPool };
+            const next = replacePlaceholder(
+              working,
+              slot.accepts,
+              config.componentRoles,
+              nth,
+              content,
+            );
+            return { working: next, pool: drainPlaced(currentPool, content) };
+          });
+        }),
+      ok({ working: base, pool }),
+    )
+    .map(({ working }) => working);
 }

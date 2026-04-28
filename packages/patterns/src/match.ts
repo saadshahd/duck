@@ -1,51 +1,47 @@
 import type { ComponentData } from "@puckeditor/core";
+import { slotKeysOf } from "@json-render-editor/spec";
+import { isContainerRole, isContentRole } from "./role.js";
+import { isRequired } from "./cardinality.js";
 import type {
-  Cardinality,
   ComponentSlotType,
   PatternConfig,
   SectionPattern,
 } from "./types.js";
-import { isNonEmptyComponentDataArray } from "./types.js";
-
-function isRequired(cardinality: Cardinality): boolean {
-  return cardinality.kind === "first" || cardinality.kind === "many";
-}
 
 export function collectTopLevel(
-  component: ComponentData,
+  data: ComponentData,
   roles: Record<string, ComponentSlotType>,
 ): ComponentData[] {
-  return Object.values(component.props).flatMap((value) => {
-    if (!isNonEmptyComponentDataArray(value)) return [];
-    return value.flatMap((child) =>
-      roles[child.type] === "container"
+  return slotKeysOf(data).flatMap((key) =>
+    data.props[key].flatMap((child: ComponentData) =>
+      isContainerRole(roles[child.type])
         ? collectTopLevel(child, roles)
         : [child],
-    );
-  });
+    ),
+  );
 }
 
 export function isApplicable(
-  component: ComponentData,
+  data: ComponentData,
   pattern: SectionPattern,
   config: PatternConfig,
 ): boolean {
-  const topLevel = collectTopLevel(component, config.componentRoles);
+  const topLevel = collectTopLevel(data, config.componentRoles);
 
-  const selectionRoles = new Set(
-    topLevel
-      .map((c) => config.componentRoles[c.type])
-      .filter((role): role is string => role !== undefined),
+  const contentRoles = new Set(
+    topLevel.map((c) => config.componentRoles[c.type]).filter(isContentRole),
   );
-  for (const role of selectionRoles) {
-    if (!pattern.slots.some((s) => s.accepts.includes(role))) return false;
-  }
 
-  return pattern.slots.every((slot) => {
-    if (!isRequired(slot.cardinality)) return true;
-    return topLevel.some((c) => {
-      const role = config.componentRoles[c.type];
-      return role !== undefined && slot.accepts.includes(role);
-    });
+  const lossless = [...contentRoles].every((role) =>
+    pattern.slots.some((s) => s.accepts.includes(role)),
+  );
+
+  const requiredSlotsSatisfied = pattern.slots.every((slot) => {
+    const hasMatchingContent = topLevel.some((c) =>
+      slot.accepts.includes(config.componentRoles[c.type]),
+    );
+    return !isRequired(slot.cardinality) || hasMatchingContent;
   });
+
+  return lossless && requiredSlotsSatisfied;
 }

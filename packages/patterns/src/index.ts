@@ -1,4 +1,5 @@
 export { createPatternRegistry } from "./registry.js";
+export { CONTAINER_ROLE } from "./role.js";
 export type {
   PatternConfig,
   PatternRegistry,
@@ -8,8 +9,5 @@ export type {
   MergeError,
   ComponentType,
   ComponentSlotType,
-  LayoutTopology,
-  VisualTreatment,
-  InteractionModel,
   Cardinality,
 } from "./types.js";

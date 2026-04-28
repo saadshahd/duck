@@ -10,7 +10,8 @@
     "build": "bun run --cwd packages/editor build",
     "typecheck": "tsc --noEmit -p packages/spec && tsc --noEmit -p packages/editor && tsc --noEmit -p packages/mcp-server && tsc --noEmit -p packages/patterns",
     "test": "bun test --cwd packages/spec && bun test --cwd packages/editor && bun test --cwd packages/mcp-server && bun test --cwd packages/patterns",
-    "check": "fallow dead-code --fail-on-issues",
+    "check": "fallow dead-code --fail-on-issues && fallow health --max-cyclomatic 10 --max-crap 30 && fallow dupes --mode mild && fallow dead-code --boundary-violations",
+    "check:dead": "fallow dead-code --fail-on-issues",
     "check:health": "fallow health --max-cyclomatic 10 --max-crap 30",
     "check:dupes": "fallow dupes --mode mild",
     "boundaries": "fallow dead-code --boundary-violations"
