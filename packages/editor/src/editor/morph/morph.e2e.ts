@@ -5,7 +5,6 @@ import {
   getMorphPickerItems,
   clickMorphPickerItem,
   hasMorphOverlay,
-  waitFrames,
   selectParentElement,
 } from "../overlay/testing.js";
 
@@ -62,24 +61,11 @@ test.describe("Morph", () => {
     await clickMorphButton(page);
     await page.waitForTimeout(200);
 
-    // Hover first picker item
-    await page.evaluate(() => {
-      for (const d of document.querySelectorAll("div")) {
-        if (!d.shadowRoot || d.style.position !== "fixed") continue;
-        const item = d.shadowRoot.querySelector(
-          ".morph-picker-item",
-        ) as HTMLElement | null;
-        item?.dispatchEvent(
-          new MouseEvent("mouseover", {
-            bubbles: true,
-            relatedTarget: document.body,
-          }),
-        );
-        return;
-      }
-    });
-    await waitFrames(page, 2);
+    // ArrowDown triggers the picker's document-level keydown handler
+    // which calls onHover(0) → setActivePattern → overlay renders
+    await page.keyboard.press("ArrowDown");
 
+    await page.waitForSelector("[data-role='morph-overlay']");
     expect(await hasMorphOverlay(page)).toBe(true);
   });
 

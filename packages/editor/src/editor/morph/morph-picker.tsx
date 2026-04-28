@@ -69,7 +69,7 @@ export function MorphPicker({
       const onKeyDown = (e: KeyboardEvent) => {
         if (!HANDLED.has(e.key)) return;
         e.preventDefault();
-        e.stopPropagation();
+        e.stopImmediatePropagation();
         if (e.key === "Escape") {
           onClose();
         } else if (e.key === "ArrowDown") {

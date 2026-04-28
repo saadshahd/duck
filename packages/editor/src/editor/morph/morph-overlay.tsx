@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { useEffect } from "react";
 import { createPortal } from "react-dom";
 import type { Config, ComponentData } from "@puckeditor/core";
 import { Render } from "@puckeditor/core";
@@ -17,53 +17,53 @@ export function MorphOverlay({
   fiberRegistry,
   elementId,
 }: Props) {
-  const rect = fiberRegistry.get(elementId)?.getBoundingClientRect();
-  const data = { content: [element], zones: {} };
-  const originalRef = useRef<Element | null>(null);
+  const el = fiberRegistry.get(elementId) as HTMLElement | null;
+  const parent = el?.parentElement ?? null;
+
+  useEffect(
+    function makeParentPositioned() {
+      if (!parent) return;
+      const prev = parent.style.position;
+      if (!prev || prev === "static") parent.style.position = "relative";
+      return () => {
+        parent.style.position = prev;
+      };
+    },
+    [parent],
+  );
 
   useEffect(
     function hideOriginal() {
-      const el = fiberRegistry.get(elementId) as HTMLElement | null;
       if (!el) return;
-      originalRef.current = el;
       el.style.visibility = "hidden";
       return () => {
-        (originalRef.current as HTMLElement | null)?.style.setProperty(
-          "visibility",
-          "",
-        );
+        el.style.visibility = "";
       };
     },
-    [fiberRegistry, elementId],
+    [el],
   );
 
-  if (!rect) return null;
+  if (!el || !parent) return null;
 
-  const el = fiberRegistry.get(elementId) as HTMLElement | null;
-  const computed = el ? getComputedStyle(el) : null;
-  const inheritedFont = computed
-    ? {
-        fontFamily: computed.fontFamily,
-        fontSize: computed.fontSize,
-        color: computed.color,
-      }
-    : {};
+  const elRect = el.getBoundingClientRect();
+  const parentRect = parent.getBoundingClientRect();
+  const top = elRect.top - parentRect.top + parent.scrollTop;
+  const left = elRect.left - parentRect.left + parent.scrollLeft;
 
   return createPortal(
     <div
       style={{
-        position: "fixed",
-        top: rect.top,
-        left: rect.left,
-        width: rect.width,
+        position: "absolute",
+        top,
+        left,
+        width: el.offsetWidth,
         pointerEvents: "none",
         zIndex: 1,
-        ...inheritedFont,
       }}
       data-role="morph-overlay"
     >
-      <Render config={config} data={data} />
+      <Render config={config} data={{ content: [element], zones: {} }} />
     </div>,
-    document.body,
+    parent,
   );
 }
