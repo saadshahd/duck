@@ -38,7 +38,7 @@ export function createFiberRegistry(
     reverseMap.set(el, id);
   };
 
-  // @json-render/react doesn't key the root ElementRenderer,
+  // Puck's root render doesn't key to a component id,
   // so it's invisible to the keyed-fiber pass. Fall back to DOM.
   const registerRoot = () => {
     const rootId = getRootId?.();
