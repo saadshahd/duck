@@ -3,7 +3,7 @@ import type { Data } from "@puckeditor/core";
 import type { McpContext } from "../protocol.js";
 import type { Bridge } from "../bridge/index.js";
 import { QueryError } from "../errors.js";
-import { readSpecOrDraft } from "./read-spec-or-draft.js";
+import { readDataOrDraft } from "./read-spec-or-draft.js";
 import { outline } from "./outline.js";
 import { element } from "./element.js";
 import { subtree } from "./subtree.js";
@@ -62,7 +62,7 @@ export const dispatchQuery = (ctx: McpContext, args: QueryArgs) => {
   const dataHandler = dataModes[args.what];
   if (dataHandler)
     return requirePage(args.page).pipe(
-      Effect.andThen((page) => readSpecOrDraft(ctx.storage, page)),
+      Effect.andThen((page) => readDataOrDraft(ctx.storage, page)),
       Effect.andThen((data) => dataHandler(data, args)),
     );
 

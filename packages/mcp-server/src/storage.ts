@@ -10,10 +10,10 @@ export interface PageInfo {
 
 export interface Storage {
   listPages(): Effect.Effect<PageInfo[], StorageError>;
-  readSpec(
+  readData(
     page: string,
   ): Effect.Effect<Data, NotFound | StorageError | InvalidPageName>;
-  writeSpec(
+  writeData(
     page: string,
     data: Data,
   ): Effect.Effect<void, StorageError | InvalidPageName>;

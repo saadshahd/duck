@@ -4,7 +4,7 @@ import { outlineTree, preOrder } from "@json-render-editor/spec";
 import type { McpContext } from "./protocol.js";
 import type { InvalidPageName, NotFound, StorageError } from "./errors.js";
 import { applyOp, type Op, type OpError } from "./ops.js";
-import { readSpecOrDraft } from "./query/read-spec-or-draft.js";
+import { readDataOrDraft } from "./query/read-spec-or-draft.js";
 
 export type ApplyArgs = {
   readonly page: string;
@@ -41,9 +41,9 @@ type ApplyResult =
 const emptyData: Data = { root: { props: {} }, content: [] };
 
 const readOrCreate = (ctx: McpContext, page: string) =>
-  readSpecOrDraft(ctx.storage, page).pipe(
+  readDataOrDraft(ctx.storage, page).pipe(
     Effect.catchTag("NotFound", () =>
-      ctx.storage.writeSpec(page, emptyData).pipe(Effect.map(() => emptyData)),
+      ctx.storage.writeData(page, emptyData).pipe(Effect.map(() => emptyData)),
     ),
   );
 

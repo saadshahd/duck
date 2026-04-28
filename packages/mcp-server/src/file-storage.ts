@@ -130,7 +130,7 @@ export const createFileStorage = (projectDir: string): Storage => {
       });
     },
 
-    readSpec(
+    readData(
       page: string,
     ): Effect.Effect<Data, NotFound | StorageError | InvalidPageName> {
       return validatePageName(page).pipe(
@@ -152,7 +152,7 @@ export const createFileStorage = (projectDir: string): Storage => {
       );
     },
 
-    writeSpec(
+    writeData(
       page: string,
       data: Data,
     ): Effect.Effect<void, StorageError | InvalidPageName> {

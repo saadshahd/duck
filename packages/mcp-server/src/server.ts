@@ -196,7 +196,7 @@ function registerTools(mcp: McpServer, ctx: McpContext) {
     (args) =>
       runTool(
         ctx.storage.commitDraft(args.page).pipe(
-          Effect.flatMap(() => ctx.storage.readSpec(args.page)),
+          Effect.flatMap(() => ctx.storage.readData(args.page)),
           Effect.tap((data) =>
             Effect.sync(() => ctx.bridge.broadcast(args.page, data)),
           ),
