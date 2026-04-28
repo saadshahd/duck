@@ -16,7 +16,7 @@ import {
 import { usePropEditor } from "./prop-editor/use-prop-editor.jsx";
 import { useDragReorder, DropIndicator, DropZoneLabel } from "./drag/index.js";
 import { OverlayRoot } from "./overlay/index.js";
-import { BoxModelOverlay, GapOverlay, useBoxModel } from "./box-model/index.js";
+import { BoxModelLayer } from "./box-model/index.js";
 import { useHistory, HistoryTimeline } from "./history/index.js";
 import { useKeyboard } from "./keyboard/index.js";
 import { useGhostPlaceholders } from "./ghost/index.js";
@@ -145,15 +145,7 @@ export function EditorShell({
   const hoverHighlightId = !menu && pointer === "hovering" ? hoveredId : null;
   const highlightId = menuHighlightId ?? hoverHighlightId;
 
-  const showBoxModel =
-    singleSelected &&
-    (pointer === "selected" ||
-      pointer === "inserting" ||
-      (pointer === "editing" && state.context.editing?.mode === "popover"));
-  const boxModel = useBoxModel(
-    fiberRegistry,
-    showBoxModel ? lastSelectedId : null,
-  );
+  const [boxModelVisible, setBoxModelVisible] = useState(false);
 
   const hasSelection =
     (pointer === "selected" ||
@@ -197,20 +189,35 @@ export function EditorShell({
                 selectionCount={selectedIds.size}
                 toolbarRef={toolbarRef}
                 onSelectParent={selectParent}
-              />
+              >
+                <button
+                  type="button"
+                  className={`label-action-btn${boxModelVisible ? " label-action-btn--active" : ""}`}
+                  onClick={() => setBoxModelVisible((v) => !v)}
+                >
+                  <svg
+                    width="10"
+                    height="10"
+                    viewBox="0 0 10 10"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="1.2"
+                  >
+                    <rect x="0.6" y="0.6" width="8.8" height="8.8" rx="0.8" />
+                    <rect x="3" y="3" width="4" height="4" />
+                  </svg>
+                </button>
+              </SelectionLabel>
             )}
-            {boxModel && (
-              <>
-                <BoxModelOverlay data={boxModel} />
-                {boxModel.gap && lastSelectedId && (
-                  <GapOverlay
-                    registry={fiberRegistry!}
-                    elementId={lastSelectedId}
-                    gap={boxModel.gap}
-                  />
-                )}
-              </>
-            )}
+            {boxModelVisible &&
+              fiberRegistry &&
+              [...selectedIds].map((id) => (
+                <BoxModelLayer
+                  key={id}
+                  registry={fiberRegistry}
+                  elementId={id}
+                />
+              ))}
             {showActionBar && singleSelected && (
               <FloatingActionBar
                 registry={fiberRegistry}

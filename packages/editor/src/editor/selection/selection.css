@@ -58,6 +58,8 @@
 
 .selection-label-root {
   pointer-events: none;
+  display: flex;
+  align-items: stretch;
 }
 
 /* Element type label — corner tag on highlight */
@@ -91,6 +93,61 @@
 .element-label--interactive {
   pointer-events: auto;
   cursor: pointer;
+}
+
+/* Trailing content wrapper — inherits side so CSS can set corner radii */
+
+.label-trailing {
+  display: flex;
+  align-items: stretch;
+}
+
+.label-action-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  appearance: none;
+  border: none;
+  background: var(--surface-bar);
+  color: var(--text-bar);
+  cursor: pointer;
+  pointer-events: auto;
+  padding: 0 5px;
+  line-height: 1;
+  border-radius: 0;
+}
+
+.label-action-btn svg {
+  opacity: 0.45;
+  transition: opacity 100ms ease;
+}
+
+.label-action-btn:hover svg {
+  opacity: 0.8;
+}
+
+.label-action-btn--active svg {
+  opacity: 1;
+}
+
+/* Join button corners to the label — radii mirror the label's side */
+
+.label-trailing:not([data-side="bottom"]) .label-action-btn {
+  border-top-right-radius: 4px;
+}
+
+.label-trailing[data-side="bottom"] .label-action-btn {
+  border-bottom-right-radius: 4px;
+}
+
+/* Flatten label's adjacent corner when trailing content is present */
+
+.element-label--has-trailing:not([data-side="bottom"]) {
+  border-top-right-radius: 0;
+}
+
+.element-label--has-trailing[data-side="bottom"] {
+  border-bottom-right-radius: 0;
 }
 
 .element-label__arrow {
