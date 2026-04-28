@@ -1,4 +1,4 @@
-import type { Spec } from "@json-render/core";
+import type { Data } from "@puckeditor/core";
 
 /** Browser → bridge server */
 export type BrowserMessage =
@@ -13,7 +13,7 @@ export type CaptureMode =
 
 /** Bridge server → browser */
 export type ServerMessage =
-  | { type: "spec-update"; spec: Spec }
+  | { type: "spec-update"; data: Data }
   | ({ type: "capture-request"; id: string } & CaptureMode);
 
 export type SelectionData = {
