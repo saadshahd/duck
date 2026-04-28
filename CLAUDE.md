@@ -1,6 +1,6 @@
-# json-render-editor
+# Duck
 
-Zero-chrome visual editor for json-render documents. AI agents compose via MCP, designers review and steer.
+Zero-chrome visual editor for Puck documents. AI agents compose via MCP, designers review and steer. Duck = Puck's `<Render>` + shadow-DOM overlay — no iframe, no chrome.
 
 ## Stack
 
@@ -27,21 +27,22 @@ When adding a dependency or utility:
 - Search npm and existing workspace code BEFORE writing custom. Name the package.
 - Do NOT reinvent: drag-and-drop, floating UI, state machines, MCP protocol, animation, Shadow DOM.
 
-When touching json-render:
-- Use `@json-render/core` types (`Spec`, `UIElement`) directly. Do NOT redeclare them.
-- Use `@json-render/core` operations (`applySpecPatch`, `diffToPatches`, `validateSpec`, `autoFixSpec`) directly. Do NOT reimplement them.
-- Patches are RFC 6902 (JSON Patch) — use json-render's format. Do NOT invent a custom patch format.
+When touching Puck data:
+- Use `@puckeditor/core` types (`Data`, `Config`, `ComponentData`) directly. Do NOT redeclare them.
+- Use tree-traversal helpers from `@json-render-editor/spec` (`findById`, `findParent`, `buildIndex`, `slotKeysOf`, `preOrder`, etc.). Do NOT reimplement tree walking.
+- Ops are four verbs: `add`, `update`, `remove`, `move`. Do NOT use RFC 6902 JSON Patch.
+- `update` semantics: `{ ...defaults, ...newProps, id: original.id }` — replace, not merge. Slot fields are overwritable; history is the undo safety net.
 
 ## Architecture boundary
 
-The editor library and MCP server are independent packages. The editor takes `spec` as a prop and calls `onSpecChange`. The MCP server reads/writes specs through a Storage interface. Neither imports from the other.
+The editor library and MCP server are independent packages. The editor takes `data` as a prop and calls `onDataChange`. The MCP server reads/writes data through a Storage interface. Neither imports from the other.
 
 The MCP server includes a bridge (HTTP+WebSocket) that connects to the browser for the closed agent-designer loop. The bridge is first-class, not optional.
 
 | Package | Knows about | Does NOT know about |
 |---------|------------|-------------------|
-| `editor` | Spec, UIElement, ComponentRegistry | MCP, filesystem, storage, bridge |
-| `mcp-server` | Spec, Storage interface, catalog JSON, bridge protocol | React, DOM, editor internals |
+| `editor` | Data, Config (@puckeditor/core) | MCP, filesystem, storage, bridge |
+| `mcp-server` | Data, Config, Storage interface, bridge protocol | React, DOM, editor internals |
 
 ## Testing
 
