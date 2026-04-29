@@ -61,7 +61,12 @@ export function createFiberRegistry(
           if (!fiber.key) return;
           const id = stripReactKeyPrefix(fiber.key);
           const el = currentIds.has(id) ? fiberToElement(fiber) : undefined;
-          if (el && (!container || container.contains(el))) register(id, el);
+          if (
+            el &&
+            (!container || container.contains(el)) &&
+            !el.closest("[data-duck-overlay]")
+          )
+            register(id, el);
         });
         registerRoot();
       },

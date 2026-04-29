@@ -52,6 +52,7 @@ export function MorphOverlay({
 
   return createPortal(
     <div
+      data-duck-overlay=""
       style={{
         position: "absolute",
         top,
