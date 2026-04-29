@@ -35,10 +35,7 @@ import {
   MorphOverlay,
 } from "./morph/index.js";
 import type { DataPush } from "./types.js";
-import {
-  createPatternRegistry,
-  type PatternConfig,
-} from "@duck/patterns";
+import { createPatternRegistry, type PatternConfig } from "@duck/patterns";
 
 type BridgeConfig = { url: string; page: string };
 
@@ -317,11 +314,6 @@ export function EditorShell({
             {morph.isOpen && singleSelected && (
               <MorphPicker
                 patterns={morph.patterns}
-                activeIndex={
-                  morph.activePattern
-                    ? morph.patterns.indexOf(morph.activePattern)
-                    : -1
-                }
                 onHover={onMorphHover}
                 onCommit={onMorphCommit}
                 onClose={morph.closePicker}
