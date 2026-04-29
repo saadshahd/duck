@@ -1,6 +1,9 @@
 /* Morph domain — structural alternative picker */
 
+/* Menu renders as <ul> — reset browser defaults */
 .morph-picker {
+  list-style: none;
+  margin: 0;
   pointer-events: auto;
   z-index: 2;
   background: var(--surface-bar);
@@ -11,6 +14,7 @@
   max-height: 280px;
   overflow-y: auto;
   padding: 4px;
+  outline: none;
 }
 
 .morph-picker-item {
@@ -21,15 +25,15 @@
   border-radius: 4px;
   cursor: pointer;
   user-select: none;
+  outline: none;
   transition: background 80ms ease;
 }
 
-.morph-picker-item:hover,
-.morph-picker-item[data-active] {
+.morph-picker-item[data-hovered] {
   background: rgba(255, 255, 255, 0.08);
 }
 
-.morph-picker-item[data-active] {
+.morph-picker-item[data-focused] {
   background: var(--accent-hover);
 }
 

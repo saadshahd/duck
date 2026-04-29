@@ -23,8 +23,9 @@
   color: var(--text-bar);
   background: rgba(255, 255, 255, 0.06);
   border: none;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.10);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
   outline: none;
+  box-sizing: border-box;
 }
 
 .catalog-picker-filter::placeholder {
@@ -32,29 +33,34 @@
 }
 
 .catalog-picker-filter:focus {
-  background: rgba(255, 255, 255, 0.10);
+  background: rgba(255, 255, 255, 0.1);
 }
 
+/* ListBox renders as <div role="listbox"> — no list-style reset needed */
 .catalog-picker-list {
   overflow-y: auto;
   display: flex;
   flex-direction: column;
+  outline: none;
 }
 
+/* ListBoxItem renders as <div role="option"> */
 .catalog-picker-item {
   display: flex;
   flex-direction: column;
   gap: 2px;
   padding: 8px 10px;
-  border: none;
-  background: none;
-  text-align: left;
   cursor: pointer;
+  outline: none;
   font-family: var(--font-system);
 }
 
-.catalog-picker-item:hover {
+.catalog-picker-item[data-hovered] {
   background: rgba(255, 255, 255, 0.08);
+}
+
+.catalog-picker-item[data-focused] {
+  background: var(--accent-hover);
 }
 
 .catalog-picker-item-type {

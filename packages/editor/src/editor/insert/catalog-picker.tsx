@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { ListBox, ListBoxItem } from "react-aria-components";
 import {
   useFloating,
   offset,
@@ -43,6 +44,7 @@ export function CatalogPicker({
   useShadowSheet(css);
   const [filter, setFilter] = useState("");
   const filterRef = useRef<HTMLInputElement>(null);
+  const listRef = useRef<HTMLDivElement>(null);
 
   const { refs, floatingStyles } = useFloating({
     placement: "bottom-start",
@@ -79,28 +81,55 @@ export function CatalogPicker({
         placeholder="Filter components…"
         value={filter}
         onChange={(e) => setFilter(e.target.value)}
+        onKeyDown={(e) => {
+          if (e.key === "ArrowDown") {
+            e.preventDefault();
+            const first =
+              listRef.current?.querySelector<HTMLElement>("[role='option']");
+            first?.focus();
+          }
+          if (e.key === "Escape") {
+            e.stopPropagation();
+            onClose();
+          }
+        }}
       />
-      <div className="catalog-picker-list">
-        {entries.length === 0 && (
-          <div className="catalog-picker-empty">No matches</div>
-        )}
-        {entries.map(({ name, label }) => (
-          <button
-            key={name}
-            type="button"
-            className="catalog-picker-item"
-            onClick={(e) => {
+      {entries.length === 0 ? (
+        <div className="catalog-picker-empty">No matches</div>
+      ) : (
+        <div
+          onKeyDown={(e) => {
+            if (e.key === "Escape") {
               e.stopPropagation();
-              onInsert(name);
+              onClose();
+            }
+          }}
+        >
+          <ListBox
+            ref={listRef}
+            className="catalog-picker-list"
+            aria-label="Components"
+            onAction={(key) => {
+              onInsert(String(key));
+              onClose();
             }}
           >
-            <span className="catalog-picker-item-type">{name}</span>
-            {label !== name && (
-              <span className="catalog-picker-item-desc">{label}</span>
-            )}
-          </button>
-        ))}
-      </div>
+            {entries.map(({ name, label }) => (
+              <ListBoxItem
+                key={name}
+                id={name}
+                className="catalog-picker-item"
+                textValue={`${name} ${label}`}
+              >
+                <span className="catalog-picker-item-type">{name}</span>
+                {label !== name && (
+                  <span className="catalog-picker-item-desc">{label}</span>
+                )}
+              </ListBoxItem>
+            ))}
+          </ListBox>
+        </div>
+      )}
     </div>
   );
 }
