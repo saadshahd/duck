@@ -1,6 +1,5 @@
-import { useContext } from "react";
-import { TooltipTrigger, Tooltip } from "react-aria-components";
-import { useShadowSheet, PortalContext } from "../overlay/index.js";
+import { useShadowSheet } from "../overlay/index.js";
+import { useHoverDelay } from "./use-hover-delay.js";
 import type { BridgeStatus } from "./use-bridge.js";
 import css from "./connection-dot.css?inline";
 
@@ -12,23 +11,22 @@ const LABELS: Record<BridgeStatus, string> = {
 
 export function ConnectionDot({ status }: { status: BridgeStatus }) {
   useShadowSheet(css);
-  const portalContainer = useContext(PortalContext);
+  const hover = useHoverDelay(300);
 
   return (
-    <TooltipTrigger delay={300}>
-      <button
-        type="button"
+    <>
+      <div
         className="connection-dot"
         data-status={status}
-        aria-label={LABELS[status]}
+        onMouseEnter={hover.enter}
+        onMouseLeave={hover.leave}
       />
-      <Tooltip
+      <div
         className="connection-dot-tooltip"
-        placement="top"
-        UNSTABLE_portalContainer={portalContainer ?? undefined}
+        data-visible={hover.active || undefined}
       >
         {LABELS[status]}
-      </Tooltip>
-    </TooltipTrigger>
+      </div>
+    </>
   );
 }

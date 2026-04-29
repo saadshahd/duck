@@ -41,7 +41,6 @@
   border-radius: 50%;
   transition: transform 120ms ease;
   flex-shrink: 0;
-  outline: none;
 }
 
 .timeline-dot:hover {
@@ -65,7 +64,7 @@
   box-shadow: 0 0 0 2px var(--accent);
 }
 
-/* --- Tooltip (portaled into shadow root via PortalContext) --- */
+/* --- Tooltip --- */
 
 .timeline-tooltip {
   background: var(--surface-bar);
@@ -79,23 +78,20 @@
   overflow: hidden;
   text-overflow: ellipsis;
   pointer-events: none;
+  opacity: 0;
+  transform: translateY(4px);
+  transition: opacity 150ms ease, transform 150ms ease;
 }
 
-.timeline-tooltip[data-entering] {
-  animation: timeline-tooltip-enter 100ms ease;
+.timeline-tooltip[data-visible] {
+  opacity: 1;
+  transform: translateY(0);
 }
 
-.timeline-tooltip[data-exiting] {
-  animation: timeline-tooltip-enter 100ms ease reverse;
-}
-
-@keyframes timeline-tooltip-enter {
-  from {
-    opacity: 0;
-    transform: translateY(4px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
+.timeline-tooltip-arrow {
+  position: absolute;
+  width: 8px;
+  height: 8px;
+  background: var(--surface-bar);
+  transform: rotate(45deg);
 }

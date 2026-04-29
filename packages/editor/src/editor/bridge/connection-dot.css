@@ -13,11 +13,6 @@
   pointer-events: auto;
   cursor: default;
   z-index: 10;
-  border: none;
-  padding: 0;
-  appearance: none;
-  outline: none;
-  box-sizing: border-box;
 }
 
 .connection-dot[data-status="connected"] {
@@ -32,20 +27,23 @@
 .connection-dot[data-status="disconnected"] {
   background: transparent;
   border: 2px solid var(--accent);
+  /* offset size so outer dimensions stay 8px */
+  width: 8px;
+  height: 8px;
+  box-sizing: border-box;
 }
 
 @keyframes dot-pulse {
-  0%,
-  100% {
-    opacity: 0.4;
-  }
-  50% {
-    opacity: 1;
-  }
+  0%, 100% { opacity: 0.4; }
+  50% { opacity: 1; }
 }
 
-/* Tooltip — portaled into shadow root via PortalContext */
+/* --- Tooltip --- */
+
 .connection-dot-tooltip {
+  position: fixed;
+  bottom: 30px;
+  right: 8px;
   background: var(--surface-bar);
   color: var(--text-bar);
   font-family: var(--font-system);
@@ -54,23 +52,13 @@
   border-radius: 4px;
   white-space: nowrap;
   pointer-events: none;
+  opacity: 0;
+  transform: translateY(4px);
+  transition: opacity 150ms ease, transform 150ms ease;
+  z-index: 11;
 }
 
-.connection-dot-tooltip[data-entering] {
-  animation: tooltip-fade 150ms ease;
-}
-
-.connection-dot-tooltip[data-exiting] {
-  animation: tooltip-fade 150ms ease reverse;
-}
-
-@keyframes tooltip-fade {
-  from {
-    opacity: 0;
-    transform: translateY(4px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
+.connection-dot-tooltip[data-visible] {
+  opacity: 1;
+  transform: translateY(0);
 }

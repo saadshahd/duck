@@ -1,9 +1,6 @@
 /* Context-menu domain — element picker at click point */
 
-/* Menu renders as <ul> — reset browser defaults */
 .context-menu {
-  list-style: none;
-  margin: 0;
   pointer-events: auto;
   z-index: 2;
   background: var(--surface-bar);
@@ -14,7 +11,6 @@
   max-height: 280px;
   overflow-y: auto;
   padding: 4px;
-  outline: none;
 }
 
 .context-menu-item {
@@ -25,15 +21,15 @@
   border-radius: 4px;
   cursor: pointer;
   user-select: none;
-  outline: none;
   transition: background 80ms ease;
 }
 
-.context-menu-item[data-hovered] {
+.context-menu-item:hover,
+.context-menu-item[data-active] {
   background: rgba(255, 255, 255, 0.08);
 }
 
-.context-menu-item[data-focused] {
+.context-menu-item[data-active] {
   background: var(--accent-hover);
 }
 
@@ -50,12 +46,10 @@
   line-height: 1;
 }
 
-/* Separator renders as <hr> — reset browser defaults */
 .context-menu-divider {
-  border: none;
   height: 1px;
   margin: 4px 0;
-  background: rgba(255, 255, 255, 0.1);
+  background: rgba(255, 255, 255, 0.10);
 }
 
 .context-menu-action {
@@ -66,27 +60,22 @@
   border-radius: 4px;
   cursor: pointer;
   user-select: none;
-  outline: none;
   font-size: 12px;
   font-weight: 500;
   color: var(--text-bar);
   transition: background 80ms ease;
 }
 
-.context-menu-action[data-hovered] {
+.context-menu-action:hover {
   background: rgba(255, 255, 255, 0.08);
 }
 
-.context-menu-action[data-focused] {
-  background: var(--accent-hover);
-}
-
-.context-menu-action[data-disabled] {
+.context-menu-action[aria-disabled] {
   color: var(--text-bar-muted);
   cursor: default;
 }
 
-.context-menu-action[data-disabled][data-hovered] {
+.context-menu-action[aria-disabled]:hover {
   background: none;
 }
 

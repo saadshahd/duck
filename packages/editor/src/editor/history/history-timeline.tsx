@@ -1,6 +1,6 @@
-import { useCallback, useContext, useRef } from "react";
-import { TooltipTrigger, Tooltip } from "react-aria-components";
-import { useShadowSheet, PortalContext } from "../overlay/index.js";
+import { useState, useCallback, useRef } from "react";
+import { useFloating, offset, shift, arrow } from "@floating-ui/react";
+import { useShadowSheet } from "../overlay/index.js";
 import { computeDotSize } from "./fisheye.js";
 import type { Snapshot } from "./types.js";
 import css from "./history-timeline.css?inline";
@@ -14,6 +14,8 @@ type HistoryTimelineProps = {
   onMouseEnter: () => void;
   onMouseLeave: () => void;
 };
+
+const TOOLTIP_MIDDLEWARE = [offset(10), shift({ padding: 8 })];
 
 // React synthetic mouseenter/mouseleave are unreliable inside shadow DOM
 // (composed: false per spec, browser-inconsistent). Use mouseover/mouseout
@@ -56,9 +58,34 @@ export function HistoryTimeline({
   onMouseLeave,
 }: HistoryTimelineProps) {
   useShadowSheet(css);
-  const portalContainer = useContext(PortalContext);
+  const [hoveredIndex, setHoveredIndex] = useState<number | null>(null);
+  const arrowRef = useRef<HTMLDivElement>(null);
   const railRef = useRef<HTMLDivElement>(null);
+
   const hoverHandlers = useHoverTracking(railRef, onMouseEnter, onMouseLeave);
+
+  const { refs, floatingStyles, middlewareData, placement } = useFloating({
+    placement: "top",
+    middleware: [...TOOLTIP_MIDDLEWARE, arrow({ element: arrowRef })],
+  });
+
+  const handleDotEnter = useCallback(
+    (index: number, el: HTMLButtonElement) => {
+      setHoveredIndex(index);
+      refs.setPositionReference(el);
+    },
+    [refs],
+  );
+
+  const handleDotLeave = useCallback(() => {
+    setHoveredIndex(null);
+  }, []);
+
+  const hoveredEntry =
+    hoveredIndex !== null ? entries[hoveredIndex] : undefined;
+
+  const arrowX = middlewareData.arrow?.x;
+  const arrowSide = placement === "bottom" ? "top" : "bottom";
 
   return (
     <div
@@ -78,34 +105,40 @@ export function HistoryTimeline({
               : "future";
 
         return (
-          <TooltipTrigger
+          <button
             key={`${index}-${entry.timestamp}`}
-            delay={0}
-            closeDelay={0}
-          >
-            <button
-              type="button"
-              className="timeline-dot"
-              style={{ width: size, height: size }}
-              {...{ [`data-${position}`]: "" }}
-              {...(entry.name ? { "data-named": "" } : {})}
-              onClick={() => onRestore(index)}
-              onContextMenu={(e) => {
-                e.preventDefault();
-                const name = prompt("Rename entry:", entry.name ?? entry.label);
-                if (name?.trim()) onRename(index, name.trim());
-              }}
-            />
-            <Tooltip
-              className="timeline-tooltip"
-              placement="top"
-              UNSTABLE_portalContainer={portalContainer ?? undefined}
-            >
-              {entry.name ?? entry.label}
-            </Tooltip>
-          </TooltipTrigger>
+            type="button"
+            className="timeline-dot"
+            style={{ width: size, height: size }}
+            {...{ [`data-${position}`]: "" }}
+            {...(entry.name ? { "data-named": "" } : {})}
+            onClick={() => onRestore(index)}
+            onMouseEnter={(e) => handleDotEnter(index, e.currentTarget)}
+            onMouseLeave={handleDotLeave}
+            onContextMenu={(e) => {
+              e.preventDefault();
+              const name = prompt("Rename entry:", entry.name ?? entry.label);
+              if (name?.trim()) onRename(index, name.trim());
+            }}
+          />
         );
       })}
+      <div
+        ref={refs.setFloating}
+        className="timeline-tooltip"
+        data-visible={hoveredEntry ? "" : undefined}
+        style={floatingStyles}
+      >
+        {hoveredEntry && (hoveredEntry.name ?? hoveredEntry.label)}
+        <div
+          ref={arrowRef}
+          className="timeline-tooltip-arrow"
+          style={{
+            left: arrowX != null ? `${arrowX}px` : undefined,
+            [arrowSide]: "-4px",
+          }}
+        />
+      </div>
     </div>
   );
 }

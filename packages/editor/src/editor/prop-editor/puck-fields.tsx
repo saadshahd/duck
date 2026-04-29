@@ -1,17 +1,5 @@
-import { type ReactNode, useState, useEffect, useContext } from "react";
-import {
-  Select,
-  SelectValue,
-  Button,
-  Popover,
-  ListBox,
-  ListBoxItem,
-  RadioGroup,
-  Radio,
-  Label,
-} from "react-aria-components";
+import { type ReactNode, useState, useEffect } from "react";
 import type { Field } from "@puckeditor/core";
-import { PortalContext } from "../overlay/index.js";
 
 // --- Controlled field props (decoupled from form library) ---
 
@@ -93,48 +81,22 @@ const SelectInput = ({
   value,
   onChange,
   readOnly,
-}: FieldProps<Extract<Field, { type: "select" }>, unknown>) => {
-  const portalContainer = useContext(PortalContext);
-  return (
-    <div>
-      <label>{field.label ?? label}</label>
-      <Select
-        isDisabled={readOnly}
-        selectedKey={String(value ?? "")}
-        onSelectionChange={(key) => {
-          const opt = field.options.find(
-            (o) => String(o.value) === String(key),
-          );
-          onChange(opt ? opt.value : key);
-        }}
-        className="prop-select"
-      >
-        <Button className="prop-select-btn">
-          <SelectValue />
-          <span aria-hidden className="prop-select-chevron">
-            ▾
-          </span>
-        </Button>
-        <Popover
-          className="prop-select-popover"
-          UNSTABLE_portalContainer={portalContainer ?? undefined}
-        >
-          <ListBox className="prop-select-list">
-            {field.options.map((opt) => (
-              <ListBoxItem
-                key={String(opt.value)}
-                id={String(opt.value)}
-                className="prop-select-option"
-              >
-                {opt.label}
-              </ListBoxItem>
-            ))}
-          </ListBox>
-        </Popover>
-      </Select>
-    </div>
-  );
-};
+}: FieldProps<Extract<Field, { type: "select" }>, unknown>) => (
+  <div>
+    <label>{field.label ?? label}</label>
+    <select
+      value={(value as string | number) ?? ""}
+      disabled={readOnly}
+      onChange={(e) => onChange(e.target.value)}
+    >
+      {field.options.map((opt) => (
+        <option key={String(opt.value)} value={String(opt.value)}>
+          {opt.label}
+        </option>
+      ))}
+    </select>
+  </div>
+);
 
 const RadioInput = ({
   label,
@@ -142,28 +104,28 @@ const RadioInput = ({
   value,
   onChange,
   readOnly,
-}: FieldProps<Extract<Field, { type: "radio" }>, unknown>) => (
-  <RadioGroup
-    isDisabled={readOnly}
-    value={String(value ?? "")}
-    onChange={(val) => {
-      const opt = field.options.find((o) => String(o.value) === val);
-      onChange(opt ? opt.value : val);
-    }}
-    className="prop-radio-group"
-  >
-    <Label className="prop-radio-legend">{field.label ?? label}</Label>
-    {field.options.map((opt) => (
-      <Radio
-        key={String(opt.value)}
-        value={String(opt.value)}
-        className="prop-radio"
-      >
-        {opt.label}
-      </Radio>
-    ))}
-  </RadioGroup>
-);
+}: FieldProps<Extract<Field, { type: "radio" }>, unknown>) => {
+  const disabled = readOnly;
+  const groupName = `radio-${label}`;
+  return (
+    <div>
+      <label>{field.label ?? label}</label>
+      {field.options.map((opt) => (
+        <label key={String(opt.value)}>
+          <input
+            type="radio"
+            name={groupName}
+            value={String(opt.value)}
+            checked={value === opt.value}
+            disabled={disabled}
+            onChange={() => onChange(opt.value)}
+          />
+          {opt.label}
+        </label>
+      ))}
+    </div>
+  );
+};
 
 const ObjectInput = ({
   label,
