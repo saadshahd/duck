@@ -8,6 +8,11 @@ import css from "./morph.css?inline";
 const MIDDLEWARE = [offset(8), flip(), shift({ padding: 8 })];
 const HANDLED = new Set(["Escape", "ArrowDown", "ArrowUp", "Enter"]);
 
+const isEntering = (e: React.MouseEvent) => {
+  const related = e.relatedTarget as Node | null;
+  return !related || !e.currentTarget.contains(related);
+};
+
 type Props = {
   patterns: SectionPattern[];
   activeIndex: number;
@@ -29,6 +34,7 @@ export function MorphPicker({
 }: Props) {
   useShadowSheet(css);
   const [localActive, setLocalActive] = useState(activeIndex);
+  const localActiveRef = useRef(activeIndex);
   const { refs, floatingStyles } = useFloating({
     placement: "bottom-start",
     middleware: MIDDLEWARE,
@@ -57,13 +63,6 @@ export function MorphPicker({
   useOnClickOutside(refs.floating, onClose);
 
   useEffect(
-    function syncLocalActive() {
-      setLocalActive(activeIndex);
-    },
-    [activeIndex],
-  );
-
-  useEffect(
     function wireKeyboard() {
       const count = patterns.length;
       const onKeyDown = (e: KeyboardEvent) => {
@@ -73,27 +72,26 @@ export function MorphPicker({
         if (e.key === "Escape") {
           onClose();
         } else if (e.key === "ArrowDown") {
-          const next = localActive < count - 1 ? localActive + 1 : 0;
+          const next =
+            localActiveRef.current < count - 1 ? localActiveRef.current + 1 : 0;
+          localActiveRef.current = next;
           setLocalActive(next);
           onHover(next);
         } else if (e.key === "ArrowUp") {
-          const next = localActive > 0 ? localActive - 1 : count - 1;
+          const next =
+            localActiveRef.current > 0 ? localActiveRef.current - 1 : count - 1;
+          localActiveRef.current = next;
           setLocalActive(next);
           onHover(next);
-        } else if (e.key === "Enter" && localActive >= 0) {
-          onCommit(localActive);
+        } else if (e.key === "Enter" && localActiveRef.current >= 0) {
+          onCommit(localActiveRef.current);
         }
       };
       document.addEventListener("keydown", onKeyDown, true);
       return () => document.removeEventListener("keydown", onKeyDown, true);
     },
-    [localActive, patterns.length, onHover, onCommit, onClose],
+    [patterns.length, onHover, onCommit, onClose],
   );
-
-  const isEntering = (e: React.MouseEvent) => {
-    const related = e.relatedTarget as Node | null;
-    return !related || !e.currentTarget.contains(related);
-  };
 
   return (
     <div
@@ -103,6 +101,13 @@ export function MorphPicker({
       role="menu"
       data-role="morph-picker"
       onClick={(e) => e.stopPropagation()}
+      onMouseOut={(e) => {
+        if (isEntering(e)) {
+          localActiveRef.current = -1;
+          setLocalActive(-1);
+          onHover(-1);
+        }
+      }}
     >
       {patterns.map((pattern, i) => (
         <div
@@ -112,14 +117,9 @@ export function MorphPicker({
           data-active={i === localActive ? "" : undefined}
           onMouseOver={(e) => {
             if (isEntering(e)) {
+              localActiveRef.current = i;
               setLocalActive(i);
               onHover(i);
-            }
-          }}
-          onMouseOut={(e) => {
-            if (isEntering(e)) {
-              setLocalActive(-1);
-              onHover(-1);
             }
           }}
           onClick={() => onCommit(i)}

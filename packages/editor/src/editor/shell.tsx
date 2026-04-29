@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState } from "react";
+import { useCallback, useMemo, useRef, useState } from "react";
 import type { Data, Config } from "@puckeditor/core";
 import { buildIndex, findById } from "@duck/spec";
 import { useMachine } from "@xstate/react";
@@ -201,6 +201,15 @@ export function EditorShell({
     return result.value.data;
   }, [morphSelectedElement, patternRegistry, morph.activePattern]);
 
+  const onMorphHover = useCallback(
+    (i: number) => morph.setActivePattern(i >= 0 ? morph.patterns[i] : null),
+    [morph.setActivePattern, morph.patterns],
+  );
+  const onMorphCommit = useCallback(
+    (i: number) => morph.commit(morph.patterns[i]),
+    [morph.commit, morph.patterns],
+  );
+
   return (
     <>
       <div ref={containerRef} style={{ display: "contents" }}>
@@ -313,10 +322,8 @@ export function EditorShell({
                     ? morph.patterns.indexOf(morph.activePattern)
                     : -1
                 }
-                onHover={(i) =>
-                  morph.setActivePattern(i >= 0 ? morph.patterns[i] : null)
-                }
-                onCommit={(i) => morph.commit(morph.patterns[i])}
+                onHover={onMorphHover}
+                onCommit={onMorphCommit}
                 onClose={morph.closePicker}
                 commitError={morph.commitError}
                 anchorRef={morphButtonRef}
