@@ -86,5 +86,36 @@ export const patternConfig: PatternConfig = {
         },
       } as unknown as ComponentData,
     },
+    {
+      name: "Feature row",
+      description: "Heading left, body and action stacked right",
+      slots: [
+        {
+          name: "heading",
+          accepts: ["heading"],
+          cardinality: { kind: "first" },
+        },
+        { name: "body", accepts: ["body"], cardinality: { kind: "optional" } },
+        {
+          name: "action",
+          accepts: ["action"],
+          cardinality: { kind: "optional" },
+        },
+      ],
+      data: {
+        type: "Stack",
+        props: {
+          id: "tmpl-row",
+          direction: "horizontal",
+          gap: "2rem",
+          style: { alignItems: "flex-start", padding: "2rem" },
+          children: [
+            h("tmpl-rh", "Feature title"),
+            t("tmpl-rt", "Details about this feature."),
+            btn("tmpl-rbtn", "Learn more"),
+          ],
+        },
+      } as unknown as ComponentData,
+    },
   ],
 };

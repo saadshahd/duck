@@ -10,7 +10,6 @@ const HANDLED = new Set(["Escape", "ArrowDown", "ArrowUp", "Enter"]);
 
 type Props = {
   patterns: SectionPattern[];
-  activeIndex: number;
   onHover: (index: number) => void;
   onCommit: (index: number) => void;
   onClose: () => void;
@@ -20,7 +19,6 @@ type Props = {
 
 export function MorphPicker({
   patterns,
-  activeIndex,
   onHover,
   onCommit,
   onClose,
@@ -28,7 +26,10 @@ export function MorphPicker({
   anchorRef,
 }: Props) {
   useShadowSheet(css);
-  const [localActive, setLocalActive] = useState(activeIndex);
+  // Keyboard-only state — mouse hover is handled by CSS :hover.
+  const [keyboardActive, setKeyboardActive] = useState(-1);
+  const keyboardActiveRef = useRef(-1);
+
   const { refs, floatingStyles } = useFloating({
     placement: "bottom-start",
     middleware: MIDDLEWARE,
@@ -57,13 +58,6 @@ export function MorphPicker({
   useOnClickOutside(refs.floating, onClose);
 
   useEffect(
-    function syncLocalActive() {
-      setLocalActive(activeIndex);
-    },
-    [activeIndex],
-  );
-
-  useEffect(
     function wireKeyboard() {
       const count = patterns.length;
       const onKeyDown = (e: KeyboardEvent) => {
@@ -73,27 +67,30 @@ export function MorphPicker({
         if (e.key === "Escape") {
           onClose();
         } else if (e.key === "ArrowDown") {
-          const next = localActive < count - 1 ? localActive + 1 : 0;
-          setLocalActive(next);
+          const next =
+            keyboardActiveRef.current < count - 1
+              ? keyboardActiveRef.current + 1
+              : 0;
+          keyboardActiveRef.current = next;
+          setKeyboardActive(next);
           onHover(next);
         } else if (e.key === "ArrowUp") {
-          const next = localActive > 0 ? localActive - 1 : count - 1;
-          setLocalActive(next);
+          const next =
+            keyboardActiveRef.current > 0
+              ? keyboardActiveRef.current - 1
+              : count - 1;
+          keyboardActiveRef.current = next;
+          setKeyboardActive(next);
           onHover(next);
-        } else if (e.key === "Enter" && localActive >= 0) {
-          onCommit(localActive);
+        } else if (e.key === "Enter" && keyboardActiveRef.current >= 0) {
+          onCommit(keyboardActiveRef.current);
         }
       };
       document.addEventListener("keydown", onKeyDown, true);
       return () => document.removeEventListener("keydown", onKeyDown, true);
     },
-    [localActive, patterns.length, onHover, onCommit, onClose],
+    [patterns.length, onHover, onCommit, onClose],
   );
-
-  const isEntering = (e: React.MouseEvent) => {
-    const related = e.relatedTarget as Node | null;
-    return !related || !e.currentTarget.contains(related);
-  };
 
   return (
     <div
@@ -109,24 +106,13 @@ export function MorphPicker({
           key={pattern.name}
           className="morph-picker-item"
           role="menuitem"
-          data-active={i === localActive ? "" : undefined}
-          onMouseOver={(e) => {
-            if (isEntering(e)) {
-              setLocalActive(i);
-              onHover(i);
-            }
-          }}
-          onMouseOut={(e) => {
-            if (isEntering(e)) {
-              setLocalActive(-1);
-              onHover(-1);
-            }
-          }}
+          data-active={i === keyboardActive ? "" : undefined}
+          onMouseOver={() => onHover(i)}
           onClick={() => onCommit(i)}
         >
           <span className="morph-picker-name">{pattern.name}</span>
           <span className="morph-picker-desc">{pattern.description}</span>
-          {commitError && i === localActive && (
+          {commitError && i === keyboardActive && (
             <span className="morph-picker-error">{commitError}</span>
           )}
         </div>
