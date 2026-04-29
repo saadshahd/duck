@@ -1,11 +1,15 @@
-import { useEffect } from "react";
+import { useContext, useEffect } from "react";
+import { Menu, MenuItem, Section, Separator } from "react-aria-components";
 import { useFloating, flip, shift } from "@floating-ui/react";
 import type { Data } from "@puckeditor/core";
 import { findById } from "@duck/spec";
-import { useShadowSheet, useOnClickOutside } from "../overlay/index.js";
+import {
+  useShadowSheet,
+  useOnClickOutside,
+  PortalContext,
+} from "../overlay/index.js";
 import type { EditorEvent } from "../machine/index.js";
 import type { ClipboardActions } from "../types.js";
-import { useMenuKeyboard } from "./use-menu-keyboard.js";
 import css from "./context-menu.css?inline";
 
 const MIDDLEWARE = [flip(), shift({ padding: 8 })];
@@ -40,11 +44,6 @@ const CLIPBOARD_ITEMS: {
   },
 ];
 
-const isEntering = (e: React.MouseEvent) => {
-  const related = e.relatedTarget as Node | null;
-  return !related || !e.currentTarget.contains(related);
-};
-
 type ContextMenuProps = {
   x: number;
   y: number;
@@ -69,6 +68,7 @@ export function ContextMenu({
   onClose,
 }: ContextMenuProps) {
   useShadowSheet(css);
+  const portalContainer = useContext(PortalContext);
 
   const { refs, floatingStyles } = useFloating({
     placement: "bottom-start",
@@ -96,75 +96,74 @@ export function ContextMenu({
 
   useOnClickOutside(refs.floating, onClose);
 
-  const select = (i: number) => {
-    send({ type: "SELECT", elementId: elementIds[i] });
-    onClose();
-  };
-
-  const { activeIndex, setActiveIndex } = useMenuKeyboard({
-    count: elementIds.length,
-    onSelect: select,
-    onClose,
-  });
-
-  useEffect(
-    function syncHighlight() {
-      onHighlight(activeIndex >= 0 ? elementIds[activeIndex] : null);
-    },
-    [activeIndex, elementIds, onHighlight],
+  const clipboardActionMap = new Map(
+    CLIPBOARD_ITEMS.map((item) => [item.action, item]),
   );
 
   return (
     <div
       ref={refs.setFloating}
       style={floatingStyles}
-      className="context-menu"
-      role="menu"
       data-role="context-menu"
-      onClick={(e) => e.stopPropagation()}
+      onKeyDown={(e) => {
+        if (e.key === "Escape") {
+          e.stopPropagation();
+          onClose();
+        }
+      }}
     >
-      {elementIds.map((id, i) => {
-        const component = findById(data, id);
-        if (!component) return null;
-        return (
-          <div
-            key={id}
-            className="context-menu-item"
-            role="menuitem"
-            data-active={i === activeIndex ? "" : undefined}
-            onMouseOver={(e) => {
-              if (isEntering(e)) setActiveIndex(i);
-            }}
-            onMouseOut={(e) => {
-              if (isEntering(e)) setActiveIndex(-1);
-            }}
-            onClick={() => select(i)}
-          >
-            <span className="context-menu-item-type">{component.type}</span>
-            <span className="context-menu-item-id">{id}</span>
-          </div>
-        );
-      })}
-      <div className="context-menu-divider" />
-      {CLIPBOARD_ITEMS.map(({ label, shortcut, action, needsSelection }) => {
-        const disabled = needsSelection && !lastSelectedId;
-        return (
-          <div
-            key={action}
-            className="context-menu-action"
-            role="menuitem"
-            aria-disabled={disabled || undefined}
-            onClick={() => {
-              if (disabled) return;
-              clipboard[action]();
-              onClose();
-            }}
-          >
-            <span>{label}</span>
-            <span className="context-menu-shortcut">{shortcut}</span>
-          </div>
-        );
-      })}
+      <Menu
+        aria-label="Context menu"
+        autoFocus
+        className="context-menu"
+        onAction={(key) => {
+          const id = String(key);
+          if (elementIds.includes(id)) {
+            send({ type: "SELECT", elementId: id });
+          } else {
+            const item = clipboardActionMap.get(id as keyof ClipboardActions);
+            if (item && !(item.needsSelection && !lastSelectedId)) {
+              clipboard[item.action]();
+            }
+          }
+          onClose();
+        }}
+      >
+        <Section>
+          {elementIds.map((id) => {
+            const component = findById(data, id);
+            if (!component) return null;
+            return (
+              <MenuItem
+                key={id}
+                id={id}
+                className="context-menu-item"
+                onFocus={() => onHighlight(id)}
+                onHoverChange={(hovered) => onHighlight(hovered ? id : null)}
+              >
+                <span className="context-menu-item-type">{component.type}</span>
+                <span className="context-menu-item-id">{id}</span>
+              </MenuItem>
+            );
+          })}
+        </Section>
+        <Separator className="context-menu-divider" />
+        <Section>
+          {CLIPBOARD_ITEMS.map(
+            ({ label, shortcut, action, needsSelection }) => (
+              <MenuItem
+                key={action}
+                id={action}
+                className="context-menu-action"
+                isDisabled={needsSelection && !lastSelectedId}
+              >
+                <span>{label}</span>
+                <span className="context-menu-shortcut">{shortcut}</span>
+              </MenuItem>
+            ),
+          )}
+        </Section>
+      </Menu>
     </div>
   );
 }
