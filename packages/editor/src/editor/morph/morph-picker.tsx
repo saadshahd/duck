@@ -1,12 +1,24 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import type { RefObject } from "react";
+import { Menu, MenuItem } from "react-aria-components";
 import { useFloating, offset, flip, shift } from "@floating-ui/react";
 import { useShadowSheet, useOnClickOutside } from "../overlay/index.js";
 import type { SectionPattern } from "@duck/patterns";
 import css from "./morph.css?inline";
 
 const MIDDLEWARE = [offset(8), flip(), shift({ padding: 8 })];
-const HANDLED = new Set(["Escape", "ArrowDown", "ArrowUp", "Enter"]);
+
+const EMPTY_RECT = {
+  x: 0,
+  y: 0,
+  top: 0,
+  left: 0,
+  bottom: 0,
+  right: 0,
+  width: 0,
+  height: 0,
+  toJSON: () => ({}),
+};
 
 type Props = {
   patterns: SectionPattern[];
@@ -26,9 +38,7 @@ export function MorphPicker({
   anchorRef,
 }: Props) {
   useShadowSheet(css);
-  // Keyboard-only state — mouse hover is handled by CSS :hover.
-  const [keyboardActive, setKeyboardActive] = useState(-1);
-  const keyboardActiveRef = useRef(-1);
+  const [focusedIndex, setFocusedIndex] = useState(-1);
 
   const { refs, floatingStyles } = useFloating({
     placement: "bottom-start",
@@ -39,17 +49,7 @@ export function MorphPicker({
     function anchorToButton() {
       refs.setPositionReference({
         getBoundingClientRect: () =>
-          anchorRef.current?.getBoundingClientRect() ?? {
-            x: 0,
-            y: 0,
-            top: 0,
-            left: 0,
-            bottom: 0,
-            right: 0,
-            width: 0,
-            height: 0,
-            toJSON: () => ({}),
-          },
+          anchorRef.current?.getBoundingClientRect() ?? EMPTY_RECT,
       });
     },
     [refs, anchorRef],
@@ -57,66 +57,48 @@ export function MorphPicker({
 
   useOnClickOutside(refs.floating, onClose);
 
-  useEffect(
-    function wireKeyboard() {
-      const count = patterns.length;
-      const onKeyDown = (e: KeyboardEvent) => {
-        if (!HANDLED.has(e.key)) return;
-        e.preventDefault();
-        e.stopImmediatePropagation();
-        if (e.key === "Escape") {
-          onClose();
-        } else if (e.key === "ArrowDown") {
-          const next =
-            keyboardActiveRef.current < count - 1
-              ? keyboardActiveRef.current + 1
-              : 0;
-          keyboardActiveRef.current = next;
-          setKeyboardActive(next);
-          onHover(next);
-        } else if (e.key === "ArrowUp") {
-          const next =
-            keyboardActiveRef.current > 0
-              ? keyboardActiveRef.current - 1
-              : count - 1;
-          keyboardActiveRef.current = next;
-          setKeyboardActive(next);
-          onHover(next);
-        } else if (e.key === "Enter" && keyboardActiveRef.current >= 0) {
-          onCommit(keyboardActiveRef.current);
-        }
-      };
-      document.addEventListener("keydown", onKeyDown, true);
-      return () => document.removeEventListener("keydown", onKeyDown, true);
-    },
-    [patterns.length, onHover, onCommit, onClose],
-  );
-
   return (
     <div
       ref={refs.setFloating}
       style={floatingStyles}
-      className="morph-picker"
-      role="menu"
       data-role="morph-picker"
-      onClick={(e) => e.stopPropagation()}
+      onKeyDown={(e) => {
+        if (e.key === "Escape") {
+          e.stopPropagation();
+          onClose();
+        }
+      }}
     >
-      {patterns.map((pattern, i) => (
-        <div
-          key={pattern.name}
-          className="morph-picker-item"
-          role="menuitem"
-          data-active={i === keyboardActive ? "" : undefined}
-          onMouseOver={() => onHover(i)}
-          onClick={() => onCommit(i)}
-        >
-          <span className="morph-picker-name">{pattern.name}</span>
-          <span className="morph-picker-desc">{pattern.description}</span>
-          {commitError && i === keyboardActive && (
-            <span className="morph-picker-error">{commitError}</span>
-          )}
-        </div>
-      ))}
+      <Menu
+        aria-label="Structural alternatives"
+        autoFocus
+        className="morph-picker"
+        onAction={(key) => onCommit(Number(key))}
+      >
+        {patterns.map((pattern, i) => (
+          <MenuItem
+            key={pattern.name}
+            id={String(i)}
+            className="morph-picker-item"
+            onFocus={() => {
+              setFocusedIndex(i);
+              onHover(i);
+            }}
+            onHoverChange={(hovered) => {
+              if (hovered) {
+                setFocusedIndex(i);
+                onHover(i);
+              }
+            }}
+          >
+            <span className="morph-picker-name">{pattern.name}</span>
+            <span className="morph-picker-desc">{pattern.description}</span>
+            {commitError && i === focusedIndex && (
+              <span className="morph-picker-error">{commitError}</span>
+            )}
+          </MenuItem>
+        ))}
+      </Menu>
     </div>
   );
 }
