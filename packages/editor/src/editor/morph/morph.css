@@ -30,7 +30,7 @@
 }
 
 .morph-picker-item[data-active] {
-  background: var(--accent-hover);
+  background: var(--active-on-bar);
 }
 
 .morph-picker-name {
@@ -82,7 +82,8 @@
 }
 
 .morph-btn[data-has-patterns] {
-  color: var(--accent);
+  color: var(--text-bar-strong);
+  background: var(--active-on-bar);
 }
 
 .morph-btn[data-pulse] {
@@ -99,8 +100,8 @@
   position: absolute;
   top: 2px;
   right: 2px;
-  background: var(--accent);
-  color: #fff;
+  background: var(--text-bar-strong);
+  color: var(--text-sheet);
   font-size: 8px;
   font-weight: 700;
   line-height: 1;

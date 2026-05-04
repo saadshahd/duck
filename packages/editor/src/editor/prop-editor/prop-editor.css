@@ -61,7 +61,7 @@
 .prop-popover input:focus,
 .prop-popover select:focus,
 .prop-popover textarea:focus {
-  border-color: var(--accent);
+  border-color: var(--text-bar);
 }
 
 .prop-popover textarea[data-invalid] {

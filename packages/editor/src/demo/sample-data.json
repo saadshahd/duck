@@ -8,8 +8,9 @@
         "style": {
           "maxWidth": "1048px",
           "margin": "0 auto",
-          "fontFamily": "-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
-          "color": "#24292f"
+          "padding": "2rem",
+          "fontFamily": "'Helvetica Neue', Helvetica, Arial, sans-serif",
+          "color": "#111111"
         },
         "children": [
           {
@@ -17,9 +18,9 @@
             "props": {
               "id": "hero",
               "direction": "vertical",
-              "gap": "1rem",
+              "gap": "1.5rem",
               "style": {
-                "margin": "2rem 0",
+                "padding": "4rem 0 3rem",
                 "textAlign": "center",
                 "alignItems": "center"
               },
@@ -29,19 +30,23 @@
                   "props": {
                     "id": "hero-heading",
                     "level": "h1",
-                    "text": "Duck — Puck without the iframe",
-                    "style": { "fontSize": "3rem" }
+                    "text": "The editor is the canvas.",
+                    "style": {
+                      "fontSize": "3rem",
+                      "fontFamily": "'Playfair Display', Georgia, serif"
+                    }
                   }
                 },
                 {
                   "type": "Text",
                   "props": {
                     "id": "hero-description",
-                    "text": "A zero-chrome editor where the rendered page IS the editing surface. AI agents compose via MCP, designers review and steer.",
+                    "text": "Duck brings AI composition and human review onto the same surface. No panels. No iframes. Just the page.",
                     "style": {
                       "fontSize": "1.25rem",
-                      "color": "#57606a",
-                      "maxWidth": "640px"
+                      "color": "#555555",
+                      "maxWidth": "600px",
+                      "lineHeight": "1.6"
                     }
                   }
                 },
@@ -50,14 +55,14 @@
                   "props": {
                     "id": "hero-actions",
                     "direction": "horizontal",
-                    "gap": "1rem",
+                    "gap": "0.75rem",
                     "style": {},
                     "children": [
                       {
                         "type": "Button",
                         "props": {
                           "id": "hero-cta-primary",
-                          "label": "Get started",
+                          "label": "Start building",
                           "variant": "primary"
                         }
                       },
@@ -65,7 +70,7 @@
                         "type": "Button",
                         "props": {
                           "id": "hero-cta-secondary",
-                          "label": "View docs",
+                          "label": "Read the docs",
                           "variant": "secondary"
                         }
                       }
@@ -80,16 +85,22 @@
             "props": {
               "id": "features",
               "direction": "vertical",
-              "gap": "1rem",
-              "style": { "margin": "2rem 0" },
+              "gap": "2rem",
+              "style": {
+                "padding": "3rem 0"
+              },
               "children": [
                 {
                   "type": "Heading",
                   "props": {
                     "id": "features-heading",
                     "level": "h2",
-                    "text": "Features",
-                    "style": { "textAlign": "center" }
+                    "text": "What makes it different",
+                    "style": {
+                      "textAlign": "center",
+                      "fontFamily": "'Playfair Display', Georgia, serif",
+                      "fontSize": "1.875rem"
+                    }
                   }
                 },
                 {
@@ -119,7 +130,7 @@
                               "props": {
                                 "id": "feature-1-desc",
                                 "text": "No panels, no toolbars. The rendered page is the editor. Everything is contextual — appears on interaction, disappears when done.",
-                                "style": {}
+                                "style": { "color": "#555555" }
                               }
                             }
                           ]
@@ -145,7 +156,7 @@
                               "props": {
                                 "id": "feature-2-desc",
                                 "text": "AI agents connect via MCP and compose UIs. The editor is a review surface, not a creation tool. Designers steer, AI builds.",
-                                "style": {}
+                                "style": { "color": "#555555" }
                               }
                             }
                           ]
@@ -171,7 +182,7 @@
                               "props": {
                                 "id": "feature-3-desc",
                                 "text": "Bring your own Puck Config — Primer, shadcn, Radix, or plain HTML. Drop in as-is, no migration needed.",
-                                "style": {}
+                                "style": { "color": "#555555" }
                               }
                             }
                           ]
@@ -190,12 +201,9 @@
               "direction": "vertical",
               "gap": "1rem",
               "style": {
-                "padding": "2rem",
-                "margin": "2rem 0",
+                "padding": "3rem 0 4rem",
                 "textAlign": "center",
-                "alignItems": "center",
-                "background": "#f6f8fa",
-                "borderRadius": "12px"
+                "alignItems": "center"
               },
               "children": [
                 {
@@ -203,16 +211,23 @@
                   "props": {
                     "id": "cta-heading",
                     "level": "h2",
-                    "text": "Ready to try it?",
-                    "style": {}
+                    "text": "Ready to build?",
+                    "style": {
+                      "fontFamily": "'Playfair Display', Georgia, serif",
+                      "fontSize": "1.875rem"
+                    }
                   }
                 },
                 {
                   "type": "Text",
                   "props": {
                     "id": "cta-desc",
-                    "text": "Install the editor, point it at your Puck Config, and start editing.",
-                    "style": {}
+                    "text": "npm install @duck/editor",
+                    "style": {
+                      "color": "#888888",
+                      "fontFamily": "'Courier New', 'Lucida Console', monospace",
+                      "fontSize": "0.875rem"
+                    }
                   }
                 },
                 {

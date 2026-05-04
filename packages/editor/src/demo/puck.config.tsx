@@ -50,16 +50,21 @@ const fontSize = [
 ].map(opt);
 
 const color = [
-  "#24292f",
-  "#57606a",
-  "#656d76",
-  "#8b949e",
-  "#d0d7de",
-  "#f6f8fa",
-  "#ffffff",
-  "#0969da",
-  "#1a7f37",
-  "#cf222e",
+  // Achromatic scale
+  "#111111",
+  "#2F3437",
+  "#555555",
+  "#888888",
+  "#CCCCCC",
+  "#EAEAEA",
+  "#F7F6F3",
+  "#FBFBFA",
+  "#FFFFFF",
+  // Muted pastels
+  "#FDEBEC",
+  "#E1F3FE",
+  "#EDF3EC",
+  "#FBF3DB",
 ].map(opt);
 
 const radius = ["0", "4px", "6px", "8px", "12px", "16px", "9999px"].map(opt);
@@ -81,9 +86,9 @@ const alignItems = ["start", "center", "end", "stretch", "baseline"].map(opt);
 const objectFit = ["contain", "cover", "fill", "none", "scale-down"].map(opt);
 
 const fontFamily = [
-  "-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
-  "Georgia, serif",
-  "'Courier New', monospace",
+  "'Helvetica Neue', Helvetica, Arial, sans-serif",
+  "'Playfair Display', Georgia, serif",
+  "'Courier New', 'Lucida Console', monospace",
 ].map(opt);
 
 const lineHeight = [
@@ -240,12 +245,14 @@ export const config: Config = {
         return (
           <button
             style={{
-              padding: "0.75rem 1.5rem",
-              borderRadius: "8px",
-              border: isPrimary ? "none" : "1px solid #d0d7de",
-              background: isPrimary ? "#0969da" : "transparent",
-              color: isPrimary ? "#fff" : "#24292f",
-              fontSize: "1rem",
+              padding: "0.625rem 1.25rem",
+              borderRadius: "5px",
+              border: isPrimary ? "none" : "1px solid #CCCCCC",
+              background: isPrimary ? "#111111" : "transparent",
+              color: isPrimary ? "#FFFFFF" : "#111111",
+              fontSize: "0.9375rem",
+              fontFamily: "'Helvetica Neue', Helvetica, Arial, sans-serif",
+              letterSpacing: "0.01em",
               cursor: "pointer",
             }}
           >
@@ -357,10 +364,10 @@ export const config: Config = {
       render: ({ children: Children, style }) => (
         <div
           style={{
-            border: "1px solid #d0d7de",
-            borderRadius: "12px",
-            padding: "1.5rem",
-            background: "#fff",
+            border: "1px solid #EAEAEA",
+            borderRadius: "8px",
+            padding: "2rem",
+            background: "#FFFFFF",
             ...style,
           }}
         >

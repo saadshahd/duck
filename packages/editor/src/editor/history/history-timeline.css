@@ -12,7 +12,7 @@
   align-items: center;
   gap: 6px;
   padding: 8px 16px;
-  border-radius: 999px;
+  border-radius: 6px;
   background: var(--surface-bar);
   box-shadow: var(--shadow-bar);
   pointer-events: auto;
@@ -52,7 +52,7 @@
 }
 
 .timeline-dot[data-current] {
-  background: var(--accent);
+  background: var(--text-bar-strong);
 }
 
 .timeline-dot[data-future] {
@@ -61,7 +61,7 @@
 }
 
 .timeline-dot[data-named] {
-  box-shadow: 0 0 0 2px var(--accent);
+  box-shadow: 0 0 0 2px var(--text-bar);
 }
 
 /* --- Tooltip --- */
