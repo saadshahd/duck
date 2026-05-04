@@ -1,5 +1,6 @@
 import { Data as EffectData, Effect } from "effect";
 import type { ComponentData, Config, Data } from "@puckeditor/core";
+import { slotKeysFromConfig } from "@duck/spec";
 
 // ── Types ───────────────────────────────────────────────────────────
 
@@ -47,19 +48,6 @@ const opErr = (
   tag: OpError["tag"],
   details: Record<string, unknown>,
 ): OpError => new OpError({ tag, details });
-
-const slotKeysFromConfig = (config: Config, type: string): string[] => {
-  const fields = (
-    config.components as Record<
-      string,
-      { fields?: Record<string, { type: string }> }
-    >
-  )[type]?.fields;
-  if (!fields) return [];
-  return Object.entries(fields)
-    .filter(([, f]) => f?.type === "slot")
-    .map(([k]) => k);
-};
 
 const isKnownComponent = (config: Config, type: string): boolean =>
   type in (config.components as Record<string, unknown>);

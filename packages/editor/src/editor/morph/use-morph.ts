@@ -1,15 +1,12 @@
 import { useState, useMemo, useEffect, useCallback } from "react";
 import type { Data } from "@puckeditor/core";
 import { findById } from "@duck/spec";
-import type {
-  PatternRegistry,
-  SectionPattern,
-} from "@duck/patterns";
+import type { PatternRegistry, SectionPattern } from "@duck/patterns";
 import { remintIds } from "@duck/patterns";
 import { replace } from "../spec-ops/index.js";
 import type { DataPush } from "../types.js";
 
-export type MorphState = {
+type MorphState = {
   count: number;
   isOpen: boolean;
   activePattern: SectionPattern | null;

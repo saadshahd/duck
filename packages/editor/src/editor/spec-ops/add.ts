@@ -1,17 +1,17 @@
-import type { ComponentData, Data } from "@puckeditor/core";
+import type { ComponentData, Config, Data } from "@puckeditor/core";
 import { err, ok, type Result } from "neverthrow";
-import { getChildrenAt, slotKeysOf } from "@duck/spec";
+import {
+  componentDef,
+  getChildrenAt,
+  slotKeysFromConfig,
+  slotKeysOf,
+} from "@duck/spec";
 import {
   type SpecOpsError,
   cloneAndMutate,
   findById,
   writableChildrenAt,
 } from "./helpers.js";
-
-export type ComponentMap = Record<
-  string,
-  { defaultProps?: Record<string, unknown> } | undefined
->;
 
 const randomSuffix = (): string => Math.random().toString(36).slice(2, 8);
 
@@ -21,19 +21,6 @@ const generateId = (type: string, taken: ReadonlySet<string>): string => {
   while (taken.has(id)) id = `${prefix}-${randomSuffix()}`;
   return id;
 };
-
-const defaultsFor = (
-  components: ComponentMap,
-  type: string,
-): Record<string, unknown> => components[type]?.defaultProps ?? {};
-
-const declaredSlotKeys = (
-  components: ComponentMap,
-  type: string,
-): readonly string[] =>
-  Object.entries(defaultsFor(components, type))
-    .filter(([, v]) => Array.isArray(v))
-    .map(([k]) => k);
 
 const collectIds = (data: Data): Set<string> => {
   const ids = new Set<string>();
@@ -72,7 +59,7 @@ const remintSlots = (
 /** Insert `component` at `(parentId, slotKey, index?)`. Append when index undefined.
  *
  *  - `parentId === null && slotKey === null` targets `data.content`.
- *  - Defaults from `components[type].defaultProps` are merged behind caller props.
+ *  - Defaults from `config.components[type].defaultProps` are merged behind caller props.
  *  - Slot fields not provided by caller are initialised to `[]`.
  *  - A unique id is generated if one isn't supplied.
  *  - Errors: `parent-not-found`, `slot-not-defined`, `index-out-of-bounds`. */
@@ -84,7 +71,7 @@ export const add = (
     component: ComponentData;
     index?: number;
   },
-  components: ComponentMap,
+  config: Config,
 ): Result<Data, SpecOpsError> => {
   const { parentId, slotKey, component, index } = args;
 
@@ -113,11 +100,10 @@ export const add = (
       ? component.props.id
       : generateId(component.type, taken);
 
+  const slotKeys = slotKeysFromConfig(config, component.type);
+  const defaultProps = componentDef(config, component.type)?.defaultProps ?? {};
   const slotInit = Object.fromEntries(
-    declaredSlotKeys(components, component.type).map((k) => [
-      k,
-      [] as unknown[],
-    ]),
+    slotKeys.map((k) => [k, [] as unknown[]]),
   );
   taken.add(incomingId);
   const prepared = remintSlots(
@@ -125,7 +111,7 @@ export const add = (
       ...component,
       props: {
         ...slotInit,
-        ...defaultsFor(components, component.type),
+        ...defaultProps,
         ...component.props,
         id: incomingId,
       },

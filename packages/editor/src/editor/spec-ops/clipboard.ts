@@ -1,7 +1,7 @@
-import type { ComponentData, Data } from "@puckeditor/core";
+import type { Config, ComponentData, Data } from "@puckeditor/core";
 import { err, ok, type Result } from "neverthrow";
 import { slotKeysOf } from "@duck/spec";
-import { add, type ComponentMap } from "./add.js";
+import { add } from "./add.js";
 import { type SpecOpsError, cloneData, findById } from "./helpers.js";
 
 const randomSuffix = (): string => Math.random().toString(36).slice(2, 8);
@@ -56,7 +56,7 @@ export const paste = (
   parentId: string | null,
   slotKey: string | null,
   component: ComponentData,
-  components: ComponentMap,
+  config: Config,
   index?: number,
 ): Result<{ data: Data; id: string }, SpecOpsError> => {
   const cloned = cloneData(component);
@@ -65,6 +65,6 @@ export const paste = (
   return add(
     data,
     { parentId, slotKey, component: cloned, index },
-    components,
+    config,
   ).map((data) => ({ data, id }));
 };

@@ -1,13 +1,28 @@
 import { describe, it, expect } from "bun:test";
-import type { ComponentData, Data } from "@puckeditor/core";
-import { add, type ComponentMap } from "./add.js";
+import type { ComponentData, Config, Data } from "@puckeditor/core";
+import { add } from "./add.js";
 import { findById } from "./helpers.js";
 
-const config: ComponentMap = {
-  Stack: { defaultProps: { items: [] } },
-  Text: { defaultProps: { text: "default text" } },
-  Button: { defaultProps: { label: "Click", variant: "primary" } },
-};
+const config: Config = {
+  components: {
+    Stack: {
+      defaultProps: { items: [] },
+      fields: { items: { type: "slot" } },
+      render: () => null as never,
+    },
+    Text: {
+      defaultProps: { text: "default text" },
+      fields: { text: { type: "text" } },
+      render: () => null as never,
+    },
+    Button: {
+      defaultProps: { label: "Click", variant: "primary" },
+      fields: { label: { type: "text" }, variant: { type: "select", options: [] } },
+      render: () => null as never,
+    },
+  },
+  root: { render: () => null as never },
+} as Config;
 
 const text = (id: string, t = "x"): ComponentData => ({
   type: "Text",
@@ -192,34 +207,42 @@ describe("add — errors", () => {
 });
 
 describe("add — slot template re-minting", () => {
-  const templateConfig: ComponentMap = {
-    Container: {
-      defaultProps: {
-        children: [{ type: "Text", props: { id: "", text: "default text" } }],
+  const templateConfig: Config = {
+    components: {
+      Container: {
+        defaultProps: {
+          children: [{ type: "Text", props: { id: "", text: "default text" } }],
+        },
+        render: () => null as never,
       },
+      Text: { defaultProps: { text: "default text" }, render: () => null as never },
     },
-    Text: { defaultProps: { text: "default text" } },
-  };
+    root: { render: () => null as never },
+  } as Config;
 
-  const deepConfig: ComponentMap = {
-    Grid: {
-      defaultProps: {
-        children: [
-          {
-            type: "Card",
-            props: {
-              id: "",
-              children: [
-                { type: "Text", props: { id: "", text: "card text" } },
-              ],
+  const deepConfig: Config = {
+    components: {
+      Grid: {
+        defaultProps: {
+          children: [
+            {
+              type: "Card",
+              props: {
+                id: "",
+                children: [
+                  { type: "Text", props: { id: "", text: "card text" } },
+                ],
+              },
             },
-          },
-        ],
+          ],
+        },
+        render: () => null as never,
       },
+      Card: { defaultProps: { children: [] }, render: () => null as never },
+      Text: { defaultProps: { text: "x" }, render: () => null as never },
     },
-    Card: { defaultProps: { children: [] } },
-    Text: { defaultProps: { text: "x" } },
-  };
+    root: { render: () => null as never },
+  } as Config;
 
   it("re-mints IDs of nested components from defaultProps", () => {
     const result = add(

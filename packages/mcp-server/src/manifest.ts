@@ -1,5 +1,6 @@
 import { Effect } from "effect";
 import type { Config } from "@puckeditor/core";
+import { componentDef, slotKeysFromConfig } from "@duck/spec";
 import { NotFound, QueryError } from "./errors.js";
 
 type ManifestArgs = {
@@ -12,38 +13,8 @@ type ComponentEntry = {
   readonly label?: string;
   readonly fields: Record<string, unknown>;
   readonly defaultProps: Record<string, unknown>;
-  readonly slots: string[];
+  readonly slots: readonly string[];
 };
-
-const componentDef = (
-  config: Config,
-  name: string,
-):
-  | {
-      label?: string;
-      fields?: Record<string, { type: string }>;
-      defaultProps?: Record<string, unknown>;
-    }
-  | undefined =>
-  (
-    config.components as Record<
-      string,
-      {
-        label?: string;
-        fields?: Record<string, { type: string }>;
-        defaultProps?: Record<string, unknown>;
-      }
-    >
-  )[name];
-
-const slotKeys = (
-  fields: Record<string, { type: string }> | undefined,
-): string[] =>
-  fields
-    ? Object.entries(fields)
-        .filter(([, f]) => f?.type === "slot")
-        .map(([k]) => k)
-    : [];
 
 const describeComponent = (
   config: Config,
@@ -56,7 +27,7 @@ const describeComponent = (
     label: def.label,
     fields: (def.fields ?? {}) as Record<string, unknown>,
     defaultProps: def.defaultProps ?? {},
-    slots: slotKeys(def.fields),
+    slots: slotKeysFromConfig(config, name),
   };
 };
 
@@ -108,7 +79,7 @@ const promptText = (config: Config): string => {
   for (const name of names) {
     const def = componentDef(config, name);
     if (!def) continue;
-    const slots = slotKeys(def.fields);
+    const slots = slotKeysFromConfig(config, name);
     const { required, optional } = requiredOptional(def.fields);
     lines.push(`### ${name}${def.label ? ` — ${def.label}` : ""}`);
     if (slots.length > 0) lines.push(`Slots: ${slots.join(", ")}`);

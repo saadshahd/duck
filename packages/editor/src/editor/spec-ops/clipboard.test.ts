@@ -1,13 +1,23 @@
 import { describe, it, expect } from "bun:test";
-import type { ComponentData, Data } from "@puckeditor/core";
+import type { ComponentData, Config, Data } from "@puckeditor/core";
 import { copy, paste } from "./clipboard.js";
-import { type ComponentMap } from "./add.js";
 import { findById, allIds } from "./helpers.js";
 
-const config: ComponentMap = {
-  Stack: { defaultProps: { items: [] } },
-  Text: { defaultProps: { text: "default" } },
-};
+const config: Config = {
+  components: {
+    Stack: {
+      defaultProps: { items: [] },
+      fields: { items: { type: "slot" } },
+      render: () => null as never,
+    },
+    Text: {
+      defaultProps: { text: "default" },
+      fields: { text: { type: "text" } },
+      render: () => null as never,
+    },
+  },
+  root: { render: () => null as never },
+} as Config;
 
 const text = (id: string, t = "x"): ComponentData => ({
   type: "Text",

@@ -7,7 +7,7 @@ import {
   getChildrenAt,
   slotKeysOf,
 } from "@duck/spec";
-import { add, type ComponentMap } from "../spec-ops/index.js";
+import { add } from "../spec-ops/index.js";
 import type { EditorEvent } from "../machine/index.js";
 import type { DataPush } from "../types.js";
 
@@ -90,7 +90,7 @@ export function useInsert(deps: InsertDeps): {
         component,
         index: target.index,
       },
-      config.components as ComponentMap,
+      config,
     ).map((next) => {
       push(next, `Added ${componentType}`);
       send({ type: "SELECT", elementId: id });

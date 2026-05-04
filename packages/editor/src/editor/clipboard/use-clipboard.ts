@@ -1,7 +1,7 @@
 import { useCallback, useRef } from "react";
 import type { ComponentData, Config, Data } from "@puckeditor/core";
 import { findParent } from "@duck/spec";
-import { copy, paste, remove, type ComponentMap } from "../spec-ops/index.js";
+import { copy, paste, remove } from "../spec-ops/index.js";
 import type { ClipboardActions, DataPush } from "../types.js";
 
 // --- Types ---
@@ -96,7 +96,7 @@ export function useClipboard(deps: ClipboardDeps): ClipboardActions {
       position.parentId,
       position.slotKey,
       component,
-      config.components as ComponentMap,
+      config,
       position.index,
     ).map(({ data: next, id }) => {
       push(next, "Pasted");
@@ -116,7 +116,7 @@ export function useClipboard(deps: ClipboardDeps): ClipboardActions {
           parent.parentId,
           parent.slotKey,
           component,
-          config.components as ComponentMap,
+          config,
           parent.index + 1,
         ),
       )

@@ -3,7 +3,11 @@ export { findById } from "./find-by-id.js";
 export { findParent, type ParentInfo } from "./find-parent.js";
 export { buildIndex } from "./build-index.js";
 export { getChildrenAt } from "./get-children-at.js";
-export { slotKeysOf } from "./slot-keys-of.js";
+export {
+  slotKeysOf,
+  slotKeysFromConfig,
+  componentDef,
+} from "./slot-keys-of.js";
 export { mapComponent } from "./map-component.js";
 export { preOrder } from "./pre-order.js";
 export { collectDescendants } from "./collect-descendants.js";
