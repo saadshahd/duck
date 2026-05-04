@@ -190,6 +190,43 @@ describe("inline edit trigger", () => {
   });
 });
 
+// --- Reconciliation in editing state ---
+
+describe("editing state reconciliation", () => {
+  it("DESELECT while editing transitions to idle and clears editing", () => {
+    const s = walk(
+      { type: "SELECT", elementId: "x" },
+      { type: "OPEN_POPOVER" },
+      { type: "DESELECT" },
+    );
+    expect((s.value as MachineValue).pointer).toBe("idle");
+    expect(s.context.selectedIds.size).toBe(0);
+    expect(s.context.editing).toBeNull();
+  });
+
+  it("REPLACE_SELECT while editing transitions to selected with new IDs", () => {
+    const s = walk(
+      { type: "SELECT", elementId: "x" },
+      { type: "OPEN_POPOVER" },
+      { type: "REPLACE_SELECT", elementIds: ["y"] },
+    );
+    expect((s.value as MachineValue).pointer).toBe("selected");
+    expect(s.context.selectedIds).toEqual(new Set(["y"]));
+    expect(s.context.editing).toBeNull();
+  });
+
+  it("REPLACE_SELECT with empty list while editing transitions to idle", () => {
+    const s = walk(
+      { type: "SELECT", elementId: "x" },
+      { type: "OPEN_POPOVER" },
+      { type: "REPLACE_SELECT", elementIds: [] },
+    );
+    expect((s.value as MachineValue).pointer).toBe("idle");
+    expect(s.context.selectedIds.size).toBe(0);
+    expect(s.context.editing).toBeNull();
+  });
+});
+
 // --- ESCAPE behavior ---
 
 describe("ESCAPE behavior", () => {

@@ -21,6 +21,7 @@ import { useHistory, HistoryTimeline } from "./history/index.js";
 import { useKeyboard } from "./keyboard/index.js";
 import { useGhostPlaceholders } from "./ghost/index.js";
 import { useFiberRegistry } from "./shell/use-fiber-registry.js";
+import { useSelectionReconcile } from "./shell/use-selection-reconcile.js";
 import { useContextMenu, ContextMenu } from "./context-menu/index.js";
 import { useClipboard } from "./clipboard/index.js";
 import { CatalogPicker, useInsert } from "./insert/index.js";
@@ -74,6 +75,7 @@ export function EditorShell({
     currentData,
   );
 
+  useSelectionReconcile(state.context, elementIds, send);
   useEditorSelection(fiberRegistry, send);
   const { dropTarget } = useDragReorder({
     registry: fiberRegistry,

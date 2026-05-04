@@ -94,6 +94,36 @@ export const editorMachine = setup({
   states: {
     pointer: {
       initial: "idle",
+      on: {
+        DESELECT: {
+          target: ".idle",
+          actions: assign(() => ({
+            ...Selection.clear(),
+            hoveredId: null,
+            editing: null,
+          })),
+        },
+        REPLACE_SELECT: [
+          {
+            guard: "replaceSelectEmpty",
+            target: ".idle",
+            actions: assign(() => ({
+              ...Selection.clear(),
+              hoveredId: null,
+              editing: null,
+            })),
+          },
+          {
+            target: ".selected",
+            actions: assign(({ event }) => ({
+              ...Selection.ofSet(
+                (event as { elementIds: string[] }).elementIds,
+              ),
+              editing: null,
+            })),
+          },
+        ],
+      },
       states: {
         idle: {
           on: {

@@ -84,3 +84,43 @@ describe("Selection.wouldEmpty", () => {
     expect(Selection.wouldEmpty(state([]), "a")).toBe(false);
   });
 });
+
+describe("Selection.reconcile", () => {
+  it("returns null when selection is already empty", () => {
+    expect(Selection.reconcile(state([]), new Set(["a", "b"]))).toBeNull();
+  });
+
+  it("returns null when all selected IDs are still valid", () => {
+    expect(
+      Selection.reconcile(state(["a", "b"]), new Set(["a", "b", "c"])),
+    ).toBeNull();
+  });
+
+  it("returns DESELECT when all selected IDs are removed", () => {
+    expect(Selection.reconcile(state(["a", "b"]), new Set(["c"]))).toEqual({
+      type: "DESELECT",
+    });
+  });
+
+  it("returns REPLACE_SELECT with only surviving IDs", () => {
+    expect(
+      Selection.reconcile(state(["a", "b", "c"]), new Set(["b", "c"])),
+    ).toEqual({ type: "REPLACE_SELECT", elementIds: ["b", "c"] });
+  });
+
+  it("preserves lastSelectedId position when it survives", () => {
+    const result = Selection.reconcile(
+      state(["a", "b", "c"], "b"),
+      new Set(["b", "c"]),
+    );
+    expect(result).toEqual({ type: "REPLACE_SELECT", elementIds: ["c", "b"] });
+  });
+
+  it("falls back to last surviving ID when lastSelectedId is removed", () => {
+    const result = Selection.reconcile(
+      state(["a", "b", "c"], "a"),
+      new Set(["b", "c"]),
+    );
+    expect(result).toEqual({ type: "REPLACE_SELECT", elementIds: ["b", "c"] });
+  });
+});
