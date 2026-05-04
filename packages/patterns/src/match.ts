@@ -26,6 +26,8 @@ export function isApplicable(
   pattern: SectionPattern,
   config: PatternConfig,
 ): boolean {
+  if (slotKeysOf(data).length === 0) return false;
+
   const topLevel = collectTopLevel(data, config.componentRoles);
 
   const contentRoles = new Set(

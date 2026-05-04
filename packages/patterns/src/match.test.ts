@@ -85,7 +85,26 @@ describe("collectTopLevel", () => {
   });
 });
 
+const allOptionalPattern: SectionPattern = {
+  name: "All optional",
+  description: "desc",
+  slots: [
+    { name: "media", accepts: ["figure"], cardinality: { kind: "optional" } },
+  ],
+  data: make("Stack", "template"),
+};
+
 describe("isApplicable", () => {
+  it("returns false for a leaf component even when all pattern slots are optional", () => {
+    const heading = make("Heading", "h1");
+    expect(isApplicable(heading, allOptionalPattern, config)).toBe(false);
+  });
+
+  it("returns false for a leaf Button with all-optional pattern", () => {
+    const button = make("Button", "b1");
+    expect(isApplicable(button, allOptionalPattern, config)).toBe(false);
+  });
+
   it("returns true for same content in a different container type", () => {
     // matching is role-based — Grid with a Heading satisfies splitPattern just as Stack would
     const grid = make("Grid", "g1", { items: [make("Heading", "h1")] });
@@ -167,14 +186,14 @@ describe("isApplicable", () => {
     expect(isApplicable(withoutBody, manyPattern, config)).toBe(false);
   });
 
-  it("handles 'any' cardinality — always satisfied", () => {
+  it("handles 'any' cardinality — always satisfied for empty container", () => {
     const anyPattern: SectionPattern = {
       ...splitPattern,
       slots: [
         { name: "items", accepts: ["body"], cardinality: { kind: "any" } },
       ],
     };
-    const empty = make("Stack", "s1");
+    const empty = make("Stack", "s1", { children: [] });
     expect(isApplicable(empty, anyPattern, config)).toBe(true);
   });
 });
