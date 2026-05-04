@@ -5,6 +5,7 @@ import type { FiberRegistry } from "../fiber/index.js";
 import { resolveHit, isFromShadowDom } from "../fiber/index.js";
 import type { EditorEvent } from "../machine/index.js";
 import { findEditableProp, type ResolvedFields } from "./find-editable-prop.js";
+import { hasSingleTextNode } from "./has-single-text-node.js";
 
 type UseDoubleClickEditProps = {
   registry: FiberRegistry | null;
@@ -39,7 +40,8 @@ export function useDoubleClickEdit({
         if (!fields) return;
 
         const match = findEditableProp(component, fields as ResolvedFields);
-        if (!match) {
+        const el = registry.get(hit.elementId);
+        if (!match || !el || !hasSingleTextNode(el)) {
           e.preventDefault();
           send({ type: "OPEN_POPOVER" });
           return;

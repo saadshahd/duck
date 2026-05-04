@@ -37,7 +37,7 @@ export function usePropEditor({
 
   const { pointer } = state.value as { pointer: string };
   const { lastSelectedId } = state.context;
-  useKeyboardEdit({ data, config, lastSelectedId, pointer, send });
+  useKeyboardEdit({ registry, data, config, lastSelectedId, pointer, send });
 
   // --- Inline editing lifecycle ---
   const editing = state.context.editing;
