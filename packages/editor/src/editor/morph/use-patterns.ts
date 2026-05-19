@@ -8,7 +8,7 @@ import type {
 
 type PatternsModule = typeof import("@duckeditor/patterns");
 
-export type Patterns = {
+type Patterns = {
   registry: PatternRegistry | null;
   remintIds: RemintIds | null;
 };
