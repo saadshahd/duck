@@ -5,10 +5,9 @@ import {
   useMemo,
   useRef,
   useState,
-  type ComponentProps,
   type ReactNode,
 } from "react";
-import { Puck, type Config, type Data } from "@puckeditor/core";
+import type { Config, Data, Metadata } from "@puckeditor/core";
 import { buildIndex, findById } from "@duckeditor/spec";
 import { useMachine } from "@xstate/react";
 import { editorMachine } from "./machine/index.js";
@@ -45,27 +44,13 @@ import {
 import type { DataPush } from "./types.js";
 import type { PatternConfig } from "@duckeditor/patterns";
 
-type PuckProps<UserConfig extends Config = Config> = ComponentProps<
-  typeof Puck<UserConfig>
->;
-
-type ChromeOnly =
-  | "iframe"
-  | "renderHeader"
-  | "renderHeaderActions"
-  | "headerTitle"
-  | "headerPath"
-  | "viewports"
-  | "dnd"
-  | "height"
-  | "_experimentalFullScreenCanvas"
-  | "_experimentalVirtualization";
-
-export type EditorProps<UserConfig extends Config = Config> = Omit<
-  PuckProps<UserConfig>,
-  ChromeOnly
-> & {
+export type EditorProps<UserConfig extends Config = Config> = {
+  data: Data;
+  config: UserConfig;
+  onChange?: (data: Data) => void;
+  metadata?: Metadata;
   patternConfig?: PatternConfig;
+  children?: ReactNode;
 };
 
 type Internals = {
@@ -88,22 +73,14 @@ export function useEditorInternals(): Internals {
   return ctx;
 }
 
-const emptyData: Data = { root: {}, content: [], zones: {} };
-
-const normalize = (input: PuckProps["data"] | undefined): Data => ({
-  root: input?.root ?? {},
-  content: input?.content ?? [],
-  zones: input?.zones ?? {},
-});
-
 export function Editor<UserConfig extends Config = Config>({
   data,
   config,
   onChange,
+  metadata,
   patternConfig,
   children,
 }: EditorProps<UserConfig>) {
-  const initialData = useMemo(() => normalize(data ?? emptyData), [data]);
   const {
     currentData,
     push,
@@ -113,7 +90,7 @@ export function Editor<UserConfig extends Config = Config>({
     visibilityState,
     onMouseEnter: timelineMouseEnter,
     onMouseLeave: timelineMouseLeave,
-  } = useHistory(initialData, onChange as ((data: Data) => void) | undefined);
+  } = useHistory(data, onChange);
   const [state, send] = useMachine(editorMachine);
 
   const index = useMemo(() => buildIndex(currentData), [currentData]);
@@ -136,7 +113,7 @@ export function Editor<UserConfig extends Config = Config>({
   const popover = usePropEditor({
     registry: fiberRegistry,
     data: currentData,
-    config: config as Config,
+    config,
     state,
     send,
     push,
@@ -162,7 +139,7 @@ export function Editor<UserConfig extends Config = Config>({
 
   const clipboard = useClipboard({
     data: currentData,
-    config: config as Config,
+    config: config,
     lastSelectedId,
     push,
     onSelect: (ids) =>
@@ -176,7 +153,7 @@ export function Editor<UserConfig extends Config = Config>({
 
   const { onInsert } = useInsert({
     data: currentData,
-    config: config as Config,
+    config: config,
     lastSelectedId,
     send,
     push,
@@ -266,7 +243,7 @@ export function Editor<UserConfig extends Config = Config>({
   return (
     <EditorInternalsContext.Provider value={internals}>
       <div ref={containerRef} style={{ display: "contents" }}>
-        <RenderHost config={config as Config} data={currentData} />
+        <RenderHost config={config} data={currentData} metadata={metadata} />
       </div>
 
       <style>{`
@@ -276,7 +253,7 @@ export function Editor<UserConfig extends Config = Config>({
 
       {morph.isOpen && morphOverlayData && singleSelected && fiberRegistry && (
         <MorphOverlay
-          config={config as Config}
+          config={config}
           element={morphOverlayData}
           fiberRegistry={fiberRegistry}
           elementId={singleSelected}
@@ -362,7 +339,7 @@ export function Editor<UserConfig extends Config = Config>({
                 <CatalogPicker
                   registry={fiberRegistry}
                   elementId={lastSelectedId}
-                  config={config as Config}
+                  config={config}
                   onInsert={onInsert}
                   onClose={() => send({ type: "ESCAPE" })}
                 />
@@ -413,7 +390,7 @@ export function Editor<UserConfig extends Config = Config>({
           onMouseEnter={timelineMouseEnter}
           onMouseLeave={timelineMouseLeave}
         />
-        {children as ReactNode}
+        {children}
       </OverlayRoot>
     </EditorInternalsContext.Provider>
   );
