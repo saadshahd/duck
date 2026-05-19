@@ -5,7 +5,7 @@ import {
   findById,
   getAncestry,
   slotKeysOf,
-} from "@duck/spec";
+} from "@duckeditor/spec";
 import { QueryError } from "../errors.js";
 
 const splitProps = (

@@ -5,7 +5,7 @@ import {
   getAncestry,
   preOrder,
   slotKeysOf,
-} from "@duck/spec";
+} from "@duckeditor/spec";
 
 type Match = {
   readonly id: string;

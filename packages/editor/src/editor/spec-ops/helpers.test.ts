@@ -1,6 +1,6 @@
 import { describe, it, expect } from "bun:test";
 import type { ComponentData, Data } from "@puckeditor/core";
-import { getChildrenAt } from "@duck/spec";
+import { getChildrenAt } from "@duckeditor/spec";
 import {
   allIds,
   checkBoundsExclusive,

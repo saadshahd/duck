@@ -1,6 +1,6 @@
 import type { Data } from "@puckeditor/core";
 import { err, ok, type Result } from "neverthrow";
-import { getChildrenAt } from "@duck/spec";
+import { getChildrenAt } from "@duckeditor/spec";
 import {
   type SpecOpsError,
   cloneAndMutate,

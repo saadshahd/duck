@@ -14,4 +14,4 @@ export type {
   CaptureMode,
   SelectionData,
   CaptureResult,
-} from "@duck/spec";
+} from "@duckeditor/spec";

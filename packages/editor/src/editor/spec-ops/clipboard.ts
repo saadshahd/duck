@@ -1,6 +1,6 @@
 import type { Config, ComponentData, Data } from "@puckeditor/core";
 import { err, ok, type Result } from "neverthrow";
-import { slotKeysOf } from "@duck/spec";
+import { slotKeysOf } from "@duckeditor/spec";
 import { add } from "./add.js";
 import { type SpecOpsError, cloneData, findById } from "./helpers.js";
 

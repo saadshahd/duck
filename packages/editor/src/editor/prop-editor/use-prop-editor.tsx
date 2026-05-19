@@ -1,6 +1,6 @@
 import { useCallback, type ReactNode } from "react";
 import type { Config, Data } from "@puckeditor/core";
-import { findById } from "@duck/spec";
+import { findById } from "@duckeditor/spec";
 import type { FiberRegistry } from "../fiber/index.js";
 import type {
   EditorEvent,

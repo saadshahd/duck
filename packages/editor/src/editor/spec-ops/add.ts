@@ -5,7 +5,7 @@ import {
   getChildrenAt,
   slotKeysFromConfig,
   slotKeysOf,
-} from "@duck/spec";
+} from "@duckeditor/spec";
 import {
   type SpecOpsError,
   cloneAndMutate,

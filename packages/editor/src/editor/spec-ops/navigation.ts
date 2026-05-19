@@ -1,5 +1,5 @@
 import type { Data } from "@puckeditor/core";
-import { preOrder } from "@duck/spec";
+import { preOrder } from "@duckeditor/spec";
 
 type NavDirection = "forward" | "backward";
 

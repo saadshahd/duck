@@ -70,7 +70,7 @@ export const patternConfig: PatternConfig = {
 ## Do NOT
 
 - Add React, Effect, or any I/O. This package is pure functions.
-- Reimplement tree walking — use `slotKeysOf`, `mapComponent` from `@duck/spec`.
+- Reimplement tree walking — use `slotKeysOf`, `mapComponent` from `@duckeditor/spec`.
 - Redeclare `ComponentData` or `Config` — import from `@puckeditor/core`.
 - Add a custom `Result` type — use `neverthrow`.
 - Make `isApplicable` lossy — the lossless invariant is a correctness guarantee, not a preference.

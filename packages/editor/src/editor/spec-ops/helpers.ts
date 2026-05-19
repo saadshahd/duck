@@ -4,7 +4,7 @@ import {
   findParent,
   getChildrenAt,
   slotKeysOf,
-} from "@duck/spec";
+} from "@duckeditor/spec";
 import { err, ok, type Result } from "neverthrow";
 
 export { findById, findParent };

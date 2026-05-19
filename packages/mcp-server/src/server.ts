@@ -9,7 +9,7 @@ import type {
   InvalidPageName,
   QueryError,
 } from "./errors.js";
-import { preOrder } from "@duck/spec";
+import { preOrder } from "@duckeditor/spec";
 import type { Data } from "@puckeditor/core";
 import { dispatchQuery } from "./query/index.js";
 import { dispatchManifest } from "./manifest.js";

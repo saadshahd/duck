@@ -1,5 +1,5 @@
 import type { ComponentData } from "@puckeditor/core";
-import { slotKeysOf } from "@duck/spec";
+import { slotKeysOf } from "@duckeditor/spec";
 
 /**
  * Walk a merged component tree and replace every node ID that is not in

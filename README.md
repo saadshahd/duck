@@ -10,8 +10,8 @@ Duck = Puck's `<Render>` + shadow-DOM overlay — no iframe, no chrome.
 |---------|-------------|
 | `packages/editor` | React 19 editor component |
 | `packages/mcp-server` | MCP server + HTTP/WebSocket bridge |
-| `packages/spec` | Puck data tree utilities (`@duck/spec`) |
-| `packages/patterns` | Pattern matching and slot-merge engine (`@duck/patterns`) |
+| `packages/spec` | Puck data tree utilities (`@duckeditor/spec`) |
+| `packages/patterns` | Pattern matching and slot-merge engine (`@duckeditor/patterns`) |
 
 ## Dev
 

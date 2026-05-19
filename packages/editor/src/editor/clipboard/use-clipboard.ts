@@ -1,6 +1,6 @@
 import { useCallback, useRef } from "react";
 import type { ComponentData, Config, Data } from "@puckeditor/core";
-import { findParent } from "@duck/spec";
+import { findParent } from "@duckeditor/spec";
 import { copy, paste, remove } from "../spec-ops/index.js";
 import type { ClipboardActions, DataPush } from "../types.js";
 

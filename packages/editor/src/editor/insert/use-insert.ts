@@ -6,7 +6,7 @@ import {
   findParent,
   getChildrenAt,
   slotKeysOf,
-} from "@duck/spec";
+} from "@duckeditor/spec";
 import { add } from "../spec-ops/index.js";
 import type { EditorEvent } from "../machine/index.js";
 import type { DataPush } from "../types.js";

@@ -1,6 +1,6 @@
 import { Data as EffectData, Effect } from "effect";
 import type { ComponentData, Config, Data } from "@puckeditor/core";
-import { slotKeysFromConfig } from "@duck/spec";
+import { slotKeysFromConfig } from "@duckeditor/spec";
 
 // ── Types ───────────────────────────────────────────────────────────
 

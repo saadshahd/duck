@@ -222,7 +222,7 @@
                   "type": "Text",
                   "props": {
                     "id": "cta-desc",
-                    "text": "npm install @duck/editor",
+                    "text": "npm install @duckeditor/core",
                     "style": {
                       "color": "#888888",
                       "fontFamily": "'Courier New', 'Lucida Console', monospace",

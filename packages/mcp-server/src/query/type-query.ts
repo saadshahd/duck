@@ -4,7 +4,7 @@ import {
   buildParentMap,
   getAncestry,
   preOrder,
-} from "@duck/spec";
+} from "@duckeditor/spec";
 
 export const typeQuery = (data: Data, componentType: string) => {
   const parentMap = buildParentMap(data);

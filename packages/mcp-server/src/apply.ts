@@ -1,6 +1,6 @@
 import { Effect } from "effect";
 import type { Data } from "@puckeditor/core";
-import { outlineTree, preOrder } from "@duck/spec";
+import { outlineTree, preOrder } from "@duckeditor/spec";
 import type { McpContext } from "./protocol.js";
 import type { InvalidPageName, NotFound, StorageError } from "./errors.js";
 import { applyOp, type Op, type OpError } from "./ops.js";

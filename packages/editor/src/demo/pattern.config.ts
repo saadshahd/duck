@@ -1,4 +1,4 @@
-import type { PatternConfig } from "@duck/patterns";
+import type { PatternConfig } from "@duckeditor/patterns";
 import type { ComponentData } from "@puckeditor/core";
 
 const h = (id: string, text: string): ComponentData =>

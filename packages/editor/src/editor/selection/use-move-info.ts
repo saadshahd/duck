@@ -1,6 +1,6 @@
 import { useMemo } from "react";
 import type { Data } from "@puckeditor/core";
-import { getChildrenAt, findParent } from "@duck/spec";
+import { getChildrenAt, findParent } from "@duckeditor/spec";
 import type { FiberRegistry } from "../fiber/index.js";
 import { type Axis, resolveSlotAxis } from "../layout/index.js";
 

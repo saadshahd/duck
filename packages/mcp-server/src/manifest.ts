@@ -1,6 +1,6 @@
 import { Effect } from "effect";
 import type { Config } from "@puckeditor/core";
-import { componentDef, slotKeysFromConfig } from "@duck/spec";
+import { componentDef, slotKeysFromConfig } from "@duckeditor/spec";
 import { NotFound, QueryError } from "./errors.js";
 
 type ManifestArgs = {

@@ -4,7 +4,7 @@ import {
   buildParentMap,
   findById,
   getAncestry,
-} from "@duck/spec";
+} from "@duckeditor/spec";
 import { QueryError } from "../errors.js";
 
 export const subtree = (data: Data, id: string) => {

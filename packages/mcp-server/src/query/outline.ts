@@ -1,6 +1,6 @@
 import type { Data } from "@puckeditor/core";
 import { Effect } from "effect";
-import { outlineTree, preOrder } from "@duck/spec";
+import { outlineTree, preOrder } from "@duckeditor/spec";
 
 const countComponents = (data: Data): number => {
   let n = 0;

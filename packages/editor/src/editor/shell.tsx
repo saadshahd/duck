@@ -1,6 +1,6 @@
 import { useCallback, useMemo, useRef, useState } from "react";
 import type { Data, Config } from "@puckeditor/core";
-import { buildIndex, findById } from "@duck/spec";
+import { buildIndex, findById } from "@duckeditor/spec";
 import { useMachine } from "@xstate/react";
 import { editorMachine } from "./machine/index.js";
 import {
@@ -36,7 +36,7 @@ import {
   MorphOverlay,
 } from "./morph/index.js";
 import type { DataPush } from "./types.js";
-import { createPatternRegistry, type PatternConfig } from "@duck/patterns";
+import { createPatternRegistry, type PatternConfig } from "@duckeditor/patterns";
 
 type BridgeConfig = { url: string; page: string };
 

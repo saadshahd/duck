@@ -1,5 +1,5 @@
 import type { ComponentData } from "@puckeditor/core";
-import { slotKeysOf } from "@duck/spec";
+import { slotKeysOf } from "@duckeditor/spec";
 import { isContainerRole, isContentRole } from "./role.js";
 import { isRequired } from "./cardinality.js";
 import type {
