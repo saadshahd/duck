@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import type { ComponentData, Config } from "@puckeditor/core";
+import type { ComponentData, Config, Metadata } from "@puckeditor/core";
 import type { ResolvedFields } from "./find-editable-prop.js";
 
 const EMPTY_FIELDS: ResolvedFields = {};
@@ -43,6 +43,7 @@ const diffChanged = (
 export function useResolvedFields(
   component: ComponentData | null,
   config: Config,
+  metadata?: Metadata,
 ): { fields: ResolvedFields; pending: boolean } {
   const entry = componentEntry(component, config);
   const staticFields = staticFieldsOf(entry);
@@ -102,7 +103,7 @@ export function useResolvedFields(
         lastData: prevData as Parameters<
           NonNullable<typeof resolver>
         >[1]["lastData"],
-        metadata: {},
+        metadata: metadata ?? {},
         appState: {} as Parameters<NonNullable<typeof resolver>>[1]["appState"],
         parent: null,
       };
@@ -138,7 +139,7 @@ export function useResolvedFields(
       setFields(result as ResolvedFields);
       setPending(false);
     },
-    [component, entry, staticFields, id],
+    [component, entry, staticFields, id, metadata],
   );
 
   return { fields, pending };

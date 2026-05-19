@@ -27,3 +27,13 @@ export type {
   SelectionData,
   CaptureResult,
 } from "./bridge-protocol.js";
+export type {
+  PatternConfig,
+  SectionPattern,
+  PatternSlot,
+  Cardinality,
+  ComponentSlotType,
+  ComponentType,
+  DerivedVariation,
+} from "./pattern-types.js";
+export { normalizeData } from "./normalize-data.js";

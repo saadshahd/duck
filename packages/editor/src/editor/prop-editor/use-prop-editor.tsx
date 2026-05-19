@@ -1,5 +1,5 @@
 import { useCallback, type ReactNode } from "react";
-import type { Config, Data } from "@puckeditor/core";
+import type { Config, Data, Metadata } from "@puckeditor/core";
 import { findById } from "@duckeditor/spec";
 import type { FiberRegistry } from "../fiber/index.js";
 import type {
@@ -19,6 +19,7 @@ type UsePropEditorProps = {
   registry: FiberRegistry | null;
   data: Data;
   config: Config;
+  metadata?: Metadata;
   state: EditorSnapshot;
   send: (event: EditorEvent) => void;
   push: DataPush;
@@ -29,6 +30,7 @@ export function usePropEditor({
   registry,
   data,
   config,
+  metadata,
   state,
   send,
   push,
@@ -73,7 +75,11 @@ export function usePropEditor({
   const popoverComponent =
     editing?.mode === "popover" ? findById(data, editing.elementId) : null;
 
-  const { fields: popoverFields } = useResolvedFields(popoverComponent, config);
+  const { fields: popoverFields } = useResolvedFields(
+    popoverComponent,
+    config,
+    metadata,
+  );
 
   const handlePropChange = useCallback(
     (propKey: string, value: unknown) => {

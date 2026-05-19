@@ -1,10 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import type { Config } from "@puckeditor/core";
-import type {
-  PatternConfig,
-  PatternRegistry,
-  RemintIds,
-} from "@duckeditor/patterns";
+import type { PatternConfig } from "@duckeditor/spec";
+import type { PatternRegistry, RemintIds } from "@duckeditor/patterns";
 
 type PatternsModule = typeof import("@duckeditor/patterns");
 

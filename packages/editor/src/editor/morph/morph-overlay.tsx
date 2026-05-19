@@ -1,6 +1,6 @@
 import { useEffect } from "react";
 import { createPortal } from "react-dom";
-import type { Config, ComponentData } from "@puckeditor/core";
+import type { Config, ComponentData, Metadata } from "@puckeditor/core";
 import { Render } from "@puckeditor/core";
 import type { FiberRegistry } from "../fiber/index.js";
 
@@ -9,6 +9,7 @@ type Props = {
   element: ComponentData;
   fiberRegistry: FiberRegistry;
   elementId: string;
+  metadata?: Metadata;
 };
 
 export function MorphOverlay({
@@ -16,6 +17,7 @@ export function MorphOverlay({
   element,
   fiberRegistry,
   elementId,
+  metadata,
 }: Props) {
   const el = fiberRegistry.get(elementId) as HTMLElement | null;
   const parent = el?.parentElement ?? null;
@@ -63,7 +65,11 @@ export function MorphOverlay({
       }}
       data-role="morph-overlay"
     >
-      <Render config={config} data={{ content: [element], zones: {} }} />
+      <Render
+        config={config}
+        data={{ content: [element], zones: {} }}
+        metadata={metadata}
+      />
     </div>,
     parent,
   );

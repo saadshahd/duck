@@ -5,17 +5,30 @@ production output via `<Render>` and layers editing controls on top in a Shadow
 DOM overlay. Duck is **not** a drop-in replacement for `<Puck>`; it is a sibling
 component that accepts a deliberate subset of Puck's prop surface.
 
+## Setup
+
+Before any `react-dom/client` import in your app, do:
+
+```ts
+import "@duckeditor/core/setup";
+```
+
+This installs the `bippy` React DevTools hook that powers Duck's selection
+layer. It must run before React is evaluated, so it cannot live inside the
+`Editor` component — React reads `window.__REACT_DEVTOOLS_GLOBAL_HOOK__` when
+its module first evaluates, not at first render.
+
 ## Accepted
 
 `<Editor>` accepts these props. Each one carries Puck semantics — a value that
 works with `<Puck>` works here.
 
-| Prop       | Type                   | Notes                                                                                                |
-| ---------- | ---------------------- | ---------------------------------------------------------------------------------------------------- |
-| `data`     | `Data`                 | Source of truth for the rendered document. Duck normalizes to `{ root, content, zones }` internally. |
-| `config`   | `Config<UserConfig>`   | The component catalog. Same object shape consumed by `<Puck>` / `<Render>`.                          |
-| `onChange` | `(data: Data) => void` | Fires after every committed edit (drag, prop edit, paste, undo, …). Mirrors Puck's `onChange`.       |
-| `metadata` | `Metadata`             | Forwarded to `<Render>` so components can read project-level metadata.                               |
+| Prop       | Type                   | Notes                                                                                                                                                       |
+| ---------- | ---------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `data`     | `Partial<Data>`        | Source of truth for the rendered document. Duck normalizes `{}` and partial inputs to a full `{ root, content, zones }` document via `spec.normalizeData`. |
+| `config`   | `Config<UserConfig>`   | The component catalog. Same object shape consumed by `<Puck>` / `<Render>`.                                                                                 |
+| `onChange` | `(data: Data) => void` | Fires after every committed edit (drag, prop edit, paste, undo, …). Mirrors Puck's `onChange`.                                                              |
+| `metadata` | `Metadata`             | Forwarded to `<Render>` so components can read project-level metadata. Also threaded into `resolveFields` calls and morph preview rendering.                |
 
 ## Duck-only additions
 

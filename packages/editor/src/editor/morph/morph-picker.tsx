@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import type { RefObject } from "react";
 import { useFloating, offset, flip, shift } from "@floating-ui/react";
 import { useShadowSheet, useOnClickOutside } from "../overlay/index.js";
-import type { SectionPattern } from "@duckeditor/patterns";
+import type { SectionPattern } from "@duckeditor/spec";
 import css from "./morph.css?inline";
 
 const MIDDLEWARE = [offset(8), flip(), shift({ padding: 8 })];

@@ -1,0 +1,37 @@
+import type { ComponentData } from "@puckeditor/core";
+
+// Puck component type name, e.g. "Stack", "Heading" — key in componentRoles
+export type ComponentType = string;
+
+// All other role names are consumer-defined
+export type ComponentSlotType = string;
+
+export type Cardinality =
+  | { kind: "first" } // first match; inapplicable if zero
+  | { kind: "optional" } // match or template default
+  | { kind: "many" } // one or more, document order
+  | { kind: "any" }; // zero or more, document order
+
+export type PatternSlot = {
+  name: string;
+  accepts: [ComponentSlotType, ...ComponentSlotType[]]; // non-empty
+  cardinality: Cardinality;
+};
+
+export type SectionPattern = {
+  name: string;
+  description: string;
+  slots: [PatternSlot, ...PatternSlot[]]; // non-empty
+  data: ComponentData; // template with default instances
+};
+
+export type DerivedVariation = {
+  name: string;
+  componentType: string;
+  props: Record<string, unknown>; // partial prop overrides
+};
+
+export type PatternConfig = {
+  componentRoles: Record<ComponentType, ComponentSlotType>;
+  patterns: SectionPattern[];
+};

@@ -26,9 +26,9 @@ export default defineConfig({
     emptyOutDir: true,
     sourcemap: true,
     lib: {
-      entry: "src/lib.ts",
+      entry: { index: "src/lib.ts", setup: "src/setup.ts" },
       formats: ["es"],
-      fileName: () => "index.js",
+      fileName: (_format, name) => `${name}.js`,
     },
     rollupOptions: {
       external: (id) =>

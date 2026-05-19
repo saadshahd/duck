@@ -8,7 +8,12 @@ import {
   type ReactNode,
 } from "react";
 import type { Config, Data, Metadata } from "@puckeditor/core";
-import { buildIndex, findById } from "@duckeditor/spec";
+import {
+  buildIndex,
+  findById,
+  normalizeData,
+  type PatternConfig,
+} from "@duckeditor/spec";
 import { useMachine } from "@xstate/react";
 import { editorMachine } from "./machine/index.js";
 import {
@@ -42,10 +47,9 @@ import {
   usePatterns,
 } from "./morph/index.js";
 import type { DataPush } from "./types.js";
-import type { PatternConfig } from "@duckeditor/patterns";
 
 export type EditorProps<UserConfig extends Config = Config> = {
-  data: Data;
+  data: Partial<Data>;
   config: UserConfig;
   onChange?: (data: Data) => void;
   metadata?: Metadata;
@@ -81,6 +85,7 @@ export function Editor<UserConfig extends Config = Config>({
   patternConfig,
   children,
 }: EditorProps<UserConfig>) {
+  const initialData = useMemo(() => normalizeData(data), [data]);
   const {
     currentData,
     push,
@@ -90,7 +95,7 @@ export function Editor<UserConfig extends Config = Config>({
     visibilityState,
     onMouseEnter: timelineMouseEnter,
     onMouseLeave: timelineMouseLeave,
-  } = useHistory(data, onChange);
+  } = useHistory(initialData, onChange);
   const [state, send] = useMachine(editorMachine);
 
   const index = useMemo(() => buildIndex(currentData), [currentData]);
@@ -114,6 +119,7 @@ export function Editor<UserConfig extends Config = Config>({
     registry: fiberRegistry,
     data: currentData,
     config,
+    metadata,
     state,
     send,
     push,
@@ -257,6 +263,7 @@ export function Editor<UserConfig extends Config = Config>({
           element={morphOverlayData}
           fiberRegistry={fiberRegistry}
           elementId={singleSelected}
+          metadata={metadata}
         />
       )}
 

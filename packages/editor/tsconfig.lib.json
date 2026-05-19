@@ -10,7 +10,12 @@
       "tinykeys": ["../../node_modules/tinykeys/dist/tinykeys.d.ts"]
     }
   },
-  "include": ["src/lib.ts", "src/vite-env.d.ts", "src/editor/**/*"],
+  "include": [
+    "src/lib.ts",
+    "src/setup.ts",
+    "src/vite-env.d.ts",
+    "src/editor/**/*"
+  ],
   "exclude": [
     "src/editor/bridge/**",
     "src/editor/demo-editor.tsx",

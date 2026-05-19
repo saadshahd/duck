@@ -1,11 +1,7 @@
 import { useState, useMemo, useEffect, useCallback } from "react";
 import type { Data } from "@puckeditor/core";
-import { findById } from "@duckeditor/spec";
-import type {
-  PatternRegistry,
-  RemintIds,
-  SectionPattern,
-} from "@duckeditor/patterns";
+import { findById, type SectionPattern } from "@duckeditor/spec";
+import type { PatternRegistry, RemintIds } from "@duckeditor/patterns";
 import { replace } from "../spec-ops/index.js";
 import type { DataPush } from "../types.js";
 
