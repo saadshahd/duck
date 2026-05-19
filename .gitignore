@@ -4,4 +4,6 @@ dist
 bun.lock
 packages/editor/test-results/
 .worktrees
+.claude/worktrees/
+.claude/plans/
 .fallow/

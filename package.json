@@ -16,7 +16,8 @@
     "check:dead": "fallow dead-code --fail-on-issues",
     "check:health": "fallow health --max-cyclomatic 10 --max-crap 30",
     "check:dupes": "fallow dupes --mode mild",
-    "boundaries": "fallow dead-code --boundary-violations"
+    "boundaries": "fallow dead-code --boundary-violations",
+    "postinstall": "git config core.hooksPath .githooks"
   },
   "dependencies": {
     "tinykeys": "^3.0.0"

@@ -1,0 +1,27 @@
+#!/usr/bin/env bash
+# post-checkout: install deps after a fresh checkout (clone or `git worktree add`).
+#
+# Args (per githooks(5)):
+#   $1  previous HEAD ref
+#   $2  new HEAD ref
+#   $3  1 = branch checkout, 0 = file checkout
+#
+# `git worktree add` and `git clone` both invoke this with $1 set to the null-ref
+# (40 zeros). A normal branch switch passes the real previous HEAD. We only run
+# install on the null-ref case, and even then skip if node_modules already exists.
+set -euo pipefail
+
+NULL_REF="0000000000000000000000000000000000000000"
+prev="${1:-}"
+flag="${3:-}"
+
+[ "$flag" = "1" ] || exit 0
+[ "$prev" = "$NULL_REF" ] || exit 0
+[ -d node_modules ] && exit 0
+
+if command -v bun >/dev/null 2>&1; then
+  echo "[post-checkout] fresh checkout detected, running bun install" >&2
+  bun install
+else
+  echo "[post-checkout] bun not found on PATH; skipping install" >&2
+fi
