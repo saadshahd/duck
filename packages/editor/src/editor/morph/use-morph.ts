@@ -1,8 +1,11 @@
 import { useState, useMemo, useEffect, useCallback } from "react";
 import type { Data } from "@puckeditor/core";
 import { findById } from "@duckeditor/spec";
-import type { PatternRegistry, SectionPattern } from "@duckeditor/patterns";
-import { remintIds } from "@duckeditor/patterns";
+import type {
+  PatternRegistry,
+  RemintIds,
+  SectionPattern,
+} from "@duckeditor/patterns";
 import { replace } from "../spec-ops/index.js";
 import type { DataPush } from "../types.js";
 
@@ -20,11 +23,13 @@ type MorphState = {
 
 export function useMorph({
   registry,
+  remintIds,
   selectedId,
   data,
   push,
 }: {
   registry: PatternRegistry | null;
+  remintIds: RemintIds | null;
   selectedId: string | null;
   data: Data;
   push: DataPush;
@@ -70,7 +75,7 @@ export function useMorph({
 
   const commit = useCallback(
     (pattern: SectionPattern) => {
-      if (!registry || !element || !selectedId) return;
+      if (!registry || !remintIds || !element || !selectedId) return;
       const applyResult = registry.apply(element, pattern);
       if (applyResult.isErr()) {
         setCommitError(applyResult.error.slotName);
@@ -84,7 +89,7 @@ export function useMorph({
       setIsOpen(false);
       setActivePatternState(null);
     },
-    [registry, element, selectedId, data, push],
+    [registry, remintIds, element, selectedId, data, push],
   );
 
   return {

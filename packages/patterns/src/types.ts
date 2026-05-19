@@ -54,3 +54,8 @@ export type PatternRegistry = {
   derive: (componentType: ComponentType) => DerivedVariation[];
   count: (data: ComponentData) => number;
 };
+
+export type RemintIds = (
+  root: ComponentData,
+  preservedIds: Set<string>,
+) => ComponentData;

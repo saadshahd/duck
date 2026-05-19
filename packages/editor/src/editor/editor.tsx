@@ -40,12 +40,10 @@ import {
   MorphButton,
   MorphPicker,
   MorphOverlay,
+  usePatterns,
 } from "./morph/index.js";
 import type { DataPush } from "./types.js";
-import {
-  createPatternRegistry,
-  type PatternConfig,
-} from "@duckeditor/patterns";
+import type { PatternConfig } from "@duckeditor/patterns";
 
 type PuckProps<UserConfig extends Config = Config> = ComponentProps<
   typeof Puck<UserConfig>
@@ -219,16 +217,14 @@ export function Editor<UserConfig extends Config = Config>({
   const showActionBar =
     hasSelection && pointer === "selected" && singleSelected;
 
-  const patternRegistry = useMemo(
-    () =>
-      patternConfig
-        ? createPatternRegistry(config as Config, patternConfig)
-        : null,
-    [config, patternConfig],
+  const { registry: patternRegistry, remintIds } = usePatterns(
+    config,
+    patternConfig,
   );
 
   const morph = useMorph({
     registry: patternRegistry,
+    remintIds,
     selectedId: singleSelected,
     data: currentData,
     push,

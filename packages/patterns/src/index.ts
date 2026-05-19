@@ -4,6 +4,7 @@ export { CONTAINER_ROLE } from "./role.js";
 export type {
   PatternConfig,
   PatternRegistry,
+  RemintIds,
   SectionPattern,
   PatternSlot,
   DerivedVariation,

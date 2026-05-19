@@ -1,5 +1,6 @@
 import type { ComponentData } from "@puckeditor/core";
 import { slotKeysOf } from "@duckeditor/spec";
+import type { RemintIds } from "./types.js";
 
 /**
  * Walk a merged component tree and replace every node ID that is not in
@@ -9,10 +10,7 @@ import { slotKeysOf } from "@duckeditor/spec";
  * The root's ID is always in `preservedIds` (it came from the selection),
  * so it is never reminted.
  */
-export function remintIds(
-  root: ComponentData,
-  preservedIds: Set<string>,
-): ComponentData {
+export const remintIds: RemintIds = (root, preservedIds) => {
   const walk = (node: ComponentData): ComponentData => {
     const id = preservedIds.has(String(node.props.id))
       ? String(node.props.id)
