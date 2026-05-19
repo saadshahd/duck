@@ -1,0 +1,22 @@
+{
+  "extends": "../../tsconfig.json",
+  "compilerOptions": {
+    "outDir": "dist",
+    "rootDir": "src",
+    "declaration": true,
+    "emitDeclarationOnly": true,
+    "noEmit": false,
+    "paths": {
+      "tinykeys": ["../../node_modules/tinykeys/dist/tinykeys.d.ts"]
+    }
+  },
+  "include": ["src/lib.ts", "src/vite-env.d.ts", "src/editor/**/*"],
+  "exclude": [
+    "src/editor/bridge/**",
+    "src/editor/demo-editor.tsx",
+    "src/editor/**/*.test.ts",
+    "src/editor/**/*.test.tsx",
+    "src/editor/**/*.e2e.ts",
+    "src/editor/**/*.e2e.tsx"
+  ]
+}
