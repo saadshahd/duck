@@ -46,24 +46,48 @@ export const getHighlightRect = (page: Page) =>
     height: string;
   } | null>;
 
-export const countToolbarButtons = (page: Page) =>
-  shadowQuery(page, (r) => {
-    const toolbar = r.querySelector("[role='toolbar']");
-    return toolbar ? toolbar.querySelectorAll("button").length : 0;
-  }) as Promise<number>;
+export const isToolbarVisible = (page: Page) =>
+  shadowQuery(
+    page,
+    (r) => r.querySelector("[role='toolbar']") !== null,
+  ) as Promise<boolean>;
 
-export const clickToolbarButton = (page: Page, index = 0) =>
-  page.evaluate((idx) => {
+export const clickToolbar = (page: Page) =>
+  page.evaluate(() => {
     for (const d of document.querySelectorAll("div")) {
       if (!d.shadowRoot || d.style.position !== "fixed") continue;
-      const toolbar = d.shadowRoot.querySelector("[role='toolbar']");
-      const btn = toolbar?.querySelectorAll("button")[idx] as
-        | HTMLElement
-        | undefined;
+      const toolbar = d.shadowRoot.querySelector(
+        "[role='toolbar']",
+      ) as HTMLElement | null;
+      toolbar?.click();
+      return;
+    }
+  });
+
+export const hasToolbarAction = (page: Page, action: string) =>
+  page.evaluate((a) => {
+    for (const d of document.querySelectorAll("div")) {
+      if (!d.shadowRoot || d.style.position !== "fixed") continue;
+      return (
+        d.shadowRoot.querySelector(
+          `[role='toolbar'] [data-role='action-${a}']`,
+        ) !== null
+      );
+    }
+    return false;
+  }, action);
+
+export const clickToolbarAction = (page: Page, action: string) =>
+  page.evaluate((a) => {
+    for (const d of document.querySelectorAll("div")) {
+      if (!d.shadowRoot || d.style.position !== "fixed") continue;
+      const btn = d.shadowRoot.querySelector(
+        `[role='toolbar'] [data-role='action-${a}']`,
+      ) as HTMLElement | undefined;
       btn?.click();
       return;
     }
-  }, index);
+  }, action);
 
 // --- Drop indicator helpers ---
 

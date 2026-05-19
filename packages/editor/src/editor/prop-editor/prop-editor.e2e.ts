@@ -1,5 +1,9 @@
 import { test, expect } from "@playwright/test";
-import { countHighlights, countToolbarButtons } from "../overlay/testing.js";
+import {
+  isToolbarVisible,
+  hasToolbarAction,
+  clickToolbarAction,
+} from "../overlay/testing.js";
 
 test.describe("Inline text editing", () => {
   test.beforeEach(async ({ page }) => {
@@ -88,17 +92,13 @@ test.describe("Popover editing", () => {
   });
 
   test("edit button opens prop popover", async ({ page }) => {
-    const heading = page.getByText("Zero Chrome", { exact: true });
-    await heading.click();
+    await page.locator("h3").first().click();
     await page.waitForTimeout(300);
-    expect(await countToolbarButtons(page)).toBe(5);
+    expect(await hasToolbarAction(page, "edit")).toBe(true);
 
-    // Edit button is index 3 (✏) in the action bar
-    const { clickToolbarButton } = await import("../overlay/testing.js");
-    await clickToolbarButton(page, 3);
+    await clickToolbarAction(page, "edit");
     await page.waitForTimeout(300);
 
-    // Action bar replaced by popover — toolbar buttons gone
-    expect(await countToolbarButtons(page)).toBe(0);
+    expect(await isToolbarVisible(page)).toBe(false);
   });
 });

@@ -25,6 +25,7 @@ export function MorphButton({ count, elementId, onClick, buttonRef }: Props) {
       ref={buttonRef}
       type="button"
       className="morph-btn"
+      data-role="action-morph"
       disabled={count === 0}
       data-has-patterns={count > 0 ? "" : undefined}
       data-pulse={count > 0 ? String(pulseKey.current) : undefined}

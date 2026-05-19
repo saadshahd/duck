@@ -84,6 +84,7 @@ export function FloatingActionBar({
       <div className="action-bar" role="toolbar">
         <button
           type="button"
+          data-role="action-move-up"
           disabled={!canMovePrev}
           onClick={() => onAction({ tag: "move-up" })}
         >
@@ -91,20 +92,30 @@ export function FloatingActionBar({
         </button>
         <button
           type="button"
+          data-role="action-move-down"
           disabled={!canMoveNext}
           onClick={() => onAction({ tag: "move-down" })}
         >
           {labels.next}
         </button>
-        <button type="button" onClick={() => onAction({ tag: "delete" })}>
+        <button
+          type="button"
+          data-role="action-delete"
+          onClick={() => onAction({ tag: "delete" })}
+        >
           ×
         </button>
-        <button type="button" onClick={() => onAction({ tag: "edit" })}>
+        <button
+          type="button"
+          data-role="action-edit"
+          onClick={() => onAction({ tag: "edit" })}
+        >
           ✏
         </button>
         {canInsert && (
           <button
             type="button"
+            data-role="action-insert"
             onClick={(e) => {
               e.stopPropagation();
               onAction({ tag: "insert" });

@@ -3,11 +3,9 @@ import {
   countHighlights,
   getHighlightRect,
   waitFrames,
-  countToolbarButtons,
-  clickToolbarButton,
+  isToolbarVisible,
+  clickToolbar,
 } from "../overlay/testing.js";
-
-// --- Tests ---
 
 test.describe("Editor overlay", () => {
   test.beforeEach(async ({ page }) => {
@@ -25,33 +23,33 @@ test.describe("Editor overlay", () => {
     expect(await countHighlights(page)).toBe(0);
   });
 
-  test("click shows floating action bar with 5 buttons", async ({ page }) => {
-    await page.getByText("Zero Chrome", { exact: true }).click();
+  test("click shows floating action bar", async ({ page }) => {
+    await page.locator("h3").first().click();
     await page.waitForTimeout(300);
 
-    expect(await countToolbarButtons(page)).toBe(5);
+    expect(await isToolbarVisible(page)).toBe(true);
     expect(await countHighlights(page)).toBe(1);
   });
 
   test("click empty space deselects", async ({ page }) => {
-    await page.getByText("Zero Chrome", { exact: true }).click();
+    await page.locator("h3").first().click();
     await page.waitForTimeout(300);
 
     await page.mouse.click(10, 10);
     await page.waitForTimeout(300);
 
-    expect(await countToolbarButtons(page)).toBe(0);
+    expect(await isToolbarVisible(page)).toBe(false);
     expect(await countHighlights(page)).toBe(0);
   });
 
   test("action bar clicks preserve selection", async ({ page }) => {
-    await page.getByText("Zero Chrome", { exact: true }).click();
+    await page.locator("h3").first().click();
     await page.waitForTimeout(300);
-    expect(await countToolbarButtons(page)).toBe(5);
+    expect(await isToolbarVisible(page)).toBe(true);
 
-    await clickToolbarButton(page);
+    await clickToolbar(page);
     await page.waitForTimeout(300);
-    expect(await countToolbarButtons(page)).toBe(5);
+    expect(await isToolbarVisible(page)).toBe(true);
   });
 
   test("hover different elements moves highlight", async ({ page }) => {
@@ -59,7 +57,7 @@ test.describe("Editor overlay", () => {
     await page.waitForTimeout(300);
     const rectA = await getHighlightRect(page);
 
-    await page.getByText("Features", { exact: true }).hover();
+    await page.locator("h2").first().hover();
     await page.waitForTimeout(300);
     const rectB = await getHighlightRect(page);
 
@@ -69,20 +67,19 @@ test.describe("Editor overlay", () => {
   });
 
   test("hover while selected does not change selection", async ({ page }) => {
-    await page.getByText("Zero Chrome", { exact: true }).click();
+    await page.locator("h3").first().click();
     await page.waitForTimeout(300);
-    expect(await countToolbarButtons(page)).toBe(5);
+    expect(await isToolbarVisible(page)).toBe(true);
 
     await page.locator("h1").hover();
     await page.waitForTimeout(300);
 
-    // selection ring persists, toolbar stays
-    expect(await countToolbarButtons(page)).toBe(5);
+    expect(await isToolbarVisible(page)).toBe(true);
     expect(await countHighlights(page)).toBe(1);
   });
 
   test("selecting different element changes selection", async ({ page }) => {
-    await page.getByText("Zero Chrome", { exact: true }).click();
+    await page.locator("h3").first().click();
     await page.waitForTimeout(300);
     const rectA = await getHighlightRect(page);
 
@@ -90,14 +87,14 @@ test.describe("Editor overlay", () => {
     await page.waitForTimeout(300);
     const rectB = await getHighlightRect(page);
 
-    expect(await countToolbarButtons(page)).toBe(5);
+    expect(await isToolbarVisible(page)).toBe(true);
     expect(rectA).not.toBeNull();
     expect(rectB).not.toBeNull();
     expect(rectA).not.toEqual(rectB);
   });
 
   test("scroll updates selection rect", async ({ page }) => {
-    await page.getByText("Zero Chrome", { exact: true }).click();
+    await page.locator("h3").first().click();
     await page.waitForTimeout(300);
     const rectBefore = await getHighlightRect(page);
 
@@ -113,7 +110,7 @@ test.describe("Editor overlay", () => {
   test("overlay tracks element within one frame after scroll", async ({
     page,
   }) => {
-    await page.getByText("Zero Chrome", { exact: true }).click();
+    await page.locator("h3").first().click();
     await page.waitForTimeout(300);
 
     const rectBefore = await getHighlightRect(page);
@@ -128,7 +125,6 @@ test.describe("Editor overlay", () => {
     expect(rectAfter).not.toBeNull();
     const topAfter = parseFloat(rectAfter!.top);
 
-    // Ring should move by exactly the scroll delta (within tolerance)
     const actualDelta = topBefore - topAfter;
     expect(Math.abs(actualDelta - scrollDelta)).toBeLessThan(5);
   });

@@ -97,9 +97,7 @@ test.describe("Drag-to-reorder", () => {
     await heading.click();
     await page.waitForTimeout(300);
 
-    const description = page.getByText("A zero-chrome editor", {
-      exact: false,
-    });
+    const description = page.locator("p").first();
     await dragOver(page, heading, description);
     await page.waitForTimeout(300);
 
@@ -113,9 +111,7 @@ test.describe("Drag-to-reorder", () => {
     await heading.click();
     await page.waitForTimeout(300);
 
-    const description = page.getByText("A zero-chrome editor", {
-      exact: false,
-    });
+    const description = page.locator("p").first();
     await dragOver(page, heading, description);
     await page.waitForTimeout(300);
 
@@ -135,9 +131,7 @@ test.describe("Drag-to-reorder", () => {
     await page.waitForTimeout(300);
 
     // Drag heading to below the description (second sibling)
-    const description = page.getByText("A zero-chrome editor", {
-      exact: false,
-    });
+    const description = page.locator("p").first();
     await dragAndDrop(page, heading, description, "bottom");
     await page.waitForTimeout(500);
 
@@ -165,9 +159,7 @@ test.describe("Drag-to-reorder", () => {
     await heading.click();
     await page.waitForTimeout(300);
 
-    const description = page.getByText("A zero-chrome editor", {
-      exact: false,
-    });
+    const description = page.locator("p").first();
     await dragAndDrop(page, heading, description, "bottom");
     await page.waitForTimeout(500);
 
