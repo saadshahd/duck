@@ -1,5 +1,14 @@
-import { useCallback, useMemo, useRef, useState } from "react";
-import type { Data, Config } from "@puckeditor/core";
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useMemo,
+  useRef,
+  useState,
+  type ComponentProps,
+  type ReactNode,
+} from "react";
+import { Puck, type Config, type Data } from "@puckeditor/core";
 import { buildIndex, findById } from "@duckeditor/spec";
 import { useMachine } from "@xstate/react";
 import { editorMachine } from "./machine/index.js";
@@ -25,10 +34,7 @@ import { useSelectionReconcile } from "./shell/use-selection-reconcile.js";
 import { useContextMenu, ContextMenu } from "./context-menu/index.js";
 import { useClipboard } from "./clipboard/index.js";
 import { CatalogPicker, useInsert } from "./insert/index.js";
-import { useBridge } from "./bridge/use-bridge.js";
 import { RenderHost } from "./duck-render/index.js";
-import { ConnectionDot } from "./bridge/connection-dot.js";
-import { ReconnectPrompt } from "./bridge/reconnect-prompt.js";
 import {
   useMorph,
   MorphButton,
@@ -36,26 +42,70 @@ import {
   MorphOverlay,
 } from "./morph/index.js";
 import type { DataPush } from "./types.js";
-import { createPatternRegistry, type PatternConfig } from "@duckeditor/patterns";
+import {
+  createPatternRegistry,
+  type PatternConfig,
+} from "@duckeditor/patterns";
 
-type BridgeConfig = { url: string; page: string };
+type PuckProps<UserConfig extends Config = Config> = ComponentProps<
+  typeof Puck<UserConfig>
+>;
 
-type EditorShellProps = {
-  data: Data;
-  config: Config;
-  onDataChange?: (data: Data) => void;
-  bridge?: BridgeConfig;
+type ChromeOnly =
+  | "iframe"
+  | "renderHeader"
+  | "renderHeaderActions"
+  | "headerTitle"
+  | "headerPath"
+  | "viewports"
+  | "dnd"
+  | "height"
+  | "_experimentalFullScreenCanvas"
+  | "_experimentalVirtualization";
+
+export type EditorProps<UserConfig extends Config = Config> = Omit<
+  PuckProps<UserConfig>,
+  ChromeOnly
+> & {
   patternConfig?: PatternConfig;
 };
 
-export function EditorShell({
+type Internals = {
+  currentData: Data;
+  lastSelectedId: string | null;
+  push: DataPush;
+};
+
+const EditorInternalsContext = createContext<Internals | null>(null);
+
+export function useEditorInternals(): Internals {
+  const ctx = useContext(EditorInternalsContext);
+
+  if (!ctx) {
+    throw new Error(
+      "useEditorInternals must be used within <Editor>'s children",
+    );
+  }
+
+  return ctx;
+}
+
+const emptyData: Data = { root: {}, content: [], zones: {} };
+
+const normalize = (input: PuckProps["data"] | undefined): Data => ({
+  root: input?.root ?? {},
+  content: input?.content ?? [],
+  zones: input?.zones ?? {},
+});
+
+export function Editor<UserConfig extends Config = Config>({
   data,
   config,
-  onDataChange,
-  bridge,
+  onChange,
   patternConfig,
-}: EditorShellProps) {
-  const [bridgeUrl, setBridgeUrl] = useState(bridge?.url ?? null);
+  children,
+}: EditorProps<UserConfig>) {
+  const initialData = useMemo(() => normalize(data ?? emptyData), [data]);
   const {
     currentData,
     push,
@@ -65,7 +115,7 @@ export function EditorShell({
     visibilityState,
     onMouseEnter: timelineMouseEnter,
     onMouseLeave: timelineMouseLeave,
-  } = useHistory(data, onDataChange);
+  } = useHistory(initialData, onChange as ((data: Data) => void) | undefined);
   const [state, send] = useMachine(editorMachine);
 
   const index = useMemo(() => buildIndex(currentData), [currentData]);
@@ -88,7 +138,7 @@ export function EditorShell({
   const popover = usePropEditor({
     registry: fiberRegistry,
     data: currentData,
-    config,
+    config: config as Config,
     state,
     send,
     push,
@@ -114,7 +164,7 @@ export function EditorShell({
 
   const clipboard = useClipboard({
     data: currentData,
-    config,
+    config: config as Config,
     lastSelectedId,
     push,
     onSelect: (ids) =>
@@ -128,7 +178,7 @@ export function EditorShell({
 
   const { onInsert } = useInsert({
     data: currentData,
-    config,
+    config: config as Config,
     lastSelectedId,
     send,
     push,
@@ -170,7 +220,10 @@ export function EditorShell({
     hasSelection && pointer === "selected" && singleSelected;
 
   const patternRegistry = useMemo(
-    () => (patternConfig ? createPatternRegistry(config, patternConfig) : null),
+    () =>
+      patternConfig
+        ? createPatternRegistry(config as Config, patternConfig)
+        : null,
     [config, patternConfig],
   );
 
@@ -209,10 +262,15 @@ export function EditorShell({
     [morph.commit, morph.patterns],
   );
 
+  const internals = useMemo<Internals>(
+    () => ({ currentData, lastSelectedId, push }),
+    [currentData, lastSelectedId, push],
+  );
+
   return (
-    <>
+    <EditorInternalsContext.Provider value={internals}>
       <div ref={containerRef} style={{ display: "contents" }}>
-        <RenderHost config={config} data={currentData} />
+        <RenderHost config={config as Config} data={currentData} />
       </div>
 
       <style>{`
@@ -222,7 +280,7 @@ export function EditorShell({
 
       {morph.isOpen && morphOverlayData && singleSelected && fiberRegistry && (
         <MorphOverlay
-          config={config}
+          config={config as Config}
           element={morphOverlayData}
           fiberRegistry={fiberRegistry}
           elementId={singleSelected}
@@ -308,7 +366,7 @@ export function EditorShell({
                 <CatalogPicker
                   registry={fiberRegistry}
                   elementId={lastSelectedId}
-                  config={config}
+                  config={config as Config}
                   onInsert={onInsert}
                   onClose={() => send({ type: "ESCAPE" })}
                 />
@@ -359,46 +417,8 @@ export function EditorShell({
           onMouseEnter={timelineMouseEnter}
           onMouseLeave={timelineMouseLeave}
         />
-        {bridgeUrl && bridge && (
-          <BridgeConnector
-            url={bridgeUrl}
-            page={bridge.page}
-            selectedId={lastSelectedId}
-            currentData={currentData}
-            push={push}
-            onReconnect={setBridgeUrl}
-          />
-        )}
+        {children as ReactNode}
       </OverlayRoot>
-    </>
-  );
-}
-
-function BridgeConnector({
-  url,
-  page,
-  selectedId,
-  currentData,
-  push,
-  onReconnect,
-}: {
-  url: string;
-  page: string;
-  selectedId: string | null;
-  currentData: Data;
-  push: DataPush;
-  onReconnect: (url: string) => void;
-}) {
-  const { status } = useBridge({ url, page, selectedId, currentData, push });
-
-  return (
-    <>
-      <ConnectionDot status={status} />
-      <ReconnectPrompt
-        status={status}
-        currentUrl={url}
-        onReconnect={onReconnect}
-      />
-    </>
+    </EditorInternalsContext.Provider>
   );
 }

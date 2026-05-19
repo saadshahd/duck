@@ -51,13 +51,14 @@ When composing XState machines:
 - Element-level: `onKeyDown`. Global shortcuts: `tinykeys` through XState machine.
 - Key bindings are state-dependent, not global.
 - Do NOT use heavyweight keyboard libraries.
-- Global shortcuts register once in shell via `tinykeys`.
+- Global shortcuts register once in `editor.tsx` via `tinykeys`.
 
 ## Folder structure
 
 `src/editor/` — each subdirectory is one interaction domain or infrastructure concern.
 `src/demo/` — demo catalog, registry, sample data. Editor has zero imports from demo.
-`shell.tsx` — editor composition root at `src/editor/` root.
+`editor.tsx` — **library composition root** at `src/editor/` root. Public component (`Editor`) exported from here. No bridge code.
+`demo-editor.tsx` — **demo wrapper** at `src/editor/` root. Renders `<Editor>` with a `<BridgeConnector>` injected via children. Imported by `src/demo/app.tsx` only; never by the library entry.
 
 ### Module layers
 
@@ -65,15 +66,17 @@ Three layers, strict downward dependency:
 
 | Layer | Modules | Knows about | Character |
 |-------|---------|-------------|-----------|
-| **Shell** | `shell.tsx` | All layers | Composition root. Wires domains + infra, passes props down. No logic. |
-| **Domain** | `selection/`, `drag/`, `box-model/`, `prop-editor/`, `history/`, `keyboard/` | Infrastructure, spec-ops | Interaction behavior. Each domain owns its hooks, components, CSS, and machines. Domains never import from each other. |
-| **Infrastructure** | `fiber/`, `overlay/`, `machine/`, `layout/`, `spec-ops/` | Nothing inside `src/editor/` | Pure modules. No interaction state, no React hooks with side effects. |
+| **Shell** | `editor.tsx` (library), `demo-editor.tsx` (demo wrapper) | All layers | Composition root. Wires domains + infra, passes props down. No logic. The demo wrapper layers bridge UI on top via `<Editor>` children + `useEditorInternals()`. |
+| **Domain** | `selection/`, `drag/`, `box-model/`, `prop-editor/`, `history/`, `keyboard/`, `context-menu/`, `clipboard/`, `insert/`, `ghost/`, `morph/`, `bridge/` | Infrastructure, spec-ops | Interaction behavior. Each domain owns its hooks, components, CSS, and machines. Domains never import from each other. `bridge/` is demo-only and excluded from the library build. |
+| **Infrastructure** | `fiber/`, `overlay/`, `machine/`, `layout/`, `spec-ops/`, `duck-render/` | Nothing inside `src/editor/` | Pure modules. No interaction state, no React hooks with side effects. |
 
 **Infrastructure is pure.** It provides types, data structures, and deterministic functions. Infrastructure modules never import from domains or shell. They never hold interaction state (selected ID, drag source, hover target).
 
 **Domains are stateful.** They own interaction hooks (`useDragReorder`, `useMoveInfo`), read from infrastructure, and expose props/callbacks for the shell to wire.
 
 **Shell is glue.** It calls domain hooks, passes results as props to domain components. When two domains need shared data (e.g., both need axis detection), the shared logic lives in infrastructure — not in one domain re-exporting to the other.
+
+`editor.tsx` exposes a context (`useEditorInternals`) that gives access to `currentData`, `lastSelectedId`, and `push` for non-library wrappers (currently just the demo's `demo-editor.tsx`). The hook is **not** re-exported from the library entry — library consumers cannot reach editor internals.
 
 ### Deciding where code belongs
 
@@ -91,6 +94,8 @@ Three layers, strict downward dependency:
 - Domains → domains: **never**. If two domains need to coordinate, shell wires them via props.
 - Infrastructure → infrastructure: allowed (e.g., `layout/` imports `fiber/` for registry type).
 - Infrastructure → domains or shell: **never**.
+- `demo-editor.tsx` (demo wrapper) → `editor.tsx`, `bridge/` only. It must not call other domains directly.
+- `editor.tsx` (library) → never imports from `bridge/` or `demo-editor.tsx`. The bridge is excluded from the library build.
 - No circular imports.
 
 ## Design direction

@@ -17,7 +17,7 @@
       {
         "name": "editor-shell",
         "root": "packages/editor/",
-        "patterns": ["src/editor/shell.tsx", "src/editor/shell/**"]
+        "patterns": ["src/editor/editor.tsx", "src/editor/demo-editor.tsx", "src/editor/shell/**"]
       },
       {
         "name": "editor-infra",

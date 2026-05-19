@@ -2,7 +2,7 @@ import { useState } from "react";
 import type { Data } from "@puckeditor/core";
 import { config } from "./puck.config.js";
 import { patternConfig } from "./pattern.config.js";
-import { EditorShell } from "../editor/shell.js";
+import { DemoEditor } from "../editor/demo-editor.js";
 import sampleData from "./sample-data.json";
 
 const params = new URLSearchParams(window.location.search);
@@ -16,11 +16,11 @@ export function App() {
   const [data, setData] = useState<Data>(sampleData as Data);
 
   return (
-    <EditorShell
+    <DemoEditor
       data={data}
       config={config}
       patternConfig={patternConfig}
-      onDataChange={setData}
+      onChange={setData}
       bridge={bridge}
     />
   );
