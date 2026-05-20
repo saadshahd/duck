@@ -11,6 +11,12 @@ import type {
 
 const MAX_ENTRIES = 100;
 
+type XStateInitEvent = { type: "xstate.init" };
+type HistoryTransitionEvent = HistoryEvent | XStateInitEvent;
+type HistoryTransitionEventOf<
+  EventType extends HistoryTransitionEvent["type"],
+> = Extract<HistoryTransitionEvent, { type: EventType }>;
+
 const createEntryId = (): string => crypto.randomUUID();
 
 const replaceAt = <T>({
@@ -169,9 +175,9 @@ const buildResolutionPatch = (
   return data === entry.data ? null : { entryIndex, entry, data };
 };
 
-type Handler<EventType extends HistoryEvent["type"]> = (
+type Handler<EventType extends HistoryTransitionEvent["type"]> = (
   ctx: HistoryContext,
-  event: HistoryEventOf<EventType>,
+  event: HistoryTransitionEventOf<EventType>,
 ) => HistoryContext;
 
 const push: Handler<"PUSH"> = (ctx, event) => {
@@ -219,6 +225,8 @@ const restore: Handler<"RESTORE"> = (ctx, event) =>
     ? { ...ctx, currentIndex: event.index }
     : ctx;
 
+const ignore: Handler<"xstate.init"> = (ctx) => ctx;
+
 const handlers = {
   PUSH: push,
   APPLY_RESOLUTION: applyResolution,
@@ -228,18 +236,22 @@ const handlers = {
   REDO: redo,
   RENAME: rename,
   RESTORE: restore,
+  "xstate.init": ignore,
 } satisfies {
-  [EventType in HistoryEvent["type"]]: Handler<EventType>;
+  [EventType in HistoryTransitionEvent["type"]]: Handler<EventType>;
 };
 
-type AnyHandler = (ctx: HistoryContext, event: HistoryEvent) => HistoryContext;
+type AnyHandler = (
+  ctx: HistoryContext,
+  event: HistoryTransitionEvent,
+) => HistoryContext;
 
-const handlerFor = (event: HistoryEvent): AnyHandler =>
+const handlerFor = (event: HistoryTransitionEvent): AnyHandler =>
   handlers[event.type] as AnyHandler;
 
 export const transition = (
   ctx: HistoryContext,
-  event: HistoryEvent,
+  event: HistoryTransitionEvent,
 ): HistoryContext => handlerFor(event)(ctx, event);
 
 type HistoryInput = { data: Data };

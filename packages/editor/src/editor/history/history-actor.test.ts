@@ -32,6 +32,12 @@ const push = (
     ...(opts?.group && { group: opts.group }),
   });
 
+describe("xstate init", () => {
+  test("returns the same context", () => {
+    expect(transition(empty, { type: "xstate.init" })).toBe(empty);
+  });
+});
+
 describe("PUSH", () => {
   test("push to empty history", () => {
     const ctx = push(empty, "first");
