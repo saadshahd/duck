@@ -35,7 +35,6 @@ works with `<Puck>` works here.
 | Prop            | Type            | Notes                                                                                                                                     |
 | --------------- | --------------- | ----------------------------------------------------------------------------------------------------------------------------------------- |
 | `patternConfig` | `PatternConfig` | Enables the morph picker. Triggers a dynamic import of `@duckeditor/patterns`. Optional peer dependency.                                  |
-| `meta`          | `DuckMeta`      | RSC-safe sidecar manifest enriching a vanilla Puck config without changing it. Currently used to mark slots optional. See `.claude/rules/duck-meta.md`. |
 | `children`      | `ReactNode`     | Rendered inside the overlay surface. Use with `useEditorInternals()` to layer custom overlay UI (status indicators, presence dots, etc.). |
 
 ## Extension hook
@@ -147,21 +146,6 @@ These items are deliberate gaps, tracked for the first stable release:
 - **Slot allow/disallow enforcement** — honor `Config.components[].fields[].allow`/`disallow` on insert/move.
 - **Independently-selectable slots** — today only components are selectable; slots themselves should be too.
 - **Field UI parity** — Duck's prop editor is a small subset of Puck's field types.
-
-## duck.meta extension layer
-
-Duck adds editor-only behavior Puck has no native hook for through a sidecar
-JSON manifest (`DuckMeta`) that enriches a vanilla Puck `Config`. The manifest
-is RSC-safe (JSON only — no functions, no React components) and additive:
-removing it leaves a working vanilla Puck setup. The on-disk Puck JSON is
-unchanged.
-
-The first consumer is independently-selectable slots and optional-slot empty
-visuals. Future Duck-only behaviors (custom field renderers, predicates) will
-extend the same surface via a separate client-only `duck.registry` keyed by
-string IDs from the manifest.
-
-See `.claude/rules/duck-meta.md` for the contract.
 
 When wiring these, prefer **adding a Duck-only behavior** over emulating a
 specific Puck prop. The point of the interop boundary is that Duck's rules can

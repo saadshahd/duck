@@ -36,11 +36,11 @@ export const createBridge = (): Bridge => {
       pool.replayTo(msg.page, ws);
     },
     "selection-changed"(ws, msg) {
-      if (!ws.data.page) return;
-      pool.setSelection(ws.data.page, {
-        target: msg.target,
-        ancestorIds: msg.ancestorIds,
-      });
+      if (ws.data.page)
+        pool.setSelection(ws.data.page, {
+          elementId: msg.elementId,
+          ancestorIds: msg.ancestorIds,
+        });
     },
     "capture-response"(_ws, msg) {
       caps.resolve(msg.id, msg.image);

@@ -2,11 +2,10 @@ import { useCallback, type ReactNode } from "react";
 import type { Config, Data, Metadata } from "@puckeditor/core";
 import { findById } from "@duckeditor/spec";
 import type { FiberRegistry } from "../fiber/index.js";
-import {
-  Target,
-  type EditorEvent,
-  type EditorSnapshot,
-  type InlineEditing,
+import type {
+  EditorEvent,
+  EditorSnapshot,
+  InlineEditing,
 } from "../machine/index.js";
 import { editProp } from "../spec-ops/index.js";
 import type { EditorCommit } from "../types.js";
@@ -38,15 +37,8 @@ export function usePropEditor({
   useDoubleClickEdit({ registry, data, config, send });
 
   const { pointer } = state.value as { pointer: string };
-  const selectedElementId = Target.elementId(state.context.selection);
-  useKeyboardEdit({
-    registry,
-    data,
-    config,
-    selectedElementId,
-    pointer,
-    send,
-  });
+  const { lastSelectedId } = state.context;
+  useKeyboardEdit({ registry, data, config, lastSelectedId, pointer, send });
 
   const editing = state.context.editing;
   const inline = editing?.mode === "inline" ? (editing as InlineEditing) : null;

@@ -7,7 +7,6 @@ import {
   nearestSibling,
 } from "@duckeditor/spec";
 import type { EditorEvent, EditorSnapshot } from "../machine/index.js";
-import { Target } from "../machine/index.js";
 import type { Axis } from "../layout/index.js";
 import { move, removeMany } from "../spec-ops/index.js";
 import { animatedUpdate } from "../animated-update.js";
@@ -34,31 +33,29 @@ export function useActionHandler({
 }): (action: EditorAction) => void {
   return useCallback(
     (action: EditorAction) => {
-      const { selection } = state.context;
-      if (action.tag === "insert") {
-        send({ type: "OPEN_INSERT" });
-        return;
-      }
+      const { selectedIds, lastSelectedId } = state.context;
+      if (selectedIds.size === 0 || !lastSelectedId) return;
 
-      const elementId = Target.elementId(selection);
-      if (!elementId) return;
-
-      const type = findById(data, elementId)?.type ?? "element";
+      const type = findById(data, lastSelectedId)?.type ?? "element";
       const labels = MOVE_LABELS[axis];
 
       switch (action.tag) {
+        case "insert":
+          send({ type: "OPEN_INSERT" });
+          break;
         case "edit":
           send({ type: "OPEN_POPOVER" });
           break;
         case "move-up":
         case "move-down": {
-          const parent = findParent(data, elementId);
+          if (selectedIds.size > 1) return;
+          const parent = findParent(data, lastSelectedId);
           if (!parent) return;
           const direction = action.tag === "move-up" ? -1 : 1;
           const label = action.tag === "move-up" ? labels.prev : labels.next;
           move(
             data,
-            elementId,
+            lastSelectedId,
             parent.parentId,
             parent.slotKey,
             parent.index + direction,

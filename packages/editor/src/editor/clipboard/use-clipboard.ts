@@ -59,9 +59,9 @@ export function useClipboard(deps: ClipboardDeps): ClipboardActions {
   ref.current = deps;
 
   const onCopy = useCallback(() => {
-    const { data, selectedElementId } = ref.current;
-    if (!selectedElementId) return;
-    copy(data, selectedElementId).map(writeFragment);
+    const { data, lastSelectedId } = ref.current;
+    if (!lastSelectedId) return;
+    copy(data, lastSelectedId).map(writeFragment);
   }, []);
 
   const onCut = useCallback(() => {
@@ -74,7 +74,7 @@ export function useClipboard(deps: ClipboardDeps): ClipboardActions {
     copy(data, lastSelectedId)
       .andThen((component) => {
         writeFragment(component);
-        return remove(data, selectedElementId);
+        return remove(data, lastSelectedId);
       })
       .map((next) => {
         commit({
@@ -119,7 +119,7 @@ export function useClipboard(deps: ClipboardDeps): ClipboardActions {
     if (!lastSelectedId) return;
     const parent = findParent(data, lastSelectedId);
     if (!parent) return;
-    copy(data, selectedElementId)
+    copy(data, lastSelectedId)
       .andThen((component) =>
         paste(
           data,

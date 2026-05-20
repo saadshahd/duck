@@ -24,8 +24,6 @@ export const stubRegistry = (
     return r ? ({ getBoundingClientRect: () => r } as HTMLElement) : undefined;
   },
   getNodeId: () => undefined,
-  getSlot: () => undefined,
-  getSlotAt: () => undefined,
   dispose: () => {},
 });
 

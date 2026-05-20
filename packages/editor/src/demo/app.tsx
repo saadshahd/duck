@@ -1,6 +1,6 @@
 import { useState } from "react";
 import type { Data } from "@puckeditor/core";
-import { config, duckMeta } from "./puck.config.js";
+import { config } from "./puck.config.js";
 import { patternConfig } from "./pattern.config.js";
 import { DemoEditor } from "../editor/demo-editor.js";
 import sampleData from "./sample-data.json";
@@ -19,7 +19,6 @@ export function App() {
     <DemoEditor
       data={data}
       config={config}
-      meta={duckMeta}
       patternConfig={patternConfig}
       onChange={setData}
       bridge={bridge}

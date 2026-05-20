@@ -14,7 +14,7 @@ import type { EditorCommit } from "../types.js";
 type InsertDeps = {
   data: Data;
   config: Config;
-  selection: Target | null;
+  lastSelectedId: string | null;
   send: (event: EditorEvent) => void;
   commit: EditorCommit;
 };
@@ -34,39 +34,28 @@ const mintId = (componentType: string, taken: ReadonlySet<string>): string => {
   return id;
 };
 
-/** Resolve where to place a new component relative to the current selection.
- *  - Slot target → append into that slot.
- *  - Element with slots → insert into first slot at end.
- *  - Element without slots → insert as next sibling.
+/** Resolve where to place a new component relative to selection.
+ *  - Selected component has slots → insert into first slot at end.
+ *  - Otherwise → insert as next sibling of selected.
  *  - No selection → append at top level. */
-export const resolveInsertTarget = (
+const resolveInsertTarget = (
   data: Data,
-  selection: Target | null,
+  selectedId: string | null,
 ): InsertTarget | null => {
-  if (selection?.kind === "slot") {
-    const children =
-      getChildrenAt(data, selection.parentId, selection.slotKey) ?? [];
-    return {
-      parentId: selection.parentId,
-      slotKey: selection.slotKey,
-      index: children.length,
-    };
-  }
-  const elementId = Target.elementId(selection);
-  if (!elementId) {
+  if (!selectedId) {
     return { parentId: null, slotKey: null };
   }
-  const selected = findById(data, elementId);
+  const selected = findById(data, selectedId);
   if (!selected) return null;
 
   const slots = slotKeysOf(selected);
   if (slots.length > 0) {
     const slotKey = slots[0];
-    const children = getChildrenAt(data, elementId, slotKey) ?? [];
-    return { parentId: elementId, slotKey, index: children.length };
+    const children = getChildrenAt(data, selectedId, slotKey) ?? [];
+    return { parentId: selectedId, slotKey, index: children.length };
   }
 
-  const parent = findParent(data, elementId);
+  const parent = findParent(data, selectedId);
   if (!parent) return null;
   return {
     parentId: parent.parentId,
@@ -84,7 +73,7 @@ export function useInsert(deps: InsertDeps): {
   const onInsert = useCallback((componentType: string) => {
     const { data, config, lastSelectedId, send, commit } = ref.current;
 
-    const target = resolveInsertTarget(data, selection);
+    const target = resolveInsertTarget(data, lastSelectedId);
     if (!target) return;
 
     const id = mintId(componentType, new Set(buildIndex(data).keys()));

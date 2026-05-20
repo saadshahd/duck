@@ -6,7 +6,6 @@ import {
   getAncestry,
   type BrowserMessage,
   type ServerMessage,
-  type Target,
 } from "@duckeditor/spec";
 import type { EditorCommit } from "../types.js";
 import { resolverIds } from "../resolve-config.js";
@@ -16,7 +15,7 @@ export type BridgeStatus = "connecting" | "connected" | "disconnected";
 type UseBridgeOptions = {
   url: string;
   page: string;
-  selection: Target | null;
+  selectedId: string | null;
   currentData: Data;
   config: Config;
   commit: EditorCommit;
@@ -34,7 +33,7 @@ const isSpecUpdate = (msg: ServerMessage): msg is SpecUpdateMessage =>
 export function useBridge({
   url,
   page,
-  selection,
+  selectedId,
   currentData,
   config,
   commit,
@@ -97,11 +96,11 @@ export function useBridge({
           setStatus("connected");
           sendRef.current = send;
           send({ type: "ready", page: latest.current.page });
-          if (latest.current.selection) {
+          if (latest.current.selectedId) {
             send(
               selectionMessage(
                 latest.current.currentData,
-                latest.current.selection,
+                latest.current.selectedId,
               ),
             );
           }
@@ -137,21 +136,20 @@ export function useBridge({
 
   useEffect(
     function syncSelection() {
-      if (!selection) return;
-      sendRef.current?.(selectionMessage(currentData, selection));
+      if (!selectedId) return;
+      sendRef.current?.(selectionMessage(currentData, selectedId));
     },
-    [selection, currentData, page],
+    [selectedId, currentData, page],
   );
 
   return { status };
 }
 
-function selectionMessage(data: Data, target: Target): BrowserMessage {
+function selectionMessage(data: Data, elementId: string): BrowserMessage {
   const parentMap = buildParentMap(data);
-  const anchor = target.kind === "slot" ? target.parentId : target.elementId;
   return {
     type: "selection-changed",
-    target,
-    ancestorIds: getAncestry(parentMap, anchor).map((e) => e.id),
+    elementId,
+    ancestorIds: getAncestry(parentMap, elementId).map((e) => e.id),
   };
 }

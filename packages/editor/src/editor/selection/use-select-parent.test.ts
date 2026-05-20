@@ -24,12 +24,12 @@ const collect = () => {
 };
 
 describe("createSelectParent", () => {
-  test("returns undefined when selectedElementId is null", () => {
+  test("returns undefined when lastSelectedId is null", () => {
     const { send } = collect();
     expect(createSelectParent(data(), null, send)).toBeUndefined();
   });
 
-  test("returns a function when selectedElementId is valid", () => {
+  test("returns a function when lastSelectedId is valid", () => {
     const { send } = collect();
     expect(typeof createSelectParent(data(), "item", send)).toBe("function");
   });
@@ -37,9 +37,7 @@ describe("createSelectParent", () => {
   test("sends SELECT with parent id", () => {
     const { calls, send } = collect();
     createSelectParent(data(), "item", send)!();
-    expect(calls).toEqual([
-      { type: "SELECT", target: { kind: "element", elementId: "section" } },
-    ]);
+    expect(calls).toEqual([{ type: "SELECT", elementId: "section" }]);
   });
 
   test("sends DESELECT for top-level child (no component parent)", () => {

@@ -115,14 +115,14 @@ describe("bridge", () => {
       ws.send(
         JSON.stringify({
           type: "selection-changed",
-          target: { kind: "element", elementId: "hero" },
+          elementId: "hero",
           ancestorIds: ["root"],
         } satisfies BrowserMessage),
       );
       await Bun.sleep(20);
 
       expect(bridge.lastSelection("landing")).toEqual({
-        target: { kind: "element", elementId: "hero" },
+        elementId: "hero",
         ancestorIds: ["root"],
       });
       ws.close();

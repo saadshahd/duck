@@ -1,20 +1,21 @@
 import type { PatternConfig } from "@duckeditor/patterns";
 import type { ComponentData } from "@puckeditor/core";
 
-const h = (id: string, text: string): ComponentData => ({
-  type: "Heading",
-  props: { id, text, level: "h2", style: {} },
-});
-
-const t = (id: string, text: string): ComponentData => ({
-  type: "Text",
-  props: { id, text, style: {} },
-});
-
-const btn = (id: string, label: string): ComponentData => ({
-  type: "Button",
-  props: { id, label, variant: "primary" },
-});
+const h = (id: string, text: string): ComponentData =>
+  ({
+    type: "Heading",
+    props: { id, text, level: "h2", style: {} },
+  }) as unknown as ComponentData;
+const t = (id: string, text: string): ComponentData =>
+  ({
+    type: "Text",
+    props: { id, text, style: {} },
+  }) as unknown as ComponentData;
+const btn = (id: string, label: string): ComponentData =>
+  ({
+    type: "Button",
+    props: { id, label, variant: "primary" },
+  }) as unknown as ComponentData;
 
 export const patternConfig: PatternConfig = {
   componentRoles: {
@@ -52,7 +53,7 @@ export const patternConfig: PatternConfig = {
             btn("tmpl-btn", "Get started"),
           ],
         },
-      },
+      } as unknown as ComponentData,
     },
     {
       name: "Centered stack",
@@ -83,7 +84,7 @@ export const patternConfig: PatternConfig = {
             btn("tmpl-sbtn", "Action"),
           ],
         },
-      },
+      } as unknown as ComponentData,
     },
     {
       name: "Feature row",
@@ -114,7 +115,7 @@ export const patternConfig: PatternConfig = {
             btn("tmpl-rbtn", "Learn more"),
           ],
         },
-      },
+      } as unknown as ComponentData,
     },
   ],
 };

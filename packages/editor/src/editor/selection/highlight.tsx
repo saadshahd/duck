@@ -5,7 +5,6 @@ import {
   useShadowSheet,
 } from "../overlay/index.js";
 import type { FiberRegistry } from "../fiber/index.js";
-import type { Target } from "../machine/index.js";
 import css from "./selection.css?inline";
 
 export function outsetRect(rect: DOMRect) {
@@ -17,40 +16,34 @@ export function outsetRect(rect: DOMRect) {
   };
 }
 
-const isSlot = (t: Target) => t.kind === "slot";
-
 export function HoverHighlight({
   registry,
-  data,
-  target,
-  label,
+  elementId,
+  elementType,
 }: {
   registry: FiberRegistry;
-  data: Data;
-  target: Target;
-  label?: string;
+  elementId: string;
+  elementType: string | undefined;
 }) {
   useShadowSheet(css);
-  const ref = useTargetRect(registry, data, target);
-  const className = isSlot(target) ? "slot-highlight" : "hover-highlight";
+  const ref = useHighlightRef(registry, elementId);
   return (
-    <div ref={ref} data-role="hover-highlight" className={className}>
-      {label && <span className="element-label">{label}</span>}
+    <div ref={ref} data-role="hover-highlight" className="hover-highlight">
+      {elementType && <span className="element-label">{elementType}</span>}
     </div>
   );
 }
 
 export function SelectionRing({
   registry,
-  data,
-  target,
+  elementId,
 }: {
   registry: FiberRegistry;
-  data: Data;
-  target: Target;
+  elementId: string;
 }) {
   useShadowSheet(css);
-  const ref = useTargetRect(registry, data, target);
-  const className = isSlot(target) ? "slot-ring" : "selection-ring";
-  return <div ref={ref} data-role="selection-ring" className={className} />;
+  const ref = useHighlightRef(registry, elementId);
+  return (
+    <div ref={ref} data-role="selection-ring" className="selection-ring" />
+  );
 }
