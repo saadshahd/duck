@@ -29,6 +29,7 @@ export type {
   SelectionData,
   CaptureResult,
 } from "./bridge-protocol.js";
+export type { Target } from "./target.js";
 export type {
   PatternConfig,
   SectionPattern,
@@ -39,3 +40,10 @@ export type {
   DerivedVariation,
 } from "./pattern-types.js";
 export { normalizeData } from "./normalize-data.js";
+export {
+  getSlotMeta,
+  isSlotOptional,
+  type DuckMeta,
+  type ComponentMeta,
+  type SlotMeta,
+} from "./duck-meta.js";

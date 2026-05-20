@@ -1,19 +1,19 @@
 import type { Data } from "@puckeditor/core";
 import { findParent } from "../spec-ops/index.js";
+import { Target, type EditorEvent } from "../machine/index.js";
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-type Send = (event: any) => void;
+type Send = (event: EditorEvent) => void;
 
 export function createSelectParent(
   data: Data,
-  lastSelectedId: string | null,
+  selectedElementId: string | null,
   send: Send,
 ): (() => void) | undefined {
-  if (!lastSelectedId) return undefined;
+  if (!selectedElementId) return undefined;
   return () => {
-    const parent = findParent(data, lastSelectedId);
+    const parent = findParent(data, selectedElementId);
     if (parent && parent.parentId !== null) {
-      send({ type: "SELECT", elementId: parent.parentId });
+      send({ type: "SELECT", target: Target.element(parent.parentId) });
     } else {
       send({ type: "DESELECT" });
     }

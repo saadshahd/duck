@@ -12,7 +12,7 @@ type UseKeyboardEditProps = {
   registry: FiberRegistry | null;
   data: Data;
   config: Config;
-  lastSelectedId: string | null;
+  selectedElementId: string | null;
   pointer: string;
   send: (event: EditorEvent) => void;
 };
@@ -21,18 +21,18 @@ export function useKeyboardEdit({
   registry,
   data,
   config,
-  lastSelectedId,
+  selectedElementId,
   pointer,
   send,
 }: UseKeyboardEditProps): void {
   useEffect(
     function wireKeyboardEdit() {
       const onKeyDown = (e: KeyboardEvent) => {
-        if (pointer !== "selected" || !lastSelectedId) return;
+        if (pointer !== "selected" || !selectedElementId) return;
         if (!isPrintable(e)) return;
         if (isEditable(e.target)) return;
 
-        const component = findById(data, lastSelectedId);
+        const component = findById(data, selectedElementId);
         if (!component) return;
 
         const fields = config.components[component.type]?.fields;
@@ -41,13 +41,13 @@ export function useKeyboardEdit({
         const match = findEditableProp(component, fields as ResolvedFields);
         if (!match) return;
 
-        const el = registry?.get(lastSelectedId);
+        const el = registry?.get(selectedElementId);
         if (!el || !hasSingleTextNode(el)) return;
 
         e.preventDefault();
         send({
           type: "START_INLINE_EDIT",
-          elementId: lastSelectedId,
+          elementId: selectedElementId,
           propKey: match.propKey,
           original: match.value,
           trigger: "replace",
@@ -58,6 +58,6 @@ export function useKeyboardEdit({
       window.addEventListener("keydown", onKeyDown);
       return () => window.removeEventListener("keydown", onKeyDown);
     },
-    [registry, data, config, lastSelectedId, pointer, send],
+    [registry, data, config, selectedElementId, pointer, send],
   );
 }

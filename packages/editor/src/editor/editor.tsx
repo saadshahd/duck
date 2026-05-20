@@ -14,10 +14,11 @@ import {
   buildIndex,
   findById,
   normalizeData,
+  type DuckMeta,
   type PatternConfig,
 } from "@duckeditor/spec";
 import { useMachine } from "@xstate/react";
-import { editorMachine } from "./machine/index.js";
+import { editorMachine, Target } from "./machine/index.js";
 import {
   useEditorSelection,
   HoverHighlight,
@@ -58,6 +59,7 @@ export type EditorProps<UserConfig extends Config = Config> = {
   config: UserConfig;
   onChange?: (data: Data) => void;
   metadata?: Metadata;
+  meta?: DuckMeta;
   patternConfig?: PatternConfig;
   children?: ReactNode;
 };
@@ -87,6 +89,7 @@ export function Editor<UserConfig extends Config = Config>({
   config,
   onChange,
   metadata,
+  meta,
   patternConfig,
   children,
 }: EditorProps<UserConfig>) {
@@ -129,7 +132,7 @@ export function Editor<UserConfig extends Config = Config>({
     currentData,
   );
 
-  useSelectionReconcile(state.context, elementIds, send);
+  useSelectionReconcile(state.context.selection, elementIds, send);
   useEditorSelection(fiberRegistry, send);
   const { dropTarget } = useDragReorder({
     registry: fiberRegistry,
@@ -149,10 +152,10 @@ export function Editor<UserConfig extends Config = Config>({
     commit,
   });
 
-  const { selectedIds, lastSelectedId } = state.context;
-  const singleSelected = selectedIds.size === 1 ? lastSelectedId : null;
+  const { selection } = state.context;
+  const selectedElementId = Target.elementId(selection);
 
-  const moveInfo = useMoveInfo(currentData, singleSelected, fiberRegistry);
+  const moveInfo = useMoveInfo(currentData, selectedElementId, fiberRegistry);
   const handleAction = useActionHandler({
     data: currentData,
     state,
@@ -165,7 +168,7 @@ export function Editor<UserConfig extends Config = Config>({
     pointer: string;
     drag: string;
   };
-  const { hoveredId } = state.context;
+  const { hovered } = state.context;
 
   const clipboard = useClipboard({
     data: currentData,
@@ -184,7 +187,7 @@ export function Editor<UserConfig extends Config = Config>({
   const { onInsert } = useInsert({
     data: currentData,
     config: config,
-    lastSelectedId,
+    selection,
     send,
     commit,
   });
@@ -192,12 +195,16 @@ export function Editor<UserConfig extends Config = Config>({
   useKeyboard({
     machine: send,
     history: historySend,
-    nav: { data: currentData, lastSelectedId, pointer },
+    nav: {
+      data: currentData,
+      selection,
+      pointer,
+    },
     clipboard,
     onDelete: () => handleAction({ tag: "delete" }),
   });
 
-  const selectParent = createSelectParent(currentData, lastSelectedId, send);
+  const selectParent = createSelectParent(currentData, selectedElementId, send);
   const toolbarRef = useRef<HTMLElement | null>(null);
   const morphButtonRef = useRef<HTMLButtonElement | null>(null);
 
@@ -209,20 +216,27 @@ export function Editor<UserConfig extends Config = Config>({
     setHighlightId: setMenuHighlightId,
   } = useContextMenu(fiberRegistry);
 
-  const hoverHighlightId = !menu && pointer === "hovering" ? hoveredId : null;
-  const highlightId = menuHighlightId ?? hoverHighlightId;
+  const hoverTarget =
+    !menu && pointer === "hovering" && hovered
+      ? hovered
+      : menuHighlightId
+        ? Target.element(menuHighlightId)
+        : null;
+  const hoverLabel =
+    hoverTarget?.kind === "element"
+      ? index.get(hoverTarget.elementId)?.component.type
+      : hoverTarget?.kind === "slot"
+        ? hoverTarget.slotKey
+        : undefined;
 
   const [boxModelVisible, setBoxModelVisible] = useState(false);
 
+  const isInteractingWithSelection =
+    pointer === "selected" || pointer === "editing" || pointer === "inserting";
   const hasSelection =
-    (pointer === "selected" ||
-      pointer === "editing" ||
-      pointer === "inserting") &&
-    fiberRegistry &&
-    selectedIds.size > 0;
+    isInteractingWithSelection && fiberRegistry !== null && selection !== null;
 
-  const showActionBar =
-    hasSelection && pointer === "selected" && singleSelected;
+  const showActionBar = hasSelection && pointer === "selected";
 
   const { registry: patternRegistry, remintIds } = usePatterns(
     config,
@@ -232,17 +246,17 @@ export function Editor<UserConfig extends Config = Config>({
   const morph = useMorph({
     registry: patternRegistry,
     remintIds,
-    selectedId: singleSelected,
+    selectedId: selectedElementId,
     data: currentData,
     commit,
   });
 
   const morphSelectedElement = useMemo(
     () =>
-      morph.isOpen && morph.activePattern && singleSelected
-        ? findById(currentData, singleSelected)
+      morph.isOpen && morph.activePattern && selectedElementId
+        ? findById(currentData, selectedElementId)
         : null,
-    [morph.isOpen, morph.activePattern, singleSelected, currentData],
+    [morph.isOpen, morph.activePattern, selectedElementId, currentData],
   );
 
   const morphOverlayData = useMemo(() => {
@@ -270,10 +284,22 @@ export function Editor<UserConfig extends Config = Config>({
     [currentData, lastSelectedId, commit],
   );
 
+  const insertAnchorId =
+    selection?.kind === "slot"
+      ? selection.parentId
+      : selection?.kind === "element"
+        ? selection.elementId
+        : null;
+
   return (
     <EditorInternalsContext.Provider value={internals}>
       <div ref={containerRef} style={{ display: "contents" }}>
-        <RenderHost config={config} data={currentData} metadata={metadata} />
+        <RenderHost
+          config={config}
+          data={currentData}
+          metadata={metadata}
+          meta={meta}
+        />
       </div>
 
       <style>{`
@@ -281,22 +307,16 @@ export function Editor<UserConfig extends Config = Config>({
         ::view-transition-group(*) { animation-duration: 200ms; animation-timing-function: ease; }
       `}</style>
 
-      {morph.isOpen && morphOverlayData && singleSelected && fiberRegistry && (
-        <MorphOverlay
-          config={config}
-          element={morphOverlayData}
-          fiberRegistry={fiberRegistry}
-          elementId={singleSelected}
-          metadata={metadata}
-        />
-      )}
-
-      <OverlayRoot>
-        {highlightId && fiberRegistry && (
-          <HoverHighlight
-            registry={fiberRegistry}
-            elementId={highlightId}
-            elementType={index.get(highlightId)?.component.type}
+      {morph.isOpen &&
+        morphOverlayData &&
+        selectedElementId &&
+        fiberRegistry && (
+          <MorphOverlay
+            config={config}
+            element={morphOverlayData}
+            fiberRegistry={fiberRegistry}
+            elementId={selectedElementId}
+            metadata={metadata}
           />
         )}
         <ShimmerOverlay
@@ -306,15 +326,16 @@ export function Editor<UserConfig extends Config = Config>({
         />
         {hasSelection && (
           <>
-            {[...selectedIds].map((id) => (
-              <SelectionRing key={id} registry={fiberRegistry} elementId={id} />
-            ))}
-            {lastSelectedId && (
+            <SelectionRing
+              registry={fiberRegistry}
+              data={currentData}
+              target={selection}
+            />
+            {selectedElementId && (
               <SelectionLabel
                 registry={fiberRegistry}
-                elementId={lastSelectedId}
-                elementType={index.get(lastSelectedId)?.component.type}
-                selectionCount={selectedIds.size}
+                elementId={selectedElementId}
+                elementType={index.get(selectedElementId)?.component.type}
                 toolbarRef={toolbarRef}
                 onSelectParent={selectParent}
               >
@@ -337,50 +358,45 @@ export function Editor<UserConfig extends Config = Config>({
                 </button>
               </SelectionLabel>
             )}
-            {boxModelVisible &&
-              fiberRegistry &&
-              [...selectedIds].map((id) => (
-                <BoxModelLayer
-                  key={id}
-                  registry={fiberRegistry}
-                  elementId={id}
-                />
-              ))}
-            {showActionBar && singleSelected && (
+            {boxModelVisible && fiberRegistry && selectedElementId && (
+              <BoxModelLayer
+                registry={fiberRegistry}
+                elementId={selectedElementId}
+              />
+            )}
+            {showActionBar && (
               <FloatingActionBar
                 registry={fiberRegistry}
-                elementId={singleSelected}
+                data={currentData}
+                target={selection}
+                config={config}
                 axis={moveInfo.axis}
                 canMovePrev={moveInfo.canMovePrev}
                 canMoveNext={moveInfo.canMoveNext}
-                canInsert
                 onAction={handleAction}
                 toolbarRef={toolbarRef}
               >
-                {patternRegistry && (
+                {patternRegistry && selectedElementId && (
                   <MorphButton
                     count={morph.count}
-                    elementId={singleSelected}
+                    elementId={selectedElementId}
                     onClick={morph.openPicker}
                     buttonRef={morphButtonRef}
                   />
                 )}
               </FloatingActionBar>
             )}
-            {pointer === "editing" && singleSelected && popover}
-            {pointer === "inserting" &&
-              singleSelected &&
-              fiberRegistry &&
-              lastSelectedId && (
-                <CatalogPicker
-                  registry={fiberRegistry}
-                  elementId={lastSelectedId}
-                  config={config}
-                  onInsert={onInsert}
-                  onClose={() => send({ type: "ESCAPE" })}
-                />
-              )}
-            {morph.isOpen && singleSelected && (
+            {pointer === "editing" && selectedElementId && popover}
+            {pointer === "inserting" && fiberRegistry && insertAnchorId && (
+              <CatalogPicker
+                registry={fiberRegistry}
+                elementId={insertAnchorId}
+                config={config}
+                onInsert={onInsert}
+                onClose={() => send({ type: "ESCAPE" })}
+              />
+            )}
+            {morph.isOpen && selectedElementId && (
               <MorphPicker
                 patterns={morph.patterns}
                 onHover={onMorphHover}
@@ -408,7 +424,7 @@ export function Editor<UserConfig extends Config = Config>({
             y={menu.y}
             elementIds={menu.elementIds}
             data={currentData}
-            lastSelectedId={lastSelectedId}
+            selectedElementId={selectedElementId}
             send={send}
             clipboard={clipboard}
             onHighlight={setMenuHighlightId}

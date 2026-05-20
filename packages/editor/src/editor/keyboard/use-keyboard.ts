@@ -2,23 +2,25 @@ import { useEffect, useRef } from "react";
 import { tinykeys } from "tinykeys";
 import type { Data } from "@puckeditor/core";
 import { nextInTreeOrder } from "../spec-ops/index.js";
+import { Target } from "../machine/index.js";
 import type { ClipboardActions } from "../types.js";
 import { isEditable } from "../overlay/index.js";
 import { arrowToDirection } from "./navigation.js";
+import { parentTarget } from "./parent-target.js";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type Send = (event: any) => void;
 
 type NavContext = {
   data: Data;
-  lastSelectedId: string | null;
+  selection: Target | null;
   pointer: string;
 };
 
 // --- Guards ---
 
-const selected = (nav: NavContext): boolean =>
-  nav.pointer === "selected" && nav.lastSelectedId !== null;
+const isElementSelected = (nav: NavContext): boolean =>
+  nav.pointer === "selected" && nav.selection?.kind === "element";
 
 const notEditing = (nav: NavContext): boolean => nav.pointer !== "editing";
 
@@ -32,16 +34,37 @@ type EventDef = {
 };
 
 const EVENT_DEFS: EventDef[] = [
-  { key: "Escape", event: "ESCAPE", target: "machine" },
   { key: "$mod+z", event: "UNDO", target: "history" },
   { key: "$mod+Shift+z", event: "REDO", target: "history" },
   {
     key: "/",
     event: "OPEN_INSERT",
     target: "machine",
-    guard: (nav, e) => selected(nav) && !isEditable(e.target),
+    guard: (nav, e) =>
+      nav.pointer === "selected" &&
+      nav.selection !== null &&
+      !isEditable(e.target),
   },
 ];
+
+/** Esc traversal: child element → enclosing slot → parent element → cleared. */
+const escapeBinding = (send: Send, navRef: React.RefObject<NavContext>) => ({
+  Escape: () => {
+    const nav = navRef.current;
+    if (nav.pointer === "editing" || nav.pointer === "inserting") {
+      send({ type: "ESCAPE" });
+      return;
+    }
+    if (nav.pointer === "selected" && nav.selection) {
+      const next = parentTarget(nav.data, nav.selection);
+      if (next) {
+        send({ type: "SELECT", target: next });
+        return;
+      }
+    }
+    send({ type: "ESCAPE" });
+  },
+});
 
 const eventBindings = (
   sends: Record<string, Send>,
@@ -58,13 +81,13 @@ const eventBindings = (
     ]),
   );
 
-// --- Arrow navigation (custom dispatch: computes NavTarget) ---
+// --- Arrow navigation ---
 
 const ARROW_KEYS = ["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight"];
 
 const sendNavTarget = (send: Send, targetId: string | null) =>
   targetId !== null
-    ? send({ type: "SELECT", elementId: targetId })
+    ? send({ type: "SELECT", target: Target.element(targetId) })
     : send({ type: "DESELECT" });
 
 const arrowBindings = (send: Send, navRef: React.RefObject<NavContext>) =>
@@ -73,21 +96,19 @@ const arrowBindings = (send: Send, navRef: React.RefObject<NavContext>) =>
       key,
       (e: KeyboardEvent) => {
         const nav = navRef.current;
-        if (!selected(nav)) return;
+        const elementId = Target.elementId(nav.selection);
+        if (!isElementSelected(nav) || !elementId) return;
 
         const direction = arrowToDirection(key);
         if (!direction) return;
 
         e.preventDefault();
-        sendNavTarget(
-          send,
-          nextInTreeOrder(nav.data, nav.lastSelectedId!, direction),
-        );
+        sendNavTarget(send, nextInTreeOrder(nav.data, elementId, direction));
       },
     ]),
   );
 
-// --- Clipboard (custom dispatch: routes to ClipboardActions) ---
+// --- Clipboard ---
 
 const CLIPBOARD_KEYS: Record<string, keyof ClipboardActions> = {
   "$mod+c": "onCopy",
@@ -106,7 +127,7 @@ const clipboardBindings = (
       (e: KeyboardEvent) => {
         const nav = navRef.current;
         if (!notEditing(nav)) return;
-        if (action !== "onPaste" && !selected(nav)) return;
+        if (action !== "onPaste" && !isElementSelected(nav)) return;
 
         e.preventDefault();
         cbRef.current[action]();
@@ -114,7 +135,7 @@ const clipboardBindings = (
     ]),
   );
 
-// --- Hook ---
+// --- Delete ---
 
 const deleteBindings = (
   navRef: React.RefObject<NavContext>,
@@ -124,12 +145,14 @@ const deleteBindings = (
     ["Backspace", "Delete"].map((key) => [
       key,
       (e: KeyboardEvent) => {
-        if (!selected(navRef.current) || isEditable(e.target)) return;
+        if (!isElementSelected(navRef.current) || isEditable(e.target)) return;
         e.preventDefault();
         onDeleteRef.current();
       },
     ]),
   );
+
+// --- Hook ---
 
 export function useKeyboard(targets: {
   machine: Send;
@@ -154,6 +177,7 @@ export function useKeyboard(targets: {
           { machine: targets.machine, history: targets.history },
           navRef,
         ),
+        ...escapeBinding(targets.machine, navRef),
         ...arrowBindings(targets.machine, navRef),
         ...clipboardBindings(navRef, cbRef),
         ...deleteBindings(navRef, deleteRef),

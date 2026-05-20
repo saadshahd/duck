@@ -13,7 +13,11 @@ import {
   slotKeysOf,
 } from "@duckeditor/spec";
 import type { FiberRegistry } from "../fiber/index.js";
-import type { EditorEvent, EditorSnapshot } from "../machine/index.js";
+import {
+  Target,
+  type EditorEvent,
+  type EditorSnapshot,
+} from "../machine/index.js";
 import type { DropTarget } from "./drop-indicator.js";
 import type { DragData } from "./helpers.js";
 import {
@@ -61,25 +65,18 @@ export function useDragReorder({
   const commitRef = useRef(commit);
   commitRef.current = commit;
 
-  const { lastSelectedId, selectedIds } = state.context;
+  const selectedElementId = Target.elementId(state.context.selection);
   const pointer = stateOf(state).pointer;
-  const singleSelected = selectedIds.size === 1;
 
-  // --- Effect 1: Make selected element draggable (single selection only) ---
+  // --- Effect 1: Make selected element draggable ---
 
   useEffect(() => {
-    if (
-      !registry ||
-      !lastSelectedId ||
-      !singleSelected ||
-      pointer !== "selected"
-    )
-      return;
+    if (!registry || !selectedElementId || pointer !== "selected") return;
 
-    const parent = findParent(dataRef.current, lastSelectedId);
+    const parent = findParent(dataRef.current, selectedElementId);
     if (!parent) return;
 
-    const sourceEl = registry.get(lastSelectedId);
+    const sourceEl = registry.get(selectedElementId);
     if (!sourceEl) return;
 
     let clearNames: (() => void) | null = null;
@@ -87,7 +84,7 @@ export function useDragReorder({
     return draggable({
       element: sourceEl,
       getInitialData: (): DragData => ({
-        elementId: lastSelectedId,
+        elementId: selectedElementId,
         parentId: parent.parentId,
         slotKey: parent.slotKey,
         index: parent.index,
@@ -97,13 +94,14 @@ export function useDragReorder({
         const allIds = [...indexRef.current.keys()];
         clearNames = tagTransitionNames(registry, allIds);
       },
-      onDragStart: () => send({ type: "DRAG_START", sourceId: lastSelectedId }),
+      onDragStart: () =>
+        send({ type: "DRAG_START", sourceId: selectedElementId }),
       onDrop: () => {
         clearNames?.();
         clearNames = null;
       },
     });
-  }, [registry, lastSelectedId, singleSelected, pointer, send]);
+  }, [registry, selectedElementId, pointer, send]);
 
   // --- Effect 2: Register drop targets on every component ---
 

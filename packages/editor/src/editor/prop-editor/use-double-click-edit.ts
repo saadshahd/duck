@@ -31,7 +31,7 @@ export function useDoubleClickEdit({
       const onDblClick = (e: MouseEvent) => {
         if (isFromShadowDom(e)) return;
         const hit = resolveHit(registry, e.clientX, e.clientY);
-        if (!hit) return;
+        if (!hit || hit.kind !== "element") return;
 
         const component = findById(data, hit.elementId);
         if (!component) return;

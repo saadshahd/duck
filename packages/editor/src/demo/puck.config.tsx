@@ -1,5 +1,6 @@
 import { Fragment, type ReactNode } from "react";
 import type { Config } from "@puckeditor/core";
+import type { DuckMeta } from "@duckeditor/spec";
 
 const opt = <T extends string | number>(value: T) => ({
   label: String(value),
@@ -402,6 +403,71 @@ export const config: Config = {
       ),
     },
 
+    Hero: {
+      fields: {
+        figure: { type: "slot" },
+        content: { type: "slot" },
+        footer: { type: "slot" },
+        style: {
+          type: "object",
+          objectFields: {
+            padding: { type: "select", options: space },
+            background: { type: "select", options: color },
+            borderRadius: { type: "select", options: radius },
+            alignItems: { type: "select", options: alignItems },
+          },
+        },
+      },
+      defaultProps: {
+        style: { padding: "3rem", alignItems: "center" },
+        figure: [
+          {
+            type: "Image",
+            props: {
+              id: "",
+              src: "",
+              alt: "Hero figure",
+              style: { maxWidth: "480px" },
+            },
+          },
+        ],
+        content: [
+          {
+            type: "Heading",
+            props: { id: "", text: "Headline", level: "h1", style: {} },
+          },
+          {
+            type: "Text",
+            props: { id: "", text: "Supporting copy.", style: {} },
+          },
+        ],
+        footer: [],
+      },
+      render: ({
+        figure: Figure,
+        content: Content,
+        footer: Footer,
+        style,
+      }) => (
+        <section
+          style={{
+            display: "grid",
+            gridTemplateColumns: "1fr 1fr",
+            gap: "2rem",
+            ...style,
+          }}
+        >
+          <div>
+            <Figure as={BareSlot} />
+          </div>
+          <div>
+            <Content as={BareSlot} />
+            <Footer as={BareSlot} />
+          </div>
+        </section>
+      ),
+    },
+
     Grid: {
       fields: {
         children: { type: "slot" },
@@ -481,5 +547,13 @@ export const config: Config = {
 
   root: {
     render: ({ children }: { children: ReactNode }) => <>{children}</>,
+  },
+};
+
+export const duckMeta: DuckMeta = {
+  Hero: {
+    slots: {
+      footer: { optional: true },
+    },
   },
 };

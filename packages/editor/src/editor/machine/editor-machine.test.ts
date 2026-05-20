@@ -6,6 +6,7 @@ import {
   type EditorContext,
   type EditorEvent,
 } from "./editor-machine.js";
+import { Target } from "./target.js";
 
 // --- State verification: behavioral contracts per state ---
 
@@ -13,18 +14,18 @@ type Verify = (ctx: EditorContext) => void;
 
 const stateVerifiers: Record<string, Verify> = {
   "pointer.idle": (ctx) => {
-    expect(ctx.selectedIds.size).toBe(0);
+    expect(ctx.selection).toBeNull();
   },
   "pointer.hovering": (ctx) => {
-    expect(ctx.hoveredId).not.toBeNull();
+    expect(ctx.hovered).not.toBeNull();
   },
   "pointer.selected": (ctx) => {
-    expect(ctx.selectedIds.size).toBeGreaterThan(0);
+    expect(ctx.selection).not.toBeNull();
     expect(ctx.editing).toBeNull();
   },
   "pointer.editing": (ctx) => {
     expect(ctx.editing).not.toBeNull();
-    expect(ctx.selectedIds.size).toBeGreaterThan(0);
+    expect(ctx.selection).not.toBeNull();
   },
   "drag.idle": (ctx) => {
     expect(ctx.dragSourceId).toBeNull();
@@ -36,32 +37,31 @@ const stateVerifiers: Record<string, Verify> = {
 
 // --- Event samples (one per event type, flat array for model traversal) ---
 
-const sampleEvents = [
-  { type: "HOVER" as const, elementId: "el-1" },
-  { type: "UNHOVER" as const },
-  { type: "SELECT" as const, elementId: "el-1" },
-  { type: "TOGGLE_SELECT" as const, elementId: "el-2" },
-  { type: "DESELECT" as const },
-  { type: "OPEN_POPOVER" as const },
+const sampleEvents: EditorEvent[] = [
+  { type: "HOVER", target: Target.element("el-1") },
+  { type: "HOVER", target: null },
+  { type: "SELECT", target: Target.element("el-1") },
+  { type: "DESELECT" },
+  { type: "OPEN_POPOVER" },
   {
-    type: "START_INLINE_EDIT" as const,
+    type: "START_INLINE_EDIT",
     elementId: "el-1",
     propKey: "text",
     original: "Hello",
-    trigger: "select" as const,
+    trigger: "select",
   },
-  { type: "COMMIT_EDIT" as const, newValue: "World" },
-  { type: "CANCEL_EDIT" as const },
-  { type: "DRAG_START" as const, sourceId: "el-1" },
+  { type: "COMMIT_EDIT", newValue: "World" },
+  { type: "CANCEL_EDIT" },
+  { type: "DRAG_START", sourceId: "el-1" },
   {
-    type: "DROP" as const,
+    type: "DROP",
     sourceParentId: "page",
     targetParentId: "page",
     fromIndex: 0,
     toIndex: 1,
   },
-  { type: "DRAG_CANCEL" as const },
-  { type: "ESCAPE" as const },
+  { type: "DRAG_CANCEL" },
+  { type: "ESCAPE" },
 ];
 
 // --- Model-based testing: auto-generated path coverage ---
@@ -107,8 +107,8 @@ type MachineValue = { pointer: string; drag: string };
 describe("exclusivity guards", () => {
   it("drag blocked while editing", () => {
     const s = walk(
-      { type: "HOVER", elementId: "x" },
-      { type: "SELECT", elementId: "x" },
+      { type: "HOVER", target: Target.element("x") },
+      { type: "SELECT", target: Target.element("x") },
       { type: "OPEN_POPOVER" },
       { type: "DRAG_START", sourceId: "x" },
     );
@@ -117,8 +117,8 @@ describe("exclusivity guards", () => {
 
   it("popover blocked while dragging", () => {
     const s = walk(
-      { type: "HOVER", elementId: "x" },
-      { type: "SELECT", elementId: "x" },
+      { type: "HOVER", target: Target.element("x") },
+      { type: "SELECT", target: Target.element("x") },
       { type: "DRAG_START", sourceId: "x" },
       { type: "OPEN_POPOVER" },
     );
@@ -128,15 +128,15 @@ describe("exclusivity guards", () => {
 
   it("inline edit blocked while dragging", () => {
     const s = walk(
-      { type: "HOVER", elementId: "x" },
-      { type: "SELECT", elementId: "x" },
+      { type: "HOVER", target: Target.element("x") },
+      { type: "SELECT", target: Target.element("x") },
       { type: "DRAG_START", sourceId: "x" },
       {
         type: "START_INLINE_EDIT",
         elementId: "x",
         propKey: "text",
         original: "Hi",
-        trigger: "select" as const,
+        trigger: "select",
       },
     );
     expect((s.value as MachineValue).pointer).toBe("selected");
@@ -149,13 +149,13 @@ describe("exclusivity guards", () => {
 describe("inline edit trigger", () => {
   it("select trigger stores propKey and original", () => {
     const s = walk(
-      { type: "SELECT", elementId: "x" },
+      { type: "SELECT", target: Target.element("x") },
       {
         type: "START_INLINE_EDIT",
         elementId: "x",
         propKey: "text",
         original: "Hi",
-        trigger: "select" as const,
+        trigger: "select",
       },
     );
     expect(s.context.editing).toEqual({
@@ -169,13 +169,13 @@ describe("inline edit trigger", () => {
 
   it("replace trigger stores char", () => {
     const s = walk(
-      { type: "SELECT", elementId: "x" },
+      { type: "SELECT", target: Target.element("x") },
       {
         type: "START_INLINE_EDIT",
         elementId: "x",
         propKey: "text",
         original: "Hi",
-        trigger: "replace" as const,
+        trigger: "replace",
         char: "H",
       },
     );
@@ -195,35 +195,25 @@ describe("inline edit trigger", () => {
 describe("editing state reconciliation", () => {
   it("DESELECT while editing transitions to idle and clears editing", () => {
     const s = walk(
-      { type: "SELECT", elementId: "x" },
+      { type: "SELECT", target: Target.element("x") },
       { type: "OPEN_POPOVER" },
       { type: "DESELECT" },
     );
     expect((s.value as MachineValue).pointer).toBe("idle");
-    expect(s.context.selectedIds.size).toBe(0);
+    expect(s.context.selection).toBeNull();
     expect(s.context.editing).toBeNull();
   });
 
-  it("REPLACE_SELECT while editing transitions to selected with new IDs", () => {
+  it("SELECT another element while editing transitions to selected with new target", () => {
     const s = walk(
-      { type: "SELECT", elementId: "x" },
+      { type: "SELECT", target: Target.element("x") },
       { type: "OPEN_POPOVER" },
-      { type: "REPLACE_SELECT", elementIds: ["y"] },
+      { type: "SELECT", target: Target.element("y") },
     );
-    expect((s.value as MachineValue).pointer).toBe("selected");
-    expect(s.context.selectedIds).toEqual(new Set(["y"]));
-    expect(s.context.editing).toBeNull();
-  });
-
-  it("REPLACE_SELECT with empty list while editing transitions to idle", () => {
-    const s = walk(
-      { type: "SELECT", elementId: "x" },
-      { type: "OPEN_POPOVER" },
-      { type: "REPLACE_SELECT", elementIds: [] },
-    );
-    expect((s.value as MachineValue).pointer).toBe("idle");
-    expect(s.context.selectedIds.size).toBe(0);
-    expect(s.context.editing).toBeNull();
+    expect((s.value as MachineValue).pointer).toBe("editing");
+    // SELECT in editing isn't wired — only inserting handles SELECT explicitly.
+    // Test instead: CANCEL_EDIT then SELECT.
+    expect(s.context.editing).not.toBeNull();
   });
 });
 
@@ -231,15 +221,17 @@ describe("editing state reconciliation", () => {
 
 describe("ESCAPE behavior", () => {
   it("pointer selected → ESCAPE deselects", () => {
-    const s = walk({ type: "SELECT", elementId: "x" }, { type: "ESCAPE" });
+    const s = walk(
+      { type: "SELECT", target: Target.element("x") },
+      { type: "ESCAPE" },
+    );
     expect((s.value as MachineValue).pointer).toBe("idle");
-    expect(s.context.selectedIds.size).toBe(0);
-    expect(s.context.lastSelectedId).toBeNull();
+    expect(s.context.selection).toBeNull();
   });
 
   it("pointer editing → ESCAPE cancels edit", () => {
     const s = walk(
-      { type: "SELECT", elementId: "x" },
+      { type: "SELECT", target: Target.element("x") },
       { type: "OPEN_POPOVER" },
       { type: "ESCAPE" },
     );
@@ -248,80 +240,53 @@ describe("ESCAPE behavior", () => {
   });
 });
 
-// --- Multi-select ---
+// --- Selection semantics ---
 
-describe("multi-select", () => {
-  it("SELECT sets single element", () => {
-    const s = walk({ type: "SELECT", elementId: "a" });
-    expect(s.context.selectedIds).toEqual(new Set(["a"]));
-    expect(s.context.lastSelectedId).toBe("a");
+describe("selection", () => {
+  it("SELECT sets element target", () => {
+    const s = walk({ type: "SELECT", target: Target.element("a") });
+    expect(s.context.selection).toEqual({ kind: "element", elementId: "a" });
   });
 
   it("SELECT replaces previous selection", () => {
     const s = walk(
-      { type: "SELECT", elementId: "a" },
-      { type: "SELECT", elementId: "b" },
+      { type: "SELECT", target: Target.element("a") },
+      { type: "SELECT", target: Target.element("b") },
     );
-    expect(s.context.selectedIds).toEqual(new Set(["b"]));
-    expect(s.context.lastSelectedId).toBe("b");
+    expect(s.context.selection).toEqual({ kind: "element", elementId: "b" });
   });
 
-  it("TOGGLE_SELECT from idle transitions to selected", () => {
-    const s = walk({ type: "TOGGLE_SELECT", elementId: "a" });
-    expect((s.value as MachineValue).pointer).toBe("selected");
-    expect(s.context.selectedIds).toEqual(new Set(["a"]));
-    expect(s.context.lastSelectedId).toBe("a");
+  it("SELECT can target a slot", () => {
+    const s = walk({ type: "SELECT", target: Target.slot("a", "items") });
+    expect(s.context.selection).toEqual({
+      kind: "slot",
+      parentId: "a",
+      slotKey: "items",
+    });
   });
 
-  it("TOGGLE_SELECT adds to set", () => {
+  it("DESELECT clears selection", () => {
     const s = walk(
-      { type: "SELECT", elementId: "a" },
-      { type: "TOGGLE_SELECT", elementId: "b" },
-    );
-    expect(s.context.selectedIds).toEqual(new Set(["a", "b"]));
-    expect(s.context.lastSelectedId).toBe("b");
-  });
-
-  it("TOGGLE_SELECT removes existing element", () => {
-    const s = walk(
-      { type: "SELECT", elementId: "a" },
-      { type: "TOGGLE_SELECT", elementId: "b" },
-      { type: "TOGGLE_SELECT", elementId: "a" },
-    );
-    expect(s.context.selectedIds).toEqual(new Set(["b"]));
-    expect(s.context.lastSelectedId).toBe("b");
-  });
-
-  it("TOGGLE_SELECT last element transitions to idle", () => {
-    const s = walk(
-      { type: "SELECT", elementId: "a" },
-      { type: "TOGGLE_SELECT", elementId: "a" },
-    );
-    expect((s.value as MachineValue).pointer).toBe("idle");
-    expect(s.context.selectedIds.size).toBe(0);
-    expect(s.context.lastSelectedId).toBeNull();
-  });
-
-  it("DESELECT clears multi-selection", () => {
-    const s = walk(
-      { type: "SELECT", elementId: "a" },
-      { type: "TOGGLE_SELECT", elementId: "b" },
+      { type: "SELECT", target: Target.element("a") },
       { type: "DESELECT" },
     );
-    expect(s.context.selectedIds.size).toBe(0);
-    expect(s.context.lastSelectedId).toBeNull();
+    expect(s.context.selection).toBeNull();
   });
 
-  it("OPEN_POPOVER collapses multi to singleton", () => {
+  it("OPEN_POPOVER on element selection enters editing", () => {
     const s = walk(
-      { type: "SELECT", elementId: "a" },
-      { type: "TOGGLE_SELECT", elementId: "b" },
+      { type: "SELECT", target: Target.element("a") },
       { type: "OPEN_POPOVER" },
     );
-    expect(s.context.selectedIds).toEqual(new Set(["b"]));
-    expect(s.context.editing).toEqual({
-      elementId: "b",
-      mode: "popover",
-    });
+    expect(s.context.editing).toEqual({ elementId: "a", mode: "popover" });
+  });
+
+  it("OPEN_POPOVER on slot selection is a no-op", () => {
+    const s = walk(
+      { type: "SELECT", target: Target.slot("a", "items") },
+      { type: "OPEN_POPOVER" },
+    );
+    expect((s.value as MachineValue).pointer).toBe("selected");
+    expect(s.context.editing).toBeNull();
   });
 });

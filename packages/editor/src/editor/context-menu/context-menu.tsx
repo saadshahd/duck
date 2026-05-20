@@ -3,7 +3,7 @@ import { useFloating, flip, shift } from "@floating-ui/react";
 import type { Data } from "@puckeditor/core";
 import { findById } from "@duckeditor/spec";
 import { useShadowSheet, useOnClickOutside } from "../overlay/index.js";
-import type { EditorEvent } from "../machine/index.js";
+import { Target, type EditorEvent } from "../machine/index.js";
 import type { ClipboardActions } from "../types.js";
 import { useMenuKeyboard } from "./use-menu-keyboard.js";
 import css from "./context-menu.css?inline";
@@ -50,7 +50,7 @@ type ContextMenuProps = {
   y: number;
   elementIds: string[];
   data: Data;
-  lastSelectedId: string | null;
+  selectedElementId: string | null;
   send: (event: EditorEvent) => void;
   clipboard: ClipboardActions;
   onHighlight: (elementId: string | null) => void;
@@ -62,7 +62,7 @@ export function ContextMenu({
   y,
   elementIds,
   data,
-  lastSelectedId,
+  selectedElementId,
   send,
   clipboard,
   onHighlight,
@@ -97,7 +97,7 @@ export function ContextMenu({
   useOnClickOutside(refs.floating, onClose);
 
   const select = (i: number) => {
-    send({ type: "SELECT", elementId: elementIds[i] });
+    send({ type: "SELECT", target: Target.element(elementIds[i]) });
     onClose();
   };
 
@@ -147,7 +147,7 @@ export function ContextMenu({
       })}
       <div className="context-menu-divider" />
       {CLIPBOARD_ITEMS.map(({ label, shortcut, action, needsSelection }) => {
-        const disabled = needsSelection && !lastSelectedId;
+        const disabled = needsSelection && !selectedElementId;
         return (
           <div
             key={action}

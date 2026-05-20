@@ -1,6 +1,7 @@
 import type { FiberRegistry } from "../fiber/index.js";
+import { Target } from "../machine/target.js";
 
-export type Hit = { elementId: string };
+export type Hit = Target;
 
 /** Check if an event originated inside a Shadow DOM tree. */
 export const isFromShadowDom = (e: Event): boolean => {
@@ -8,16 +9,19 @@ export const isFromShadowDom = (e: Event): boolean => {
   return origin instanceof Node && origin.getRootNode() instanceof ShadowRoot;
 };
 
-/** Resolve a screen position to a spec element ID via the fiber registry. */
+/** Resolve a screen position to a spec element or slot via the fiber registry.
+ *  Element hits take priority — slots are reported only when the point sits
+ *  inside a slot region but on no descendant element. */
 export const resolveHit = (
   registry: FiberRegistry,
   x: number,
   y: number,
 ): Hit | null => {
-  const target = document.elementFromPoint(x, y);
-  if (!target) return null;
-  const id = registry.getNodeId(target);
-  if (!id) return null;
-  if (!registry.get(id)) return null;
-  return { elementId: id };
+  const el = document.elementFromPoint(x, y);
+  if (!el) return null;
+  const id = registry.getNodeId(el);
+  if (id && registry.get(id)) return Target.element(id);
+  const slot = registry.getSlotAt(el);
+  if (slot) return Target.slot(slot.parentId, slot.slotKey);
+  return null;
 };

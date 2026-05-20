@@ -81,6 +81,44 @@
             }
           },
           {
+            "type": "Hero",
+            "props": {
+              "id": "hero-block",
+              "style": { "padding": "3rem 0", "alignItems": "center" },
+              "figure": [
+                {
+                  "type": "Image",
+                  "props": {
+                    "id": "hero-figure",
+                    "src": "https://placehold.co/480x320",
+                    "alt": "Hero figure",
+                    "style": { "maxWidth": "480px" }
+                  }
+                }
+              ],
+              "content": [
+                {
+                  "type": "Heading",
+                  "props": {
+                    "id": "hero-block-heading",
+                    "text": "Slots are first-class.",
+                    "level": "h2",
+                    "style": { "fontFamily": "'Playfair Display', Georgia, serif" }
+                  }
+                },
+                {
+                  "type": "Text",
+                  "props": {
+                    "id": "hero-block-text",
+                    "text": "Each region of this Hero is selectable on its own.",
+                    "style": { "color": "#555555" }
+                  }
+                }
+              ],
+              "footer": []
+            }
+          },
+          {
             "type": "Stack",
             "props": {
               "id": "features",

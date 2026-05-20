@@ -37,7 +37,7 @@ function BridgeConnector({
   const { status } = useBridge({
     url,
     page: bridge.page,
-    selectedId: lastSelectedId,
+    selection,
     currentData,
     config,
     commit,

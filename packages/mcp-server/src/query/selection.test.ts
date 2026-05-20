@@ -13,14 +13,37 @@ const makeBridge = (
   }) as unknown as Bridge;
 
 describe("selection", () => {
-  it("returns selection data when available", async () => {
+  it("returns element selection when available", async () => {
     const bridge = makeBridge(
-      { elementId: "hero", ancestorIds: ["page"] },
+      {
+        target: { kind: "element", elementId: "hero" },
+        ancestorIds: ["page"],
+      },
       true,
     );
     const result = await Effect.runPromise(selection(bridge, "landing"));
     expect(result).toEqual({
-      selection: { elementId: "hero", ancestorIds: ["page"] },
+      selection: {
+        target: { kind: "element", elementId: "hero" },
+        ancestorIds: ["page"],
+      },
+    });
+  });
+
+  it("returns slot selection when available", async () => {
+    const bridge = makeBridge(
+      {
+        target: { kind: "slot", parentId: "hero", slotKey: "footer" },
+        ancestorIds: ["page"],
+      },
+      true,
+    );
+    const result = await Effect.runPromise(selection(bridge, "landing"));
+    expect(result).toEqual({
+      selection: {
+        target: { kind: "slot", parentId: "hero", slotKey: "footer" },
+        ancestorIds: ["page"],
+      },
     });
   });
 

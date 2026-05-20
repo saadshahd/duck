@@ -1,5 +1,5 @@
 import { setup, assign, type SnapshotFrom } from "xstate";
-import { Selection } from "./selection-model.js";
+import { Target } from "./target.js";
 
 // --- Context ---
 
@@ -21,9 +21,8 @@ type PopoverEditing = {
 type Editing = InlineEditing | PopoverEditing;
 
 export type EditorContext = {
-  hoveredId: string | null;
-  selectedIds: ReadonlySet<string>;
-  lastSelectedId: string | null;
+  selection: Target | null;
+  hovered: Target | null;
   editing: Editing | null;
   dragSourceId: string | null;
 };
@@ -31,11 +30,8 @@ export type EditorContext = {
 // --- Events ---
 
 export type EditorEvent =
-  | { type: "HOVER"; elementId: string }
-  | { type: "UNHOVER" }
-  | { type: "SELECT"; elementId: string }
-  | { type: "REPLACE_SELECT"; elementIds: string[] }
-  | { type: "TOGGLE_SELECT"; elementId: string }
+  | { type: "HOVER"; target: Target | null }
+  | { type: "SELECT"; target: Target }
   | { type: "DESELECT" }
   | { type: "OPEN_POPOVER" }
   | ({
@@ -62,6 +58,8 @@ export type EditorEvent =
 
 const isEditing = (ctx: EditorContext) => ctx.editing !== null;
 const isDragging = (ctx: EditorContext) => ctx.dragSourceId !== null;
+const selectionIsSlot = (ctx: EditorContext) =>
+  ctx.selection?.kind === "slot";
 
 // --- Machine ---
 
@@ -72,22 +70,18 @@ export const editorMachine = setup({
   },
   guards: {
     isDifferentHover: ({ context, event }) =>
-      event.type === "HOVER" && context.hoveredId !== event.elementId,
+      event.type === "HOVER" && !Target.equals(context.hovered, event.target),
     notEditing: ({ context }) => !isEditing(context),
     notDragging: ({ context }) => !isDragging(context),
-    multiSelectEmptiesSet: ({ context, event }) =>
-      event.type === "TOGGLE_SELECT" &&
-      Selection.wouldEmpty(context, event.elementId),
-    replaceSelectEmpty: ({ event }) =>
-      event.type === "REPLACE_SELECT" && event.elementIds.length === 0,
+    selectionIsSlotAndNotDragging: ({ context }) =>
+      selectionIsSlot(context) && !isDragging(context),
   },
 }).createMachine({
   id: "editor",
   type: "parallel",
   context: {
-    hoveredId: null,
-    selectedIds: new Set<string>(),
-    lastSelectedId: null,
+    selection: null,
+    hovered: null,
     editing: null,
     dragSourceId: null,
   },
@@ -98,82 +92,53 @@ export const editorMachine = setup({
         DESELECT: {
           target: ".idle",
           actions: assign(() => ({
-            ...Selection.clear(),
-            hoveredId: null,
+            selection: null,
+            hovered: null,
             editing: null,
           })),
         },
-        REPLACE_SELECT: [
-          {
-            guard: "replaceSelectEmpty",
-            target: ".idle",
-            actions: assign(() => ({
-              ...Selection.clear(),
-              hoveredId: null,
-              editing: null,
-            })),
-          },
-          {
-            target: ".selected",
-            actions: assign(({ event }) => ({
-              ...Selection.ofSet(
-                (event as { elementIds: string[] }).elementIds,
-              ),
-              editing: null,
-            })),
-          },
-        ],
       },
       states: {
         idle: {
           on: {
             HOVER: {
               target: "hovering",
-              actions: assign({ hoveredId: ({ event }) => event.elementId }),
+              guard: ({ event }) => event.target !== null,
+              actions: assign({ hovered: ({ event }) => event.target }),
             },
             SELECT: {
               target: "selected",
-              actions: assign(({ event }) => Selection.of(event.elementId)),
+              actions: assign(({ event }) => ({
+                selection: event.target,
+                hovered: null,
+                editing: null,
+              })),
             },
-            TOGGLE_SELECT: {
-              target: "selected",
-              actions: assign(({ event }) => Selection.of(event.elementId)),
-            },
-            REPLACE_SELECT: {
-              target: "selected",
-              actions: assign(({ event }) => Selection.ofSet(event.elementIds)),
+            OPEN_INSERT: {
+              guard: "selectionIsSlotAndNotDragging",
+              target: "inserting",
             },
           },
         },
         hovering: {
           on: {
-            HOVER: {
-              guard: "isDifferentHover",
-              actions: assign({ hoveredId: ({ event }) => event.elementId }),
-            },
-            UNHOVER: {
-              target: "idle",
-              actions: assign({ hoveredId: null }),
-            },
+            HOVER: [
+              {
+                guard: ({ event }) => event.target === null,
+                target: "idle",
+                actions: assign({ hovered: null }),
+              },
+              {
+                guard: "isDifferentHover",
+                actions: assign({ hovered: ({ event }) => event.target }),
+              },
+            ],
             SELECT: {
               target: "selected",
               actions: assign(({ event }) => ({
-                ...Selection.of(event.elementId),
-                hoveredId: null,
-              })),
-            },
-            TOGGLE_SELECT: {
-              target: "selected",
-              actions: assign(({ event }) => ({
-                ...Selection.of(event.elementId),
-                hoveredId: null,
-              })),
-            },
-            REPLACE_SELECT: {
-              target: "selected",
-              actions: assign(({ event }) => ({
-                ...Selection.ofSet(event.elementIds),
-                hoveredId: null,
+                selection: event.target,
+                hovered: null,
+                editing: null,
               })),
             },
           },
@@ -181,63 +146,34 @@ export const editorMachine = setup({
         selected: {
           on: {
             SELECT: {
-              actions: assign(({ event }) => Selection.of(event.elementId)),
-            },
-            TOGGLE_SELECT: [
-              {
-                guard: "multiSelectEmptiesSet",
-                target: "idle",
-                actions: assign(() => ({
-                  ...Selection.clear(),
-                  hoveredId: null,
-                })),
-              },
-              {
-                actions: assign(({ context, event }) =>
-                  Selection.toggle(context, event.elementId),
-                ),
-              },
-            ],
-            REPLACE_SELECT: [
-              {
-                guard: "replaceSelectEmpty",
-                target: "idle",
-                actions: assign(() => ({
-                  ...Selection.clear(),
-                  hoveredId: null,
-                })),
-              },
-              {
-                actions: assign(({ event }) =>
-                  Selection.ofSet(
-                    (event as { elementIds: string[] }).elementIds,
-                  ),
-                ),
-              },
-            ],
-            DESELECT: {
-              target: "idle",
-              actions: assign(() => ({
-                ...Selection.clear(),
-                hoveredId: null,
+              actions: assign(({ event }) => ({
+                selection: event.target,
+                editing: null,
               })),
+            },
+            HOVER: {
+              actions: assign({ hovered: ({ event }) => event.target }),
             },
             ESCAPE: {
               guard: "notEditing",
               target: "idle",
               actions: assign(() => ({
-                ...Selection.clear(),
-                hoveredId: null,
+                selection: null,
+                hovered: null,
               })),
             },
             OPEN_POPOVER: {
-              guard: "notDragging",
+              guard: ({ context }) =>
+                !isDragging(context) && context.selection?.kind === "element",
               target: "editing",
               actions: assign(({ context }) => ({
-                ...Selection.collapseToLast(context),
-                editing: context.lastSelectedId
-                  ? { elementId: context.lastSelectedId, mode: "popover" }
-                  : null,
+                editing:
+                  context.selection?.kind === "element"
+                    ? {
+                        elementId: context.selection.elementId,
+                        mode: "popover" as const,
+                      }
+                    : null,
               })),
             },
             OPEN_INSERT: {
@@ -247,8 +183,7 @@ export const editorMachine = setup({
             START_INLINE_EDIT: {
               guard: "notDragging",
               target: "editing",
-              actions: assign(({ context, event }) => ({
-                ...Selection.collapseToLast(context),
+              actions: assign(({ event }) => ({
                 editing:
                   event.trigger === "replace"
                     ? {
@@ -290,18 +225,26 @@ export const editorMachine = setup({
           on: {
             SELECT: {
               target: "selected",
-              actions: assign(({ event }) => Selection.of(event.elementId)),
+              actions: assign(({ event }) => ({
+                selection: event.target,
+              })),
             },
             DESELECT: {
               target: "idle",
               actions: assign(() => ({
-                ...Selection.clear(),
-                hoveredId: null,
+                selection: null,
+                hovered: null,
               })),
             },
-            ESCAPE: {
-              target: "selected",
-            },
+            ESCAPE: [
+              {
+                guard: ({ context }) => selectionIsSlot(context),
+                target: "selected",
+              },
+              {
+                target: "selected",
+              },
+            ],
           },
         },
       },

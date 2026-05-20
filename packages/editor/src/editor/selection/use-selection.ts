@@ -5,17 +5,18 @@ import type { EditorEvent } from "../machine/index.js";
 
 // --- Hit → machine event mapping ---
 
-export const hoverEvent = (hit: Hit | null): EditorEvent =>
-  hit ? { type: "HOVER", elementId: hit.elementId } : { type: "UNHOVER" };
+export const hoverEvent = (hit: Hit | null): EditorEvent => ({
+  type: "HOVER",
+  target: hit,
+});
 
-export const selectEvent = (hit: Hit | null, multi: boolean): EditorEvent =>
-  hit
-    ? { type: multi ? "TOGGLE_SELECT" : "SELECT", elementId: hit.elementId }
-    : { type: "DESELECT" };
+export const selectEvent = (hit: Hit | null): EditorEvent =>
+  hit ? { type: "SELECT", target: hit } : { type: "DESELECT" };
 
 // --- Hook ---
 
-/** Wire pointer events (mousemove, click) to the editor machine. */
+/** Wire pointer events (mousemove, click) to the editor machine.
+ *  Shift-click is reserved (treated as a plain click). */
 export function useEditorSelection(
   registry: FiberRegistry | null,
   send: (event: EditorEvent) => void,
@@ -34,9 +35,7 @@ export function useEditorSelection(
 
       const onClick = (e: MouseEvent) => {
         if (isFromShadowDom(e)) return;
-        send(
-          selectEvent(resolveHit(registry, e.clientX, e.clientY), e.shiftKey),
-        );
+        send(selectEvent(resolveHit(registry, e.clientX, e.clientY)));
       };
 
       document.addEventListener("mousemove", onMove, { passive: true });
