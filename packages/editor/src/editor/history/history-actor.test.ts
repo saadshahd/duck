@@ -38,6 +38,12 @@ describe("xstate init", () => {
   });
 });
 
+describe("xstate stop", () => {
+  test("returns the same context", () => {
+    expect(transition(empty, { type: "xstate.stop" })).toBe(empty);
+  });
+});
+
 describe("PUSH", () => {
   test("push to empty history", () => {
     const ctx = push(empty, "first");

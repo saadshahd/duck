@@ -78,6 +78,11 @@ describe("resolution actor", () => {
     expect(transition(ctx, { type: "xstate.init" })).toBe(ctx);
   });
 
+  test("xstate stop returns the same context", () => {
+    const ctx = context();
+    expect(transition(ctx, { type: "xstate.stop" })).toBe(ctx);
+  });
+
   test("unknown ids and nodes without resolvers no-op", () => {
     const ctx = context();
     expect(

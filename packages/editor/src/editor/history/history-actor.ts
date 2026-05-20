@@ -11,8 +11,8 @@ import type {
 
 const MAX_ENTRIES = 100;
 
-type XStateInitEvent = { type: "xstate.init" };
-type HistoryTransitionEvent = HistoryEvent | XStateInitEvent;
+type XStateEvent = { type: "xstate.init" } | { type: "xstate.stop" };
+type HistoryTransitionEvent = HistoryEvent | XStateEvent;
 type HistoryTransitionEventOf<
   EventType extends HistoryTransitionEvent["type"],
 > = Extract<HistoryTransitionEvent, { type: EventType }>;
@@ -225,7 +225,8 @@ const restore: Handler<"RESTORE"> = (ctx, event) =>
     ? { ...ctx, currentIndex: event.index }
     : ctx;
 
-const ignore: Handler<"xstate.init"> = (ctx) => ctx;
+const ignoreInit: Handler<"xstate.init"> = (ctx) => ctx;
+const ignoreStop: Handler<"xstate.stop"> = (ctx) => ctx;
 
 const handlers = {
   PUSH: push,
@@ -236,7 +237,8 @@ const handlers = {
   REDO: redo,
   RENAME: rename,
   RESTORE: restore,
-  "xstate.init": ignore,
+  "xstate.init": ignoreInit,
+  "xstate.stop": ignoreStop,
 } satisfies {
   [EventType in HistoryTransitionEvent["type"]]: Handler<EventType>;
 };

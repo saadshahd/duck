@@ -48,8 +48,8 @@ export type ResolutionEvent =
     }
   | { type: "RESET" };
 
-type XStateInitEvent = { type: "xstate.init" };
-type ResolutionTransitionEvent = ResolutionEvent | XStateInitEvent;
+type XStateEvent = { type: "xstate.init" } | { type: "xstate.stop" };
+type ResolutionTransitionEvent = ResolutionEvent | XStateEvent;
 type ResolutionEventOf<EventType extends ResolutionEvent["type"]> = Extract<
   ResolutionEvent,
   { type: EventType }
@@ -288,13 +288,15 @@ type Handler<EventType extends ResolutionTransitionEvent["type"]> = (
   scope?: ResolutionScope,
 ) => ResolutionContext;
 
-const ignore: Handler<"xstate.init"> = (ctx) => ctx;
+const ignoreInit: Handler<"xstate.init"> = (ctx) => ctx;
+const ignoreStop: Handler<"xstate.stop"> = (ctx) => ctx;
 
 const handlers = {
   OP: handleOp,
   SETTLED: handleSettled,
   RESET: resetResolutionState,
-  "xstate.init": ignore,
+  "xstate.init": ignoreInit,
+  "xstate.stop": ignoreStop,
 } satisfies {
   [K in ResolutionTransitionEvent["type"]]: (
     ctx: ResolutionContext,
