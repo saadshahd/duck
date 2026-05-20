@@ -2,12 +2,14 @@ import {
   createContext,
   useCallback,
   useContext,
+  useEffect,
   useMemo,
   useRef,
   useState,
   type ReactNode,
 } from "react";
 import type { Config, Data, Metadata } from "@puckeditor/core";
+import { deepEqual } from "fast-equals";
 import {
   buildIndex,
   findById,
@@ -46,7 +48,9 @@ import {
   MorphOverlay,
   usePatterns,
 } from "./morph/index.js";
-import type { DataPush } from "./types.js";
+import { useResolution } from "./resolve/use-resolution.js";
+import { ShimmerOverlay } from "./resolve/shimmer-overlay.js";
+import type { DataPush, ResolveOpEmit } from "./types.js";
 
 export type EditorProps<UserConfig extends Config = Config> = {
   data: Partial<Data>;
@@ -61,6 +65,7 @@ type Internals = {
   currentData: Data;
   lastSelectedId: string | null;
   push: DataPush;
+  emitOp: ResolveOpEmit;
 };
 
 const EditorInternalsContext = createContext<Internals | null>(null);
@@ -86,16 +91,34 @@ export function Editor<UserConfig extends Config = Config>({
   children,
 }: EditorProps<UserConfig>) {
   const initialData = useMemo(() => normalizeData(data), [data]);
+  const history = useHistory(initialData, onChange);
   const {
     currentData,
     push,
+    reset,
     send: historySend,
     entries,
     currentIndex,
     visibilityState,
     onMouseEnter: timelineMouseEnter,
     onMouseLeave: timelineMouseLeave,
-  } = useHistory(initialData, onChange);
+  } = history;
+  const resolvedMetadata = useMemo(() => metadata ?? {}, [metadata]);
+  const { emitOp, resolvingIds, errorIds } = useResolution({
+    config,
+    metadata: resolvedMetadata,
+    history,
+  });
+  const lastSeenPropRef = useRef(data);
+
+  useEffect(() => {
+    if (data === lastSeenPropRef.current) return;
+    const next = normalizeData(data);
+    lastSeenPropRef.current = data;
+    if (deepEqual(next, currentData)) return;
+    reset(next);
+  }, [data, currentData, reset]);
+
   const [state, send] = useMachine(editorMachine);
 
   const index = useMemo(() => buildIndex(currentData), [currentData]);
@@ -114,6 +137,7 @@ export function Editor<UserConfig extends Config = Config>({
     state,
     send,
     push,
+    emitOp,
   });
   const popover = usePropEditor({
     registry: fiberRegistry,
@@ -123,6 +147,7 @@ export function Editor<UserConfig extends Config = Config>({
     state,
     send,
     push,
+    emitOp,
   });
 
   const { selectedIds, lastSelectedId } = state.context;
@@ -134,6 +159,7 @@ export function Editor<UserConfig extends Config = Config>({
     state,
     send,
     push,
+    emitOp,
     axis: moveInfo.axis,
   });
 
@@ -148,6 +174,7 @@ export function Editor<UserConfig extends Config = Config>({
     config: config,
     lastSelectedId,
     push,
+    emitOp,
     onSelect: (ids) =>
       send(
         ids.length === 1
@@ -163,6 +190,7 @@ export function Editor<UserConfig extends Config = Config>({
     lastSelectedId,
     send,
     push,
+    emitOp,
   });
 
   useKeyboard({
@@ -211,6 +239,7 @@ export function Editor<UserConfig extends Config = Config>({
     selectedId: singleSelected,
     data: currentData,
     push,
+    emitOp,
   });
 
   const morphSelectedElement = useMemo(
@@ -242,8 +271,8 @@ export function Editor<UserConfig extends Config = Config>({
   );
 
   const internals = useMemo<Internals>(
-    () => ({ currentData, lastSelectedId, push }),
-    [currentData, lastSelectedId, push],
+    () => ({ currentData, lastSelectedId, push, emitOp }),
+    [currentData, lastSelectedId, push, emitOp],
   );
 
   return (
@@ -275,6 +304,11 @@ export function Editor<UserConfig extends Config = Config>({
             elementType={index.get(highlightId)?.component.type}
           />
         )}
+        <ShimmerOverlay
+          registry={fiberRegistry}
+          resolvingIds={resolvingIds}
+          errorIds={errorIds}
+        />
         {hasSelection && (
           <>
             {[...selectedIds].map((id) => (

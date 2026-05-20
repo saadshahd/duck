@@ -43,12 +43,70 @@ works with `<Puck>` works here.
 it returns:
 
 ```ts
-{ currentData: Data; lastSelectedId: string | null; push: (data: Data, label: string) => void }
+{
+  currentData: Data;
+  lastSelectedId: string | null;
+  push: (data: Data, label: string) => DataPushResult;
+  emitOp: ResolveOpEmit;
+}
 ```
 
 The hook is the supported way for wrappers to read the live document, observe
 selection, or inject committed snapshots (used by the bridge to relay agent
-edits). The shape is a stable extension contract — changes to it are breaking.
+edits). `emitOp` is exposed for bridge and wrapper experiments; it may still
+change before the first stable release.
+
+## `resolveData`
+
+Duck supports component-level `config.components[type].resolveData`. Hosts own
+initial and external data resolution: pass Duck already-resolved `data`, and
+when the external `data` prop changes Duck resets to that snapshot without
+running resolvers or echoing an `onChange`.
+
+Duck re-runs resolvers after Duck-owned mutations:
+
+- inserts resolve the inserted component id
+- prop edits resolve the edited component id
+- moves and drags resolve the moved component id
+- morphs resolve the morphed component id
+- bridge `"spec-update"` commits force-resolve every resolver-bearing component
+  in the incoming document
+- removes clear pending and error resolver state for the removed ids and their
+  descendants
+
+Resolver params follow Puck's shape for the resolved component:
+
+- `changed` is top-level prop-key deep equality against the previous input
+  passed to the same id's resolver
+- `lastData` is that previous input, or `null`
+- `metadata` is `{ ...hostMetadata, ...componentConfig.metadata }`; metadata is
+  not cloned, so host closures remain reachable
+- `trigger` is `"insert"`, `"replace"`, `"force"`, or `"move"` for current Duck
+  operations
+- `parent` is the actual parent component snapshot, or `null` for top-level
+  components
+
+Duck deliberately diverges from Puck here. It does not resolve root data, zones,
+or descendant cascades; it resolves exactly the target ids emitted by the editor
+operation. It also does not use Puck's skip cache or cancellation model. Instead,
+Duck suppresses stale async resolver results with per-id versions and patches
+history entries only when the target node still matches the resolver input.
+
+Resolver output is applied as a shallow props merge:
+
+```ts
+props = { ...input.props, ...resolved.props }
+```
+
+A non-empty `readOnly` object replaces the component's existing `readOnly`.
+Missing or empty `readOnly` leaves the existing value unchanged.
+
+Async behavior is visible to hosts through normal history updates. A mutation
+can produce one `onChange` for the immediate edit and a second `onChange` when
+the resolver finishes, but only if the resolved history entry is still current.
+If the user has undone or restored elsewhere, Duck patches that historical entry
+silently so returning to it later sees resolved data without sending stale
+`onChange` data.
 
 ## Not supported
 
@@ -87,7 +145,6 @@ on `puck.isEditing` will see the production code path inside Duck.
 These items are deliberate gaps, tracked for the first stable release:
 
 - **Slot allow/disallow enforcement** — honor `Config.components[].fields[].allow`/`disallow` on insert/move.
-- **`resolveData` integration** — run on load, insert, edit, and move, so derived fields update in real time.
 - **Independently-selectable slots** — today only components are selectable; slots themselves should be too.
 - **Field UI parity** — Duck's prop editor is a small subset of Puck's field types.
 

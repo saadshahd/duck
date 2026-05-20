@@ -8,7 +8,8 @@ import type {
   InlineEditing,
 } from "../machine/index.js";
 import { editProp } from "../spec-ops/index.js";
-import type { DataPush } from "../types.js";
+import type { DataPush, ResolveOpEmit } from "../types.js";
+import { emitResolveOp } from "../resolve-op.js";
 import { useDoubleClickEdit } from "./use-double-click-edit.js";
 import { useKeyboardEdit } from "./use-keyboard-edit.js";
 import { useInlineEdit } from "./inline-input.js";
@@ -23,9 +24,9 @@ type UsePropEditorProps = {
   state: EditorSnapshot;
   send: (event: EditorEvent) => void;
   push: DataPush;
+  emitOp: ResolveOpEmit;
 };
 
-/** Orchestrates all prop-editing interactions. Returns popover element for the overlay. */
 export function usePropEditor({
   registry,
   data,
@@ -34,6 +35,7 @@ export function usePropEditor({
   state,
   send,
   push,
+  emitOp,
 }: UsePropEditorProps): ReactNode {
   useDoubleClickEdit({ registry, data, config, send });
 
@@ -41,25 +43,46 @@ export function usePropEditor({
   const { lastSelectedId } = state.context;
   useKeyboardEdit({ registry, data, config, lastSelectedId, pointer, send });
 
-  // --- Inline editing lifecycle ---
   const editing = state.context.editing;
   const inline = editing?.mode === "inline" ? (editing as InlineEditing) : null;
+
+  const commitPropEdit = useCallback(
+    ({
+      elementId,
+      propKey,
+      value,
+      label,
+    }: {
+      elementId: string;
+      propKey: string;
+      value: unknown;
+      label: string;
+    }) =>
+      editProp(data, elementId, [propKey], value, config).map((next) => {
+        const result = push(next, label, `prop:${elementId}`);
+        emitResolveOp({
+          result,
+          emitOp,
+          op: { type: "update", id: elementId, trigger: "replace" },
+          data: next,
+        });
+      }),
+    [data, config, push, emitOp],
+  );
 
   const commitInline = useCallback(
     (value: string) => {
       if (inline) {
-        editProp(data, inline.elementId, [inline.propKey], value, config).map(
-          (next) =>
-            push(
-              next,
-              `Edited text: "${String(value).slice(0, 30)}"`,
-              `prop:${inline.elementId}`,
-            ),
-        );
+        commitPropEdit({
+          elementId: inline.elementId,
+          propKey: inline.propKey,
+          value,
+          label: `Edited text: "${String(value).slice(0, 30)}"`,
+        });
       }
       send({ type: "COMMIT_EDIT", newValue: value });
     },
-    [inline, data, config, push, send],
+    [inline, commitPropEdit, send],
   );
 
   const cancelInline = useCallback(() => send({ type: "CANCEL_EDIT" }), [send]);
@@ -71,7 +94,6 @@ export function usePropEditor({
     onCancel: cancelInline,
   });
 
-  // --- Popover editing ---
   const popoverComponent =
     editing?.mode === "popover" ? findById(data, editing.elementId) : null;
 
@@ -84,11 +106,14 @@ export function usePropEditor({
   const handlePropChange = useCallback(
     (propKey: string, value: unknown) => {
       if (!editing) return;
-      editProp(data, editing.elementId, [propKey], value, config).map((next) =>
-        push(next, `Changed ${propKey}`, `prop:${editing.elementId}`),
-      );
+      commitPropEdit({
+        elementId: editing.elementId,
+        propKey,
+        value,
+        label: `Changed ${propKey}`,
+      });
     },
-    [editing, data, config, push],
+    [editing, commitPropEdit],
   );
 
   const handleClose = useCallback(() => send({ type: "CANCEL_EDIT" }), [send]);

@@ -17,19 +17,31 @@ export function DemoEditor<UserConfig extends Config = Config>({
   ...editorProps
 }: DemoEditorProps<UserConfig>) {
   return (
-    <Editor {...editorProps}>{bridge && <BridgeConnector bridge={bridge} />}</Editor>
+    <Editor {...editorProps}>
+      {bridge && (
+        <BridgeConnector bridge={bridge} config={editorProps.config} />
+      )}
+    </Editor>
   );
 }
 
-function BridgeConnector({ bridge }: { bridge: BridgeConfig }) {
+function BridgeConnector({
+  bridge,
+  config,
+}: {
+  bridge: BridgeConfig;
+  config: Config;
+}) {
   const [url, setUrl] = useState(bridge.url);
-  const { currentData, lastSelectedId, push } = useEditorInternals();
+  const { currentData, lastSelectedId, push, emitOp } = useEditorInternals();
   const { status } = useBridge({
     url,
     page: bridge.page,
     selectedId: lastSelectedId,
     currentData,
+    config,
     push,
+    emitOp,
   });
 
   return (

@@ -1,13 +1,15 @@
 import { useEffect, useRef, useState } from "react";
-import type { Data } from "@puckeditor/core";
-import equal from "fast-deep-equal";
+import type { Config, Data } from "@puckeditor/core";
+import { deepEqual } from "fast-equals";
 import {
   buildParentMap,
   getAncestry,
   type BrowserMessage,
   type ServerMessage,
 } from "@duckeditor/spec";
-import type { DataPush } from "../types.js";
+import type { DataPush, ResolveOpEmit } from "../types.js";
+import { resolverIds } from "../resolve-config.js";
+import { emitResolveOp } from "../resolve-op.js";
 
 export type BridgeStatus = "connecting" | "connected" | "disconnected";
 
@@ -16,24 +18,39 @@ type UseBridgeOptions = {
   page: string;
   selectedId: string | null;
   currentData: Data;
+  config: Config;
   push: DataPush;
+  emitOp: ResolveOpEmit;
 };
 
 type SendFn = (msg: BrowserMessage) => void;
+type SpecUpdateMessage = Extract<ServerMessage, { type: "spec-update" }>;
 
 const MAX_RETRIES = 5;
 const BACKOFF_MS = [1000, 2000, 4000, 8000, 8000] as const;
+
+const isSpecUpdate = (msg: ServerMessage): msg is SpecUpdateMessage =>
+  msg.type === "spec-update";
 
 export function useBridge({
   url,
   page,
   selectedId,
   currentData,
+  config,
   push,
+  emitOp,
 }: UseBridgeOptions): { status: BridgeStatus } {
   const [status, setStatus] = useState<BridgeStatus>("connecting");
-  const latest = useRef({ page, selectedId, currentData, push });
-  latest.current = { page, selectedId, currentData, push };
+  const latest = useRef({
+    page,
+    selectedId,
+    currentData,
+    config,
+    push,
+    emitOp,
+  });
+  latest.current = { page, selectedId, currentData, config, push, emitOp };
 
   const sendRef = useRef<SendFn | null>(null);
 
@@ -50,22 +67,29 @@ export function useBridge({
         }
       };
 
+      function handleSpecUpdate(msg: SpecUpdateMessage) {
+        const incoming = msg.data;
+        if (deepEqual(incoming, latest.current.currentData)) return;
+
+        const result = latest.current.push(incoming, "Agent commit");
+        emitResolveOp({
+          result,
+          emitOp: latest.current.emitOp,
+          op: {
+            type: "force",
+            ids: resolverIds({
+              data: incoming,
+              config: latest.current.config,
+            }),
+            trigger: "force",
+          },
+          data: incoming,
+        });
+      }
+
       function handleMessage(event: MessageEvent) {
         const msg = JSON.parse(event.data) as ServerMessage;
-        const dispatch: Record<ServerMessage["type"], () => void> = {
-          "spec-update": () => {
-            const incoming = (
-              msg as Extract<ServerMessage, { type: "spec-update" }>
-            ).data;
-            if (!equal(incoming, latest.current.currentData)) {
-              latest.current.push(incoming, "Agent commit");
-            }
-          },
-          "capture-request": () => {
-            // No capture support yet — let the server time out naturally
-          },
-        };
-        dispatch[msg.type]?.();
+        if (isSpecUpdate(msg)) handleSpecUpdate(msg);
       }
 
       function connect() {

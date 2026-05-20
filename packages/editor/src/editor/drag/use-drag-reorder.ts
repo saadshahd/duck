@@ -23,7 +23,8 @@ import {
   tagTransitionNames,
 } from "./helpers.js";
 import { animatedUpdate } from "../animated-update.js";
-import type { DataPush } from "../types.js";
+import type { DataPush, ResolveOpEmit } from "../types.js";
+import { emitResolveOp } from "../resolve-op.js";
 import { resolveIndicator } from "./resolve-indicator.js";
 import { resolveDrop } from "./resolve-drop.js";
 
@@ -36,6 +37,7 @@ type Props = {
   state: EditorSnapshot;
   send: (event: EditorEvent) => void;
   push: DataPush;
+  emitOp: ResolveOpEmit;
 };
 
 const stateOf = (s: EditorSnapshot) =>
@@ -50,6 +52,7 @@ export function useDragReorder({
   state,
   send,
   push,
+  emitOp,
 }: Props): {
   dropTarget: DropTarget | null;
 } {
@@ -60,6 +63,8 @@ export function useDragReorder({
   indexRef.current = index;
   const pushRef = useRef(push);
   pushRef.current = push;
+  const emitOpRef = useRef(emitOp);
+  emitOpRef.current = emitOp;
 
   const { lastSelectedId, selectedIds } = state.context;
   const pointer = stateOf(state).pointer;
@@ -209,10 +214,19 @@ export function useDragReorder({
         descendants = new Set();
         if (!result) return send({ type: "DRAG_CANCEL" });
         result.newData.map((d) => {
-          animatedUpdate(
-            (next) => pushRef.current(next, "Reordered element"),
-            d,
-          );
+          animatedUpdate((next) => {
+            const entry = pushRef.current(next, "Reordered element");
+            emitResolveOp({
+              result: entry,
+              emitOp: emitOpRef.current,
+              op: {
+                type: "move",
+                id: source.data.elementId as string,
+                trigger: "move",
+              },
+              data: next,
+            });
+          }, d);
         });
         send(result.event);
       },

@@ -3,8 +3,8 @@ import { useEffect, useRef, useCallback } from "react";
 import type { FiberRegistry } from "../fiber/index.js";
 import { ZERO_RECT } from "../layout/index.js";
 
-export const INSET = -2; // border extends outside element bounds (system.md)
-export const EXPAND = 4; // 2px border on each side
+export const INSET = -2;
+export const EXPAND = 4;
 
 const clearRect = (div: HTMLDivElement) => {
   div.style.top = "";

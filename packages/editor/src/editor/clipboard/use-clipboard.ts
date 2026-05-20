@@ -1,21 +1,23 @@
 import { useCallback, useRef } from "react";
 import type { ComponentData, Config, Data } from "@puckeditor/core";
-import { findParent } from "@duckeditor/spec";
+import { collectDescendants, findParent } from "@duckeditor/spec";
 import { copy, paste, remove } from "../spec-ops/index.js";
-import type { ClipboardActions, DataPush } from "../types.js";
-
-// --- Types ---
+import {
+  type ClipboardActions,
+  type DataPush,
+  type ResolveOpEmit,
+} from "../types.js";
+import { emitResolveOp } from "../resolve-op.js";
 
 type ClipboardDeps = {
   data: Data;
   config: Config;
   lastSelectedId: string | null;
   push: DataPush;
+  emitOp: ResolveOpEmit;
   onSelect: (elementIds: string[]) => void;
   onDeselect: () => void;
 };
-
-// --- Clipboard I/O ---
 
 const FRAGMENT_TAG = "puck-fragment";
 
@@ -37,8 +39,6 @@ const readFragment = async (): Promise<ComponentData | null> => {
   }
 };
 
-// --- Paste position ---
-
 /** Where to paste relative to the current selection.
  *  Paste as next sibling of selected; appends to top-level if no selection. */
 const pastePosition = (
@@ -57,8 +57,6 @@ const pastePosition = (
   return { ...parent, index: parent.index + 1 };
 };
 
-// --- Hook ---
-
 export function useClipboard(deps: ClipboardDeps): ClipboardActions {
   const ref = useRef(deps);
   ref.current = deps;
@@ -70,15 +68,25 @@ export function useClipboard(deps: ClipboardDeps): ClipboardActions {
   }, []);
 
   const onCut = useCallback(() => {
-    const { data, lastSelectedId, push, onDeselect } = ref.current;
+    const { data, lastSelectedId, push, emitOp, onDeselect } = ref.current;
     if (!lastSelectedId) return;
+    const removedIds = [
+      lastSelectedId,
+      ...collectDescendants(data, lastSelectedId),
+    ];
     copy(data, lastSelectedId)
       .andThen((component) => {
         writeFragment(component);
         return remove(data, lastSelectedId);
       })
       .map((next) => {
-        push(next, "Cut");
+        const result = push(next, "Cut");
+        emitResolveOp({
+          result,
+          emitOp,
+          op: { type: "remove", ids: removedIds },
+          data: next,
+        });
         onDeselect();
       });
   }, []);
@@ -87,7 +95,7 @@ export function useClipboard(deps: ClipboardDeps): ClipboardActions {
     const component = await readFragment();
     if (!component) return;
 
-    const { data, config, lastSelectedId, push, onSelect } = ref.current;
+    const { data, config, lastSelectedId, push, emitOp, onSelect } = ref.current;
     const position = pastePosition(data, lastSelectedId);
     if (!position) return;
 
@@ -99,13 +107,20 @@ export function useClipboard(deps: ClipboardDeps): ClipboardActions {
       config,
       position.index,
     ).map(({ data: next, id }) => {
-      push(next, "Pasted");
+      const result = push(next, "Pasted");
+      emitResolveOp({
+        result,
+        emitOp,
+        op: { type: "insert", id, trigger: "insert" },
+        data: next,
+      });
       onSelect([id]);
     });
   }, []);
 
   const onDuplicate = useCallback(() => {
-    const { data, config, lastSelectedId, push, onSelect } = ref.current;
+    const { data, config, lastSelectedId, push, emitOp, onSelect } =
+      ref.current;
     if (!lastSelectedId) return;
     const parent = findParent(data, lastSelectedId);
     if (!parent) return;
@@ -121,7 +136,13 @@ export function useClipboard(deps: ClipboardDeps): ClipboardActions {
         ),
       )
       .map(({ data: next, id }) => {
-        push(next, "Duplicated");
+        const result = push(next, "Duplicated");
+        emitResolveOp({
+          result,
+          emitOp,
+          op: { type: "insert", id, trigger: "insert" },
+          data: next,
+        });
         onSelect([id]);
       });
   }, []);

@@ -13,7 +13,11 @@ const data = (id?: string): Data => {
   };
 };
 
-const empty: HistoryContext = { entries: [], currentIndex: -1 };
+const empty: HistoryContext = {
+  entries: [],
+  currentIndex: -1,
+  suppressNextOnChange: false,
+};
 
 const push = (
   ctx: HistoryContext,
@@ -28,14 +32,13 @@ const push = (
     ...(opts?.group && { group: opts.group }),
   });
 
-// PUSH
-
 describe("PUSH", () => {
   test("push to empty history", () => {
     const ctx = push(empty, "first");
     expect(ctx.entries).toHaveLength(1);
     expect(ctx.currentIndex).toBe(0);
     expect(ctx.entries[0].label).toBe("first");
+    expect(typeof ctx.entries[0].id).toBe("string");
   });
 
   test("push multiple grows entries", () => {
@@ -76,8 +79,10 @@ describe("PUSH", () => {
 
   test("coalescing: same group replaces current entry", () => {
     let ctx = push(empty, "drag start", { group: "drag-1", timestamp: 10 });
+    const id = ctx.entries[0].id;
     ctx = push(ctx, "drag move", { group: "drag-1", timestamp: 20 });
     expect(ctx.entries).toHaveLength(1);
+    expect(ctx.entries[0].id).toBe(id);
     expect(ctx.entries[0].label).toBe("drag move");
     expect(ctx.entries[0].timestamp).toBe(10);
   });
@@ -134,7 +139,152 @@ describe("PUSH", () => {
   });
 });
 
-// UNDO
+describe("APPLY_RESOLUTION", () => {
+  test("patches a matching node in the targeted entry", () => {
+    const ctx = push(empty, "a", { dataId: "a" });
+    const entry = ctx.entries[0];
+    const input = entry.data.content[0];
+    const resolved = {
+      ...input,
+      props: { ...input.props, resolved: true },
+    };
+
+    const next = transition(ctx, {
+      type: "APPLY_RESOLUTION",
+      entryId: entry.id,
+      nodeId: input.props.id,
+      inputAtResolveTime: input,
+      resolvedNode: resolved,
+    });
+
+    expect(next.entries[0].data.content[0]).toEqual(resolved);
+  });
+
+  test("drops a patch when the node changed since invocation", () => {
+    const ctx = push(empty, "a", { dataId: "a" });
+    const entry = ctx.entries[0];
+    const input = entry.data.content[0];
+    const stale = {
+      ...input,
+      props: { ...input.props, text: "stale" },
+    };
+    const resolved = {
+      ...input,
+      props: { ...input.props, resolved: true },
+    };
+
+    const next = transition(ctx, {
+      type: "APPLY_RESOLUTION",
+      entryId: entry.id,
+      nodeId: input.props.id,
+      inputAtResolveTime: stale,
+      resolvedNode: resolved,
+    });
+
+    expect(next).toBe(ctx);
+  });
+
+  test("patches non-current entries without changing current index", () => {
+    let ctx = push(push(empty, "a", { dataId: "a" }), "b", { dataId: "b" });
+    ctx = transition(ctx, { type: "UNDO" });
+    const entry = ctx.entries[1];
+    const input = entry.data.content[0];
+    const resolved = {
+      ...input,
+      props: { ...input.props, resolved: true },
+    };
+
+    const next = transition(ctx, {
+      type: "APPLY_RESOLUTION",
+      entryId: entry.id,
+      nodeId: input.props.id,
+      inputAtResolveTime: input,
+      resolvedNode: resolved,
+    });
+
+    expect(next.currentIndex).toBe(0);
+    expect(next.entries[1].data.content[0]).toEqual(resolved);
+  });
+
+  test("preserves the target id when resolver output changes props.id", () => {
+    const ctx = push(empty, "a", { dataId: "stable" });
+    const entry = ctx.entries[0];
+    const input = entry.data.content[0];
+    const resolved = {
+      ...input,
+      props: { ...input.props, id: "wrong", resolved: true },
+    };
+
+    const next = transition(ctx, {
+      type: "APPLY_RESOLUTION",
+      entryId: entry.id,
+      nodeId: input.props.id,
+      inputAtResolveTime: input,
+      resolvedNode: resolved,
+    });
+
+    expect(next.entries[0].data.content[0].props).toEqual({
+      id: "stable",
+      resolved: true,
+    });
+  });
+
+  test("returns the same context when the entry or node is gone", () => {
+    const ctx = push(empty, "a", { dataId: "a" });
+    const input = ctx.entries[0].data.content[0];
+    const resolved = {
+      ...input,
+      props: { ...input.props, resolved: true },
+    };
+
+    expect(
+      transition(ctx, {
+        type: "APPLY_RESOLUTION",
+        entryId: "missing",
+        nodeId: input.props.id,
+        inputAtResolveTime: input,
+        resolvedNode: resolved,
+      }),
+    ).toBe(ctx);
+    expect(
+      transition(ctx, {
+        type: "APPLY_RESOLUTION",
+        entryId: ctx.entries[0].id,
+        nodeId: "missing",
+        inputAtResolveTime: input,
+        resolvedNode: resolved,
+      }),
+    ).toBe(ctx);
+  });
+});
+
+describe("RESET", () => {
+  test("replaces history with one suppressed entry", () => {
+    const ctx = push(push(empty, "a"), "b");
+    const next = transition(ctx, {
+      type: "RESET",
+      data: data("reset"),
+      timestamp: 10,
+    });
+
+    expect(next.entries).toHaveLength(1);
+    expect(next.currentIndex).toBe(0);
+    expect(next.entries[0].label).toBe("Reset state");
+    expect(next.entries[0].timestamp).toBe(10);
+    expect(next.suppressNextOnChange).toBe(true);
+  });
+
+  test("ACK_SUPPRESSED_CHANGE clears suppression", () => {
+    const ctx = transition(empty, {
+      type: "RESET",
+      data: data("reset"),
+      timestamp: 10,
+    });
+    const next = transition(ctx, { type: "ACK_SUPPRESSED_CHANGE" });
+
+    expect(next.suppressNextOnChange).toBe(false);
+  });
+});
 
 describe("UNDO", () => {
   test("undo from end decrements", () => {
@@ -156,8 +306,6 @@ describe("UNDO", () => {
     expect(next.currentIndex).toBe(0);
   });
 });
-
-// REDO
 
 describe("REDO", () => {
   test("redo from 0 increments", () => {
@@ -182,8 +330,6 @@ describe("REDO", () => {
     expect(next.currentIndex).toBe(2);
   });
 });
-
-// RENAME
 
 describe("RENAME", () => {
   test("rename valid index sets name", () => {
@@ -210,8 +356,6 @@ describe("RENAME", () => {
     expect(ctx.entries[0].name).toBe("v2");
   });
 });
-
-// RESTORE
 
 describe("RESTORE", () => {
   test("restore to valid index updates currentIndex", () => {

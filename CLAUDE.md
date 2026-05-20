@@ -28,6 +28,9 @@ When adding a dependency or utility:
 - Search npm and existing workspace code BEFORE writing custom. Name the package.
 - Do NOT reinvent: drag-and-drop, floating UI, state machines, MCP protocol, animation, Shadow DOM.
 
+When shaping APIs:
+- Return the shape the caller actually needs. Do not expose a generator/iterator when every caller immediately materializes an array. Keep lazy traversal internal and return the final collection at the boundary.
+
 When touching Puck data:
 - Use `@puckeditor/core` types (`Data`, `Config`, `ComponentData`) directly. Do NOT redeclare them.
 - Use tree-traversal helpers from `@duckeditor/spec` (`findById`, `findParent`, `buildIndex`, `slotKeysOf`, `preOrder`, etc.). Do NOT reimplement tree walking.

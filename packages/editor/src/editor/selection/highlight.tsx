@@ -1,5 +1,9 @@
-import { useHighlightRef, INSET, EXPAND } from "./use-highlight-ref.js";
-import { useShadowSheet } from "../overlay/index.js";
+import {
+  useHighlightRef,
+  INSET,
+  EXPAND,
+  useShadowSheet,
+} from "../overlay/index.js";
 import type { FiberRegistry } from "../fiber/index.js";
 import css from "./selection.css?inline";
 

@@ -12,7 +12,7 @@ const external = [
   "@floating-ui/react",
   "@xstate/react",
   "bippy",
-  "fast-deep-equal",
+  "fast-equals",
   "neverthrow",
   "react-shadow",
   "tinykeys",

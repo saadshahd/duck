@@ -26,11 +26,14 @@
           "src/editor/fiber/**",
           "src/editor/overlay/**",
           "src/editor/machine/**",
+          "src/editor/testing/**",
           "src/editor/layout/**",
           "src/editor/spec-ops/**",
           "src/editor/bridge/**",
           "src/editor/duck-render/**",
           "src/editor/animated-update.ts",
+          "src/editor/resolve-config.ts",
+          "src/editor/resolve-op.ts",
           "src/editor/types.ts"
         ]
       },
@@ -44,7 +47,8 @@
       { "name": "editor-domain-clipboard",     "root": "packages/editor/", "patterns": ["src/editor/clipboard/**"] },
       { "name": "editor-domain-insert",        "root": "packages/editor/", "patterns": ["src/editor/insert/**"] },
       { "name": "editor-domain-ghost",         "root": "packages/editor/", "patterns": ["src/editor/ghost/**"] },
-      { "name": "editor-domain-morph",         "root": "packages/editor/", "patterns": ["src/editor/morph/**"] }
+      { "name": "editor-domain-morph",         "root": "packages/editor/", "patterns": ["src/editor/morph/**"] },
+      { "name": "editor-domain-resolve",       "root": "packages/editor/", "patterns": ["src/editor/resolve/**"] }
     ],
     "rules": [
       { "from": "spec-pkg",       "allow": [] },
@@ -66,6 +70,7 @@
           "editor-domain-insert",
           "editor-domain-ghost",
           "editor-domain-morph",
+          "editor-domain-resolve",
           "spec-pkg",
           "patterns-pkg"
         ]
@@ -80,7 +85,8 @@
       { "from": "editor-domain-clipboard",    "allow": ["editor-infra", "spec-pkg"] },
       { "from": "editor-domain-insert",       "allow": ["editor-infra", "spec-pkg"] },
       { "from": "editor-domain-ghost",        "allow": ["editor-infra", "spec-pkg"] },
-      { "from": "editor-domain-morph",        "allow": ["editor-infra", "spec-pkg", "patterns-pkg"] }
+      { "from": "editor-domain-morph",        "allow": ["editor-infra", "spec-pkg", "patterns-pkg"] },
+      { "from": "editor-domain-resolve",      "allow": ["editor-infra", "spec-pkg"] }
     ]
   }
 }

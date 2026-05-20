@@ -1,12 +1,17 @@
 import { useCallback } from "react";
 import type { Data } from "@puckeditor/core";
-import { findById, findParent, nearestSibling } from "@duckeditor/spec";
-import { ok, type Result } from "neverthrow";
+import {
+  collectDescendants,
+  findById,
+  findParent,
+  nearestSibling,
+} from "@duckeditor/spec";
 import type { EditorEvent, EditorSnapshot } from "../machine/index.js";
 import type { Axis } from "../layout/index.js";
-import { move, remove, type SpecOpsError } from "../spec-ops/index.js";
+import { move, removeMany } from "../spec-ops/index.js";
 import { animatedUpdate } from "../animated-update.js";
-import type { DataPush } from "../types.js";
+import type { DataPush, ResolveOpEmit } from "../types.js";
+import { emitResolveOp } from "../resolve-op.js";
 import type { EditorAction } from "./action-bar.js";
 
 const MOVE_LABELS: Record<Axis, { prev: string; next: string }> = {
@@ -14,26 +19,19 @@ const MOVE_LABELS: Record<Axis, { prev: string; next: string }> = {
   horizontal: { prev: "left", next: "right" },
 };
 
-const removeMany = (
-  data: Data,
-  ids: readonly string[],
-): Result<Data, SpecOpsError> =>
-  ids.reduce<Result<Data, SpecOpsError>>(
-    (acc, id) => acc.andThen((d) => remove(d, id)),
-    ok(data),
-  );
-
 export function useActionHandler({
   data,
   state,
   send,
   push,
+  emitOp,
   axis,
 }: {
   data: Data;
   state: EditorSnapshot;
   send: (event: EditorEvent) => void;
   push: DataPush;
+  emitOp: ResolveOpEmit;
   axis: Axis;
 }): (action: EditorAction) => void {
   return useCallback(
@@ -64,24 +62,46 @@ export function useActionHandler({
             parent.parentId,
             parent.slotKey,
             parent.index + direction,
-          ).map((next) =>
-            animatedUpdate(
-              (d) =>
-                push(d, `Moved ${type} ${label}`, `move:${lastSelectedId}`),
-              next,
-            ),
-          );
+          ).map((next) => {
+            animatedUpdate((d) => {
+              const result = push(
+                d,
+                `Moved ${type} ${label}`,
+                `move:${lastSelectedId}`,
+              );
+              emitResolveOp({
+                result,
+                emitOp,
+                op: { type: "move", id: lastSelectedId, trigger: "move" },
+                data: d,
+              });
+            }, next);
+          });
           break;
         }
         case "delete": {
           const ids = [...selectedIds];
+          const removedIds = [
+            ...new Set(
+              ids.flatMap((id) => [id, ...collectDescendants(data, id)]),
+            ),
+          ];
+          const label =
+            ids.length > 1
+              ? `Deleted ${ids.length} elements`
+              : `Deleted ${type}`;
           const parentBefore = findParent(data, lastSelectedId);
           removeMany(data, ids).map((next) => {
+            const result = push(next, label);
+            emitResolveOp({
+              result,
+              emitOp,
+              op: { type: "remove", ids: removedIds },
+              data: next,
+            });
             if (ids.length > 1) {
-              push(next, `Deleted ${ids.length} elements`);
               send({ type: "DESELECT" });
             } else {
-              push(next, `Deleted ${type}`);
               const target = nearestSibling(
                 data,
                 parentBefore?.parentId ?? null,
@@ -102,6 +122,7 @@ export function useActionHandler({
       state.context.selectedIds,
       state.context.lastSelectedId,
       push,
+      emitOp,
       send,
       axis,
     ],

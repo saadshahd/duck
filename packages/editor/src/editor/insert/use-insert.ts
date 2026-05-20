@@ -9,7 +9,8 @@ import {
 } from "@duckeditor/spec";
 import { add } from "../spec-ops/index.js";
 import type { EditorEvent } from "../machine/index.js";
-import type { DataPush } from "../types.js";
+import type { DataPush, ResolveOpEmit } from "../types.js";
+import { emitResolveOp } from "../resolve-op.js";
 
 type InsertDeps = {
   data: Data;
@@ -17,6 +18,7 @@ type InsertDeps = {
   lastSelectedId: string | null;
   send: (event: EditorEvent) => void;
   push: DataPush;
+  emitOp: ResolveOpEmit;
 };
 
 type InsertTarget = {
@@ -71,7 +73,7 @@ export function useInsert(deps: InsertDeps): {
   ref.current = deps;
 
   const onInsert = useCallback((componentType: string) => {
-    const { data, config, lastSelectedId, send, push } = ref.current;
+    const { data, config, lastSelectedId, send, push, emitOp } = ref.current;
 
     const target = resolveInsertTarget(data, lastSelectedId);
     if (!target) return;
@@ -92,7 +94,13 @@ export function useInsert(deps: InsertDeps): {
       },
       config,
     ).map((next) => {
-      push(next, `Added ${componentType}`);
+      const result = push(next, `Added ${componentType}`);
+      emitResolveOp({
+        result,
+        emitOp,
+        op: { type: "insert", id, trigger: "insert" },
+        data: next,
+      });
       send({ type: "SELECT", elementId: id });
     });
   }, []);

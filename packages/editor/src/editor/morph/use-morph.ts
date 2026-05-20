@@ -3,7 +3,8 @@ import type { Data } from "@puckeditor/core";
 import { findById, type SectionPattern } from "@duckeditor/spec";
 import type { PatternRegistry, RemintIds } from "@duckeditor/patterns";
 import { replace } from "../spec-ops/index.js";
-import type { DataPush } from "../types.js";
+import type { DataPush, ResolveOpEmit } from "../types.js";
+import { emitResolveOp } from "../resolve-op.js";
 
 type MorphState = {
   count: number;
@@ -23,12 +24,14 @@ export function useMorph({
   selectedId,
   data,
   push,
+  emitOp,
 }: {
   registry: PatternRegistry | null;
   remintIds: RemintIds | null;
   selectedId: string | null;
   data: Data;
   push: DataPush;
+  emitOp: ResolveOpEmit;
 }): MorphState {
   const [isOpen, setIsOpen] = useState(false);
   const [activePattern, setActivePatternState] =
@@ -81,11 +84,17 @@ export function useMorph({
       const reminted = remintIds(merged, preservedIds);
       const replaceResult = replace(data, selectedId, reminted);
       if (replaceResult.isErr()) return;
-      push(replaceResult.value, `Morph: ${pattern.name}`);
+      const result = push(replaceResult.value, `Morph: ${pattern.name}`);
+      emitResolveOp({
+        result,
+        emitOp,
+        op: { type: "morph", id: selectedId, trigger: "replace" },
+        data: replaceResult.value,
+      });
       setIsOpen(false);
       setActivePatternState(null);
     },
-    [registry, remintIds, element, selectedId, data, push],
+    [registry, remintIds, element, selectedId, data, push, emitOp],
   );
 
   return {

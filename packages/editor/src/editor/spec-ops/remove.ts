@@ -24,3 +24,12 @@ export const remove = (data: Data, id: string): Result<Data, SpecOpsError> => {
     }),
   );
 };
+
+export const removeMany = (
+  data: Data,
+  ids: readonly string[],
+): Result<Data, SpecOpsError> =>
+  ids.reduce<Result<Data, SpecOpsError>>(
+    (result, id) => result.andThen((next) => remove(next, id)),
+    ok(data),
+  );
