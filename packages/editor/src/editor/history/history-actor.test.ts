@@ -1,6 +1,6 @@
 import { describe, test, expect } from "bun:test";
 import type { Data } from "@puckeditor/core";
-import { transition } from "./history-actor.js";
+import { actorTransition, transition } from "./history-actor.js";
 import type { HistoryContext } from "./types.js";
 
 let autoId = 0;
@@ -34,13 +34,13 @@ const push = (
 
 describe("xstate init", () => {
   test("returns the same context", () => {
-    expect(transition(empty, { type: "xstate.init" })).toBe(empty);
+    expect(actorTransition(empty, { type: "xstate.init" })).toBe(empty);
   });
 });
 
 describe("xstate stop", () => {
   test("returns the same context", () => {
-    expect(transition(empty, { type: "xstate.stop" })).toBe(empty);
+    expect(actorTransition(empty, { type: "xstate.stop" })).toBe(empty);
   });
 });
 

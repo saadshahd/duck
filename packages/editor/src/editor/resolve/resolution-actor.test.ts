@@ -4,6 +4,7 @@ import type { ComponentData, Config, Data, Metadata } from "@puckeditor/core";
 import { err, ok } from "neverthrow";
 import { expectOk } from "../testing/result.js";
 import {
+  actorTransition,
   transition,
   type ResolutionContext,
   type ResolutionEvent,
@@ -75,12 +76,12 @@ const op = (
 describe("resolution actor", () => {
   test("xstate init returns the same context", () => {
     const ctx = context();
-    expect(transition(ctx, { type: "xstate.init" })).toBe(ctx);
+    expect(actorTransition(ctx, { type: "xstate.init" })).toBe(ctx);
   });
 
   test("xstate stop returns the same context", () => {
     const ctx = context();
-    expect(transition(ctx, { type: "xstate.stop" })).toBe(ctx);
+    expect(actorTransition(ctx, { type: "xstate.stop" })).toBe(ctx);
   });
 
   test("unknown ids and nodes without resolvers no-op", () => {

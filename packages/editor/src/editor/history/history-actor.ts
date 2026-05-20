@@ -11,11 +11,8 @@ import type {
 
 const MAX_ENTRIES = 100;
 
-type XStateEvent = { type: "xstate.init" } | { type: "xstate.stop" };
-type HistoryTransitionEvent = HistoryEvent | XStateEvent;
-type HistoryTransitionEventOf<
-  EventType extends HistoryTransitionEvent["type"],
-> = Extract<HistoryTransitionEvent, { type: EventType }>;
+type XStateEvent = { type: `xstate.${string}` };
+type ActorEvent = HistoryEvent | XStateEvent;
 
 const createEntryId = (): string => crypto.randomUUID();
 
@@ -175,9 +172,9 @@ const buildResolutionPatch = (
   return data === entry.data ? null : { entryIndex, entry, data };
 };
 
-type Handler<EventType extends HistoryTransitionEvent["type"]> = (
+type Handler<EventType extends HistoryEvent["type"]> = (
   ctx: HistoryContext,
-  event: HistoryTransitionEventOf<EventType>,
+  event: HistoryEventOf<EventType>,
 ) => HistoryContext;
 
 const push: Handler<"PUSH"> = (ctx, event) => {
@@ -225,9 +222,6 @@ const restore: Handler<"RESTORE"> = (ctx, event) =>
     ? { ...ctx, currentIndex: event.index }
     : ctx;
 
-const ignoreInit: Handler<"xstate.init"> = (ctx) => ctx;
-const ignoreStop: Handler<"xstate.stop"> = (ctx) => ctx;
-
 const handlers = {
   PUSH: push,
   APPLY_RESOLUTION: applyResolution,
@@ -237,29 +231,32 @@ const handlers = {
   REDO: redo,
   RENAME: rename,
   RESTORE: restore,
-  "xstate.init": ignoreInit,
-  "xstate.stop": ignoreStop,
 } satisfies {
-  [EventType in HistoryTransitionEvent["type"]]: Handler<EventType>;
+  [EventType in HistoryEvent["type"]]: Handler<EventType>;
 };
 
-type AnyHandler = (
-  ctx: HistoryContext,
-  event: HistoryTransitionEvent,
-) => HistoryContext;
+type AnyHandler = (ctx: HistoryContext, event: HistoryEvent) => HistoryContext;
 
-const handlerFor = (event: HistoryTransitionEvent): AnyHandler =>
+const handlerFor = (event: HistoryEvent): AnyHandler =>
   handlers[event.type] as AnyHandler;
 
 export const transition = (
   ctx: HistoryContext,
-  event: HistoryTransitionEvent,
+  event: HistoryEvent,
 ): HistoryContext => handlerFor(event)(ctx, event);
+
+const isXStateEvent = (event: ActorEvent): event is XStateEvent =>
+  event.type.startsWith("xstate.");
+
+export const actorTransition = (
+  ctx: HistoryContext,
+  event: ActorEvent,
+): HistoryContext => (isXStateEvent(event) ? ctx : transition(ctx, event));
 
 type HistoryInput = { data: Data };
 
 export const historyLogic = fromTransition(
-  transition,
+  actorTransition,
   ({ input }: { input: HistoryInput }): HistoryContext => ({
     entries: [
       {

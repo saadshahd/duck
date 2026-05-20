@@ -48,15 +48,12 @@ export type ResolutionEvent =
     }
   | { type: "RESET" };
 
-type XStateEvent = { type: "xstate.init" } | { type: "xstate.stop" };
-type ResolutionTransitionEvent = ResolutionEvent | XStateEvent;
+type XStateEvent = { type: `xstate.${string}` };
+type ActorEvent = ResolutionEvent | XStateEvent;
 type ResolutionEventOf<EventType extends ResolutionEvent["type"]> = Extract<
   ResolutionEvent,
   { type: EventType }
 >;
-type ResolutionTransitionEventOf<
-  EventType extends ResolutionTransitionEvent["type"],
-> = Extract<ResolutionTransitionEvent, { type: EventType }>;
 
 type ResolutionInput = { applyResolution: ApplyResolution };
 
@@ -282,47 +279,52 @@ const resetResolutionState = (ctx: ResolutionContext): ResolutionContext => ({
   errorIds: new Set(),
 });
 
-type Handler<EventType extends ResolutionTransitionEvent["type"]> = (
+type Handler<EventType extends ResolutionEvent["type"]> = (
   ctx: ResolutionContext,
-  event: ResolutionTransitionEventOf<EventType>,
+  event: ResolutionEventOf<EventType>,
   scope?: ResolutionScope,
 ) => ResolutionContext;
-
-const ignoreInit: Handler<"xstate.init"> = (ctx) => ctx;
-const ignoreStop: Handler<"xstate.stop"> = (ctx) => ctx;
 
 const handlers = {
   OP: handleOp,
   SETTLED: handleSettled,
   RESET: resetResolutionState,
-  "xstate.init": ignoreInit,
-  "xstate.stop": ignoreStop,
 } satisfies {
-  [K in ResolutionTransitionEvent["type"]]: (
+  [K in ResolutionEvent["type"]]: (
     ctx: ResolutionContext,
-    event: ResolutionTransitionEventOf<K>,
+    event: ResolutionEventOf<K>,
     scope?: ResolutionScope,
   ) => ResolutionContext;
 };
 
 type AnyHandler = (
   ctx: ResolutionContext,
-  event: ResolutionTransitionEvent,
+  event: ResolutionEvent,
   scope?: ResolutionScope,
 ) => ResolutionContext;
 
-const handlerFor = (event: ResolutionTransitionEvent): AnyHandler =>
+const handlerFor = (event: ResolutionEvent): AnyHandler =>
   handlers[event.type] as AnyHandler;
 
 export const transition = (
   ctx: ResolutionContext,
-  event: ResolutionTransitionEvent,
+  event: ResolutionEvent,
   scope?: ResolutionScope,
 ): ResolutionContext => handlerFor(event)(ctx, event, scope);
 
+const isXStateEvent = (event: ActorEvent): event is XStateEvent =>
+  event.type.startsWith("xstate.");
+
+export const actorTransition = (
+  ctx: ResolutionContext,
+  event: ActorEvent,
+  scope?: ResolutionScope,
+): ResolutionContext =>
+  isXStateEvent(event) ? ctx : transition(ctx, event, scope);
+
 export const resolutionLogic = fromTransition(
-  (ctx: ResolutionContext, event: ResolutionEvent, actorScope) =>
-    transition(ctx, event, {
+  (ctx: ResolutionContext, event: ActorEvent, actorScope) =>
+    actorTransition(ctx, event, {
       defer: actorScope.defer,
       send: (next) => actorScope.self.send(next),
     }),
