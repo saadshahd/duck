@@ -28,6 +28,7 @@ import {
   useActionHandler,
   useMoveInfo,
   createSelectParent,
+  targetLabel,
 } from "./selection/index.js";
 import { usePropEditor } from "./prop-editor/use-prop-editor.jsx";
 import { useDragReorder, DropIndicator, DropZoneLabel } from "./drag/index.js";
@@ -222,12 +223,7 @@ export function Editor<UserConfig extends Config = Config>({
       : menuHighlightId
         ? Target.element(menuHighlightId)
         : null;
-  const hoverLabel =
-    hoverTarget?.kind === "element"
-      ? index.get(hoverTarget.elementId)?.component.type
-      : hoverTarget?.kind === "slot"
-        ? hoverTarget.slotKey
-        : undefined;
+  const hoverLabel = targetLabel(hoverTarget, index);
 
   const [boxModelVisible, setBoxModelVisible] = useState(false);
 
@@ -284,12 +280,7 @@ export function Editor<UserConfig extends Config = Config>({
     [currentData, lastSelectedId, commit],
   );
 
-  const insertAnchorId =
-    selection?.kind === "slot"
-      ? selection.parentId
-      : selection?.kind === "element"
-        ? selection.elementId
-        : null;
+  const insertAnchorId = Target.anchorId(selection);
 
   return (
     <EditorInternalsContext.Provider value={internals}>

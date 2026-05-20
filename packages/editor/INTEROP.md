@@ -108,11 +108,6 @@ If the user has undone or restored elsewhere, Duck patches that historical entry
 silently so returning to it later sees resolved data without sending stale
 `onChange` data.
 
-**Breaking change (current cleanup):** the previous shape exposed
-`lastSelectedId: string | null` and `selectedSlot: { parentId, slotKey } | null`
-as parallel fields. They are replaced by a single `selection: Target | null`.
-Multi-select is no longer supported — selection is always a single target.
-
 ## Not supported
 
 These Puck props are **not** accepted on `<Editor>`. They fall into two groups.

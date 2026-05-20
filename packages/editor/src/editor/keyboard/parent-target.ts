@@ -16,3 +16,23 @@ export const parentTarget = (
     return null;
   return Target.slot(parent.parentId, parent.slotKey);
 };
+
+type EscapeNav = {
+  data: Data;
+  selection: Target | null;
+  pointer: string;
+};
+
+type EscapeEvent =
+  | { type: "ESCAPE" }
+  | { type: "SELECT"; target: Target };
+
+/** Esc semantics: cancel transient modes; otherwise walk one step up the
+ *  selection ladder, falling back to clear at the top. */
+export const nextEscapeEvent = (nav: EscapeNav): EscapeEvent => {
+  if (nav.pointer === "selected" && nav.selection) {
+    const next = parentTarget(nav.data, nav.selection);
+    if (next) return { type: "SELECT", target: next };
+  }
+  return { type: "ESCAPE" };
+};

@@ -19,6 +19,10 @@ export const Target = {
   elementId: (t: Target | null): string | null =>
     t?.kind === "element" ? t.elementId : null,
 
+  /** Element id whose box anchors UI for this target — slot's parent or the element itself. */
+  anchorId: (t: Target | null): string | null =>
+    t?.kind === "element" ? t.elementId : t?.kind === "slot" ? t.parentId : null,
+
   equals: (a: Target | null, b: Target | null): boolean => {
     if (a === b) return true;
     if (!a || !b) return false;

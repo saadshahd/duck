@@ -6,7 +6,7 @@ import { Target } from "../machine/index.js";
 import type { ClipboardActions } from "../types.js";
 import { isEditable } from "../overlay/index.js";
 import { arrowToDirection } from "./navigation.js";
-import { parentTarget } from "./parent-target.js";
+import { nextEscapeEvent } from "./parent-target.js";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type Send = (event: any) => void;
@@ -47,23 +47,8 @@ const EVENT_DEFS: EventDef[] = [
   },
 ];
 
-/** Esc traversal: child element → enclosing slot → parent element → cleared. */
 const escapeBinding = (send: Send, navRef: React.RefObject<NavContext>) => ({
-  Escape: () => {
-    const nav = navRef.current;
-    if (nav.pointer === "editing" || nav.pointer === "inserting") {
-      send({ type: "ESCAPE" });
-      return;
-    }
-    if (nav.pointer === "selected" && nav.selection) {
-      const next = parentTarget(nav.data, nav.selection);
-      if (next) {
-        send({ type: "SELECT", target: next });
-        return;
-      }
-    }
-    send({ type: "ESCAPE" });
-  },
+  Escape: () => send(nextEscapeEvent(navRef.current)),
 });
 
 const eventBindings = (
