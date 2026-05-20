@@ -24,7 +24,7 @@ import {
 } from "./helpers.js";
 import { animatedUpdate } from "../animated-update.js";
 import type { DataPush, ResolveOpEmit } from "../types.js";
-import { emitResolveOp } from "../resolve-op.js";
+import { emitMoveResolveOp } from "../resolve-op.js";
 import { resolveIndicator } from "./resolve-indicator.js";
 import { resolveDrop } from "./resolve-drop.js";
 
@@ -204,10 +204,11 @@ export function useDragReorder({
       onDropTargetChange: ({ source, location }) => indicator(source, location),
       onDrop: ({ source, location }) => {
         setDropTarget(null);
+        const beforeData = dataRef.current;
         const result = resolveDrop(
           source,
           location.current.dropTargets[0],
-          dataRef.current,
+          beforeData,
           registry,
           descendants,
         );
@@ -216,15 +217,12 @@ export function useDragReorder({
         result.newData.map((d) => {
           animatedUpdate((next) => {
             const entry = pushRef.current(next, "Reordered element");
-            emitResolveOp({
+            emitMoveResolveOp({
               result: entry,
               emitOp: emitOpRef.current,
-              op: {
-                type: "move",
-                id: source.data.elementId as string,
-                trigger: "move",
-              },
-              data: next,
+              id: source.data.elementId as string,
+              beforeData,
+              afterData: next,
             });
           }, d);
         });

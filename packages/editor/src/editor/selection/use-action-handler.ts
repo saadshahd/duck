@@ -11,7 +11,7 @@ import type { Axis } from "../layout/index.js";
 import { move, removeMany } from "../spec-ops/index.js";
 import { animatedUpdate } from "../animated-update.js";
 import type { DataPush, ResolveOpEmit } from "../types.js";
-import { emitResolveOp } from "../resolve-op.js";
+import { emitMoveResolveOp, emitResolveOp } from "../resolve-op.js";
 import type { EditorAction } from "./action-bar.js";
 
 const MOVE_LABELS: Record<Axis, { prev: string; next: string }> = {
@@ -69,11 +69,12 @@ export function useActionHandler({
                 `Moved ${type} ${label}`,
                 `move:${lastSelectedId}`,
               );
-              emitResolveOp({
+              emitMoveResolveOp({
                 result,
                 emitOp,
-                op: { type: "move", id: lastSelectedId, trigger: "move" },
-                data: d,
+                id: lastSelectedId,
+                beforeData: data,
+                afterData: d,
               });
             }, next);
           });
