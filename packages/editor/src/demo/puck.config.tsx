@@ -1,12 +1,13 @@
 import { Fragment, type ReactNode } from "react";
 import type { Config } from "@puckeditor/core";
 
-// — Design tokens (plain option arrays for select fields) —
-
 const opt = <T extends string | number>(value: T) => ({
   label: String(value),
   value,
 });
+
+const delay = (ms: number) =>
+  new Promise<void>((resolve) => setTimeout(resolve, ms));
 
 const space = [
   "0",
@@ -50,7 +51,6 @@ const fontSize = [
 ].map(opt);
 
 const color = [
-  // Achromatic scale
   "#111111",
   "#2F3437",
   "#555555",
@@ -60,7 +60,6 @@ const color = [
   "#F7F6F3",
   "#FBFBFA",
   "#FFFFFF",
-  // Muted pastels
   "#FDEBEC",
   "#E1F3FE",
   "#EDF3EC",
@@ -203,6 +202,7 @@ export const config: Config = {
     Text: {
       fields: {
         text: { type: "textarea" },
+        resolvedText: { type: "text" },
         style: {
           type: "object",
           objectFields: {
@@ -218,19 +218,45 @@ export const config: Config = {
         text: "Add your content here.",
         style: { marginBottom: "1rem", lineHeight: "1.6" },
       },
-      render: ({ text, style }) => (
-        <p
-          style={{
-            marginTop: 0,
-            marginRight: 0,
-            marginLeft: 0,
-            marginBottom: "1rem",
-            lineHeight: "1.6",
-            ...style,
-          }}
-        >
-          {text}
-        </p>
+      resolveData: async (node, { trigger }) => {
+        await delay(1000);
+        return {
+          props: {
+            resolvedText: `Resolved ${trigger}: ${String(node.props.text ?? "")}`,
+          },
+          readOnly: { resolvedText: true },
+        };
+      },
+      render: ({ text, resolvedText, style }) => (
+        <div>
+          <p
+            style={{
+              marginTop: 0,
+              marginRight: 0,
+              marginLeft: 0,
+              marginBottom: "0.25rem",
+              lineHeight: "1.6",
+              ...style,
+            }}
+          >
+            {text}
+          </p>
+          {resolvedText ? (
+            <p
+              style={{
+                marginTop: 0,
+                marginRight: 0,
+                marginLeft: 0,
+                marginBottom: "1rem",
+                color: "#888888",
+                fontSize: "0.75rem",
+                lineHeight: "1.4",
+              }}
+            >
+              {resolvedText}
+            </p>
+          ) : null}
+        </div>
       ),
     },
 
