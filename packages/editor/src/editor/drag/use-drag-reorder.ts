@@ -23,8 +23,7 @@ import {
   tagTransitionNames,
 } from "./helpers.js";
 import { animatedUpdate } from "../animated-update.js";
-import type { DataPush, ResolveOpEmit } from "../types.js";
-import { emitMoveResolveOp } from "../resolve-op.js";
+import type { EditorCommit } from "../types.js";
 import { resolveIndicator } from "./resolve-indicator.js";
 import { resolveDrop } from "./resolve-drop.js";
 
@@ -36,8 +35,7 @@ type Props = {
   index: ReturnType<typeof buildIndex>;
   state: EditorSnapshot;
   send: (event: EditorEvent) => void;
-  push: DataPush;
-  emitOp: ResolveOpEmit;
+  commit: EditorCommit;
 };
 
 const stateOf = (s: EditorSnapshot) =>
@@ -51,8 +49,7 @@ export function useDragReorder({
   index,
   state,
   send,
-  push,
-  emitOp,
+  commit,
 }: Props): {
   dropTarget: DropTarget | null;
 } {
@@ -61,10 +58,8 @@ export function useDragReorder({
   dataRef.current = data;
   const indexRef = useRef(index);
   indexRef.current = index;
-  const pushRef = useRef(push);
-  pushRef.current = push;
-  const emitOpRef = useRef(emitOp);
-  emitOpRef.current = emitOp;
+  const commitRef = useRef(commit);
+  commitRef.current = commit;
 
   const { lastSelectedId, selectedIds } = state.context;
   const pointer = stateOf(state).pointer;
@@ -216,13 +211,11 @@ export function useDragReorder({
         if (!result) return send({ type: "DRAG_CANCEL" });
         result.newData.map((d) => {
           animatedUpdate((next) => {
-            const entry = pushRef.current(next, "Reordered element");
-            emitMoveResolveOp({
-              result: entry,
-              emitOp: emitOpRef.current,
-              id: source.data.elementId as string,
+            commitRef.current({
               beforeData,
               afterData: next,
+              label: "Reordered element",
+              resolve: { kind: "move", id: source.data.elementId as string },
             });
           }, d);
         });

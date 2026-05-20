@@ -8,8 +8,7 @@ import type {
   InlineEditing,
 } from "../machine/index.js";
 import { editProp } from "../spec-ops/index.js";
-import type { DataPush, ResolveOpEmit } from "../types.js";
-import { emitResolveOp } from "../resolve-op.js";
+import type { EditorCommit } from "../types.js";
 import { useDoubleClickEdit } from "./use-double-click-edit.js";
 import { useKeyboardEdit } from "./use-keyboard-edit.js";
 import { useInlineEdit } from "./inline-input.js";
@@ -23,8 +22,7 @@ type UsePropEditorProps = {
   metadata?: Metadata;
   state: EditorSnapshot;
   send: (event: EditorEvent) => void;
-  push: DataPush;
-  emitOp: ResolveOpEmit;
+  commit: EditorCommit;
 };
 
 export function usePropEditor({
@@ -34,8 +32,7 @@ export function usePropEditor({
   metadata,
   state,
   send,
-  push,
-  emitOp,
+  commit,
 }: UsePropEditorProps): ReactNode {
   useDoubleClickEdit({ registry, data, config, send });
 
@@ -59,15 +56,15 @@ export function usePropEditor({
       label: string;
     }) =>
       editProp(data, elementId, [propKey], value, config).map((next) => {
-        const result = push(next, label, `prop:${elementId}`);
-        emitResolveOp({
-          result,
-          emitOp,
-          op: { type: "update", id: elementId, trigger: "replace" },
-          data: next,
+        commit({
+          beforeData: data,
+          afterData: next,
+          label,
+          group: `prop:${elementId}`,
+          resolve: { kind: "update", id: elementId },
         });
       }),
-    [data, config, push, emitOp],
+    [data, config, commit],
   );
 
   const commitInline = useCallback(

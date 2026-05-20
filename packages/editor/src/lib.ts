@@ -1,9 +1,9 @@
 export { Editor, useEditorInternals } from "./editor/editor.js";
-export type { EditorProps } from "./editor/editor.js";
+export type { EditorInternals, EditorProps } from "./editor/editor.js";
 export type {
-  DataPush,
+  DataCommit,
   DataPushResult,
-  ResolveOp,
-  ResolveOpEmit,
+  EditorCommit,
+  ResolvePlan,
 } from "./editor/types.js";
 export type { Data, Config, Metadata } from "@puckeditor/core";

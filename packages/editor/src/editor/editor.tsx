@@ -50,7 +50,8 @@ import {
 } from "./morph/index.js";
 import { useResolution } from "./resolve/use-resolution.js";
 import { ShimmerOverlay } from "./resolve/shimmer-overlay.js";
-import type { DataPush, ResolveOpEmit } from "./types.js";
+import { useEditorCommit } from "./commit.js";
+import type { EditorCommit } from "./types.js";
 
 export type EditorProps<UserConfig extends Config = Config> = {
   data: Partial<Data>;
@@ -61,16 +62,15 @@ export type EditorProps<UserConfig extends Config = Config> = {
   children?: ReactNode;
 };
 
-type Internals = {
+export type EditorInternals = {
   currentData: Data;
   lastSelectedId: string | null;
-  push: DataPush;
-  emitOp: ResolveOpEmit;
+  commit: EditorCommit;
 };
 
-const EditorInternalsContext = createContext<Internals | null>(null);
+const EditorInternalsContext = createContext<EditorInternals | null>(null);
 
-export function useEditorInternals(): Internals {
+export function useEditorInternals(): EditorInternals {
   const ctx = useContext(EditorInternalsContext);
 
   if (!ctx) {
@@ -109,6 +109,7 @@ export function Editor<UserConfig extends Config = Config>({
     metadata: resolvedMetadata,
     history,
   });
+  const commit = useEditorCommit({ push, emitOp });
   const lastSeenPropRef = useRef(data);
 
   useEffect(() => {
@@ -136,8 +137,7 @@ export function Editor<UserConfig extends Config = Config>({
     index,
     state,
     send,
-    push,
-    emitOp,
+    commit,
   });
   const popover = usePropEditor({
     registry: fiberRegistry,
@@ -146,8 +146,7 @@ export function Editor<UserConfig extends Config = Config>({
     metadata,
     state,
     send,
-    push,
-    emitOp,
+    commit,
   });
 
   const { selectedIds, lastSelectedId } = state.context;
@@ -158,8 +157,7 @@ export function Editor<UserConfig extends Config = Config>({
     data: currentData,
     state,
     send,
-    push,
-    emitOp,
+    commit,
     axis: moveInfo.axis,
   });
 
@@ -173,8 +171,7 @@ export function Editor<UserConfig extends Config = Config>({
     data: currentData,
     config: config,
     lastSelectedId,
-    push,
-    emitOp,
+    commit,
     onSelect: (ids) =>
       send(
         ids.length === 1
@@ -189,8 +186,7 @@ export function Editor<UserConfig extends Config = Config>({
     config: config,
     lastSelectedId,
     send,
-    push,
-    emitOp,
+    commit,
   });
 
   useKeyboard({
@@ -238,8 +234,7 @@ export function Editor<UserConfig extends Config = Config>({
     remintIds,
     selectedId: singleSelected,
     data: currentData,
-    push,
-    emitOp,
+    commit,
   });
 
   const morphSelectedElement = useMemo(
@@ -270,9 +265,9 @@ export function Editor<UserConfig extends Config = Config>({
     [morph.commit, morph.patterns],
   );
 
-  const internals = useMemo<Internals>(
-    () => ({ currentData, lastSelectedId, push, emitOp }),
-    [currentData, lastSelectedId, push, emitOp],
+  const internals = useMemo<EditorInternals>(
+    () => ({ currentData, lastSelectedId, commit }),
+    [currentData, lastSelectedId, commit],
   );
 
   return (

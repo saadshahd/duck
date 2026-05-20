@@ -10,8 +10,7 @@ import type { EditorEvent, EditorSnapshot } from "../machine/index.js";
 import type { Axis } from "../layout/index.js";
 import { move, removeMany } from "../spec-ops/index.js";
 import { animatedUpdate } from "../animated-update.js";
-import type { DataPush, ResolveOpEmit } from "../types.js";
-import { emitMoveResolveOp, emitResolveOp } from "../resolve-op.js";
+import type { EditorCommit } from "../types.js";
 import type { EditorAction } from "./action-bar.js";
 
 const MOVE_LABELS: Record<Axis, { prev: string; next: string }> = {
@@ -23,15 +22,13 @@ export function useActionHandler({
   data,
   state,
   send,
-  push,
-  emitOp,
+  commit,
   axis,
 }: {
   data: Data;
   state: EditorSnapshot;
   send: (event: EditorEvent) => void;
-  push: DataPush;
-  emitOp: ResolveOpEmit;
+  commit: EditorCommit;
   axis: Axis;
 }): (action: EditorAction) => void {
   return useCallback(
@@ -64,17 +61,12 @@ export function useActionHandler({
             parent.index + direction,
           ).map((next) => {
             animatedUpdate((d) => {
-              const result = push(
-                d,
-                `Moved ${type} ${label}`,
-                `move:${lastSelectedId}`,
-              );
-              emitMoveResolveOp({
-                result,
-                emitOp,
-                id: lastSelectedId,
+              commit({
                 beforeData: data,
                 afterData: d,
+                label: `Moved ${type} ${label}`,
+                group: `move:${lastSelectedId}`,
+                resolve: { kind: "move", id: lastSelectedId },
               });
             }, next);
           });
@@ -93,12 +85,11 @@ export function useActionHandler({
               : `Deleted ${type}`;
           const parentBefore = findParent(data, lastSelectedId);
           removeMany(data, ids).map((next) => {
-            const result = push(next, label);
-            emitResolveOp({
-              result,
-              emitOp,
-              op: { type: "remove", ids: removedIds },
-              data: next,
+            commit({
+              beforeData: data,
+              afterData: next,
+              label,
+              resolve: { kind: "remove", ids: removedIds },
             });
             if (ids.length > 1) {
               send({ type: "DESELECT" });
@@ -122,8 +113,7 @@ export function useActionHandler({
       data,
       state.context.selectedIds,
       state.context.lastSelectedId,
-      push,
-      emitOp,
+      commit,
       send,
       axis,
     ],

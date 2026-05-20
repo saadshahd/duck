@@ -46,15 +46,14 @@ it returns:
 {
   currentData: Data;
   lastSelectedId: string | null;
-  push: (data: Data, label: string) => DataPushResult;
-  emitOp: ResolveOpEmit;
+  commit: (commit: DataCommit) => DataPushResult;
 }
 ```
 
 The hook is the supported way for wrappers to read the live document, observe
 selection, or inject committed snapshots (used by the bridge to relay agent
-edits). `emitOp` is exposed for bridge and wrapper experiments; it may still
-change before the first stable release.
+edits). Commits must declare resolver intent with `resolve: ResolvePlan`; use
+`{ kind: "none" }` only when the committed data must not trigger resolver work.
 
 ## `resolveData`
 

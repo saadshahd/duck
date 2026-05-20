@@ -7,9 +7,8 @@ import {
   type BrowserMessage,
   type ServerMessage,
 } from "@duckeditor/spec";
-import type { DataPush, ResolveOpEmit } from "../types.js";
+import type { EditorCommit } from "../types.js";
 import { resolverIds } from "../resolve-config.js";
-import { emitResolveOp } from "../resolve-op.js";
 
 export type BridgeStatus = "connecting" | "connected" | "disconnected";
 
@@ -19,8 +18,7 @@ type UseBridgeOptions = {
   selectedId: string | null;
   currentData: Data;
   config: Config;
-  push: DataPush;
-  emitOp: ResolveOpEmit;
+  commit: EditorCommit;
 };
 
 type SendFn = (msg: BrowserMessage) => void;
@@ -38,8 +36,7 @@ export function useBridge({
   selectedId,
   currentData,
   config,
-  push,
-  emitOp,
+  commit,
 }: UseBridgeOptions): { status: BridgeStatus } {
   const [status, setStatus] = useState<BridgeStatus>("connecting");
   const latest = useRef({
@@ -47,10 +44,9 @@ export function useBridge({
     selectedId,
     currentData,
     config,
-    push,
-    emitOp,
+    commit,
   });
-  latest.current = { page, selectedId, currentData, config, push, emitOp };
+  latest.current = { page, selectedId, currentData, config, commit };
 
   const sendRef = useRef<SendFn | null>(null);
 
@@ -71,19 +67,17 @@ export function useBridge({
         const incoming = msg.data;
         if (deepEqual(incoming, latest.current.currentData)) return;
 
-        const result = latest.current.push(incoming, "Agent commit");
-        emitResolveOp({
-          result,
-          emitOp: latest.current.emitOp,
-          op: {
-            type: "force",
+        latest.current.commit({
+          beforeData: latest.current.currentData,
+          afterData: incoming,
+          label: "Agent commit",
+          resolve: {
+            kind: "force",
             ids: resolverIds({
               data: incoming,
               config: latest.current.config,
             }),
-            trigger: "force",
           },
-          data: incoming,
         });
       }
 

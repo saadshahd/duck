@@ -33,15 +33,14 @@ function BridgeConnector({
   config: Config;
 }) {
   const [url, setUrl] = useState(bridge.url);
-  const { currentData, lastSelectedId, push, emitOp } = useEditorInternals();
+  const { currentData, lastSelectedId, commit } = useEditorInternals();
   const { status } = useBridge({
     url,
     page: bridge.page,
     selectedId: lastSelectedId,
     currentData,
     config,
-    push,
-    emitOp,
+    commit,
   });
 
   return (

@@ -25,6 +25,25 @@ export type DataPush = (
   group?: string,
 ) => DataPushResult;
 
+export type ResolvePlan =
+  | { kind: "none" }
+  | { kind: "insert"; id: string }
+  | { kind: "update"; id: string }
+  | { kind: "move"; id: string }
+  | { kind: "morph"; id: string }
+  | { kind: "remove"; ids: readonly string[] }
+  | { kind: "force"; ids: readonly string[] };
+
+export type DataCommit = {
+  beforeData: Data;
+  afterData: Data;
+  label: string;
+  group?: string;
+  resolve: ResolvePlan;
+};
+
+export type EditorCommit = (commit: DataCommit) => DataPushResult;
+
 export type ResolveOp =
   | { type: "insert"; id: string; trigger: "insert" }
   | { type: "update"; id: string; trigger: "replace" }
