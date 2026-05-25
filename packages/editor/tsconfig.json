@@ -2,10 +2,11 @@
   "extends": "../../tsconfig.json",
   "compilerOptions": {
     "outDir": "dist",
-    "rootDir": "src",
     "noEmit": true,
     "paths": {
-      "tinykeys": ["../../node_modules/tinykeys/dist/tinykeys.d.ts"]
+      "tinykeys": ["../../node_modules/tinykeys/dist/tinykeys.d.ts"],
+      "@duckeditor/spec": ["../spec/src/index.ts"],
+      "@duckeditor/patterns": ["../patterns/src/index.ts"]
     }
   },
   "include": ["src"]
