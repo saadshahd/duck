@@ -1,5 +1,5 @@
-import { describe, test, expect } from "bun:test";
-import { detectAxis } from "./axis.js";
+import { describe, test, expect, beforeEach, afterEach } from "bun:test";
+import { detectAxis, cssAxis } from "./axis.js";
 
 describe("detectAxis", () => {
   test("stacked rects → vertical", () => {
@@ -47,5 +47,135 @@ describe("detectAxis", () => {
     const a = new DOMRect(0, 0, 40, 100);
     const b = new DOMRect(80, 5, 40, 100);
     expect(detectAxis(a, b)).toBe("horizontal");
+  });
+});
+
+// ── cssAxis ──────────────────────────────────────────────────────────────────
+
+describe("cssAxis", () => {
+  let el: HTMLElement;
+
+  beforeEach(() => {
+    el = document.createElement("div");
+    document.body.appendChild(el);
+  });
+
+  afterEach(() => {
+    el.remove();
+  });
+
+  const setStyle = (el: HTMLElement, css: string) =>
+    el.setAttribute("style", css);
+
+  // flex
+
+  test("display:flex flex-direction:row → horizontal", () => {
+    setStyle(el, "display: flex; flex-direction: row;");
+    expect(cssAxis(el)).toBe("horizontal");
+  });
+
+  test("display:flex flex-direction:row-reverse → horizontal", () => {
+    setStyle(el, "display: flex; flex-direction: row-reverse;");
+    expect(cssAxis(el)).toBe("horizontal");
+  });
+
+  test("display:flex flex-direction:column → vertical", () => {
+    setStyle(el, "display: flex; flex-direction: column;");
+    expect(cssAxis(el)).toBe("vertical");
+  });
+
+  test("display:flex flex-direction:column-reverse → vertical", () => {
+    setStyle(el, "display: flex; flex-direction: column-reverse;");
+    expect(cssAxis(el)).toBe("vertical");
+  });
+
+  // inline-flex
+
+  test("display:inline-flex flex-direction:row → horizontal", () => {
+    setStyle(el, "display: inline-flex; flex-direction: row;");
+    expect(cssAxis(el)).toBe("horizontal");
+  });
+
+  test("display:inline-flex flex-direction:column → vertical", () => {
+    setStyle(el, "display: inline-flex; flex-direction: column;");
+    expect(cssAxis(el)).toBe("vertical");
+  });
+
+  // grid
+
+  test("display:grid default (no grid-auto-flow) → vertical", () => {
+    setStyle(el, "display: grid;");
+    expect(cssAxis(el)).toBe("vertical");
+  });
+
+  test("display:grid grid-auto-flow:row → vertical", () => {
+    setStyle(el, "display: grid; grid-auto-flow: row;");
+    expect(cssAxis(el)).toBe("vertical");
+  });
+
+  test("display:grid grid-auto-flow:column → horizontal", () => {
+    setStyle(el, "display: grid; grid-auto-flow: column;");
+    expect(cssAxis(el)).toBe("horizontal");
+  });
+
+  test("display:grid grid-auto-flow:column dense → horizontal", () => {
+    setStyle(el, "display: grid; grid-auto-flow: column dense;");
+    expect(cssAxis(el)).toBe("horizontal");
+  });
+
+  // inline-grid
+
+  test("display:inline-grid default → vertical", () => {
+    setStyle(el, "display: inline-grid;");
+    expect(cssAxis(el)).toBe("vertical");
+  });
+
+  test("display:inline-grid grid-auto-flow:column → horizontal", () => {
+    setStyle(el, "display: inline-grid; grid-auto-flow: column;");
+    expect(cssAxis(el)).toBe("horizontal");
+  });
+
+  // block family
+
+  test("display:block → vertical", () => {
+    setStyle(el, "display: block;");
+    expect(cssAxis(el)).toBe("vertical");
+  });
+
+  test("display:flow-root → vertical", () => {
+    setStyle(el, "display: flow-root;");
+    expect(cssAxis(el)).toBe("vertical");
+  });
+
+  test("display:list-item → vertical", () => {
+    setStyle(el, "display: list-item;");
+    expect(cssAxis(el)).toBe("vertical");
+  });
+
+  // null cases
+
+  test("display:inline → null", () => {
+    setStyle(el, "display: inline;");
+    expect(cssAxis(el)).toBeNull();
+  });
+
+  test("display:none → null", () => {
+    setStyle(el, "display: none;");
+    expect(cssAxis(el)).toBeNull();
+  });
+
+  test("display:contents → null", () => {
+    setStyle(el, "display: contents;");
+    expect(cssAxis(el)).toBeNull();
+  });
+
+  test("display:table → null", () => {
+    setStyle(el, "display: table;");
+    expect(cssAxis(el)).toBeNull();
+  });
+
+  test("display:inline-block → null", () => {
+    setStyle(el, "display: inline-block;");
+    expect(cssAxis(el)).toBeNull();
   });
 });

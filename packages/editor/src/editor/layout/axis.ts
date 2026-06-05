@@ -4,6 +4,28 @@ import type { FiberRegistry } from "../fiber/index.js";
 
 export type Axis = "vertical" | "horizontal";
 
+const isFlexRow = (direction: string): boolean => direction.startsWith("row");
+const isGridColumn = (autoFlow: string): boolean => autoFlow.includes("column");
+
+const BLOCK_DISPLAYS = new Set(["block", "flow-root", "list-item"]);
+
+/** Determine layout axis from an element's computed CSS display properties.
+ *  Returns null for display values with no detectable block axis
+ *  (inline, contents, table, none, …). */
+export const cssAxis = (el: Element): Axis | null => {
+  const cs = getComputedStyle(el);
+  const display = cs.display;
+
+  if (display === "flex" || display === "inline-flex") {
+    return isFlexRow(cs.flexDirection) ? "horizontal" : "vertical";
+  }
+  if (display === "grid" || display === "inline-grid") {
+    return isGridColumn(cs.gridAutoFlow) ? "horizontal" : "vertical";
+  }
+  if (BLOCK_DISPLAYS.has(display)) return "vertical";
+  return null;
+};
+
 /** Measure geometry of two adjacent siblings to determine layout axis. */
 export const detectAxis = (a: DOMRect, b: DOMRect): Axis => {
   const dy = Math.abs(a.top + a.height / 2 - (b.top + b.height / 2));
