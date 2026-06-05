@@ -1,0 +1,18 @@
+# Visit https://soloterm.com to learn more
+name: json-render-editor
+icon: null
+processes:
+  bun:dev:
+    command: bun run dev
+    working_dir: null
+    auto_start: true
+    auto_restart: false
+    restart_when_changed: []
+    env: {}
+  bun:test:
+    command: bun run test
+    working_dir: null
+    auto_start: false
+    auto_restart: false
+    restart_when_changed: []
+    env: {}
