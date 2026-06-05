@@ -10,3 +10,11 @@ export {
   type SlotInput,
 } from "./tiles.js";
 export { isCollapsed, ZERO_RECT } from "./rect.js";
+export {
+  type DropTarget,
+  type Destination,
+  destinationStack,
+  stepCycle,
+  resolveContainerId,
+  resolveLabel,
+} from "./destinations.js";

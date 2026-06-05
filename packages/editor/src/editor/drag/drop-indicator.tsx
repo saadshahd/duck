@@ -1,19 +1,7 @@
-import type { Edge } from "@atlaskit/pragmatic-drag-and-drop-hitbox/closest-edge";
 import { useShadowSheet } from "../overlay/index.js";
 import type { FiberRegistry } from "../fiber/index.js";
-import type { Axis } from "../layout/index.js";
+import type { DropTarget } from "../layout/index.js";
 import css from "./drag.css?inline";
-
-export type DropTarget =
-  | { kind: "line"; elementId: string; edge: Edge; axis: Axis }
-  | {
-      kind: "container";
-      elementId: string;
-      slotKey: string;
-      index: number;
-      /** Targeted slot's region — highlight tightens to it when present. */
-      region?: DOMRect;
-    };
 
 type Props = { registry: FiberRegistry; target: DropTarget };
 

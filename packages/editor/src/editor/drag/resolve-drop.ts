@@ -4,10 +4,9 @@ import type { Result } from "neverthrow";
 import type { FiberRegistry } from "../fiber/index.js";
 import { move, type SpecOpsError } from "../spec-ops/index.js";
 import type { EditorEvent } from "../machine/index.js";
-import type { DropTarget } from "./drop-indicator.js";
+import type { DropTarget } from "../layout/index.js";
 import {
   readData,
-
   resolveSlotAxis,
   resolveDropIndex,
   resolveInsertIndex,

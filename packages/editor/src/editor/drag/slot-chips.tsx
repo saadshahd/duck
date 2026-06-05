@@ -2,8 +2,7 @@ import type { ComponentData, Data } from "@puckeditor/core";
 import { findById } from "@duckeditor/spec";
 import { useShadowSheet } from "../overlay/index.js";
 import type { FiberRegistry } from "../fiber/index.js";
-import { slotRegions } from "../layout/index.js";
-import type { DropTarget } from "./drop-indicator.js";
+import { slotRegions, type DropTarget } from "../layout/index.js";
 import { CONTAINER_THRESHOLD } from "./helpers.js";
 import css from "./drag.css?inline";
 

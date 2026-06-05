@@ -7,8 +7,8 @@ import {
   resolveSlot,
   slotInsertIndex,
   slotRegions,
+  type DropTarget,
 } from "../layout/index.js";
-import type { DropTarget } from "./drop-indicator.js";
 import { chipLayout, chipSpecs } from "./slot-chips.js";
 import {
   readData,

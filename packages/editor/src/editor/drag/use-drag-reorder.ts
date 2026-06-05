@@ -14,7 +14,7 @@ import {
 } from "@duckeditor/spec";
 import type { FiberRegistry } from "../fiber/index.js";
 import type { EditorEvent, EditorSnapshot } from "../machine/index.js";
-import type { DropTarget } from "./drop-indicator.js";
+import type { DropTarget } from "../layout/index.js";
 import type { DragData } from "./helpers.js";
 import {
   EDGES,
