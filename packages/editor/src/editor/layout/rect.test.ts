@@ -1,5 +1,12 @@
 import { describe, test, expect } from "bun:test";
-import { expandRect, insetRect, rectsOverlap, isCollapsed } from "./rect.js";
+import {
+  expandRect,
+  insetRect,
+  intersectRect,
+  isCollapsed,
+  rectsOverlap,
+  unionRects,
+} from "./rect.js";
 
 const rect = (x: number, y: number, w: number, h: number) =>
   new DOMRect(x, y, w, h);
@@ -83,6 +90,49 @@ describe("rectsOverlap", () => {
 
   test("contained rect → true", () => {
     expect(rectsOverlap(rect(0, 0, 200, 200), rect(50, 50, 50, 50))).toBe(true);
+  });
+});
+
+// ── unionRects ──────────────────────────────────────────
+
+describe("unionRects", () => {
+  test("bounding box of disjoint rects", () => {
+    const r = unionRects([rect(10, 20, 30, 30), rect(100, 200, 50, 50)]);
+    expect([r.x, r.y, r.width, r.height]).toEqual([10, 20, 140, 230]);
+  });
+
+  test("single rect → same dimensions", () => {
+    const r = unionRects([rect(5, 6, 70, 80)]);
+    expect([r.x, r.y, r.width, r.height]).toEqual([5, 6, 70, 80]);
+  });
+
+  test("contained rect does not grow the union", () => {
+    const r = unionRects([rect(0, 0, 200, 200), rect(50, 50, 10, 10)]);
+    expect([r.x, r.y, r.width, r.height]).toEqual([0, 0, 200, 200]);
+  });
+
+  test("empty input is a defect → throws", () => {
+    expect(() => unionRects([])).toThrow();
+  });
+});
+
+// ── intersectRect ───────────────────────────────────────
+
+describe("intersectRect", () => {
+  test("overlapping rects → shared area", () => {
+    const r = intersectRect(rect(0, 0, 100, 100), rect(50, 50, 100, 100));
+    expect([r.x, r.y, r.width, r.height]).toEqual([50, 50, 50, 50]);
+  });
+
+  test("contained rect → the inner rect", () => {
+    const r = intersectRect(rect(0, 0, 200, 200), rect(50, 50, 10, 10));
+    expect([r.x, r.y, r.width, r.height]).toEqual([50, 50, 10, 10]);
+  });
+
+  test("disjoint rects → zero-size rect", () => {
+    const r = intersectRect(rect(0, 0, 50, 50), rect(100, 100, 50, 50));
+    expect(r.width).toBe(0);
+    expect(r.height).toBe(0);
   });
 });
 

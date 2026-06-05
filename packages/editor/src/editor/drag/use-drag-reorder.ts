@@ -54,6 +54,11 @@ export function useDragReorder({
   dropTarget: DropTarget | null;
 } {
   const [dropTarget, setDropTarget] = useState<DropTarget | null>(null);
+  const dropTargetRef = useRef<DropTarget | null>(null);
+  const updateDropTarget = (target: DropTarget | null) => {
+    dropTargetRef.current = target;
+    setDropTarget(target);
+  };
   const dataRef = useRef(data);
   dataRef.current = data;
   const indexRef = useRef(index);
@@ -144,7 +149,6 @@ export function useDragReorder({
                 slotKey: parent.slotKey,
                 index: parent.index,
                 role: "container",
-                containerSlotKey: slots[0],
               } satisfies DragData;
             return attachClosestEdge(
               {
@@ -171,22 +175,28 @@ export function useDragReorder({
 
     let descendants: ReadonlySet<string> = new Set();
 
-    const indicator = (
+    const updateIndicator = (
       source: { data: Record<string | symbol, unknown> },
       location: {
         current: {
           dropTargets: readonly { data: Record<string | symbol, unknown> }[];
+          input: { clientX: number; clientY: number };
         };
       },
     ) =>
-      setDropTarget(
-        resolveIndicator(
+      updateDropTarget(
+        resolveIndicator({
           source,
-          location.current.dropTargets[0],
-          dataRef.current,
+          target: location.current.dropTargets[0],
+          point: {
+            x: location.current.input.clientX,
+            y: location.current.input.clientY,
+          },
+          previous: dropTargetRef.current,
+          data: dataRef.current,
           registry,
-          descendants,
-        ),
+          descendantSet: descendants,
+        }),
       );
 
     return monitorForElements({
@@ -195,18 +205,21 @@ export function useDragReorder({
           collectDescendants(dataRef.current, source.data.elementId as string),
         );
       },
-      onDrag: ({ source, location }) => indicator(source, location),
-      onDropTargetChange: ({ source, location }) => indicator(source, location),
+      onDrag: ({ source, location }) => updateIndicator(source, location),
+      onDropTargetChange: ({ source, location }) =>
+        updateIndicator(source, location),
       onDrop: ({ source, location }) => {
-        setDropTarget(null);
+        const lastIndicator = dropTargetRef.current;
+        updateDropTarget(null);
         const beforeData = dataRef.current;
-        const result = resolveDrop(
+        const result = resolveDrop({
           source,
-          location.current.dropTargets[0],
-          beforeData,
+          target: location.current.dropTargets[0],
+          indicator: lastIndicator,
+          data: beforeData,
           registry,
-          descendants,
-        );
+          descendantSet: descendants,
+        });
         descendants = new Set();
         if (!result) return send({ type: "DRAG_CANCEL" });
         result.newData.map((d) => {

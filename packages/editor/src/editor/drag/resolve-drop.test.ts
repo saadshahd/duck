@@ -1,5 +1,6 @@
 import { describe, test, expect } from "bun:test";
 import type { Data } from "@puckeditor/core";
+import { findById } from "@duckeditor/spec";
 import { resolveDrop } from "./resolve-drop.js";
 import {
   text,
@@ -22,40 +23,35 @@ const data = (): Data => ({
   ],
 });
 
+const sourceA = () =>
+  bag({
+    elementId: "a",
+    parentId: null,
+    slotKey: null,
+    index: 0,
+    role: "sibling",
+  });
+
+const resolve = (overrides: Partial<Parameters<typeof resolveDrop>[0]>) =>
+  resolveDrop({
+    source: sourceA(),
+    target: undefined,
+    indicator: null,
+    data: data(),
+    registry: emptyRegistry,
+    descendantSet: new Set(),
+    ...overrides,
+  });
+
 // --- Tests ---
 
 describe("resolveDrop", () => {
   test("returns null when target is undefined", () => {
-    const source = bag({
-      elementId: "a",
-      parentId: null,
-      slotKey: null,
-      index: 0,
-      role: "sibling",
-    });
-    expect(
-      resolveDrop(source, undefined, data(), emptyRegistry, new Set()),
-    ).toBeNull();
+    expect(resolve({})).toBeNull();
   });
 
   test("returns null for self-drop", () => {
-    const source = bag({
-      elementId: "a",
-      parentId: null,
-      slotKey: null,
-      index: 0,
-      role: "sibling",
-    });
-    const target = bag({
-      elementId: "a",
-      parentId: null,
-      slotKey: null,
-      index: 0,
-      role: "sibling",
-    });
-    expect(
-      resolveDrop(source, target, data(), emptyRegistry, new Set()),
-    ).toBeNull();
+    expect(resolve({ target: sourceA() })).toBeNull();
   });
 
   test("returns null when target is a descendant", () => {
@@ -74,82 +70,105 @@ describe("resolveDrop", () => {
       role: "sibling",
     });
     expect(
-      resolveDrop(source, target, data(), emptyRegistry, new Set(["d", "e"])),
+      resolve({ source, target, descendantSet: new Set(["d", "e"]) }),
     ).toBeNull();
   });
 
-  test("container drop appends at end of target slot", () => {
-    const source = bag({
-      elementId: "a",
-      parentId: null,
-      slotKey: null,
-      index: 0,
-      role: "sibling",
-    });
+  test("container drop commits the indicator's slot and index verbatim", () => {
     const target = bag({
       elementId: "box",
       parentId: null,
       slotKey: null,
       index: 3,
       role: "container",
-      containerSlotKey: "items",
     });
-    const result = resolveDrop(
-      source,
+    const result = resolve({
       target,
-      data(),
-      emptyRegistry,
-      new Set(),
-    );
+      indicator: {
+        kind: "container",
+        elementId: "box",
+        slotKey: "items",
+        index: 0,
+      },
+    });
 
-    expect(result).not.toBeNull();
-    expect(result!.event).toEqual({
+    expect(result?.event).toEqual({
       type: "DROP",
       sourceParentId: null,
       targetParentId: "box",
       fromIndex: 0,
-      toIndex: 2,
+      toIndex: 0,
     });
-    expect(result!.newData.isOk()).toBe(true);
+    const moved = result!.newData._unsafeUnwrap();
+    expect(
+      (findById(moved, "box")!.props.items as { props: { id: string } }[]).map(
+        (c) => c.props.id,
+      ),
+    ).toEqual(["a", "d", "e"]);
   });
 
-  test("container drop into empty target uses toIndex 0", () => {
-    const source = bag({
-      elementId: "a",
-      parentId: null,
-      slotKey: null,
-      index: 0,
-      role: "sibling",
-    });
+  test("container drop into an empty slot commits index 0", () => {
     const target = bag({
       elementId: "empty",
       parentId: null,
       slotKey: null,
       index: 4,
       role: "container",
-      containerSlotKey: "items",
     });
-    const result = resolveDrop(
-      source,
+    const result = resolve({
       target,
-      data(),
-      emptyRegistry,
-      new Set(),
-    );
+      indicator: {
+        kind: "container",
+        elementId: "empty",
+        slotKey: "items",
+        index: 0,
+      },
+    });
 
-    expect(result).not.toBeNull();
-    if (result!.event.type !== "DROP") throw new Error("expected DROP");
-    expect(result!.event.toIndex).toBe(0);
+    expect(result?.event).toMatchObject({
+      targetParentId: "empty",
+      toIndex: 0,
+    });
+    expect(result!.newData.isOk()).toBe(true);
   });
 
-  test("cross-slot sibling drop with null edge uses target index", () => {
-    const source = bag({
-      elementId: "a",
-      parentId: null,
-      slotKey: null,
+  test("container indicator commits even when the drop lands on a sibling (chip hit)", () => {
+    const target = bag({
+      elementId: "d",
+      parentId: "box",
+      slotKey: "items",
       index: 0,
       role: "sibling",
     });
+    const result = resolve({
+      target,
+      indicator: {
+        kind: "container",
+        elementId: "empty",
+        slotKey: "items",
+        index: 0,
+      },
+    });
+
+    expect(result?.event).toMatchObject({
+      targetParentId: "empty",
+      toIndex: 0,
+    });
+    expect(result!.newData.isOk()).toBe(true);
+  });
+
+  test("drop without an indicator → null (never recomputed)", () => {
+    const target = bag({
+      elementId: "box",
+      parentId: null,
+      slotKey: null,
+      index: 3,
+      role: "container",
+    });
+    expect(resolve({ target, indicator: null })).toBeNull();
+  });
+
+  test("cross-slot sibling drop with null edge uses target index", () => {
     const target = bag({
       elementId: "d",
       parentId: "box",
@@ -157,16 +176,17 @@ describe("resolveDrop", () => {
       index: 1,
       role: "sibling",
     });
-    const result = resolveDrop(
-      source,
+    const result = resolve({
       target,
-      data(),
-      emptyRegistry,
-      new Set(),
-    );
+      indicator: {
+        kind: "line",
+        elementId: "d",
+        edge: "top",
+        axis: "vertical",
+      },
+    });
 
-    expect(result).not.toBeNull();
-    expect(result!.event).toEqual({
+    expect(result?.event).toEqual({
       type: "DROP",
       sourceParentId: null,
       targetParentId: "box",
@@ -181,13 +201,6 @@ describe("resolveDrop", () => {
       a: new DOMRect(0, 0, 100, 50),
       b: new DOMRect(0, 60, 100, 50),
     });
-    const source = bag({
-      elementId: "a",
-      parentId: null,
-      slotKey: null,
-      index: 0,
-      role: "sibling",
-    });
     const target = bag({
       elementId: "b",
       parentId: null,
@@ -195,11 +208,20 @@ describe("resolveDrop", () => {
       index: 1,
       role: "sibling",
     });
-    const result = resolveDrop(source, target, data(), registry, new Set());
+    const result = resolve({
+      target,
+      registry,
+      indicator: {
+        kind: "line",
+        elementId: "b",
+        edge: "bottom",
+        axis: "vertical",
+      },
+    });
 
-    expect(result).not.toBeNull();
-    if (result!.event.type !== "DROP") throw new Error("expected DROP");
-    expect(result!.event.sourceParentId).toBe(null);
-    expect(result!.event.targetParentId).toBe(null);
+    expect(result?.event).toMatchObject({
+      sourceParentId: null,
+      targetParentId: null,
+    });
   });
 });

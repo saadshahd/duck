@@ -1,12 +1,13 @@
 import type { Data } from "@puckeditor/core";
 import { extractClosestEdge } from "@atlaskit/pragmatic-drag-and-drop-hitbox/closest-edge";
 import type { Result } from "neverthrow";
-import { getChildrenAt } from "@duckeditor/spec";
 import type { FiberRegistry } from "../fiber/index.js";
 import { move, type SpecOpsError } from "../spec-ops/index.js";
 import type { EditorEvent } from "../machine/index.js";
+import type { DropTarget } from "./drop-indicator.js";
 import {
   readData,
+
   resolveSlotAxis,
   resolveDropIndex,
   resolveInsertIndex,
@@ -21,15 +22,25 @@ type DropResult = {
 
 /**
  * Pure function: computes the data mutation and machine event for a drop.
+ * Container drops commit the last indicator's `(elementId, slotKey, index)`
+ * verbatim — never recomputed. A missing or stale indicator cancels the drop.
  * Returns null when the drop should be cancelled (no target, self-drop, descendant).
  */
-export function resolveDrop(
-  source: TargetBag,
-  target: TargetBag | undefined,
-  data: Data,
-  registry: FiberRegistry,
-  descendantSet: ReadonlySet<string>,
-): DropResult | null {
+export function resolveDrop({
+  source,
+  target,
+  indicator,
+  data,
+  registry,
+  descendantSet,
+}: {
+  source: TargetBag;
+  target?: TargetBag;
+  indicator: DropTarget | null;
+  data: Data;
+  registry: FiberRegistry;
+  descendantSet: ReadonlySet<string>;
+}): DropResult | null {
   if (!target) return null;
 
   const sourceData = readData(source.data);
@@ -41,25 +52,25 @@ export function resolveDrop(
   )
     return null;
 
-  // Drop INTO container — append at end of the targeted slot
-  if (targetData.role === "container") {
-    const slotKey = targetData.containerSlotKey ?? null;
-    const slotChildren = getChildrenAt(data, targetData.elementId, slotKey);
-    const toIndex = slotChildren?.length ?? 0;
+  // No indicator → resolveIndicator ruled the position out. Cancel.
+  if (!indicator) return null;
+
+  // Drop INTO a container — commit what the indicator showed, verbatim
+  if (indicator.kind === "container") {
     return {
       newData: move(
         data,
         sourceData.elementId,
-        targetData.elementId,
-        slotKey,
-        toIndex,
+        indicator.elementId,
+        indicator.slotKey,
+        indicator.index,
       ),
       event: {
         type: "DROP",
         sourceParentId: sourceData.parentId,
-        targetParentId: targetData.elementId,
+        targetParentId: indicator.elementId,
         fromIndex: sourceData.index,
-        toIndex,
+        toIndex: indicator.index,
       },
     };
   }

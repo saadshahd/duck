@@ -1,83 +1,99 @@
 import { test, expect, type Page, type Locator } from "@playwright/test";
-import { hasDropIndicator, getDropZoneLabelText } from "../overlay/testing.js";
+import {
+  hasDropIndicator,
+  getDropZoneLabelText,
+  getSlotChipLabels,
+} from "../overlay/testing.js";
+
+type Point = { x: number; y: number };
+
+const center = (box: {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+}): Point => ({ x: box.x + box.width / 2, y: box.y + box.height / 2 });
+
+const sourceCenter = async (source: Locator): Promise<Point> => {
+  const box = await source.boundingBox();
+  if (!box) throw new Error("Source not visible");
+  return center(box);
+};
+
+const edgePoint = async (
+  target: Locator,
+  edge: "top" | "bottom",
+): Promise<Point> => {
+  const box = await target.boundingBox();
+  if (!box) throw new Error("Target not visible");
+  return {
+    x: box.x + box.width / 2,
+    y: edge === "top" ? box.y + 2 : box.y + box.height - 2,
+  };
+};
 
 /**
- * Simulate a full native drag-and-drop sequence.
- * pragmatic-drag-and-drop uses native HTML5 drag events with a shared DataTransfer.
- * We dispatch all events in a single evaluate call to share the DataTransfer instance.
+ * Dispatch a native drag sequence between two viewport points.
+ * pragmatic-drag-and-drop uses native HTML5 drag events with a shared
+ * DataTransfer, so the whole sequence runs in a single evaluate call.
  */
-async function dragAndDrop(
+async function dispatchDrag(
+  page: Page,
+  args: { from: Point; to: Point; drop: boolean },
+) {
+  await page.evaluate(({ from, to, drop }) => {
+    const dt = new DataTransfer();
+    const opts = (p: { x: number; y: number }): DragEventInit => ({
+      bubbles: true,
+      cancelable: true,
+      composed: true,
+      clientX: p.x,
+      clientY: p.y,
+      dataTransfer: dt,
+    });
+    const src = document.elementFromPoint(from.x, from.y)!;
+    const tgt = document.elementFromPoint(to.x, to.y)!;
+    src.dispatchEvent(new DragEvent("dragstart", opts(from)));
+    tgt.dispatchEvent(new DragEvent("dragenter", opts(to)));
+    tgt.dispatchEvent(new DragEvent("dragover", opts(to)));
+    if (!drop) return;
+    tgt.dispatchEvent(new DragEvent("drop", opts(to)));
+    src.dispatchEvent(new DragEvent("dragend", opts(to)));
+  }, args);
+}
+
+/** Simulate a full native drag-and-drop onto a sibling's edge. */
+const dragAndDrop = async (
   page: Page,
   source: Locator,
   target: Locator,
   targetEdge: "top" | "bottom" = "bottom",
-) {
-  const sourceBox = await source.boundingBox();
-  const targetBox = await target.boundingBox();
-  if (!sourceBox || !targetBox) throw new Error("Elements not visible");
-
-  const sx = sourceBox.x + sourceBox.width / 2;
-  const sy = sourceBox.y + sourceBox.height / 2;
-  const tx = targetBox.x + targetBox.width / 2;
-  const ty =
-    targetEdge === "top" ? targetBox.y + 2 : targetBox.y + targetBox.height - 2;
-
-  await page.evaluate(
-    ({ sx, sy, tx, ty }) => {
-      const dt = new DataTransfer();
-      const opts = (x: number, y: number): DragEventInit => ({
-        bubbles: true,
-        cancelable: true,
-        clientX: x,
-        clientY: y,
-        dataTransfer: dt,
-      });
-
-      const src = document.elementFromPoint(sx, sy)!;
-      const tgt = document.elementFromPoint(tx, ty)!;
-
-      src.dispatchEvent(new DragEvent("dragstart", opts(sx, sy)));
-      tgt.dispatchEvent(new DragEvent("dragenter", opts(tx, ty)));
-      tgt.dispatchEvent(new DragEvent("dragover", opts(tx, ty)));
-      tgt.dispatchEvent(new DragEvent("drop", opts(tx, ty)));
-      src.dispatchEvent(new DragEvent("dragend", opts(tx, ty)));
-    },
-    { sx, sy, tx, ty },
-  );
-}
+) =>
+  dispatchDrag(page, {
+    from: await sourceCenter(source),
+    to: await edgePoint(target, targetEdge),
+    drop: true,
+  });
 
 /** Start a drag without dropping — for testing indicators. */
-async function dragOver(page: Page, source: Locator, target: Locator) {
-  const sourceBox = await source.boundingBox();
-  const targetBox = await target.boundingBox();
-  if (!sourceBox || !targetBox) throw new Error("Elements not visible");
+const dragOver = async (page: Page, source: Locator, target: Locator) =>
+  dispatchDrag(page, {
+    from: await sourceCenter(source),
+    to: await edgePoint(target, "bottom"),
+    drop: false,
+  });
 
-  const sx = sourceBox.x + sourceBox.width / 2;
-  const sy = sourceBox.y + sourceBox.height / 2;
-  const tx = targetBox.x + targetBox.width / 2;
-  const ty = targetBox.y + targetBox.height - 2;
+/** Drag a source over a viewport point without dropping. */
+const dragOverPoint = async (page: Page, source: Locator, point: Point) =>
+  dispatchDrag(page, {
+    from: await sourceCenter(source),
+    to: point,
+    drop: false,
+  });
 
-  await page.evaluate(
-    ({ sx, sy, tx, ty }) => {
-      const dt = new DataTransfer();
-      const opts = (x: number, y: number): DragEventInit => ({
-        bubbles: true,
-        cancelable: true,
-        clientX: x,
-        clientY: y,
-        dataTransfer: dt,
-      });
-
-      const src = document.elementFromPoint(sx, sy)!;
-      const tgt = document.elementFromPoint(tx, ty)!;
-
-      src.dispatchEvent(new DragEvent("dragstart", opts(sx, sy)));
-      tgt.dispatchEvent(new DragEvent("dragenter", opts(tx, ty)));
-      tgt.dispatchEvent(new DragEvent("dragover", opts(tx, ty)));
-    },
-    { sx, sy, tx, ty },
-  );
-}
+/** Full drag-and-drop onto a viewport point. */
+const dragAndDropPoint = async (page: Page, source: Locator, point: Point) =>
+  dispatchDrag(page, { from: await sourceCenter(source), to: point, drop: true });
 
 test.describe("Drag-to-reorder", () => {
   test.beforeEach(async ({ page }) => {
@@ -174,5 +190,149 @@ test.describe("Drag-to-reorder", () => {
     const movedHeading = page.locator("h1");
     await dragAndDrop(page, description, movedHeading, "top");
     await page.waitForTimeout(500);
+  });
+});
+
+// --- Slot-aware container drops ---
+
+/** Drag over a container point, wait for chips, then drop on the named chip. */
+async function dropOnSlotChip(
+  page: Page,
+  source: Locator,
+  hoverPoint: Point,
+  chipLabel: string,
+) {
+  const { x: sx, y: sy } = await sourceCenter(source);
+
+  await page.evaluate(
+    async ({ sx, sy, tx, ty, chipLabel }) => {
+      const dt = new DataTransfer();
+      const opts = (x: number, y: number): DragEventInit => ({
+        bubbles: true,
+        cancelable: true,
+        composed: true,
+        clientX: x,
+        clientY: y,
+        dataTransfer: dt,
+      });
+      const wait = (ms: number) => new Promise((r) => setTimeout(r, ms));
+
+      const src = document.elementFromPoint(sx, sy)!;
+      const tgt = document.elementFromPoint(tx, ty)!;
+      src.dispatchEvent(new DragEvent("dragstart", opts(sx, sy)));
+      tgt.dispatchEvent(new DragEvent("dragenter", opts(tx, ty)));
+      tgt.dispatchEvent(new DragEvent("dragover", opts(tx, ty)));
+      await wait(300);
+
+      const chip = [...document.querySelectorAll("div")]
+        .filter((d) => d.shadowRoot && d.style.position === "fixed")
+        .flatMap((d) => [
+          ...d.shadowRoot!.querySelectorAll("[data-role='slot-chip']"),
+        ])
+        .find((c) => c.textContent === chipLabel);
+      if (!chip) throw new Error(`slot chip "${chipLabel}" not found`);
+
+      // Chips are passive overlay visuals (pointer-events: none) — the drag
+      // events land on the page element beneath the chip rect.
+      const r = chip.getBoundingClientRect();
+      const cx = r.left + r.width / 2;
+      const cy = r.top + r.height / 2;
+      const under = document.elementFromPoint(cx, cy)!;
+      under.dispatchEvent(new DragEvent("dragenter", opts(cx, cy)));
+      under.dispatchEvent(new DragEvent("dragover", opts(cx, cy)));
+      await wait(100);
+      under.dispatchEvent(new DragEvent("drop", opts(cx, cy)));
+      src.dispatchEvent(new DragEvent("dragend", opts(cx, cy)));
+    },
+    { sx, sy, tx: hoverPoint.x, ty: hoverPoint.y, chipLabel },
+  );
+}
+
+test.describe("Slot-aware container drops", () => {
+  test.beforeEach(async ({ page }) => {
+    await page.goto("/");
+    await page.waitForTimeout(500);
+  });
+
+  const cardTitle = (page: Page) => page.locator('h3:has-text("Zero Chrome")');
+  const card = (page: Page) => cardTitle(page).locator("..");
+
+  /** Point in the gap below the card title, biased toward the header slot. */
+  const headerGapPoint = async (page: Page): Promise<Point> => {
+    const title = await cardTitle(page).boundingBox();
+    const cardBox = await card(page).boundingBox();
+    if (!title || !cardBox) throw new Error("Card not visible");
+    return { x: cardBox.x + cardBox.width / 2, y: title.y + title.height + 2 };
+  };
+
+  test("container drop shows 'Component › slot' label", async ({ page }) => {
+    const heading = page.locator("h1");
+    await heading.click();
+    await page.waitForTimeout(300);
+
+    await dragOverPoint(page, heading, await headerGapPoint(page));
+    await page.waitForTimeout(300);
+
+    expect(await getDropZoneLabelText(page)).toBe("Card › header");
+  });
+
+  test("hovering a container shows chips for empty slots", async ({ page }) => {
+    const heading = page.locator("h1");
+    await heading.click();
+    await page.waitForTimeout(300);
+
+    await dragOverPoint(page, heading, await headerGapPoint(page));
+    await page.waitForTimeout(300);
+
+    expect(await getSlotChipLabels(page)).toEqual(["footer"]);
+  });
+
+  test("drop into a specific slot inserts at the pointer position", async ({
+    page,
+  }) => {
+    const heading = page.locator("h1");
+    await heading.click();
+    await page.waitForTimeout(300);
+
+    await dragAndDropPoint(page, heading, await headerGapPoint(page));
+    await page.waitForTimeout(500);
+
+    const tags = await card(page).evaluate((el) =>
+      [...el.children].map((c) => c.tagName),
+    );
+    expect(tags.slice(0, 2)).toEqual(["H3", "H1"]);
+  });
+
+  test("drop on a chip moves the element into the empty slot", async ({
+    page,
+  }) => {
+    const heading = page.locator("h1");
+    await heading.click();
+    await page.waitForTimeout(300);
+
+    await dropOnSlotChip(page, heading, await headerGapPoint(page), "footer");
+    await page.waitForTimeout(500);
+
+    const tags = await card(page).evaluate((el) =>
+      [...el.children].map((c) => c.tagName),
+    );
+    expect(tags.at(-1)).toBe("H1");
+  });
+
+  test("move an element between slots of the same container", async ({
+    page,
+  }) => {
+    const title = cardTitle(page);
+    await title.click();
+    await page.waitForTimeout(300);
+
+    const desc = page.locator('p:has-text("No panels, no toolbars")');
+    await dragAndDrop(page, title, desc, "bottom");
+    await page.waitForTimeout(500);
+
+    const tags = await card(page).evaluate((el) =>
+      [...el.children].map((c) => c.tagName),
+    );
+    expect(tags).toEqual(["DIV", "H3"]);
   });
 });

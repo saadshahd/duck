@@ -6,17 +6,30 @@ import css from "./drag.css?inline";
 
 export type DropTarget =
   | { kind: "line"; elementId: string; edge: Edge; axis: Axis }
-  | { kind: "container"; elementId: string };
+  | {
+      kind: "container";
+      elementId: string;
+      slotKey: string;
+      index: number;
+      /** Targeted slot's region — highlight tightens to it when present. */
+      region?: DOMRect;
+    };
 
 type Props = { registry: FiberRegistry; target: DropTarget };
 
 const INSET = -2;
 const EXPAND = 4;
 
-function ContainerHighlight({ registry, target }: Props) {
-  const el = registry.get(target.elementId);
-  if (!el) return null;
-  const r = el.getBoundingClientRect();
+function ContainerHighlight({
+  registry,
+  target,
+}: {
+  registry: FiberRegistry;
+  target: DropTarget & { kind: "container" };
+}) {
+  const r =
+    target.region ?? registry.get(target.elementId)?.getBoundingClientRect();
+  if (!r) return null;
   return (
     <div
       data-role="drop-indicator-container"

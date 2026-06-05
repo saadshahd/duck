@@ -1,5 +1,7 @@
 {
-  "root": { "props": {} },
+  "root": {
+    "props": {}
+  },
   "content": [
     {
       "type": "Box",
@@ -115,7 +117,7 @@
                         "props": {
                           "id": "feature-1",
                           "style": {},
-                          "children": [
+                          "header": [
                             {
                               "type": "Heading",
                               "props": {
@@ -124,16 +126,21 @@
                                 "text": "Zero Chrome",
                                 "style": {}
                               }
-                            },
+                            }
+                          ],
+                          "body": [
                             {
                               "type": "Text",
                               "props": {
                                 "id": "feature-1-desc",
                                 "text": "No panels, no toolbars. The rendered page is the editor. Everything is contextual — appears on interaction, disappears when done.",
-                                "style": { "color": "#555555" }
+                                "style": {
+                                  "color": "#555555"
+                                }
                               }
                             }
-                          ]
+                          ],
+                          "footer": []
                         }
                       },
                       {
@@ -141,7 +148,7 @@
                         "props": {
                           "id": "feature-2",
                           "style": {},
-                          "children": [
+                          "header": [
                             {
                               "type": "Heading",
                               "props": {
@@ -150,16 +157,21 @@
                                 "text": "MCP-Native",
                                 "style": {}
                               }
-                            },
+                            }
+                          ],
+                          "body": [
                             {
                               "type": "Text",
                               "props": {
                                 "id": "feature-2-desc",
                                 "text": "AI agents connect via MCP and compose UIs. The editor is a review surface, not a creation tool. Designers steer, AI builds.",
-                                "style": { "color": "#555555" }
+                                "style": {
+                                  "color": "#555555"
+                                }
                               }
                             }
-                          ]
+                          ],
+                          "footer": []
                         }
                       },
                       {
@@ -167,7 +179,7 @@
                         "props": {
                           "id": "feature-3",
                           "style": {},
-                          "children": [
+                          "header": [
                             {
                               "type": "Heading",
                               "props": {
@@ -176,16 +188,21 @@
                                 "text": "Catalog-Agnostic",
                                 "style": {}
                               }
-                            },
+                            }
+                          ],
+                          "body": [
                             {
                               "type": "Text",
                               "props": {
                                 "id": "feature-3-desc",
                                 "text": "Bring your own Puck Config — Primer, shadcn, Radix, or plain HTML. Drop in as-is, no migration needed.",
-                                "style": { "color": "#555555" }
+                                "style": {
+                                  "color": "#555555"
+                                }
                               }
                             }
-                          ]
+                          ],
+                          "footer": []
                         }
                       }
                     ]

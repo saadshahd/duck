@@ -364,7 +364,9 @@ export const config: Config = {
 
     Card: {
       fields: {
-        children: { type: "slot" },
+        header: { type: "slot" },
+        body: { type: "slot" },
+        footer: { type: "slot" },
         style: {
           type: "object",
           objectFields: {
@@ -376,18 +378,21 @@ export const config: Config = {
       },
       defaultProps: {
         style: {},
-        children: [
+        header: [
           {
             type: "Heading",
             props: { id: "", text: "Card title", level: "h3", style: {} },
           },
+        ],
+        body: [
           {
             type: "Text",
             props: { id: "", text: "Card description goes here.", style: {} },
           },
         ],
+        footer: [],
       },
-      render: ({ children: Children, style }) => (
+      render: ({ header: Header, body: Body, footer: Footer, style }) => (
         <div
           style={{
             border: "1px solid #EAEAEA",
@@ -397,7 +402,9 @@ export const config: Config = {
             ...style,
           }}
         >
-          <Children as={BareSlot} />
+          <Header as={BareSlot} />
+          <Body as={BareSlot} />
+          <Footer as={BareSlot} />
         </div>
       ),
     },
@@ -417,16 +424,19 @@ export const config: Config = {
             props: {
               id: "",
               style: {},
-              children: [
+              header: [
                 {
                   type: "Heading",
                   props: { id: "", text: "Card title", level: "h3", style: {} },
                 },
+              ],
+              body: [
                 {
                   type: "Text",
                   props: { id: "", text: "Card description.", style: {} },
                 },
               ],
+              footer: [],
             },
           },
           {
@@ -434,16 +444,19 @@ export const config: Config = {
             props: {
               id: "",
               style: {},
-              children: [
+              header: [
                 {
                   type: "Heading",
                   props: { id: "", text: "Card title", level: "h3", style: {} },
                 },
+              ],
+              body: [
                 {
                   type: "Text",
                   props: { id: "", text: "Card description.", style: {} },
                 },
               ],
+              footer: [],
             },
           },
           {
@@ -451,16 +464,19 @@ export const config: Config = {
             props: {
               id: "",
               style: {},
-              children: [
+              header: [
                 {
                   type: "Heading",
                   props: { id: "", text: "Card title", level: "h3", style: {} },
                 },
+              ],
+              body: [
                 {
                   type: "Text",
                   props: { id: "", text: "Card description.", style: {} },
                 },
               ],
+              footer: [],
             },
           },
         ],

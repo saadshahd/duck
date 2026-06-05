@@ -1,6 +1,7 @@
 import type { ComponentData } from "@puckeditor/core";
-import type { FiberRegistry } from "../fiber/index.js";
 import type { DragData } from "./helpers.js";
+
+export { stubRegistry, emptyRegistry } from "../fiber/testing.js";
 
 export const text = (id: string): ComponentData => ({
   type: "Text",
@@ -15,16 +16,3 @@ export const box = (id: string, items: ComponentData[]): ComponentData => ({
 export const bag = (d: DragData) => ({
   data: d as unknown as Record<string | symbol, unknown>,
 });
-
-export const stubRegistry = (
-  rects: Record<string, DOMRect>,
-): FiberRegistry => ({
-  get: (id) => {
-    const r = rects[id];
-    return r ? ({ getBoundingClientRect: () => r } as HTMLElement) : undefined;
-  },
-  getNodeId: () => undefined,
-  dispose: () => {},
-});
-
-export const emptyRegistry = stubRegistry({});

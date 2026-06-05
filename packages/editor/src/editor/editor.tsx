@@ -29,7 +29,12 @@ import {
   createSelectParent,
 } from "./selection/index.js";
 import { usePropEditor } from "./prop-editor/use-prop-editor.jsx";
-import { useDragReorder, DropIndicator, DropZoneLabel } from "./drag/index.js";
+import {
+  useDragReorder,
+  DropIndicator,
+  DropZoneLabel,
+  SlotChips,
+} from "./drag/index.js";
 import { OverlayRoot } from "./overlay/index.js";
 import { BoxModelLayer } from "./box-model/index.js";
 import { useHistory, HistoryTimeline } from "./history/index.js";
@@ -395,6 +400,11 @@ export function Editor<UserConfig extends Config = Config>({
         {drag === "dragging" && dropTarget && fiberRegistry && (
           <>
             <DropIndicator registry={fiberRegistry} target={dropTarget} />
+            <SlotChips
+              registry={fiberRegistry}
+              data={currentData}
+              target={dropTarget}
+            />
             <DropZoneLabel
               registry={fiberRegistry}
               data={currentData}

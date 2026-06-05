@@ -14,6 +14,15 @@ export function resolveContainerId(
   return findParent(data, target.elementId)?.parentId ?? null;
 }
 
+/** Display label for the active drop target:
+ *  `Component › slot` for container drops, the parent type for line drops. */
+export function resolveLabel(data: Data, target: DropTarget): string | null {
+  const containerId = resolveContainerId(data, target);
+  const type = containerId ? findById(data, containerId)?.type : undefined;
+  if (!type) return null;
+  return target.kind === "container" ? `${type} › ${target.slotKey}` : type;
+}
+
 type DropZoneLabelProps = {
   registry: FiberRegistry;
   data: Data;
@@ -24,9 +33,7 @@ export function DropZoneLabel({ registry, data, target }: DropZoneLabelProps) {
   useShadowSheet(css);
 
   const containerId = resolveContainerId(data, target);
-  const containerType = containerId
-    ? (findById(data, containerId)?.type ?? undefined)
-    : undefined;
+  const label = resolveLabel(data, target);
 
   const { refs, floatingStyles } = useFloating({
     placement: "top-start",
@@ -37,7 +44,7 @@ export function DropZoneLabel({ registry, data, target }: DropZoneLabelProps) {
 
   useRegistryAnchor(refs, registry, containerId);
 
-  if (!containerType) return null;
+  if (!label) return null;
 
   return (
     <div
@@ -45,7 +52,7 @@ export function DropZoneLabel({ registry, data, target }: DropZoneLabelProps) {
       className="drop-zone-label"
       style={{ ...floatingStyles, zIndex: 1 }}
     >
-      {containerType}
+      {label}
     </div>
   );
 }

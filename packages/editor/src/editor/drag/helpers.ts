@@ -15,8 +15,6 @@ export type DragData = {
   slotKey: string | null;
   index: number;
   role: "sibling" | "container";
-  /** Slot of a container drop target — populated only when `role === "container"`. */
-  containerSlotKey?: string;
 };
 
 /** Single boundary cast — all downstream code is type-safe. */
@@ -34,7 +32,7 @@ export const EDGES: Record<Axis, Edge[]> = {
 
 // --- Zone detection ---
 
-const CONTAINER_THRESHOLD = 0.2;
+export const CONTAINER_THRESHOLD = 0.2;
 
 /** True when cursor is in the inner 60% of the element (container drop zone). */
 export const isInContainerZone = (
