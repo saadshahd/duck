@@ -40,7 +40,18 @@ const AXIS_GEOMETRY: Record<Axis, AxisGeometry> = {
   },
 };
 
-const length = (iv: Interval): number => iv.end - iv.start;
+const extent = (iv: Interval): number => iv.end - iv.start;
+
+/** Remove `cut` from `band`. Full containment collapses to a zero-width
+ *  interval at the cut's start; an edge overlap trims that edge; no overlap
+ *  returns the band unchanged. Assumes `cut` does not split `band` in two. */
+const subtractInterval = (band: Interval, cut: Interval): Interval => {
+  if (band.start >= cut.end || band.end <= cut.start) return band;
+  if (band.start >= cut.start && band.end <= cut.end)
+    return { start: cut.start, end: cut.start };
+  if (cut.start <= band.start) return { start: cut.end, end: band.end };
+  return { start: band.start, end: cut.start };
+};
 
 const byStart = <T extends { band: Interval }>(a: T, b: T): number =>
   a.band.start - b.band.start;
@@ -139,9 +150,9 @@ const absorbSubFloor = (
   bands: readonly Band[],
   span: Interval,
 ): { kept: Band[]; yielded: string[] } => {
-  const surviving = bands.filter((b) => length(b.band) >= TILE_FLOOR);
+  const surviving = bands.filter((b) => extent(b.band) >= TILE_FLOOR);
   const yielded = bands
-    .filter((b) => length(b.band) < TILE_FLOOR)
+    .filter((b) => extent(b.band) < TILE_FLOOR)
     .map((b) => b.slotKey);
   if (!yielded.length) return { kept: [...bands], yielded: [] };
   if (!surviving.length) return { kept: [], yielded };
@@ -173,10 +184,10 @@ const emptyBoundary = (
   return (bands.get(before.slotKey)!.end + bands.get(after.slotKey)!.start) / 2;
 };
 
-/** Carve a TILE_FLOOR band for each empty slot at its interpolated boundary,
- *  shrinking the measured bands it overlaps. Consecutive empties at the same
- *  boundary stack in declaration order. */
-const carveEmpties = (
+/** TILE_FLOOR band per empty slot at its interpolated boundary. Consecutive
+ *  empties at the same boundary stack in declaration order; a group is pinned
+ *  inside the span at the edges, centered otherwise. */
+const carveBands = (
   slots: readonly SlotInput[],
   measured: readonly Band[],
   span: Interval,
@@ -189,7 +200,7 @@ const carveEmpties = (
     return acc.set(at, [...(acc.get(at) ?? []), s.slotKey]);
   }, new Map<number, string[]>());
 
-  const carved = [...grouped.entries()].flatMap(([at, keys]) => {
+  return [...grouped.entries()].flatMap(([at, keys]) => {
     const total = keys.length * TILE_FLOOR;
     const start =
       at <= span.start
@@ -205,20 +216,26 @@ const carveEmpties = (
       },
     }));
   });
+};
 
-  const shrunk = measured.map((m) => {
-    const band = carved.reduce((b, c) => {
-      if (b.start >= c.band.end || b.end <= c.band.start) return b;
-      if (b.start >= c.band.start && b.end <= c.band.end)
-        return { start: c.band.start, end: c.band.start };
-      if (c.band.start <= b.start) return { start: c.band.end, end: b.end };
-      if (c.band.end >= b.end) return { start: b.start, end: c.band.start };
-      return { start: b.start, end: c.band.start };
-    }, m.band);
-    return { slotKey: m.slotKey, band };
-  });
+/** Shrink each measured band by every carved band overlapping it. */
+const shrinkAround = (
+  measured: readonly Band[],
+  carved: readonly Band[],
+): Band[] =>
+  measured.map((m) => ({
+    slotKey: m.slotKey,
+    band: carved.reduce((b, c) => subtractInterval(b, c.band), m.band),
+  }));
 
-  return [...shrunk, ...carved];
+/** Carve TILE_FLOOR bands for empty slots and shrink the survivors around them. */
+const carveEmpties = (
+  slots: readonly SlotInput[],
+  measured: readonly Band[],
+  span: Interval,
+): Band[] => {
+  const carved = carveBands(slots, measured, span);
+  return [...shrinkAround(measured, carved), ...carved];
 };
 
 export const tileSlots = (args: {
@@ -273,7 +290,7 @@ export const tileSlots = (args: {
     return toTiling(kept, yielded, axis, containerRect);
 
   const carved = carveEmpties(slots, kept, span);
-  if (carved.some((b) => length(b.band) < TILE_FLOOR - 1e-9))
+  if (carved.some((b) => extent(b.band) < TILE_FLOOR - 1e-9))
     return discrete(slots);
   return toTiling(carved, yielded, axis, containerRect);
 };
