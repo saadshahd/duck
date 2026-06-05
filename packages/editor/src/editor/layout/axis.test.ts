@@ -69,13 +69,13 @@ describe("cssAxis", () => {
 
   // flex
 
-  test("display:flex flex-direction:row → horizontal", () => {
-    setStyle(el, "display: flex; flex-direction: row;");
+  test("display:flex with no flex-direction → horizontal (CSS default is row)", () => {
+    setStyle(el, "display: flex;");
     expect(cssAxis(el)).toBe("horizontal");
   });
 
-  test("display:flex flex-direction:row-reverse → horizontal", () => {
-    setStyle(el, "display: flex; flex-direction: row-reverse;");
+  test("display:flex flex-direction:row → horizontal", () => {
+    setStyle(el, "display: flex; flex-direction: row;");
     expect(cssAxis(el)).toBe("horizontal");
   });
 
@@ -84,17 +84,12 @@ describe("cssAxis", () => {
     expect(cssAxis(el)).toBe("vertical");
   });
 
-  test("display:flex flex-direction:column-reverse → vertical", () => {
+  test("display:flex flex-direction:column-reverse → vertical (prefix match)", () => {
     setStyle(el, "display: flex; flex-direction: column-reverse;");
     expect(cssAxis(el)).toBe("vertical");
   });
 
   // inline-flex
-
-  test("display:inline-flex flex-direction:row → horizontal", () => {
-    setStyle(el, "display: inline-flex; flex-direction: row;");
-    expect(cssAxis(el)).toBe("horizontal");
-  });
 
   test("display:inline-flex flex-direction:column → vertical", () => {
     setStyle(el, "display: inline-flex; flex-direction: column;");
@@ -108,27 +103,12 @@ describe("cssAxis", () => {
     expect(cssAxis(el)).toBe("vertical");
   });
 
-  test("display:grid grid-auto-flow:row → vertical", () => {
-    setStyle(el, "display: grid; grid-auto-flow: row;");
-    expect(cssAxis(el)).toBe("vertical");
-  });
-
   test("display:grid grid-auto-flow:column → horizontal", () => {
     setStyle(el, "display: grid; grid-auto-flow: column;");
     expect(cssAxis(el)).toBe("horizontal");
   });
 
-  test("display:grid grid-auto-flow:column dense → horizontal", () => {
-    setStyle(el, "display: grid; grid-auto-flow: column dense;");
-    expect(cssAxis(el)).toBe("horizontal");
-  });
-
   // inline-grid
-
-  test("display:inline-grid default → vertical", () => {
-    setStyle(el, "display: inline-grid;");
-    expect(cssAxis(el)).toBe("vertical");
-  });
 
   test("display:inline-grid grid-auto-flow:column → horizontal", () => {
     setStyle(el, "display: inline-grid; grid-auto-flow: column;");

@@ -4,7 +4,8 @@ import type { FiberRegistry } from "../fiber/index.js";
 
 export type Axis = "vertical" | "horizontal";
 
-const isFlexRow = (direction: string): boolean => direction.startsWith("row");
+const isFlexColumn = (direction: string): boolean =>
+  direction.startsWith("column");
 const isGridColumn = (autoFlow: string): boolean => autoFlow.includes("column");
 
 const BLOCK_DISPLAYS = new Set(["block", "flow-root", "list-item"]);
@@ -17,7 +18,7 @@ export const cssAxis = (el: Element): Axis | null => {
   const display = cs.display;
 
   if (display === "flex" || display === "inline-flex") {
-    return isFlexRow(cs.flexDirection) ? "horizontal" : "vertical";
+    return isFlexColumn(cs.flexDirection) ? "vertical" : "horizontal";
   }
   if (display === "grid" || display === "inline-grid") {
     return isGridColumn(cs.gridAutoFlow) ? "horizontal" : "vertical";
