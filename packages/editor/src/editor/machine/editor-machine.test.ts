@@ -579,3 +579,28 @@ describe("selectedSlot cleared by top-level REPLACE_SELECT", () => {
     expect(s.context.selectedSlot).toBeNull();
   });
 });
+
+describe("slot-selected: dropped events keep slot-selected intact", () => {
+  const slotContext = { parentId: "card", slotKey: "body" };
+
+  const droppedEvents: EditorEvent[] = [
+    { type: "TOGGLE_SELECT", elementId: "el-2" },
+    { type: "OPEN_POPOVER" },
+    {
+      type: "START_INLINE_EDIT",
+      elementId: "el-1",
+      propKey: "text",
+      original: "Hello",
+      trigger: "select",
+    },
+    { type: "OPEN_INSERT" },
+  ];
+
+  for (const event of droppedEvents) {
+    it(`${event.type} is dropped — pointer stays slot-selected, selectedSlot unchanged`, () => {
+      const s = walk(...enterSlotSelected, event);
+      expect(pointerOf(s)).toBe("slot-selected");
+      expect(s.context.selectedSlot).toEqual(slotContext);
+    });
+  }
+});
