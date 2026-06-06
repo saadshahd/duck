@@ -1,11 +1,15 @@
 import { test, expect, type Page } from "@playwright/test";
 import {
-  clickToolbarAction,
   countHighlights,
   getTileLabels,
   getActiveDestinationLabel,
   isToolbarVisible,
   sourceCenter,
+  isMoveChipVisible,
+  getMoveChipText,
+  clickMoveChip,
+  isLiftPulseVisible,
+  isNoTargetFlashVisible,
   type Point,
 } from "../overlay/testing.js";
 
@@ -42,7 +46,7 @@ test.describe("Carry (pointer-driven move)", () => {
     await page.waitForTimeout(300);
     expect(await isToolbarVisible(page)).toBe(true);
 
-    await clickToolbarAction(page, "move");
+    await clickMoveChip(page);
     await page.waitForTimeout(150);
 
     const gap = await headerGapPoint(page);
@@ -91,7 +95,7 @@ test.describe("Carry (pointer-driven move)", () => {
     await page.waitForTimeout(300);
     expect(await countHighlights(page)).toBe(1);
 
-    await clickToolbarAction(page, "move");
+    await clickMoveChip(page);
     await page.waitForTimeout(150);
 
     const gap = await headerGapPoint(page);
@@ -104,5 +108,144 @@ test.describe("Carry (pointer-driven move)", () => {
       .poll(() => heroSection.locator("> *").first().textContent())
       .toBe(before);
     expect(await countHighlights(page)).toBe(1);
+  });
+});
+
+test.describe("Carry affordances", () => {
+  test.beforeEach(async ({ page }) => {
+    await page.goto("/");
+    await page.waitForTimeout(500);
+  });
+
+  test("move chip is visible with correct text when element is selected", async ({
+    page,
+  }) => {
+    const heading = page.locator("h1");
+    await heading.click();
+    await page.waitForTimeout(300);
+
+    expect(await isMoveChipVisible(page)).toBe(true);
+    expect(await getMoveChipText(page)).toBe("⤢ Move");
+  });
+
+  test("action-move button no longer exists in the toolbar", async ({
+    page,
+  }) => {
+    const heading = page.locator("h1");
+    await heading.click();
+    await page.waitForTimeout(300);
+    expect(await isToolbarVisible(page)).toBe(true);
+
+    const hasOldButton = await page.evaluate(() => {
+      for (const d of document.querySelectorAll("div")) {
+        if (!d.shadowRoot || d.style.position !== "fixed") continue;
+        return (
+          d.shadowRoot.querySelector(
+            "[role='toolbar'] [data-role='action-move']",
+          ) !== null
+        );
+      }
+      return false;
+    });
+    expect(hasOldButton).toBe(false);
+  });
+
+  test("click move chip enters carrying mode: slot tiles visible and body cursor is move", async ({
+    page,
+  }) => {
+    const heading = page.locator("h1");
+    await heading.click();
+    await page.waitForTimeout(300);
+
+    await clickMoveChip(page);
+    await page.waitForTimeout(150);
+
+    // Slot tiles appear when carrying
+    await expect.poll(() => getTileLabels(page)).not.toBeNull();
+    const tiles = await getTileLabels(page);
+    expect(tiles && tiles.length > 0).toBe(true);
+
+    // Body cursor is move
+    const cursor = await page.evaluate(() => document.body.style.cursor);
+    expect(cursor).toBe("move");
+  });
+
+  test("lift pulse appears when carrying starts", async ({ page }) => {
+    const heading = page.locator("h1");
+    await heading.click();
+    await page.waitForTimeout(300);
+
+    await clickMoveChip(page);
+    await page.waitForTimeout(50);
+
+    expect(await isLiftPulseVisible(page)).toBe(true);
+  });
+
+  test("clicking void area while carrying shows no-target flash then clears; still carrying", async ({
+    page,
+  }) => {
+    const heading = page.locator("h1");
+    await heading.click();
+    await page.waitForTimeout(300);
+
+    await clickMoveChip(page);
+    await page.waitForTimeout(150);
+
+    // Move pointer to a void area (top-left corner — outside all page elements).
+    // Wait for the rAF to fire and settle selected=null before clicking.
+    await page.mouse.move(5, 5);
+    await page.waitForTimeout(200);
+
+    // Click — should trigger no-target flash (no valid destination at corner)
+    await page.mouse.click(5, 5);
+
+    // Flash should appear
+    await expect.poll(() => isNoTargetFlashVisible(page)).toBe(true);
+
+    // Flash should disappear after ~300ms
+    await expect
+      .poll(() => isNoTargetFlashVisible(page), { timeout: 1000 })
+      .toBe(false);
+
+    // Still carrying: cursor is still "move" and move chip is gone (carrying hides
+    // selection label) — confirmed by the cursor signal which is the clearest carry indicator.
+    const cursor = await page.evaluate(() => document.body.style.cursor);
+    expect(cursor).toBe("move");
+  });
+
+  test("Esc cancels carry: cursor restored", async ({ page }) => {
+    const heading = page.locator("h1");
+    await heading.click();
+    await page.waitForTimeout(300);
+
+    await clickMoveChip(page);
+    await page.waitForTimeout(150);
+
+    expect(await page.evaluate(() => document.body.style.cursor)).toBe("move");
+
+    await page.keyboard.press("Escape");
+    await page.waitForTimeout(100);
+
+    const cursor = await page.evaluate(() => document.body.style.cursor);
+    expect(cursor).not.toBe("move");
+    expect(await countHighlights(page)).toBe(1);
+  });
+
+  test("Space on selected element lifts (regression: Task 2)", async ({
+    page,
+  }) => {
+    const heading = page.locator("h1");
+    await heading.click();
+    await page.waitForTimeout(300);
+
+    await lift(page);
+
+    // Carrying: slot tiles should be visible
+    await expect.poll(() => getTileLabels(page)).not.toBeNull();
+    const tiles = await getTileLabels(page);
+    expect(tiles && tiles.length > 0).toBe(true);
+
+    // Cancel to restore
+    await page.keyboard.press("Escape");
   });
 });

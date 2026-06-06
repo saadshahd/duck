@@ -32,7 +32,7 @@ import {
 } from "./selection/index.js";
 import { usePropEditor } from "./prop-editor/use-prop-editor.jsx";
 import { useDragReorder, DragOverlay, CycleChip } from "./drag/index.js";
-import { useCarry } from "./carry/index.js";
+import { useCarry, LiftPulse, NoTargetFlash } from "./carry/index.js";
 import { OverlayRoot, Announcer } from "./overlay/index.js";
 import { BoxModelLayer } from "./box-model/index.js";
 import { useHistory, HistoryTimeline } from "./history/index.js";
@@ -41,7 +41,10 @@ import { useGhostPlaceholders } from "./ghost/index.js";
 import { useFiberRegistry } from "./shell/use-fiber-registry.js";
 import { useSelectionReconcile } from "./shell/use-selection-reconcile.js";
 import { useSlotAddress } from "./shell/use-slot-stop.js";
-import { announcerMessage } from "./shell/announcer-message.js";
+import {
+  announcerMessage,
+  assertiveCarryMessage,
+} from "./shell/announcer-message.js";
 import { useContextMenu, ContextMenu } from "./context-menu/index.js";
 import { useClipboard } from "./clipboard/index.js";
 import { CatalogPicker, useInsert } from "./insert/index.js";
@@ -144,7 +147,7 @@ export function Editor<UserConfig extends Config = Config>({
     send,
     commit,
   });
-  const { target: carryTarget } = useCarry({
+  const { target: carryTarget, noTargetFlash } = useCarry({
     registry: fiberRegistry,
     data: currentData,
     state,
@@ -177,6 +180,22 @@ export function Editor<UserConfig extends Config = Config>({
     pointer: string;
     drag: string;
   };
+  const dragSourceId = state.context.dragSourceId;
+
+  // Capture a snapshot rect at the moment carry starts for the lift pulse.
+  const liftRectRef = useRef<DOMRect | null>(null);
+  const prevDragRef = useRef(drag);
+  if (
+    drag === "carrying" &&
+    prevDragRef.current !== "carrying" &&
+    dragSourceId &&
+    fiberRegistry
+  ) {
+    liftRectRef.current =
+      fiberRegistry.get(dragSourceId)?.getBoundingClientRect() ?? null;
+  }
+  if (drag !== "carrying") liftRectRef.current = null;
+  prevDragRef.current = drag;
   const { hoveredId } = state.context;
 
   const clipboard = useClipboard({
@@ -347,6 +366,17 @@ export function Editor<UserConfig extends Config = Config>({
                 toolbarRef={toolbarRef}
                 onSelectParent={selectParent}
               >
+                {singleSelected && drag === "idle" && (
+                  <button
+                    type="button"
+                    data-role="move-chip"
+                    className="move-chip"
+                    aria-keyshortcuts="Space"
+                    onClick={() => handleAction({ tag: "move" })}
+                  >
+                    ⤢ Move
+                  </button>
+                )}
                 <button
                   type="button"
                   className={`label-action-btn${boxModelVisible ? " label-action-btn--active" : ""}`}
@@ -460,6 +490,10 @@ export function Editor<UserConfig extends Config = Config>({
             </>
           ) : null;
         })()}
+        {drag === "carrying" && liftRectRef.current && (
+          <LiftPulse rect={liftRectRef.current} />
+        )}
+        {noTargetFlash && <NoTargetFlash point={noTargetFlash} />}
         <Announcer
           message={announcerMessage({
             data: currentData,
@@ -469,6 +503,15 @@ export function Editor<UserConfig extends Config = Config>({
             carryTarget,
             cycleStatus,
             slotAddress,
+          })}
+        />
+        <Announcer
+          assertive
+          message={assertiveCarryMessage({
+            data: currentData,
+            drag,
+            dragSourceId,
+            noTargetFlash,
           })}
         />
         {menu && (

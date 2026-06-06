@@ -101,13 +101,6 @@ export function FloatingActionBar({
         </button>
         <button
           type="button"
-          data-role="action-move"
-          onClick={() => onAction({ tag: "move" })}
-        >
-          ⤢
-        </button>
-        <button
-          type="button"
           data-role="action-delete"
           onClick={() => onAction({ tag: "delete" })}
         >

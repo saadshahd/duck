@@ -1,4 +1,5 @@
 import type { Data } from "@puckeditor/core";
+import { findById } from "@duckeditor/spec";
 import type { DropTarget } from "../layout/index.js";
 import { announcementFor } from "../drag/index.js";
 
@@ -38,4 +39,27 @@ export const announcerMessage = ({
   if (pointer === "slot-selected" && slotAddress)
     return `Slot ${slotAddress} selected`;
   return "";
+};
+
+type AssertiveArgs = {
+  data: Data;
+  drag: string;
+  dragSourceId: string | null;
+  noTargetFlash: { x: number; y: number } | null;
+};
+
+/** Assertive live-region message for mode-entry and invalid-click echo. Emitted
+ *  on a second Announcer instance (assertive region) so it doesn't interfere
+ *  with the polite destination announcements. Returns empty string when silent. */
+export const assertiveCarryMessage = ({
+  data,
+  drag,
+  dragSourceId,
+  noTargetFlash,
+}: AssertiveArgs): string => {
+  if (drag !== "carrying") return "";
+  if (noTargetFlash) return "No target here";
+  if (!dragSourceId) return "";
+  const sourceType = findById(data, dragSourceId)?.type ?? "element";
+  return `Moving ${sourceType}. Click or press Enter to drop, Esc to cancel.`;
 };

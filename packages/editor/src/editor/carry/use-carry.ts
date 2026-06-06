@@ -22,6 +22,8 @@ type Props = {
   commit: EditorCommit;
 };
 
+type Point = { x: number; y: number };
+
 const stateOf = (s: EditorSnapshot) => s.value as { drag: string };
 
 /** Pointer-driven move: while the FSM is `carrying`, the pointer position (and
@@ -30,8 +32,11 @@ const stateOf = (s: EditorSnapshot) => s.value as { drag: string };
  *  `move` op as drag — only the input is plain pointer events, not a native drag. */
 export function useCarry({ registry, data, state, send, commit }: Props): {
   target: DropTarget | null;
+  noTargetFlash: Point | null;
 } {
   const [target, setTarget] = useState<DropTarget | null>(null);
+  const [noTargetFlash, setNoTargetFlash] = useState<Point | null>(null);
+  const flashTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const dataRef = useRef(data);
   dataRef.current = data;
@@ -44,6 +49,10 @@ export function useCarry({ registry, data, state, send, commit }: Props): {
 
   useEffect(() => {
     if (!registry || !carrying || !sourceId) return;
+
+    // Set cursor on body for the duration of carry (body is outside shadow root).
+    const prevCursor = document.body.style.cursor;
+    document.body.style.cursor = "move";
 
     let raf = 0;
     // Seed from the carried element's center so a stationary lift (Space, toolbar
@@ -97,11 +106,26 @@ export function useCarry({ registry, data, state, send, commit }: Props): {
       render(stack);
     };
 
+    const flash = (p: Point) => {
+      if (flashTimerRef.current) clearTimeout(flashTimerRef.current);
+      setNoTargetFlash(p);
+      flashTimerRef.current = setTimeout(() => {
+        setNoTargetFlash(null);
+        flashTimerRef.current = null;
+      }, 300);
+    };
+
     const commitMove = () => {
-      if (!selected) return; // No-target outcome: nothing happens.
+      if (!selected) {
+        flash(point);
+        return;
+      }
       const dest = selected;
       const beforeData = dataRef.current;
-      if (!findParent(beforeData, sourceId)) return;
+      if (!findParent(beforeData, sourceId)) {
+        flash(point);
+        return;
+      }
       setTarget(null);
       move(beforeData, sourceId, dest.parentId, dest.slotKey, dest.index).map(
         (next) => {
@@ -166,9 +190,16 @@ export function useCarry({ registry, data, state, send, commit }: Props): {
       document.removeEventListener("pointermove", onPointerMove);
       document.removeEventListener("click", onClick, { capture: true });
       document.removeEventListener("keydown", onKeyDown, { capture: true });
+      document.body.style.cursor = prevCursor;
       setTarget(null);
+      // Clear any pending flash timer on carry exit.
+      if (flashTimerRef.current) {
+        clearTimeout(flashTimerRef.current);
+        flashTimerRef.current = null;
+        setNoTargetFlash(null);
+      }
     };
   }, [registry, carrying, sourceId, send]);
 
-  return { target };
+  return { target, noTargetFlash };
 }

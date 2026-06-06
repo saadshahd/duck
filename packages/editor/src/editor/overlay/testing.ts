@@ -344,6 +344,46 @@ export const hasMorphOverlay = (page: Page) =>
     () => document.querySelector("[data-role='morph-overlay']") !== null,
   );
 
+// --- Carry helpers ---
+
+export const getMoveChipText = (page: Page) =>
+  shadowQuery(
+    page,
+    (r) =>
+      (r.querySelector("[data-role='move-chip']") as HTMLElement | null)
+        ?.textContent ?? null,
+  ) as Promise<string | null>;
+
+export const isMoveChipVisible = (page: Page) =>
+  shadowQuery(
+    page,
+    (r) => r.querySelector("[data-role='move-chip']") !== null,
+  ) as Promise<boolean>;
+
+export const clickMoveChip = (page: Page) =>
+  page.evaluate(() => {
+    for (const d of document.querySelectorAll("div")) {
+      if (!d.shadowRoot || d.style.position !== "fixed") continue;
+      const btn = d.shadowRoot.querySelector(
+        "[data-role='move-chip']",
+      ) as HTMLElement | null;
+      btn?.click();
+      return;
+    }
+  });
+
+export const isLiftPulseVisible = (page: Page) =>
+  shadowQuery(
+    page,
+    (r) => r.querySelector("[data-role='lift-pulse']") !== null,
+  ) as Promise<boolean>;
+
+export const isNoTargetFlashVisible = (page: Page) =>
+  shadowQuery(
+    page,
+    (r) => r.querySelector("[data-role='carry-no-target-flash']") !== null,
+  ) as Promise<boolean>;
+
 // --- Cycle chip helpers ---
 
 export const getCycleChipText = (page: Page) =>
