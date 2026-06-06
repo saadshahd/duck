@@ -257,6 +257,104 @@
                 }
               ]
             }
+          },
+          {
+            "type": "Stack",
+            "props": {
+              "id": "test-rig",
+              "direction": "horizontal",
+              "gap": "2rem",
+              "style": { "padding": "3rem 0", "alignItems": "start" },
+              "children": [
+                {
+                  "type": "Panel",
+                  "props": {
+                    "id": "panel-stack",
+                    "layout": "stack",
+                    "head": [
+                      {
+                        "type": "Heading",
+                        "props": {
+                          "id": "panel-stack-head",
+                          "level": "h3",
+                          "text": "Stack panel",
+                          "style": {}
+                        }
+                      }
+                    ],
+                    "divider": [],
+                    "body": [
+                      {
+                        "type": "Text",
+                        "props": {
+                          "id": "panel-stack-body",
+                          "text": "Measured body content fills this slot with a real box.",
+                          "style": {}
+                        }
+                      }
+                    ],
+                    "note": [
+                      {
+                        "type": "Text",
+                        "props": {
+                          "id": "panel-stack-note",
+                          "text": "sliver",
+                          "style": {}
+                        }
+                      }
+                    ]
+                  }
+                },
+                {
+                  "type": "Panel",
+                  "props": {
+                    "id": "panel-scatter",
+                    "layout": "scatter",
+                    "head": [
+                      {
+                        "type": "Heading",
+                        "props": {
+                          "id": "panel-scatter-head",
+                          "level": "h3",
+                          "text": "Scatter",
+                          "style": {}
+                        }
+                      }
+                    ],
+                    "divider": [
+                      {
+                        "type": "Text",
+                        "props": {
+                          "id": "panel-scatter-divider",
+                          "text": "divider",
+                          "style": {}
+                        }
+                      }
+                    ],
+                    "body": [
+                      {
+                        "type": "Text",
+                        "props": {
+                          "id": "panel-scatter-body",
+                          "text": "body",
+                          "style": {}
+                        }
+                      }
+                    ],
+                    "note": [
+                      {
+                        "type": "Text",
+                        "props": {
+                          "id": "panel-scatter-note",
+                          "text": "note",
+                          "style": {}
+                        }
+                      }
+                    ]
+                  }
+                }
+              ]
+            }
           }
         ]
       }

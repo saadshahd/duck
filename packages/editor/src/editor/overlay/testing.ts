@@ -97,6 +97,42 @@ export const hasDropIndicator = (page: Page) =>
     (r) => r.querySelector("[data-role='drop-indicator']") !== null,
   ) as Promise<boolean>;
 
+/** The drag overlay's resolution at the current pointer, read in one pass: the
+ *  active tile's slot label (when a slot band is aimed), whether the painted
+ *  tiles are a discrete marker stack, whether a between-siblings line is shown,
+ *  the root-drop label, and the explicit no-target marker. Exactly one of
+ *  `tile`/`line`/`root`/`noTarget` is truthy at any pointer position inside a
+ *  container — that is the zero-dead-zone invariant. */
+export const readResolution = (page: Page) =>
+  shadowQuery(page, (r) => {
+    const text = (sel: string) =>
+      (r.querySelector(sel) as HTMLElement | null)?.textContent ?? null;
+    return {
+      tile: text("[data-role='slot-tile'][data-active]"),
+      discrete:
+        r.querySelector("[data-role='slot-tile'][data-discrete]") !== null,
+      line: r.querySelector("[data-role='drop-indicator']") !== null,
+      root: text("[data-role='root-drop-label']"),
+      noTarget: r.querySelector("[data-role='no-target-marker']") !== null,
+    };
+  }) as Promise<{
+    tile: string | null;
+    discrete: boolean;
+    line: boolean;
+    root: string | null;
+    noTarget: boolean;
+  } | null>;
+
+/** Every painted slot tile with its label and whether it is a discrete marker —
+ *  the full set the overlay shows, regardless of which one is active. */
+export const readTiles = (page: Page) =>
+  shadowQuery(page, (r) =>
+    [...r.querySelectorAll("[data-role='slot-tile']")].map((el) => ({
+      label: el.textContent ?? "",
+      discrete: el.hasAttribute("data-discrete"),
+    })),
+  ) as Promise<{ label: string; discrete: boolean }[] | null>;
+
 const getDropIndicatorRect = (page: Page) =>
   shadowQuery(page, (r) => {
     const el = r.querySelector(

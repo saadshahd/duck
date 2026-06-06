@@ -493,6 +493,99 @@ export const config: Config = {
         </div>
       ),
     },
+
+    // Test-only irregular container. Four slots in declaration order
+    // (head, divider, body, note) exercising the tiling edge cases on one page:
+    // an empty `divider` between measured slots (band carving), a `note` slot
+    // whose sliver child goes sub-floor on the vertical axis (yield), and a
+    // `scatter` layout that absolutely positions children so their projections
+    // interleave on both axes (discrete fallback). Plain by design — a rig.
+    Panel: {
+      fields: {
+        head: { type: "slot" },
+        divider: { type: "slot" },
+        body: { type: "slot" },
+        note: { type: "slot" },
+        layout: {
+          type: "select",
+          options: [
+            { label: "Stack", value: "stack" },
+            { label: "Scatter", value: "scatter" },
+          ],
+        },
+      },
+      defaultProps: {
+        layout: "stack",
+        head: [],
+        divider: [],
+        body: [],
+        note: [],
+      },
+      render: ({
+        head: Head,
+        divider: Divider,
+        body: Body,
+        note: Note,
+        layout,
+      }) => {
+        const scatter = layout === "scatter";
+        return (
+          <div
+            style={{
+              position: "relative",
+              border: "1px solid #CCCCCC",
+              padding: scatter ? "1rem" : "1rem 1rem 2px",
+              width: "320px",
+              height: scatter ? "180px" : undefined,
+              display: scatter ? "block" : "flex",
+              flexDirection: "column",
+              gap: scatter ? undefined : "0.75rem",
+            }}
+          >
+            <div
+              style={
+                scatter
+                  ? { position: "absolute", top: "10px", left: "120px" }
+                  : undefined
+              }
+            >
+              <Head as={BareSlot} />
+            </div>
+            <div
+              style={
+                scatter
+                  ? { position: "absolute", top: "60px", left: "10px" }
+                  : undefined
+              }
+            >
+              <Divider as={BareSlot} />
+            </div>
+            <div
+              style={
+                scatter
+                  ? { position: "absolute", top: "30px", left: "10px" }
+                  : undefined
+              }
+            >
+              <Body as={BareSlot} />
+            </div>
+            <div
+              style={
+                scatter
+                  ? { position: "absolute", top: "90px", left: "150px" }
+                  : {
+                      height: "4px",
+                      overflow: "hidden",
+                      marginTop: "-2px",
+                    }
+              }
+            >
+              <Note as={BareSlot} />
+            </div>
+          </div>
+        );
+      },
+    },
   },
 
   root: {
