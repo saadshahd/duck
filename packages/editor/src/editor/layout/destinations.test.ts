@@ -5,8 +5,22 @@ import {
   resolveContainerId,
   resolveLabel,
   stepCycle,
+  type DropTarget,
 } from "./destinations.js";
 import { stubRegistry } from "../fiber/testing.js";
+
+const containerTarget = (
+  elementId: string,
+  slotKey: string,
+  index: number,
+): DropTarget => ({
+  kind: "container",
+  elementId,
+  slotKey,
+  index,
+  tiling: { kind: "discrete", slotKeys: [slotKey] },
+  activeLabel: `${slotKey}`,
+});
 
 // --- Factories ---
 
@@ -226,11 +240,18 @@ describe("stepCycle", () => {
 describe("resolveContainerId", () => {
   test("container target returns elementId directly", () => {
     expect(
+      resolveContainerId(
+        stackData([leaf("a")]),
+        containerTarget("container", "items", 1),
+      ),
+    ).toBe("container");
+  });
+
+  test("no-target returns elementId directly", () => {
+    expect(
       resolveContainerId(stackData([leaf("a")]), {
-        kind: "container",
+        kind: "none",
         elementId: "container",
-        slotKey: "items",
-        index: 1,
       }),
     ).toBe("container");
   });
@@ -261,13 +282,20 @@ describe("resolveContainerId", () => {
 describe("resolveLabel", () => {
   test("container target → 'Component › slot'", () => {
     expect(
-      resolveLabel(stackData([leaf("a")]), {
-        kind: "container",
-        elementId: "container",
-        slotKey: "items",
-        index: 1,
-      }),
+      resolveLabel(
+        stackData([leaf("a")]),
+        containerTarget("container", "items", 1),
+      ),
     ).toBe("Stack › items");
+  });
+
+  test("no-target → constant label", () => {
+    expect(
+      resolveLabel(stackData([leaf("a")]), {
+        kind: "none",
+        elementId: "container",
+      }),
+    ).toBe("No target here");
   });
 
   test("line target → parent component type", () => {
@@ -283,12 +311,7 @@ describe("resolveLabel", () => {
 
   test("unknown container → null", () => {
     expect(
-      resolveLabel(stackData([leaf("a")]), {
-        kind: "container",
-        elementId: "gone",
-        slotKey: "items",
-        index: 0,
-      }),
+      resolveLabel(stackData([leaf("a")]), containerTarget("gone", "items", 0)),
     ).toBeNull();
   });
 

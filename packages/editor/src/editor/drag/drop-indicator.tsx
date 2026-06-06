@@ -3,10 +3,21 @@ import type { FiberRegistry } from "../fiber/index.js";
 import type { DropTarget } from "../layout/index.js";
 import css from "./drag.css?inline";
 
-type Props = { registry: FiberRegistry; target: DropTarget };
+type Props = {
+  registry: FiberRegistry;
+  target: Exclude<DropTarget, { kind: "none" }>;
+};
 
 const INSET = -2;
 const EXPAND = 4;
+
+/** Tile rect for the active slot, when the tiling carries one. */
+const activeTileRect = (
+  target: DropTarget & { kind: "container" },
+): DOMRect | undefined =>
+  target.tiling.kind === "tiled"
+    ? target.tiling.tiles.find((t) => t.slotKey === target.slotKey)?.rect
+    : undefined;
 
 function ContainerHighlight({
   registry,
@@ -16,7 +27,8 @@ function ContainerHighlight({
   target: DropTarget & { kind: "container" };
 }) {
   const r =
-    target.region ?? registry.get(target.elementId)?.getBoundingClientRect();
+    activeTileRect(target) ??
+    registry.get(target.elementId)?.getBoundingClientRect();
   if (!r) return null;
   return (
     <div

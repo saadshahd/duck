@@ -57,31 +57,6 @@
   transition: all 150ms ease;
 }
 
-.slot-chip {
-  position: absolute;
-  pointer-events: none;
-  box-sizing: border-box;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-family: var(--font-system);
-  font-size: 11px;
-  font-weight: 500;
-  border-radius: 11px;
-  color: var(--accent);
-  background: #fff;
-  border: 1px dashed var(--accent);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.slot-chip[data-active] {
-  background: var(--accent);
-  border-style: solid;
-  color: #fff;
-}
-
 .drop-zone-label {
   pointer-events: none;
   font-family: var(--font-system);
@@ -93,5 +68,19 @@
   color: var(--accent);
   background: color-mix(in srgb, var(--accent) 10%, white);
   border: 1px dashed var(--accent);
+  white-space: nowrap;
+}
+
+.no-target-marker {
+  pointer-events: none;
+  font-family: var(--font-system);
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 1.4;
+  padding: 2px 6px;
+  border-radius: 3px;
+  color: #78716c;
+  background: rgba(120, 113, 108, 0.08);
+  border: 1px dashed #78716c;
   white-space: nowrap;
 }

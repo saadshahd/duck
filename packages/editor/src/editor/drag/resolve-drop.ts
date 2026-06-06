@@ -51,8 +51,8 @@ export function resolveDrop({
   )
     return null;
 
-  // No indicator → resolveIndicator ruled the position out. Cancel.
-  if (!indicator) return null;
+  // No indicator, or an explicit no-target → cancel.
+  if (!indicator || indicator.kind === "none") return null;
 
   // Drop INTO a container — commit what the indicator showed, verbatim
   if (indicator.kind === "container") {

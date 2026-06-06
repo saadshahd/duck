@@ -1,7 +1,7 @@
 import { describe, test, expect } from "bun:test";
 import type { ComponentData, Data } from "@puckeditor/core";
 import { resolveIndicator } from "./resolve-indicator.js";
-import { chipLayout } from "./slot-chips.js";
+import type { DropTarget } from "../layout/index.js";
 import {
   text,
   box,
@@ -59,6 +59,15 @@ const sourceA = () =>
     role: "sibling",
   });
 
+const containerTarget = (slotKey: string, index: number): DropTarget => ({
+  kind: "container",
+  elementId: "card",
+  slotKey,
+  index,
+  tiling: { kind: "discrete", slotKeys: [slotKey] },
+  activeLabel: `Card › ${slotKey}`,
+});
+
 const resolve = (overrides: Partial<Parameters<typeof resolveIndicator>[0]>) =>
   resolveIndicator({
     source: sourceA(),
@@ -70,8 +79,6 @@ const resolve = (overrides: Partial<Parameters<typeof resolveIndicator>[0]>) =>
     descendantSet: new Set(),
     ...overrides,
   });
-
-const xywh = (r?: DOMRect) => r && { x: r.x, y: r.y, w: r.width, h: r.height };
 
 // --- Tests ---
 
@@ -104,7 +111,7 @@ describe("resolveIndicator", () => {
     ).toBeNull();
   });
 
-  test("single populated slot → append at end of slots[0]", () => {
+  test("single-slot container with no measurable geometry → append into slots[0]", () => {
     const target = bag({
       elementId: "box",
       parentId: null,
@@ -112,11 +119,12 @@ describe("resolveIndicator", () => {
       index: 3,
       role: "container",
     });
-    expect(resolve({ target })).toEqual({
+    expect(resolve({ target })).toMatchObject({
       kind: "container",
       elementId: "box",
       slotKey: "items",
       index: 2,
+      activeLabel: "Box › items",
     });
   });
 
@@ -138,7 +146,7 @@ describe("resolveIndicator", () => {
     expect(resolve({ source, target })).toBeNull();
   });
 
-  test("multi-slot container: point resolves slot, index, and region", () => {
+  test("multi-slot container: pointer resolves slot, index, and carries a tiling", () => {
     const target = bag({
       elementId: "card",
       parentId: null,
@@ -153,18 +161,16 @@ describe("resolveIndicator", () => {
       registry: cardRegistry(),
     });
 
-    expect(
-      indicator?.kind === "container" && {
-        ...indicator,
-        region: xywh(indicator.region),
-      },
-    ).toEqual({
+    expect(indicator).toMatchObject({
       kind: "container",
       elementId: "card",
       slotKey: "body",
       index: 0,
-      region: { x: 10, y: 60, w: 180, h: 170 },
+      activeLabel: "Card › body",
     });
+    expect(indicator?.kind === "container" && indicator.tiling.kind).toBe(
+      "tiled",
+    );
   });
 
   test("multi-slot container: point past the last child's center → end index", () => {
@@ -185,7 +191,7 @@ describe("resolveIndicator", () => {
     expect(indicator).toMatchObject({ slotKey: "body", index: 2 });
   });
 
-  test("previous indicator's slot is sticky near its boundary", () => {
+  test("previous indicator's slot is sticky near its tile boundary", () => {
     const target = bag({
       elementId: "card",
       parentId: null,
@@ -193,36 +199,18 @@ describe("resolveIndicator", () => {
       index: 1,
       role: "container",
     });
-    const point = { x: 100, y: 57 };
+    // header tile spans [0..55]; just past the boundary at y=58 is the body
+    // tile, but header's 8px-expanded rect still covers it when it was current.
+    const point = { x: 100, y: 58 };
     const args = { target, point, data: cardData(), registry: cardRegistry() };
 
     expect(resolve(args)).toMatchObject({ slotKey: "body" });
     expect(
-      resolve({
-        ...args,
-        previous: {
-          kind: "container",
-          elementId: "card",
-          slotKey: "header",
-          index: 1,
-        },
-      }),
+      resolve({ ...args, previous: containerTarget("header", 1) }),
     ).toMatchObject({ slotKey: "header", index: 1 });
   });
 
-  // card rect (0,0,200,300) → footer chip laid at (44,214,96,22) by chipLayout
-  const footerChipCenter = () => {
-    const [chip] = chipLayout({
-      containerRect: new DOMRect(0, 0, 200, 300),
-      specs: [{ slotKey: "footer", index: 0 }],
-    });
-    return {
-      x: chip.rect.left + chip.rect.width / 2,
-      y: chip.rect.top + chip.rect.height / 2,
-    };
-  };
-
-  test("pointer inside a chip rect wins over slot regions", () => {
+  test("pointer over an empty slot's carved band → that slot at append index", () => {
     const target = bag({
       elementId: "card",
       parentId: null,
@@ -230,47 +218,18 @@ describe("resolveIndicator", () => {
       index: 1,
       role: "container",
     });
-    expect(
-      resolve({
-        target,
-        point: footerChipCenter(),
-        data: cardData(),
-        registry: cardRegistry(),
-      }),
-    ).toEqual({
-      kind: "container",
-      elementId: "card",
-      slotKey: "footer",
-      index: 0,
+    const indicator = resolve({
+      target,
+      point: { x: 100, y: 299 },
+      data: cardData(),
+      registry: cardRegistry(),
     });
-  });
 
-  test("chip hit holds when the pointer is over a sibling beneath the chip", () => {
-    const target = bag({
-      elementId: "b2",
-      parentId: "card",
-      slotKey: "body",
-      index: 1,
-      role: "sibling",
-    });
-    expect(
-      resolve({
-        target,
-        point: footerChipCenter(),
-        previous: {
-          kind: "container",
-          elementId: "card",
-          slotKey: "body",
-          index: 1,
-        },
-        data: cardData(),
-        registry: cardRegistry(),
-      }),
-    ).toEqual({
+    expect(indicator).toMatchObject({
       kind: "container",
-      elementId: "card",
       slotKey: "footer",
       index: 0,
+      activeLabel: "Card › footer",
     });
   });
 
@@ -282,7 +241,9 @@ describe("resolveIndicator", () => {
       index: 1,
       role: "container",
     });
-    expect(resolve({ target, data: cardData() })).toEqual({
+    expect(
+      resolve({ target, data: cardData(), registry: emptyRegistry }),
+    ).toMatchObject({
       kind: "container",
       elementId: "card",
       slotKey: "header",
@@ -290,7 +251,7 @@ describe("resolveIndicator", () => {
     });
   });
 
-  test("container target unknown in data → null", () => {
+  test("container target unknown in data → explicit no-target", () => {
     const target = bag({
       elementId: "gone",
       parentId: null,
@@ -298,7 +259,7 @@ describe("resolveIndicator", () => {
       index: 9,
       role: "container",
     });
-    expect(resolve({ target })).toBeNull();
+    expect(resolve({ target })).toEqual({ kind: "none", elementId: "gone" });
   });
 
   test("returns null when edge is null (no atlaskit symbol)", () => {

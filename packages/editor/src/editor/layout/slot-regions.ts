@@ -3,8 +3,6 @@ import { findById, slotKeysOf } from "@duckeditor/spec";
 import type { FiberRegistry } from "../fiber/index.js";
 import type { Axis } from "./axis.js";
 import {
-  containsPoint,
-  expandRect,
   intersectRect,
   isCollapsed,
   rectsOverlap,
@@ -13,36 +11,21 @@ import {
 
 type SlotChild = { index: number; rect: DOMRect };
 
-export type SlotRegion =
-  | {
-      slotKey: string;
-      kind: "measured";
-      rect: DOMRect;
-      children: readonly SlotChild[];
-    }
-  | { slotKey: string; kind: "chip" };
-
-export type MeasuredRegion = Extract<SlotRegion, { kind: "measured" }>;
-
-type Point = { x: number; y: number };
-
-const HYSTERESIS = 8;
-const HYSTERESIS_EDGES = {
-  top: HYSTERESIS,
-  right: HYSTERESIS,
-  bottom: HYSTERESIS,
-  left: HYSTERESIS,
+/** A slot with measurable child geometry: the union of its child rects clamped
+ *  to the parent, plus the individual children for index resolution. */
+export type MeasuredRegion = {
+  slotKey: string;
+  rect: DOMRect;
+  children: readonly SlotChild[];
 };
 
+type Point = { x: number; y: number };
 
 const pointToRect = (p: Point, r: DOMRect): number =>
   Math.hypot(
     Math.max(r.left - p.x, p.x - r.right, 0),
     Math.max(r.top - p.y, p.y - r.bottom, 0),
   );
-
-const nearestChildDistance = (region: MeasuredRegion, p: Point): number =>
-  Math.min(...region.children.map((c) => pointToRect(p, c.rect)));
 
 const minBy = <T>(
   items: readonly T[],
@@ -51,30 +34,6 @@ const minBy = <T>(
   items.length
     ? items.reduce((a, b) => (score(b) < score(a) ? b : a))
     : undefined;
-
-/** Hit-test a point against slot regions with hysteresis: the current slot
- *  holds until the point is clearly inside another region. Overlapping hits
- *  resolve to the region owning the nearest individual child rect. */
-export const resolveSlot = ({
-  point,
-  regions,
-  current,
-}: {
-  point: Point;
-  regions: readonly SlotRegion[];
-  current?: string;
-}): MeasuredRegion | undefined => {
-  const measured = regions.filter(
-    (r): r is MeasuredRegion => r.kind === "measured",
-  );
-  const cur = measured.find((r) => r.slotKey === current);
-  if (cur && containsPoint(expandRect(cur.rect, HYSTERESIS_EDGES), point))
-    return cur;
-  const hits = measured.filter((r) => containsPoint(r.rect, point));
-  if (hits.length > 1)
-    return minBy(hits, (r) => nearestChildDistance(r, point));
-  return hits[0] ?? cur ?? minBy(measured, (r) => pointToRect(point, r.rect));
-};
 
 /** Insertion index inside a measured slot: nearest child rect, before or
  *  after its center along the slot axis. */
@@ -111,8 +70,9 @@ const measureChildren = (
     return [{ index, rect }];
   });
 
-/** Per-slot drop geometry for a container: measurable slots become regions
- *  (union of child rects clamped to the parent), unmeasurable slots become chips. */
+/** Measured drop geometry for a container's slots: each slot with measurable
+ *  children becomes a region (union of child rects clamped to the parent), in
+ *  declaration order. Slots with no measurable geometry are omitted. */
 export const slotRegions = ({
   data,
   parentId,
@@ -121,23 +81,27 @@ export const slotRegions = ({
   data: Data;
   parentId: string;
   registry: FiberRegistry;
-}): SlotRegion[] => {
+}): MeasuredRegion[] => {
   const parent = findById(data, parentId);
   if (!parent) return [];
   const parentRect = registry.get(parentId)?.getBoundingClientRect();
-  return slotKeysOf(parent).map((slotKey): SlotRegion => {
-    if (!parentRect) return { slotKey, kind: "chip" };
+  if (!parentRect) return [];
+  return slotKeysOf(parent).flatMap((slotKey) => {
     const children = measureChildren(
       parent.props[slotKey] as ComponentData[],
       registry,
       parentRect,
     );
-    if (!children.length) return { slotKey, kind: "chip" };
-    return {
-      slotKey,
-      kind: "measured",
-      rect: intersectRect(unionRects(children.map((c) => c.rect)), parentRect),
-      children,
-    };
+    if (!children.length) return [];
+    return [
+      {
+        slotKey,
+        rect: intersectRect(
+          unionRects(children.map((c) => c.rect)),
+          parentRect,
+        ),
+        children,
+      } satisfies MeasuredRegion,
+    ];
   });
 };

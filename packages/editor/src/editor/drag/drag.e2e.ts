@@ -2,7 +2,9 @@ import { test, expect, type Page, type Locator } from "@playwright/test";
 import {
   hasDropIndicator,
   getDropZoneLabelText,
-  getSlotChipLabels,
+  getTileLabels,
+  getActiveTileLabel,
+  getActiveTileRect,
 } from "../overlay/testing.js";
 
 type Point = { x: number; y: number };
@@ -93,7 +95,11 @@ const dragOverPoint = async (page: Page, source: Locator, point: Point) =>
 
 /** Full drag-and-drop onto a viewport point. */
 const dragAndDropPoint = async (page: Page, source: Locator, point: Point) =>
-  dispatchDrag(page, { from: await sourceCenter(source), to: point, drop: true });
+  dispatchDrag(page, {
+    from: await sourceCenter(source),
+    to: point,
+    drop: true,
+  });
 
 test.describe("Drag-to-reorder", () => {
   test.beforeEach(async ({ page }) => {
@@ -195,57 +201,23 @@ test.describe("Drag-to-reorder", () => {
 
 // --- Slot-aware container drops ---
 
-/** Drag over a container point, wait for chips, then drop on the named chip. */
-async function dropOnSlotChip(
+/** Real-mouse drag: press on the source center, glide through waypoints with
+ *  multiple steps so Chromium starts a native HTML5 drag (pragmatic-dnd's
+ *  adapter), and optionally release at the final point. */
+async function mouseDrag(
   page: Page,
   source: Locator,
-  hoverPoint: Point,
-  chipLabel: string,
+  waypoints: readonly Point[],
+  release: boolean,
 ) {
-  const { x: sx, y: sy } = await sourceCenter(source);
-
-  await page.evaluate(
-    async ({ sx, sy, tx, ty, chipLabel }) => {
-      const dt = new DataTransfer();
-      const opts = (x: number, y: number): DragEventInit => ({
-        bubbles: true,
-        cancelable: true,
-        composed: true,
-        clientX: x,
-        clientY: y,
-        dataTransfer: dt,
-      });
-      const wait = (ms: number) => new Promise((r) => setTimeout(r, ms));
-
-      const src = document.elementFromPoint(sx, sy)!;
-      const tgt = document.elementFromPoint(tx, ty)!;
-      src.dispatchEvent(new DragEvent("dragstart", opts(sx, sy)));
-      tgt.dispatchEvent(new DragEvent("dragenter", opts(tx, ty)));
-      tgt.dispatchEvent(new DragEvent("dragover", opts(tx, ty)));
-      await wait(300);
-
-      const chip = [...document.querySelectorAll("div")]
-        .filter((d) => d.shadowRoot && d.style.position === "fixed")
-        .flatMap((d) => [
-          ...d.shadowRoot!.querySelectorAll("[data-role='slot-chip']"),
-        ])
-        .find((c) => c.textContent === chipLabel);
-      if (!chip) throw new Error(`slot chip "${chipLabel}" not found`);
-
-      // Chips are passive overlay visuals (pointer-events: none) — the drag
-      // events land on the page element beneath the chip rect.
-      const r = chip.getBoundingClientRect();
-      const cx = r.left + r.width / 2;
-      const cy = r.top + r.height / 2;
-      const under = document.elementFromPoint(cx, cy)!;
-      under.dispatchEvent(new DragEvent("dragenter", opts(cx, cy)));
-      under.dispatchEvent(new DragEvent("dragover", opts(cx, cy)));
-      await wait(100);
-      under.dispatchEvent(new DragEvent("drop", opts(cx, cy)));
-      src.dispatchEvent(new DragEvent("dragend", opts(cx, cy)));
-    },
-    { sx, sy, tx: hoverPoint.x, ty: hoverPoint.y, chipLabel },
-  );
+  const start = await sourceCenter(source);
+  await page.mouse.move(start.x, start.y);
+  await page.mouse.down();
+  for (const wp of waypoints) {
+    await page.mouse.move(wp.x, wp.y, { steps: 8 });
+    await page.waitForTimeout(60);
+  }
+  if (release) await page.mouse.up();
 }
 
 test.describe("Slot-aware container drops", () => {
@@ -273,21 +245,39 @@ test.describe("Slot-aware container drops", () => {
     await dragOverPoint(page, heading, await headerGapPoint(page));
     await page.waitForTimeout(300);
 
-    expect(await getDropZoneLabelText(page)).toBe("Card › header");
+    expect(await getActiveTileLabel(page)).toBe("Card › header");
   });
 
-  test("hovering a container shows chips for empty slots", async ({ page }) => {
+  test("container hover paints gapless labeled tiles", async ({ page }) => {
     const heading = page.locator("h1");
     await heading.click();
     await page.waitForTimeout(300);
 
-    await dragOverPoint(page, heading, await headerGapPoint(page));
+    await mouseDrag(page, heading, [await headerGapPoint(page)], false);
     await page.waitForTimeout(300);
 
-    expect(await getSlotChipLabels(page)).toEqual(["footer"]);
+    const labels = await getTileLabels(page);
+    expect(labels).toEqual(["Card › header", "Card › body", "Card › footer"]);
+
+    await page.mouse.up();
   });
 
-  test("drop into a specific slot inserts at the pointer position", async ({
+  test("tile label is visible before release", async ({ page }) => {
+    const heading = page.locator("h1");
+    await heading.click();
+    await page.waitForTimeout(300);
+
+    await mouseDrag(page, heading, [await headerGapPoint(page)], false);
+    await page.waitForTimeout(300);
+
+    expect(await getActiveTileLabel(page)).toBe("Card › header");
+    const rect = await getActiveTileRect(page);
+    expect(rect).not.toBeNull();
+
+    await page.mouse.up();
+  });
+
+  test("drop into a slot via its tile band inserts at the pointer position", async ({
     page,
   }) => {
     const heading = page.locator("h1");
@@ -301,22 +291,6 @@ test.describe("Slot-aware container drops", () => {
       [...el.children].map((c) => c.tagName),
     );
     expect(tags.slice(0, 2)).toEqual(["H3", "H1"]);
-  });
-
-  test("drop on a chip moves the element into the empty slot", async ({
-    page,
-  }) => {
-    const heading = page.locator("h1");
-    await heading.click();
-    await page.waitForTimeout(300);
-
-    await dropOnSlotChip(page, heading, await headerGapPoint(page), "footer");
-    await page.waitForTimeout(500);
-
-    const tags = await card(page).evaluate((el) =>
-      [...el.children].map((c) => c.tagName),
-    );
-    expect(tags.at(-1)).toBe("H1");
   });
 
   test("move an element between slots of the same container", async ({

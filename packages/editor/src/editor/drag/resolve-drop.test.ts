@@ -2,6 +2,7 @@ import { describe, test, expect } from "bun:test";
 import type { Data } from "@puckeditor/core";
 import { findById } from "@duckeditor/spec";
 import { resolveDrop } from "./resolve-drop.js";
+import type { DropTarget } from "../layout/index.js";
 import {
   text,
   box,
@@ -9,6 +10,19 @@ import {
   stubRegistry,
   emptyRegistry,
 } from "./drag-test-fixtures.js";
+
+const containerIndicator = (
+  elementId: string,
+  slotKey: string,
+  index: number,
+): DropTarget => ({
+  kind: "container",
+  elementId,
+  slotKey,
+  index,
+  tiling: { kind: "discrete", slotKeys: [slotKey] },
+  activeLabel: slotKey,
+});
 
 // --- Factories ---
 
@@ -84,12 +98,7 @@ describe("resolveDrop", () => {
     });
     const result = resolve({
       target,
-      indicator: {
-        kind: "container",
-        elementId: "box",
-        slotKey: "items",
-        index: 0,
-      },
+      indicator: containerIndicator("box", "items", 0),
     });
 
     expect(result?.event).toEqual({
@@ -117,12 +126,7 @@ describe("resolveDrop", () => {
     });
     const result = resolve({
       target,
-      indicator: {
-        kind: "container",
-        elementId: "empty",
-        slotKey: "items",
-        index: 0,
-      },
+      indicator: containerIndicator("empty", "items", 0),
     });
 
     expect(result?.event).toMatchObject({
@@ -132,7 +136,7 @@ describe("resolveDrop", () => {
     expect(result!.newData.isOk()).toBe(true);
   });
 
-  test("container indicator commits even when the drop lands on a sibling (chip hit)", () => {
+  test("container indicator commits even when the drop lands on a sibling", () => {
     const target = bag({
       elementId: "d",
       parentId: "box",
@@ -142,12 +146,7 @@ describe("resolveDrop", () => {
     });
     const result = resolve({
       target,
-      indicator: {
-        kind: "container",
-        elementId: "empty",
-        slotKey: "items",
-        index: 0,
-      },
+      indicator: containerIndicator("empty", "items", 0),
     });
 
     expect(result?.event).toMatchObject({
@@ -166,6 +165,19 @@ describe("resolveDrop", () => {
       role: "container",
     });
     expect(resolve({ target, indicator: null })).toBeNull();
+  });
+
+  test("no-target indicator → null", () => {
+    const target = bag({
+      elementId: "box",
+      parentId: null,
+      slotKey: null,
+      index: 3,
+      role: "container",
+    });
+    expect(
+      resolve({ target, indicator: { kind: "none", elementId: "box" } }),
+    ).toBeNull();
   });
 
   test("cross-slot sibling drop with null edge uses target index", () => {

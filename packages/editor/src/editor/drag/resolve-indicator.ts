@@ -4,12 +4,18 @@ import { findById, slotKeysOf } from "@duckeditor/spec";
 import type { FiberRegistry } from "../fiber/index.js";
 import {
   containsPoint,
-  resolveSlot,
+  cssAxis,
+  expandRect,
+  qualifiedLabel,
   slotInsertIndex,
   slotRegions,
+  tileSlots,
   type DropTarget,
+  type MeasuredRegion,
+  type SlotInput,
+  type Tile,
+  type Tiling,
 } from "../layout/index.js";
-import { chipLayout, chipSpecs } from "./slot-chips.js";
 import {
   readData,
   resolveSlotAxis,
@@ -19,6 +25,13 @@ import {
 
 type TargetBag = { data: Record<string | symbol, unknown> };
 type Point = { x: number; y: number };
+
+const TILE_HYSTERESIS = {
+  top: 8,
+  right: 8,
+  bottom: 8,
+  left: 8,
+};
 
 /** Post-removal insert index when the source already lives in the target slot.
  *  Null when the move would be a no-op. */
@@ -38,18 +51,62 @@ const adjustSameSlot = ({
   return adjusted === source.index ? null : adjusted;
 };
 
-const containerIndicator = ({
+/** Insert index inside a slot: nearest-child position when measured, append
+ *  otherwise (empty/unmeasurable slots have no child geometry). */
+const indexInSlot = ({
+  slotKey,
+  point,
+  regions,
+  component,
+  axis,
+}: {
+  slotKey: string;
+  point: Point;
+  regions: readonly MeasuredRegion[];
+  component: ComponentData;
+  axis: "vertical" | "horizontal";
+}): number => {
+  const measured = regions.find((r) => r.slotKey === slotKey);
+  if (measured) return slotInsertIndex({ point, axis, region: measured });
+  return (component.props[slotKey] as ComponentData[]).length;
+};
+
+/** Active tile under the pointer: the current tile holds while the point stays
+ *  within its 8px-expanded rect (sticky), else the tile that contains the point. */
+const aimedTile = (
+  tiling: Extract<Tiling, { kind: "tiled" }>,
+  point: Point,
+  current?: string,
+): Tile | undefined => {
+  const cur = tiling.tiles.find((t) => t.slotKey === current);
+  if (cur && containsPoint(expandRect(cur.rect, TILE_HYSTERESIS), point))
+    return cur;
+  return tiling.tiles.find((t) => containsPoint(t.rect, point));
+};
+
+const slotInputs = (
+  slotKeys: readonly string[],
+  regions: readonly MeasuredRegion[],
+): SlotInput[] =>
+  slotKeys.map((slotKey) => {
+    const measured = regions.find((r) => r.slotKey === slotKey);
+    return measured ? { slotKey, rect: measured.rect } : { slotKey };
+  });
+
+const containerTarget = ({
   elementId,
   slotKey,
   index,
   source,
-  region,
+  tiling,
+  component,
 }: {
   elementId: string;
   slotKey: string;
   index: number;
   source: DragData;
-  region?: DOMRect;
+  tiling: Tiling;
+  component: ComponentData;
 }): DropTarget | null => {
   const adjusted = adjustSameSlot({
     index,
@@ -63,39 +120,21 @@ const containerIndicator = ({
     elementId,
     slotKey,
     index: adjusted,
-    ...(region && { region }),
+    tiling,
+    activeLabel: qualifiedLabel(component.type, slotKey),
   };
 };
 
-/** Chips have hit-test priority inside their own rects — same geometry the
- *  overlay renders. */
-const chipIndicator = ({
-  containerId,
-  source,
-  point,
-  data,
-  registry,
-}: {
-  containerId: string;
-  source: DragData;
-  point: Point;
-  data: Data;
-  registry: FiberRegistry;
-}): DropTarget | null => {
-  const containerRect = registry.get(containerId)?.getBoundingClientRect();
-  if (!containerRect) return null;
-  const chip = chipLayout({
-    containerRect,
-    specs: chipSpecs({ data, containerId, registry }),
-  }).find((c) => containsPoint(c.rect, point));
-  if (!chip) return null;
-  return containerIndicator({
-    elementId: containerId,
-    slotKey: chip.slotKey,
-    index: chip.index,
-    source,
-  });
-};
+/** Outcome of aiming at a container: a resolved drop, an explicit no-target
+ *  (container exists but offers nothing valid), or a no-op (the resolved slot is
+ *  where the source already sits — nothing to do). */
+type ContainerOutcome =
+  | { tag: "target"; target: DropTarget }
+  | { tag: "none" }
+  | { tag: "noop" };
+
+const containerOutcome = (target: DropTarget | null): ContainerOutcome =>
+  target ? { tag: "target", target } : { tag: "noop" };
 
 const resolveContainer = ({
   elementId,
@@ -111,59 +150,76 @@ const resolveContainer = ({
   previous: DropTarget | null;
   data: Data;
   registry: FiberRegistry;
-}): DropTarget | null => {
+}): ContainerOutcome => {
   const component = findById(data, elementId);
-  if (!component) return null;
-  const slots = slotKeysOf(component);
-  if (!slots.length) return null;
+  if (!component) return { tag: "none" };
+  const slotKeys = slotKeysOf(component);
+  if (!slotKeys.length) return { tag: "none" };
 
-  const childrenAt = (slotKey: string) =>
-    component.props[slotKey] as ComponentData[];
-  const appendTo = (slotKey: string) =>
-    containerIndicator({
+  const containerEl = registry.get(elementId);
+  const containerRect = containerEl?.getBoundingClientRect();
+  const regions = containerEl
+    ? slotRegions({ data, parentId: elementId, registry })
+    : [];
+  const tiling: Tiling =
+    containerEl && containerRect
+      ? tileSlots({
+          containerRect,
+          slots: slotInputs(slotKeys, regions),
+          cssAxis: cssAxis(containerEl) ?? undefined,
+        })
+      : { kind: "discrete", slotKeys };
+
+  const axisOf = (slotKey: string) =>
+    resolveSlotAxis(data, elementId, slotKey, registry) ?? "vertical";
+
+  const appendTo = (slotKey: string): DropTarget | null =>
+    containerTarget({
       elementId,
       slotKey,
-      index: childrenAt(slotKey).length,
+      index: (component.props[slotKey] as ComponentData[]).length,
       source,
+      tiling,
+      component,
     });
 
-  // Single populated slot: existing append path, untouched.
-  if (slots.length === 1 && childrenAt(slots[0]).length > 0)
-    return appendTo(slots[0]);
+  // Discrete tiling: no aimable bands — default to the first slot's append.
+  // The cycle (Task 6) is the only way to reach the others.
+  if (tiling.kind === "discrete")
+    return containerOutcome(appendTo(slotKeys[0]));
 
-  const chip = chipIndicator({
-    containerId: elementId,
-    source,
-    point,
-    data,
-    registry,
-  });
-  if (chip) return chip;
-
-  const regions = slotRegions({ data, parentId: elementId, registry });
   const current =
     previous?.kind === "container" && previous.elementId === elementId
       ? previous.slotKey
       : undefined;
-  const resolved = resolveSlot({ point, regions, current });
-  if (!resolved) return appendTo(slots[0]);
+  const tile = aimedTile(tiling, point, current);
+  if (!tile) return containerOutcome(appendTo(slotKeys[0]));
 
-  const axis =
-    resolveSlotAxis(data, elementId, resolved.slotKey, registry) ?? "vertical";
-  return containerIndicator({
-    elementId,
-    slotKey: resolved.slotKey,
-    index: slotInsertIndex({ point, axis, region: resolved }),
-    source,
-    region: resolved.rect,
-  });
+  return containerOutcome(
+    containerTarget({
+      elementId,
+      slotKey: tile.slotKey,
+      index: indexInSlot({
+        slotKey: tile.slotKey,
+        point,
+        regions,
+        component,
+        axis: axisOf(tile.slotKey),
+      }),
+      source,
+      tiling,
+      component,
+    }),
+  );
 };
 
 /**
  * Pure function: given source/target drag data and the pointer position,
  * returns the indicator to render. The container indicator carries the full
- * drop spec `(elementId, slotKey, index)` — the drop commits it verbatim.
- * Returns null when no indicator should be shown (self-drop, descendant, no-op).
+ * drop spec `(elementId, slotKey, index)` plus the tiling the shell paints —
+ * the drop commits the spec verbatim. A pointer inside a container that offers
+ * no valid drop yields the explicit `none` outcome. Returns null only when no
+ * outcome applies (self-drop, descendant, no target at all).
  */
 export function resolveIndicator({
   source,
@@ -193,25 +249,8 @@ export function resolveIndicator({
   )
     return null;
 
-  // Pointer over a chip of the container we're already targeting — the chip
-  // overlays page content, so the drop target beneath it can be a sibling.
-  if (
-    previous?.kind === "container" &&
-    previous.elementId !== sourceData.elementId &&
-    !descendantSet.has(previous.elementId)
-  ) {
-    const chip = chipIndicator({
-      containerId: previous.elementId,
-      source: sourceData,
-      point,
-      data,
-      registry,
-    });
-    if (chip) return chip;
-  }
-
-  if (targetData.role === "container")
-    return resolveContainer({
+  if (targetData.role === "container") {
+    const outcome = resolveContainer({
       elementId: targetData.elementId,
       source: sourceData,
       point,
@@ -219,6 +258,10 @@ export function resolveIndicator({
       data,
       registry,
     });
+    if (outcome.tag === "target") return outcome.target;
+    if (outcome.tag === "noop") return null;
+    return { kind: "none", elementId: targetData.elementId };
+  }
 
   const axis =
     resolveSlotAxis(data, targetData.parentId, targetData.slotKey, registry) ??

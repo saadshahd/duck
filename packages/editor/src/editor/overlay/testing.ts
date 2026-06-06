@@ -106,15 +106,6 @@ const getDropIndicatorRect = (page: Page) =>
     return { top: el.style.top, left: el.style.left, width: el.style.width };
   }) as Promise<{ top: string; left: string; width: string } | null>;
 
-// --- Slot chip helpers ---
-
-export const getSlotChipLabels = (page: Page) =>
-  shadowQuery(page, (r) =>
-    [...r.querySelectorAll("[data-role='slot-chip']")].map(
-      (el) => el.textContent ?? "",
-    ),
-  ) as Promise<string[] | null>;
-
 // --- Slot tile helpers ---
 
 export const getTileLabels = (page: Page) =>

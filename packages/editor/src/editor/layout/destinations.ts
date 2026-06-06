@@ -10,9 +10,13 @@ import {
 import type { FiberRegistry } from "../fiber/index.js";
 import type { Axis } from "./axis.js";
 import { containsPoint } from "./rect.js";
+import type { Tiling } from "./tiles.js";
 
-/** The active drop spec the overlay renders: a slot insert (container) or a
- *  between-siblings line. Shared by the drag and carry domains. */
+export const NO_TARGET_LABEL = "No target here";
+
+/** The active drop spec the overlay renders for a pointer-driven move: a slot
+ *  insert (container), a between-siblings line, or an explicit no-target marker
+ *  over the container the pointer is inside. */
 export type DropTarget =
   | { kind: "line"; elementId: string; edge: Edge; axis: Axis }
   | {
@@ -20,9 +24,11 @@ export type DropTarget =
       elementId: string;
       slotKey: string;
       index: number;
-      /** Targeted slot's region — highlight tightens to it when present. */
-      region?: DOMRect;
-    };
+      /** Painted destinations over the container; the active slot is `slotKey`. */
+      tiling: Tiling;
+      activeLabel: string;
+    }
+  | { kind: "none"; elementId: string };
 
 /** One reachable drop position in the cycle: a slot append or a between-siblings
  *  insert beside a container. `parentId`/`slotKey` follow spec-ops `move()`:
@@ -36,22 +42,44 @@ export type Destination = {
 
 const ROOT_LABEL = "Root";
 
-const qualifiedLabel = (componentType: string, slotKey: string): string =>
-  `${componentType} › ${slotKey}`;
+/** `Component › slot` qualified destination label. The one source of this
+ *  format — tiles, drop-zone labels, and the destination cycle all reuse it. */
+export const qualifiedLabel = (
+  componentType: string,
+  slotKey: string,
+): string => `${componentType} › ${slotKey}`;
 
-/** Container id for a drop target: the target itself for container drops, the
- *  parent of the line's element otherwise. */
+/** Per-slot qualified labels for a container, keyed by slotKey. */
+export const slotLabels = (
+  data: Data,
+  containerId: string,
+): Record<string, string> => {
+  const container = findById(data, containerId);
+  if (!container) return {};
+  return Object.fromEntries(
+    slotKeysOf(container).map((slotKey) => [
+      slotKey,
+      qualifiedLabel(container.type, slotKey),
+    ]),
+  );
+};
+
+/** Container id for a drop target: the target itself for container/no-target
+ *  drops, the parent of the line's element otherwise. */
 export const resolveContainerId = (
   data: Data,
   target: DropTarget,
 ): string | null => {
-  if (target.kind === "container") return target.elementId;
-  return findParent(data, target.elementId)?.parentId ?? null;
+  if (target.kind === "line")
+    return findParent(data, target.elementId)?.parentId ?? null;
+  return target.elementId;
 };
 
 /** Display label for a drop target: `Component › slot` for container drops, the
- *  parent component type for line drops. Null when the container is unknown. */
+ *  parent component type for line drops, a constant for no-target. Null when the
+ *  container is unknown. */
 export const resolveLabel = (data: Data, target: DropTarget): string | null => {
+  if (target.kind === "none") return NO_TARGET_LABEL;
   const containerId = resolveContainerId(data, target);
   const type = containerId ? findById(data, containerId)?.type : undefined;
   if (!type) return null;

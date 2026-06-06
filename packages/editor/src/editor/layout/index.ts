@@ -1,6 +1,10 @@
 export { type Axis, resolveSlotAxis, cssAxis } from "./axis.js";
-export { containsPoint } from "./rect.js";
-export { resolveSlot, slotInsertIndex, slotRegions } from "./slot-regions.js";
+export { containsPoint, expandRect } from "./rect.js";
+export {
+  slotInsertIndex,
+  slotRegions,
+  type MeasuredRegion,
+} from "./slot-regions.js";
 export { ghostCandidateIds } from "./ghost.js";
 export {
   TILE_FLOOR,
@@ -17,4 +21,7 @@ export {
   stepCycle,
   resolveContainerId,
   resolveLabel,
+  qualifiedLabel,
+  slotLabels,
+  NO_TARGET_LABEL,
 } from "./destinations.js";
