@@ -111,14 +111,14 @@ const besideDestination = (located: Located, data: Data): Destination => {
   const index = located.index + 1;
   if (located.parentId === null || located.slotKey === null)
     return { parentId: null, slotKey: null, index, label: ROOT_LABEL };
-  const parentType = findById(data, located.parentId)?.type;
+  const parent = findById(data, located.parentId);
+  if (!parent)
+    throw new Error(`besideDestination: missing parent ${located.parentId}`);
   return {
     parentId: located.parentId,
     slotKey: located.slotKey,
     index,
-    label: parentType
-      ? qualifiedLabel(parentType, located.slotKey)
-      : ROOT_LABEL,
+    label: qualifiedLabel(parent.type, located.slotKey),
   };
 };
 
