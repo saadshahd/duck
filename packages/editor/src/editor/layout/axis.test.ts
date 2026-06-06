@@ -1,5 +1,5 @@
 import { describe, test, expect, beforeEach, afterEach } from "bun:test";
-import { detectAxis, cssAxis } from "./axis.js";
+import { detectAxis, cssAxis, geometricEdge } from "./axis.js";
 
 describe("detectAxis", () => {
   test("stacked rects → vertical", () => {
@@ -47,6 +47,39 @@ describe("detectAxis", () => {
     const a = new DOMRect(0, 0, 40, 100);
     const b = new DOMRect(80, 5, 40, 100);
     expect(detectAxis(a, b)).toBe("horizontal");
+  });
+});
+
+// ── geometricEdge ────────────────────────────────────────────────────────────
+
+describe("geometricEdge", () => {
+  // rect: top=100, height=200 → vertical midpoint at y=200
+  const vRect = new DOMRect(0, 100, 50, 200);
+  // rect: left=200, width=180 → horizontal midpoint at x=290
+  const hRect = new DOMRect(200, 0, 180, 90);
+
+  test("vertical axis, point above midpoint → top", () => {
+    expect(geometricEdge(vRect, { x: 25, y: 150 }, "vertical")).toBe("top");
+  });
+
+  test("vertical axis, point below midpoint → bottom", () => {
+    expect(geometricEdge(vRect, { x: 25, y: 250 }, "vertical")).toBe("bottom");
+  });
+
+  test("vertical axis, point exactly at midpoint → bottom (not strictly less)", () => {
+    expect(geometricEdge(vRect, { x: 25, y: 200 }, "vertical")).toBe("bottom");
+  });
+
+  test("horizontal axis, point left of midpoint → left", () => {
+    expect(geometricEdge(hRect, { x: 270, y: 40 }, "horizontal")).toBe("left");
+  });
+
+  test("horizontal axis, point right of midpoint → right", () => {
+    expect(geometricEdge(hRect, { x: 310, y: 40 }, "horizontal")).toBe("right");
+  });
+
+  test("horizontal axis, point exactly at midpoint → right (not strictly less)", () => {
+    expect(geometricEdge(hRect, { x: 290, y: 40 }, "horizontal")).toBe("right");
   });
 });
 

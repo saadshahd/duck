@@ -1,8 +1,23 @@
 import type { Data } from "@puckeditor/core";
+import type { Edge } from "@atlaskit/pragmatic-drag-and-drop-hitbox/closest-edge";
 import { getChildrenAt } from "@duckeditor/spec";
 import type { FiberRegistry } from "../fiber/index.js";
 
 export type Axis = "vertical" | "horizontal";
+
+type Point = { x: number; y: number };
+
+/** Which side of a rect a point falls on, along the layout axis: the near edge
+ *  when the point is before the rect's midpoint, the far edge otherwise.
+ *  Vertical axis splits top/bottom; horizontal splits left/right. */
+export const geometricEdge = (rect: DOMRect, point: Point, axis: Axis): Edge =>
+  axis === "vertical"
+    ? point.y < rect.top + rect.height / 2
+      ? "top"
+      : "bottom"
+    : point.x < rect.left + rect.width / 2
+      ? "left"
+      : "right";
 
 const isFlexColumn = (direction: string): boolean =>
   direction.startsWith("column");

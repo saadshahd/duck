@@ -21,6 +21,15 @@ export type DragData = {
 export const readData = (bag: Record<string | symbol, unknown>) =>
   bag as DragData;
 
+/** A slot location: parent element and slot key (both null at root content). */
+type SlotLocation = { parentId: string | null; slotKey: string | null };
+
+/** Whether two elements live in the same slot — same parent, same slot key.
+ *  The one law for "same slot": guard suppression and drop-index adjustment
+ *  must agree, so both read it from here. */
+export const sameSlotAs = (a: SlotLocation, b: SlotLocation): boolean =>
+  a.parentId === b.parentId && a.slotKey === b.slotKey;
+
 // --- Axis & edges ---
 
 export { resolveSlotAxis } from "../layout/index.js";

@@ -5,7 +5,7 @@ import { findParent } from "@duckeditor/spec";
 import { move, type SpecOpsError } from "../spec-ops/index.js";
 import type { EditorEvent } from "../machine/index.js";
 import type { DropTarget } from "../layout/index.js";
-import { readData, resolveInsertIndex } from "./helpers.js";
+import { readData, resolveInsertIndex, sameSlotAs } from "./helpers.js";
 
 type TargetBag = { data: Record<string | symbol, unknown> };
 
@@ -55,10 +55,7 @@ export function resolveDrop({
     if (!parent) return null;
     // Same-slot reorder must account for the source's removal, or a forward
     // move lands one position too far. Cross-slot inserts have no such shift.
-    const sameSlot =
-      parent.parentId === sourceData.parentId &&
-      parent.slotKey === sourceData.slotKey;
-    const insertIndex = sameSlot
+    const insertIndex = sameSlotAs(parent, sourceData)
       ? getReorderDestinationIndex({
           startIndex: sourceData.index,
           indexOfTarget: parent.index,

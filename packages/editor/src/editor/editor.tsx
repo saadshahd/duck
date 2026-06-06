@@ -31,12 +31,7 @@ import {
   useToolbarYield,
 } from "./selection/index.js";
 import { usePropEditor } from "./prop-editor/use-prop-editor.jsx";
-import {
-  useDragReorder,
-  DragOverlay,
-  CycleChip,
-  announcementFor,
-} from "./drag/index.js";
+import { useDragReorder, DragOverlay, CycleChip } from "./drag/index.js";
 import { useCarry } from "./carry/index.js";
 import { OverlayRoot, Announcer } from "./overlay/index.js";
 import { BoxModelLayer } from "./box-model/index.js";
@@ -46,6 +41,7 @@ import { useGhostPlaceholders } from "./ghost/index.js";
 import { useFiberRegistry } from "./shell/use-fiber-registry.js";
 import { useSelectionReconcile } from "./shell/use-selection-reconcile.js";
 import { useSlotAddress } from "./shell/use-slot-stop.js";
+import { announcerMessage } from "./shell/announcer-message.js";
 import { useContextMenu, ContextMenu } from "./context-menu/index.js";
 import { useClipboard } from "./clipboard/index.js";
 import { CatalogPicker, useInsert } from "./insert/index.js";
@@ -465,17 +461,15 @@ export function Editor<UserConfig extends Config = Config>({
           ) : null;
         })()}
         <Announcer
-          message={
-            drag === "dragging" && dropTarget
-              ? cycleStatus
-                ? `Destination ${cycleStatus.step} of ${cycleStatus.total}: ${announcementFor(currentData, dropTarget)}`
-                : announcementFor(currentData, dropTarget)
-              : drag === "carrying" && carryTarget
-                ? announcementFor(currentData, carryTarget)
-                : pointer === "slot-selected" && slotAddress
-                  ? `Slot ${slotAddress} selected`
-                  : ""
-          }
+          message={announcerMessage({
+            data: currentData,
+            drag,
+            pointer,
+            dropTarget,
+            carryTarget,
+            cycleStatus,
+            slotAddress,
+          })}
         />
         {menu && (
           <ContextMenu

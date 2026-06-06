@@ -6,6 +6,7 @@ import {
   buildTiling,
   containsPoint,
   expandRect,
+  geometricEdge,
   qualifiedLabel,
   slotInsertIndex,
   type DropTarget,
@@ -17,6 +18,7 @@ import {
   readData,
   resolveSlotAxis,
   resolveDropIndex,
+  sameSlotAs,
   type DragData,
 } from "./helpers.js";
 
@@ -67,20 +69,6 @@ const indexInSlot = ({
   if (measured) return slotInsertIndex({ point, axis, region: measured });
   return (component.props[slotKey] as ComponentData[]).length;
 };
-
-/** Geometric edge for a rect + point + axis: which half the point falls in. */
-const geometricEdge = (
-  rect: DOMRect,
-  point: Point,
-  axis: "vertical" | "horizontal",
-): "top" | "bottom" | "left" | "right" =>
-  axis === "vertical"
-    ? point.y < rect.top + rect.height / 2
-      ? "top"
-      : "bottom"
-    : point.x < rect.left + rect.width / 2
-      ? "left"
-      : "right";
 
 /** Active tile under the pointer: the current tile holds while the point stays
  *  within its 8px-expanded rect (sticky), else the tile that contains the point. */
@@ -247,11 +235,7 @@ export function resolveIndicator({
     // Same-parent sibling guard: a container whose slot shares the source's
     // parent/slot resolves to a reorder-beside line, not to its own interiors.
     // Shift-cycle still dives in via the destination stack.
-    const sharesParentSlot =
-      targetData.parentId === sourceData.parentId &&
-      targetData.slotKey === sourceData.slotKey;
-
-    if (sharesParentSlot) {
+    if (sameSlotAs(targetData, sourceData)) {
       const rect = registry.get(targetData.elementId)?.getBoundingClientRect();
       if (!rect) return null;
       const axis =
@@ -296,10 +280,7 @@ export function resolveIndicator({
   if (!edge) return null;
 
   // Same-slot: hide indicator when drop would be a no-op
-  if (
-    targetData.parentId === sourceData.parentId &&
-    targetData.slotKey === sourceData.slotKey
-  ) {
+  if (sameSlotAs(targetData, sourceData)) {
     const to = resolveDropIndex(sourceData.index, target, axis);
     if (to === sourceData.index) return null;
   }

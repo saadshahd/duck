@@ -1,4 +1,4 @@
-export { type Axis, resolveSlotAxis } from "./axis.js";
+export { type Axis, resolveSlotAxis, geometricEdge } from "./axis.js";
 export { containsPoint, expandRect } from "./rect.js";
 export {
   slotInsertIndex,
