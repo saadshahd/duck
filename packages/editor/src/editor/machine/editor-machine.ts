@@ -20,12 +20,15 @@ type PopoverEditing = {
 
 type Editing = InlineEditing | PopoverEditing;
 
+export type SelectedSlot = { parentId: string; slotKey: string };
+
 export type EditorContext = {
   hoveredId: string | null;
   selectedIds: ReadonlySet<string>;
   lastSelectedId: string | null;
   editing: Editing | null;
   dragSourceId: string | null;
+  selectedSlot: SelectedSlot | null;
 };
 
 // --- Events ---
@@ -37,6 +40,7 @@ export type EditorEvent =
   | { type: "REPLACE_SELECT"; elementIds: string[] }
   | { type: "TOGGLE_SELECT"; elementId: string }
   | { type: "DESELECT" }
+  | { type: "SELECT_SLOT"; parentId: string; slotKey: string }
   | { type: "OPEN_POPOVER" }
   | ({
       type: "START_INLINE_EDIT";
@@ -93,6 +97,7 @@ export const editorMachine = setup({
     lastSelectedId: null,
     editing: null,
     dragSourceId: null,
+    selectedSlot: null,
   },
   states: {
     pointer: {
@@ -104,6 +109,7 @@ export const editorMachine = setup({
             ...Selection.clear(),
             hoveredId: null,
             editing: null,
+            selectedSlot: null,
           })),
         },
         REPLACE_SELECT: [
@@ -114,6 +120,7 @@ export const editorMachine = setup({
               ...Selection.clear(),
               hoveredId: null,
               editing: null,
+              selectedSlot: null,
             })),
           },
           {
@@ -123,6 +130,7 @@ export const editorMachine = setup({
                 (event as { elementIds: string[] }).elementIds,
               ),
               editing: null,
+              selectedSlot: null,
             })),
           },
         ],
@@ -185,6 +193,15 @@ export const editorMachine = setup({
           on: {
             SELECT: {
               actions: assign(({ event }) => Selection.of(event.elementId)),
+            },
+            SELECT_SLOT: {
+              target: "slot-selected",
+              actions: assign(({ event }) => ({
+                selectedSlot: {
+                  parentId: event.parentId,
+                  slotKey: event.slotKey,
+                },
+              })),
             },
             TOGGLE_SELECT: [
               {
@@ -304,6 +321,37 @@ export const editorMachine = setup({
             },
             ESCAPE: {
               target: "selected",
+            },
+          },
+        },
+        "slot-selected": {
+          on: {
+            SELECT: {
+              target: "selected",
+              actions: assign(({ event }) => ({
+                ...Selection.of(event.elementId),
+                selectedSlot: null,
+              })),
+            },
+            ESCAPE: {
+              target: "selected",
+              actions: assign({ selectedSlot: null }),
+            },
+            DESELECT: {
+              target: "idle",
+              actions: assign(() => ({
+                ...Selection.clear(),
+                hoveredId: null,
+                selectedSlot: null,
+              })),
+            },
+            DRAG_START: {
+              target: "selected",
+              actions: assign({ selectedSlot: null }),
+            },
+            CARRY_START: {
+              target: "selected",
+              actions: assign({ selectedSlot: null }),
             },
           },
         },

@@ -14,6 +14,7 @@ type Verify = (ctx: EditorContext) => void;
 const stateVerifiers: Record<string, Verify> = {
   "pointer.idle": (ctx) => {
     expect(ctx.selectedIds.size).toBe(0);
+    expect(ctx.selectedSlot).toBeNull();
   },
   "pointer.hovering": (ctx) => {
     expect(ctx.hoveredId).not.toBeNull();
@@ -21,6 +22,11 @@ const stateVerifiers: Record<string, Verify> = {
   "pointer.selected": (ctx) => {
     expect(ctx.selectedIds.size).toBeGreaterThan(0);
     expect(ctx.editing).toBeNull();
+    expect(ctx.selectedSlot).toBeNull();
+  },
+  "pointer.slot-selected": (ctx) => {
+    expect(ctx.selectedIds.size).toBeGreaterThan(0);
+    expect(ctx.selectedSlot).not.toBeNull();
   },
   "pointer.editing": (ctx) => {
     expect(ctx.editing).not.toBeNull();
@@ -45,6 +51,7 @@ const sampleEvents = [
   { type: "SELECT" as const, elementId: "el-1" },
   { type: "TOGGLE_SELECT" as const, elementId: "el-2" },
   { type: "DESELECT" as const },
+  { type: "SELECT_SLOT" as const, parentId: "card", slotKey: "body" },
   { type: "OPEN_POPOVER" as const },
   {
     type: "START_INLINE_EDIT" as const,
@@ -453,5 +460,122 @@ describe("carry/drag mutual exclusion", () => {
     });
     expect(dragOf(s)).toBe("carrying");
     expect(s.context.dragSourceId).toBe("el-1");
+  });
+});
+
+// --- slot-selected: exhaustive state × event matrix ---
+
+const pointerOf = (s: { value: unknown }) => (s.value as MachineValue).pointer;
+
+const enterSlotSelected = [
+  { type: "SELECT" as const, elementId: "el-1" },
+  { type: "SELECT_SLOT" as const, parentId: "card", slotKey: "body" },
+];
+
+describe("slot-selected: entry", () => {
+  it("selected + SELECT_SLOT → slot-selected, assigns selectedSlot", () => {
+    const s = walk(...enterSlotSelected);
+    expect(pointerOf(s)).toBe("slot-selected");
+    expect(s.context.selectedSlot).toEqual({
+      parentId: "card",
+      slotKey: "body",
+    });
+    expect(s.context.selectedIds.size).toBeGreaterThan(0);
+  });
+
+  it("SELECT_SLOT from idle is ignored (guard: must be in selected)", () => {
+    const s = walk({ type: "SELECT_SLOT", parentId: "card", slotKey: "body" });
+    expect(pointerOf(s)).toBe("idle");
+    expect(s.context.selectedSlot).toBeNull();
+  });
+});
+
+describe("slot-selected: SELECT exits to selected, clears selectedSlot", () => {
+  it("SELECT → selected, assigns new element, clears selectedSlot", () => {
+    const s = walk(...enterSlotSelected, { type: "SELECT", elementId: "card" });
+    expect(pointerOf(s)).toBe("selected");
+    expect(s.context.selectedIds).toEqual(new Set(["card"]));
+    expect(s.context.lastSelectedId).toBe("card");
+    expect(s.context.selectedSlot).toBeNull();
+  });
+});
+
+describe("slot-selected: ESCAPE exits to selected, clears selectedSlot", () => {
+  it("ESCAPE → selected (element retained), selectedSlot cleared", () => {
+    const s = walk(...enterSlotSelected, { type: "ESCAPE" });
+    expect(pointerOf(s)).toBe("selected");
+    expect(s.context.selectedIds).toEqual(new Set(["el-1"]));
+    expect(s.context.lastSelectedId).toBe("el-1");
+    expect(s.context.selectedSlot).toBeNull();
+  });
+});
+
+describe("slot-selected: DESELECT exits to idle, clears everything", () => {
+  it("DESELECT → idle, clears selectedIds and selectedSlot", () => {
+    const s = walk(...enterSlotSelected, { type: "DESELECT" });
+    expect(pointerOf(s)).toBe("idle");
+    expect(s.context.selectedIds.size).toBe(0);
+    expect(s.context.lastSelectedId).toBeNull();
+    expect(s.context.selectedSlot).toBeNull();
+  });
+});
+
+describe("slot-selected: REPLACE_SELECT clears selectedSlot", () => {
+  it("REPLACE_SELECT with ids → selected, clears selectedSlot", () => {
+    const s = walk(...enterSlotSelected, {
+      type: "REPLACE_SELECT",
+      elementIds: ["other"],
+    });
+    expect(pointerOf(s)).toBe("selected");
+    expect(s.context.selectedIds).toEqual(new Set(["other"]));
+    expect(s.context.selectedSlot).toBeNull();
+  });
+
+  it("REPLACE_SELECT with empty → idle, clears selectedSlot", () => {
+    const s = walk(...enterSlotSelected, {
+      type: "REPLACE_SELECT",
+      elementIds: [],
+    });
+    expect(pointerOf(s)).toBe("idle");
+    expect(s.context.selectedIds.size).toBe(0);
+    expect(s.context.selectedSlot).toBeNull();
+  });
+});
+
+describe("slot-selected: drag/carry entry clears selectedSlot", () => {
+  it("DRAG_START while in slot-selected → drag.dragging, pointer.selected, selectedSlot cleared", () => {
+    const s = walk(...enterSlotSelected, {
+      type: "DRAG_START",
+      sourceId: "el-1",
+    });
+    expect(dragOf(s)).toBe("dragging");
+    expect(s.context.selectedSlot).toBeNull();
+  });
+
+  it("CARRY_START while in slot-selected → drag.carrying, selectedSlot cleared", () => {
+    const s = walk(...enterSlotSelected, {
+      type: "CARRY_START",
+      sourceId: "el-1",
+    });
+    expect(dragOf(s)).toBe("carrying");
+    expect(s.context.selectedSlot).toBeNull();
+  });
+});
+
+describe("selectedSlot is null after DESELECT from selected (not just slot-selected)", () => {
+  it("selected + DESELECT never carries selectedSlot forward (invariant)", () => {
+    const s = walk({ type: "SELECT", elementId: "el-1" }, { type: "DESELECT" });
+    expect(s.context.selectedSlot).toBeNull();
+  });
+});
+
+describe("selectedSlot cleared by top-level REPLACE_SELECT", () => {
+  it("top-level REPLACE_SELECT while in slot-selected → selected, clears selectedSlot", () => {
+    const s = walk(...enterSlotSelected, {
+      type: "REPLACE_SELECT",
+      elementIds: ["another"],
+    });
+    expect(pointerOf(s)).toBe("selected");
+    expect(s.context.selectedSlot).toBeNull();
   });
 });
