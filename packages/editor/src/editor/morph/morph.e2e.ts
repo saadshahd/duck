@@ -5,13 +5,13 @@ import {
   getMorphPickerItems,
   clickMorphPickerItem,
   hasMorphOverlay,
-  selectParentElement,
+  climbToParent,
 } from "../overlay/testing.js";
 
 async function selectFeatureCard(page: import("@playwright/test").Page) {
   await page.locator("h3").first().click();
   await page.waitForTimeout(300);
-  await selectParentElement(page); // Heading → Card
+  await climbToParent(page); // Heading → slot-stop → Card
   await page.waitForTimeout(300);
 }
 
@@ -119,12 +119,12 @@ test.describe("Morph", () => {
   test("Grid gives no morph suggestions (opaque card children)", async ({
     page,
   }) => {
-    // Heading → Card → Grid
+    // Heading → slot-stop → Card → slot-stop → Grid
     await page.locator("h3").first().click();
     await page.waitForTimeout(300);
-    await selectParentElement(page);
+    await climbToParent(page); // lands on Card
     await page.waitForTimeout(300);
-    await selectParentElement(page);
+    await climbToParent(page); // lands on Grid
     await page.waitForTimeout(300);
 
     const state = await getMorphButtonState(page);

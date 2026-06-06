@@ -234,6 +234,14 @@ export const selectParentElement = (page: Page) =>
     }
   });
 
+/** Two-step climb: ↑ to slot-stop, then click slot-stop label to land on parent element.
+ *  Use when you need the FloatingActionBar (toolbar) visible on the parent. */
+export const climbToParent = async (page: Page) => {
+  await selectParentElement(page);
+  await page.waitForTimeout(300);
+  await clickSlotStopLabel(page);
+};
+
 export const getSlotAddressText = (page: Page) =>
   shadowQuery(
     page,
