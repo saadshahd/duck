@@ -11,6 +11,7 @@ import {
   getSlotAddressText,
   isSlotStopVisible,
   getSlotStopLabelText,
+  getSlotStopRect,
   clickSlotStopLabel,
   selectParentElement,
 } from "../overlay/testing.js";
@@ -256,5 +257,22 @@ test.describe("Slot address and slot-stop", () => {
 
     expect(await isToolbarVisible(page)).toBe(true);
     expect(await getSlotAddressText(page)).toBeNull();
+  });
+
+  test("scroll keeps slot band attached (tracks live)", async ({ page }) => {
+    await page.locator("h3").first().click();
+    await page.waitForTimeout(300);
+
+    await selectParentElement(page);
+    await page.waitForTimeout(300);
+    const rectBefore = await getSlotStopRect(page);
+    expect(rectBefore).not.toBeNull();
+
+    await page.evaluate(() => window.scrollBy(0, 100));
+    await waitFrames(page, 2);
+
+    const rectAfter = await getSlotStopRect(page);
+    expect(rectAfter).not.toBeNull();
+    expect(rectBefore!.top).not.toBe(rectAfter!.top);
   });
 });

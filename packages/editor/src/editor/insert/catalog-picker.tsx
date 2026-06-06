@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useState } from "react";
 import {
   useFloating,
   offset,
@@ -11,6 +11,7 @@ import {
   useShadowSheet,
   useOnClickOutside,
   useRegistryAnchor,
+  useAutoFocus,
 } from "../overlay/index.js";
 import type { FiberRegistry } from "../fiber/index.js";
 import css from "./insert.css?inline";
@@ -42,7 +43,7 @@ export function CatalogPicker({
 }: CatalogPickerProps) {
   useShadowSheet(css);
   const [filter, setFilter] = useState("");
-  const filterRef = useRef<HTMLInputElement>(null);
+  const filterRef = useAutoFocus<HTMLInputElement>();
 
   const { refs, floatingStyles } = useFloating({
     placement: "bottom-start",
@@ -53,10 +54,6 @@ export function CatalogPicker({
 
   useRegistryAnchor(refs, registry, elementId);
   useOnClickOutside(refs.floating, onClose);
-
-  useEffect(function focusFilter() {
-    filterRef.current?.focus();
-  }, []);
 
   const needle = filter.toLowerCase();
   const entries = entriesOf(config).filter(

@@ -13,11 +13,9 @@ import { deepEqual } from "fast-equals";
 import {
   buildIndex,
   findById,
-  findParent,
   normalizeData,
   type PatternConfig,
 } from "@duckeditor/spec";
-import { qualifiedLabel, slotRegions } from "./layout/index.js";
 import { useMachine } from "@xstate/react";
 import { editorMachine } from "./machine/index.js";
 import {
@@ -42,6 +40,7 @@ import { useKeyboard } from "./keyboard/index.js";
 import { useGhostPlaceholders } from "./ghost/index.js";
 import { useFiberRegistry } from "./shell/use-fiber-registry.js";
 import { useSelectionReconcile } from "./shell/use-selection-reconcile.js";
+import { useSlotAddress } from "./shell/use-slot-stop.js";
 import { useContextMenu, ContextMenu } from "./context-menu/index.js";
 import { useClipboard } from "./clipboard/index.js";
 import { CatalogPicker, useInsert } from "./insert/index.js";
@@ -241,31 +240,7 @@ export function Editor<UserConfig extends Config = Config>({
     selectedIds.size > 0;
 
   const { selectedSlot } = state.context;
-
-  const slotAddress = useMemo(() => {
-    if (!lastSelectedId) return undefined;
-    const parent = findParent(currentData, lastSelectedId);
-    if (!parent || parent.parentId === null || parent.slotKey === null)
-      return undefined;
-    const parentEl = findById(currentData, parent.parentId);
-    if (!parentEl) return undefined;
-    return qualifiedLabel(parentEl.type, parent.slotKey);
-  }, [currentData, lastSelectedId]);
-
-  const slotStopRect = useMemo(() => {
-    if (pointer !== "slot-selected" || !selectedSlot || !fiberRegistry)
-      return null;
-    const regions = slotRegions({
-      data: currentData,
-      parentId: selectedSlot.parentId,
-      registry: fiberRegistry,
-    });
-    const region = regions.find((r) => r.slotKey === selectedSlot.slotKey);
-    if (region) return region.rect;
-    return (
-      fiberRegistry.get(selectedSlot.parentId)?.getBoundingClientRect() ?? null
-    );
-  }, [pointer, selectedSlot, currentData, fiberRegistry]);
+  const slotAddress = useSlotAddress(currentData, lastSelectedId);
 
   const yieldingToolbar = useToolbarYield(fiberRegistry, singleSelected);
 
@@ -445,11 +420,14 @@ export function Editor<UserConfig extends Config = Config>({
             )}
             {pointer === "slot-selected" &&
               selectedSlot &&
-              slotStopRect &&
               slotAddress &&
-              selectParent && (
+              selectParent &&
+              fiberRegistry && (
                 <SlotStop
-                  rect={slotStopRect}
+                  registry={fiberRegistry}
+                  data={currentData}
+                  parentId={selectedSlot.parentId}
+                  slotKey={selectedSlot.slotKey}
                   label={slotAddress}
                   onClimb={selectParent}
                 />

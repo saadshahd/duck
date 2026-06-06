@@ -257,6 +257,23 @@ export const clickSlotStopLabel = (page: Page) =>
     }
   });
 
+export const getSlotStopRect = (page: Page) =>
+  shadowQuery(page, (r) => {
+    const el = r.querySelector("[data-role='slot-stop']") as HTMLElement | null;
+    if (!el) return null;
+    return {
+      top: el.style.top,
+      left: el.style.left,
+      width: el.style.width,
+      height: el.style.height,
+    };
+  }) as Promise<{
+    top: string;
+    left: string;
+    width: string;
+    height: string;
+  } | null>;
+
 // --- Morph helpers ---
 
 export const getMorphButtonState = (page: Page) =>
