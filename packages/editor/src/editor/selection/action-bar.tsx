@@ -16,6 +16,7 @@ export type EditorAction =
   | { tag: "insert" }
   | { tag: "move-up" }
   | { tag: "move-down" }
+  | { tag: "move" }
   | { tag: "delete" }
   | { tag: "edit" };
 
@@ -97,6 +98,13 @@ export function FloatingActionBar({
           onClick={() => onAction({ tag: "move-down" })}
         >
           {labels.next}
+        </button>
+        <button
+          type="button"
+          data-role="action-move"
+          onClick={() => onAction({ tag: "move" })}
+        >
+          ⤢
         </button>
         <button
           type="button"

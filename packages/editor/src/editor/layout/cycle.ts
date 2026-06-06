@@ -1,11 +1,11 @@
 import type { Data } from "@puckeditor/core";
 import type { FiberRegistry } from "../fiber/index.js";
+import { buildTiling } from "./tiling.js";
 import {
-  buildTiling,
   stepCycle,
   type Destination,
   type DropTarget,
-} from "../layout/index.js";
+} from "./destinations.js";
 
 /** Shift-cycle state over the destination stack. `anchorId` is the deepest
  *  container the cycle is bound to — when the pointer moves to a different

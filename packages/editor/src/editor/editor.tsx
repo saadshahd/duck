@@ -31,6 +31,7 @@ import {
 } from "./selection/index.js";
 import { usePropEditor } from "./prop-editor/use-prop-editor.jsx";
 import { useDragReorder, DragOverlay } from "./drag/index.js";
+import { useCarry } from "./carry/index.js";
 import { OverlayRoot } from "./overlay/index.js";
 import { BoxModelLayer } from "./box-model/index.js";
 import { useHistory, HistoryTimeline } from "./history/index.js";
@@ -136,6 +137,13 @@ export function Editor<UserConfig extends Config = Config>({
     registry: fiberRegistry,
     data: currentData,
     index,
+    state,
+    send,
+    commit,
+  });
+  const { target: carryTarget } = useCarry({
+    registry: fiberRegistry,
+    data: currentData,
     state,
     send,
     commit,
@@ -399,13 +407,21 @@ export function Editor<UserConfig extends Config = Config>({
             )}
           </>
         )}
-        {drag === "dragging" && dropTarget && fiberRegistry && (
-          <DragOverlay
-            registry={fiberRegistry}
-            data={currentData}
-            target={dropTarget}
-          />
-        )}
+        {(() => {
+          const target =
+            drag === "dragging"
+              ? dropTarget
+              : drag === "carrying"
+                ? carryTarget
+                : null;
+          return target && fiberRegistry ? (
+            <DragOverlay
+              registry={fiberRegistry}
+              data={currentData}
+              target={target}
+            />
+          ) : null;
+        })()}
         {menu && (
           <ContextMenu
             x={menu.x}

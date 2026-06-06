@@ -26,3 +26,4 @@ export {
   slotLabels,
   NO_TARGET_LABEL,
 } from "./destinations.js";
+export { Cycle, type CycleState } from "./cycle.js";

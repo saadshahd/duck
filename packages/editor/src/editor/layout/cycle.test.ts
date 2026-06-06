@@ -1,8 +1,8 @@
 import { describe, test, expect } from "bun:test";
 import type { ComponentData, Data } from "@puckeditor/core";
 import { Cycle } from "./cycle.js";
-import type { Destination } from "../layout/index.js";
-import { stubRegistry, emptyRegistry } from "./drag-test-fixtures.js";
+import type { Destination } from "./destinations.js";
+import { stubRegistry, emptyRegistry } from "../fiber/testing.js";
 
 // --- Factories ---
 

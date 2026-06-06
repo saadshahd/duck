@@ -131,6 +131,15 @@ const deleteBindings = (
     ]),
   );
 
+const liftBinding = (send: Send, navRef: React.RefObject<NavContext>) => ({
+  Space: (e: KeyboardEvent) => {
+    const nav = navRef.current;
+    if (!selected(nav) || isEditable(e.target)) return;
+    e.preventDefault();
+    send({ type: "CARRY_START", sourceId: nav.lastSelectedId! });
+  },
+});
+
 export function useKeyboard(targets: {
   machine: Send;
   history: Send;
@@ -157,6 +166,7 @@ export function useKeyboard(targets: {
         ...arrowBindings(targets.machine, navRef),
         ...clipboardBindings(navRef, cbRef),
         ...deleteBindings(navRef, deleteRef),
+        ...liftBinding(targets.machine, navRef),
       }),
     [targets.machine, targets.history],
   );
