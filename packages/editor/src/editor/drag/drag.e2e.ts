@@ -2,6 +2,7 @@ import { test, expect, type Page, type Locator } from "@playwright/test";
 import {
   hasDropIndicator,
   getDropZoneLabelText,
+  getDropPositionChipText,
   getTileLabels,
   getActiveTileLabel,
   getActiveTileRect,
@@ -384,5 +385,34 @@ test.describe("Shift-cycle destination stack", () => {
     expect(landed).toBe(true);
     const after = await grid.evaluate((el) => el.children.length);
     expect(after).toBe(before + 1);
+  });
+});
+
+// --- Qualified line labels + position chip ---
+
+test.describe("Line drop labels and position chip", () => {
+  test.beforeEach(async ({ page }) => {
+    await page.goto("/");
+    await page.waitForTimeout(500);
+  });
+
+  test("between-siblings drag shows qualified slot label and position chip", async ({
+    page,
+  }) => {
+    const heading = page.locator("h1");
+    await heading.click();
+    await page.waitForTimeout(300);
+
+    const description = page.locator("p").first();
+    await dragOver(page, heading, description);
+    await page.waitForTimeout(300);
+
+    const zoneLabel = await getDropZoneLabelText(page);
+    expect(zoneLabel).not.toBeNull();
+    expect(zoneLabel).toMatch(/›/);
+
+    const chipText = await getDropPositionChipText(page);
+    expect(chipText).not.toBeNull();
+    expect(chipText).toMatch(/^(before|after) /);
   });
 });

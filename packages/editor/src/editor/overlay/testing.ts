@@ -191,8 +191,19 @@ export const getDropZoneLabelText = (page: Page) =>
   shadowQuery(
     page,
     (r) =>
-      (r.querySelector(".drop-zone-label") as HTMLElement | null)
+      (r.querySelector("[data-role='drop-zone-label']") as HTMLElement | null)
         ?.textContent ?? null,
+  ) as Promise<string | null>;
+
+export const getDropPositionChipText = (page: Page) =>
+  shadowQuery(
+    page,
+    (r) =>
+      (
+        r.querySelector(
+          "[data-role='drop-position-chip']",
+        ) as HTMLElement | null
+      )?.textContent ?? null,
   ) as Promise<string | null>;
 
 // --- Selection helpers ---

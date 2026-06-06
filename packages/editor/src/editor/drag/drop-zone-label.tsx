@@ -35,6 +35,7 @@ export function DropZoneLabel({ registry, data, target }: DropZoneLabelProps) {
   return (
     <div
       ref={refs.setFloating}
+      data-role="drop-zone-label"
       className="drop-zone-label"
       style={{ ...floatingStyles, zIndex: 1 }}
     >

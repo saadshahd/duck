@@ -4,6 +4,7 @@ import type { FiberRegistry } from "../fiber/index.js";
 import { slotLabels, type DropTarget } from "../layout/index.js";
 import { DropIndicator } from "./drop-indicator.js";
 import { DropZoneLabel } from "./drop-zone-label.js";
+import { DropPositionChip } from "./drop-position-chip.js";
 import { NoTargetMarker } from "./no-target-marker.js";
 import { RootDropLabel } from "./root-drop-label.js";
 
@@ -22,6 +23,7 @@ export function DragOverlay({ registry, data, target }: Props) {
       <>
         <DropIndicator registry={registry} target={target} />
         <DropZoneLabel registry={registry} data={data} target={target} />
+        <DropPositionChip registry={registry} data={data} target={target} />
       </>
     );
 

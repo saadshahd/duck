@@ -30,9 +30,9 @@ import {
   useToolbarYield,
 } from "./selection/index.js";
 import { usePropEditor } from "./prop-editor/use-prop-editor.jsx";
-import { useDragReorder, DragOverlay } from "./drag/index.js";
+import { useDragReorder, DragOverlay, announcementFor } from "./drag/index.js";
 import { useCarry } from "./carry/index.js";
-import { OverlayRoot } from "./overlay/index.js";
+import { OverlayRoot, Announcer } from "./overlay/index.js";
 import { BoxModelLayer } from "./box-model/index.js";
 import { useHistory, HistoryTimeline } from "./history/index.js";
 import { useKeyboard } from "./keyboard/index.js";
@@ -422,6 +422,15 @@ export function Editor<UserConfig extends Config = Config>({
             />
           ) : null;
         })()}
+        <Announcer
+          message={
+            drag === "dragging" && dropTarget
+              ? announcementFor(currentData, dropTarget)
+              : drag === "carrying" && carryTarget
+                ? announcementFor(currentData, carryTarget)
+                : ""
+          }
+        />
         {menu && (
           <ContextMenu
             x={menu.x}

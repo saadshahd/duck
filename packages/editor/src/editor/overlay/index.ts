@@ -5,3 +5,4 @@ export { useOnClickOutside } from "./use-on-click-outside.js";
 export { useHighlightRef, INSET, EXPAND } from "./use-highlight-ref.js";
 export { isEditable } from "./dom-utils.js";
 export { Tiles } from "./tiles.js";
+export { Announcer } from "./announcer.js";
