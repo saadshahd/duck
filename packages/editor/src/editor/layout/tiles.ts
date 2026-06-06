@@ -238,6 +238,22 @@ const carveEmpties = (
   return [...shrinkAround(measured, carved), ...carved];
 };
 
+/** Axis choice when both projections are ordered: a single measured band
+ *  carries no cross-slot geometry, so the container's CSS axis decides;
+ *  with 2+ bands the larger spread wins. */
+const breakTie = (args: {
+  vBands: readonly Band[];
+  hBands: readonly Band[];
+  measuredCount: number;
+  cssAxis?: Axis;
+}): Axis => {
+  const { vBands, hBands, measuredCount, cssAxis } = args;
+  if (measuredCount <= 1 && cssAxis) return cssAxis;
+  return spread(vBands.map((b) => b.band)) >= spread(hBands.map((b) => b.band))
+    ? "vertical"
+    : "horizontal";
+};
+
 export const tileSlots = (args: {
   containerRect: DOMRect;
   slots: readonly SlotInput[];
@@ -270,9 +286,7 @@ export const tileSlots = (args: {
 
   const axis: Axis =
     vOk && hOk
-      ? spread(vBands.map((b) => b.band)) >= spread(hBands.map((b) => b.band))
-        ? "vertical"
-        : "horizontal"
+      ? breakTie({ vBands, hBands, measuredCount: measured.length, cssAxis })
       : vOk
         ? "vertical"
         : "horizontal";

@@ -454,6 +454,47 @@ describe("tileSlots — all empty", () => {
   });
 });
 
+describe("axis tie-breaker with single measured slot", () => {
+  test("cssAxis wins over the lone child's aspect ratio", () => {
+    // Tall container, one measured slot whose rect is WIDER than tall —
+    // the old spread tie-break would pick horizontal.
+    const containerRect = rect(0, 0, 300, 600);
+    const result = tileSlots({
+      containerRect,
+      slots: [
+        { slotKey: "header" },
+        { slotKey: "body", rect: rect(10, 250, 280, 100) },
+        { slotKey: "footer" },
+      ],
+      cssAxis: "vertical",
+    });
+    expect(result.kind).toBe("tiled");
+    if (result.kind !== "tiled") return;
+    expect(result.axis).toBe("vertical");
+    // header carved above body, footer carved below — full-width 24px bands
+    const byKey = new Map(result.tiles.map((t) => [t.slotKey, t.rect]));
+    expect(byKey.get("header")!.width).toBe(300);
+    expect(byKey.get("header")!.height).toBe(24);
+  });
+
+  test("spread tie-break still applies with 2+ measured slots", () => {
+    // Two measured slots stacked vertically inside a wide container:
+    // both axes ordered, vertical spread larger → vertical wins regardless of cssAxis.
+    const containerRect = rect(0, 0, 600, 300);
+    const result = tileSlots({
+      containerRect,
+      slots: [
+        { slotKey: "a", rect: rect(10, 10, 100, 100) },
+        { slotKey: "b", rect: rect(10, 150, 100, 140) },
+      ],
+      cssAxis: "horizontal",
+    });
+    expect(result.kind).toBe("tiled");
+    if (result.kind !== "tiled") return;
+    expect(result.axis).toBe("vertical");
+  });
+});
+
 describe("tileSlots — purity & ordering", () => {
   test("does not mutate inputs", () => {
     const slots: SlotInput[] = [
