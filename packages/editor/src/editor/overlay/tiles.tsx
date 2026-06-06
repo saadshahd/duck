@@ -3,14 +3,13 @@ import { useShadowSheet } from "./use-shadow-sheet.js";
 import css from "./tiles.css?inline";
 
 /** 1px horizontal line from the container's left edge to the marker's left edge,
- *  at the marker's vertical center. Returns null when the marker is already flush
- *  with or left of the container (width ≤ 0). */
+ *  at the marker's vertical center. Width is clamped to 0 when the marker is
+ *  flush with or left of the container — the caller filters degenerate widths. */
 export const leaderRect = (
   containerRect: DOMRect,
   marker: DOMRect,
-): DOMRect | null => {
-  const width = marker.left - containerRect.left;
-  if (width <= 0) return null;
+): DOMRect => {
+  const width = Math.max(0, marker.left - containerRect.left);
   return new DOMRect(
     containerRect.left,
     marker.top + marker.height / 2,
@@ -90,7 +89,7 @@ function DiscreteStack({
     const markerRect = stackRect(containerRect, slotKeys.length, i);
     const leader = leaderRect(containerRect, markerRect);
     return [
-      leader ? (
+      leader.width > 0 ? (
         <div
           key={`${slotKey}-leader`}
           data-role="slot-leader"

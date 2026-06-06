@@ -150,24 +150,25 @@ describe("leaderRect", () => {
   test("returns a 1px rect from container left to marker left at marker vertical center", () => {
     const containerR = new DOMRect(10, 0, 400, 300);
     const markerR = new DOMRect(130, 100, 160, 24);
-    const leader = leaderRect(containerR, markerR);
-    expect(leader).not.toBeNull();
-    expect(leader!.left).toBe(10);
-    expect(leader!.top).toBe(112); // 100 + 24/2
-    expect(leader!.width).toBe(120); // 130 - 10
-    expect(leader!.height).toBe(1);
+    expect(leaderRect(containerR, markerR)).toEqual(
+      new DOMRect(10, 112, 120, 1),
+    );
   });
 
-  test("returns null when marker is flush with or left of the container", () => {
+  test("returns a rect with width 0 when marker is flush with the container", () => {
     const containerR = new DOMRect(130, 0, 400, 300);
     const markerR = new DOMRect(130, 100, 160, 24);
-    expect(leaderRect(containerR, markerR)).toBeNull();
+    expect(leaderRect(containerR, markerR)).toEqual(
+      new DOMRect(130, 112, 0, 1),
+    );
   });
 
-  test("returns null when marker is to the left of the container", () => {
+  test("returns a rect with width 0 when marker is to the left of the container", () => {
     const containerR = new DOMRect(200, 0, 400, 300);
     const markerR = new DOMRect(130, 100, 160, 24);
-    expect(leaderRect(containerR, markerR)).toBeNull();
+    expect(leaderRect(containerR, markerR)).toEqual(
+      new DOMRect(200, 112, 0, 1),
+    );
   });
 });
 
