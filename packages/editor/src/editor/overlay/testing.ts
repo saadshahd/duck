@@ -115,6 +115,45 @@ export const getSlotChipLabels = (page: Page) =>
     ),
   ) as Promise<string[] | null>;
 
+// --- Slot tile helpers ---
+
+export const getTileLabels = (page: Page) =>
+  shadowQuery(page, (r) =>
+    [...r.querySelectorAll("[data-role='slot-tile']")].map(
+      (el) => el.textContent ?? "",
+    ),
+  ) as Promise<string[] | null>;
+
+export const getActiveTileLabel = (page: Page) =>
+  shadowQuery(
+    page,
+    (r) =>
+      (
+        r.querySelector(
+          "[data-role='slot-tile'][data-active]",
+        ) as HTMLElement | null
+      )?.textContent ?? null,
+  ) as Promise<string | null>;
+
+export const getActiveTileRect = (page: Page) =>
+  shadowQuery(page, (r) => {
+    const el = r.querySelector(
+      "[data-role='slot-tile'][data-active]",
+    ) as HTMLElement | null;
+    if (!el) return null;
+    return {
+      top: el.style.top,
+      left: el.style.left,
+      width: el.style.width,
+      height: el.style.height,
+    };
+  }) as Promise<{
+    top: string;
+    left: string;
+    width: string;
+    height: string;
+  } | null>;
+
 // --- Drop zone label helpers ---
 
 export const getDropZoneLabelText = (page: Page) =>

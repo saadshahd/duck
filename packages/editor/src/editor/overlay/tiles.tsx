@@ -1,0 +1,128 @@
+import type { Tiling } from "../layout/index.js";
+import { useShadowSheet } from "./use-shadow-sheet.js";
+import css from "./tiles.css?inline";
+
+type TilesProps = {
+  tiling: Tiling;
+  containerRect: DOMRect;
+  activeSlotKey?: string;
+  labels: Readonly<Record<string, string>>;
+};
+
+const DISCRETE = { width: 160, height: 24, gap: 4 };
+
+/** Vertically centered stack of equal-height markers over the container. */
+const stackRect = (
+  containerRect: DOMRect,
+  count: number,
+  index: number,
+): DOMRect => {
+  const total = count * DISCRETE.height + (count - 1) * DISCRETE.gap;
+  const top =
+    containerRect.top +
+    (containerRect.height - total) / 2 +
+    index * (DISCRETE.height + DISCRETE.gap);
+  const left = containerRect.left + (containerRect.width - DISCRETE.width) / 2;
+  return new DOMRect(left, top, DISCRETE.width, DISCRETE.height);
+};
+
+function Tile({
+  rect,
+  label,
+  active,
+  discrete,
+}: {
+  rect: DOMRect;
+  label: string;
+  active: boolean;
+  discrete?: boolean;
+}) {
+  return (
+    <div
+      data-role="slot-tile"
+      data-active={active || undefined}
+      data-discrete={discrete || undefined}
+      className="slot-tile"
+      style={{
+        top: rect.top,
+        left: rect.left,
+        width: rect.width,
+        height: rect.height,
+      }}
+    >
+      <span className="slot-tile-label">{label}</span>
+    </div>
+  );
+}
+
+function DiscreteStack({
+  slotKeys,
+  containerRect,
+  activeSlotKey,
+  labels,
+}: {
+  slotKeys: readonly string[];
+  containerRect: DOMRect;
+  activeSlotKey?: string;
+  labels: Readonly<Record<string, string>>;
+}) {
+  return slotKeys.map((slotKey, i) => (
+    <Tile
+      key={slotKey}
+      rect={stackRect(containerRect, slotKeys.length, i)}
+      label={labels[slotKey] ?? slotKey}
+      active={slotKey === activeSlotKey}
+      discrete
+    />
+  ));
+}
+
+/** Painted slot destinations over a container during drag. Pure visuals —
+ *  pointer-events disabled; the overlay cannot host drop targets. The caller
+ *  supplies geometry, the active destination, and resolved labels. */
+export function Tiles({
+  tiling,
+  containerRect,
+  activeSlotKey,
+  labels,
+}: TilesProps) {
+  useShadowSheet(css);
+
+  if (tiling.kind === "discrete")
+    return (
+      <DiscreteStack
+        slotKeys={tiling.slotKeys}
+        containerRect={containerRect}
+        activeSlotKey={activeSlotKey}
+        labels={labels}
+      />
+    );
+
+  const tiles = tiling.tiles.map((tile) => (
+    <Tile
+      key={tile.slotKey}
+      rect={tile.rect}
+      label={labels[tile.slotKey] ?? tile.slotKey}
+      active={tile.slotKey === activeSlotKey}
+    />
+  ));
+
+  const activeYielded =
+    activeSlotKey && tiling.yielded.includes(activeSlotKey)
+      ? activeSlotKey
+      : undefined;
+
+  return (
+    <>
+      {tiles}
+      {activeYielded ? (
+        <Tile
+          rect={stackRect(containerRect, 1, 0)}
+          label={labels[activeYielded] ?? activeYielded}
+          active
+          discrete
+        />
+      ) : undefined}
+    </>
+  );
+}
