@@ -7,6 +7,9 @@ import {
   getActiveTileLabel,
   getActiveTileRect,
   getActiveDestinationLabel,
+  countCarvedTiles,
+  countLeaderLines,
+  readTiles,
   dispatchDrag,
   sourceCenter,
   edgePoint,
@@ -398,5 +401,93 @@ test.describe("Line drop labels and position chip", () => {
     const chipText = await getDropPositionChipText(page);
     expect(chipText).not.toBeNull();
     expect(chipText).toMatch(/^(before|after) /);
+  });
+});
+
+// --- Band grammar: carved bands + discrete leader lines ---
+
+test.describe("Band grammar — carved and discrete", () => {
+  test.beforeEach(async ({ page }) => {
+    await page.goto("/");
+    await page.waitForTimeout(500);
+  });
+
+  /** The Stack panel container: two hops up from its heading (slots are wrapped
+   *  in layout divs, same locator as PANEL_STACK in scan.e2e.ts). */
+  const stackPanel = (page: Page) =>
+    page.locator("h3:has-text('Stack panel')").locator("..").locator("..");
+
+  /** The Scatter panel container. */
+  const scatterPanel = (page: Page) =>
+    page.locator("h3:has-text('Scatter')").locator("..").locator("..");
+
+  /** CTA button lives near the panels — same source as scan.e2e.ts uses. */
+  const ctaSource = (page: Page) =>
+    page.locator('button:has-text("Get started")').first();
+
+  test("dragging over the Stack panel paints at least one carved tile", async ({
+    page,
+  }) => {
+    const source = ctaSource(page);
+    await source.scrollIntoViewIfNeeded();
+    await page.waitForTimeout(200);
+    await source.click();
+    await page.waitForTimeout(300);
+
+    // Target the carved divider band: the 24px slot between the head (h3 "Stack
+    // panel") and the body. The midpoint of that carved band is just below the
+    // head element's bottom edge — container background, no child there.
+    const headBox = await page
+      .locator("h3:has-text('Stack panel')")
+      .boundingBox();
+    const panelBox = await stackPanel(page).boundingBox();
+    if (!headBox || !panelBox) throw new Error("Stack panel not visible");
+    const dividerBandMid: Point = {
+      x: panelBox.x + panelBox.width / 2,
+      y: headBox.y + headBox.height + 12, // 12px into the carved divider band
+    };
+
+    await mouseDrag(page, source, [dividerBandMid], false);
+    await page.waitForTimeout(300);
+
+    const carved = await countCarvedTiles(page);
+    await page.mouse.up();
+
+    expect(carved, "at least one carved tile over stack panel").toBeGreaterThan(
+      0,
+    );
+  });
+
+  test("dragging over the Scatter panel: leader count equals discrete tile count", async ({
+    page,
+  }) => {
+    const source = ctaSource(page);
+    await source.scrollIntoViewIfNeeded();
+    await page.waitForTimeout(200);
+    await source.click();
+    await page.waitForTimeout(300);
+
+    const panelBox = await scatterPanel(page).boundingBox();
+    if (!panelBox) throw new Error("Scatter panel not visible");
+    const center: Point = {
+      x: panelBox.x + panelBox.width / 2,
+      y: panelBox.y + panelBox.height / 2,
+    };
+
+    await mouseDrag(page, source, [center], false);
+    await page.waitForTimeout(300);
+
+    const tiles = (await readTiles(page)) ?? [];
+    const discreteCount = tiles.filter((t) => t.discrete).length;
+    const leaderCount = (await countLeaderLines(page)) ?? 0;
+    await page.mouse.up();
+
+    expect(
+      discreteCount,
+      "scatter panel paints discrete tiles",
+    ).toBeGreaterThan(0);
+    expect(leaderCount, "leader count equals discrete tile count").toBe(
+      discreteCount,
+    );
   });
 });

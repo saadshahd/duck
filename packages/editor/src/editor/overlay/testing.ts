@@ -133,6 +133,20 @@ export const readTiles = (page: Page) =>
     })),
   ) as Promise<{ label: string; discrete: boolean }[] | null>;
 
+/** Count of slot tiles that carry data-carved (synthetic carved bands). */
+export const countCarvedTiles = (page: Page) =>
+  shadowQuery(
+    page,
+    (r) => r.querySelectorAll("[data-role='slot-tile'][data-carved]").length,
+  ) as Promise<number | null>;
+
+/** Count of slot-leader elements (one per discrete marker). */
+export const countLeaderLines = (page: Page) =>
+  shadowQuery(
+    page,
+    (r) => r.querySelectorAll("[data-role='slot-leader']").length,
+  ) as Promise<number | null>;
+
 // --- Slot tile helpers ---
 
 export const getTileLabels = (page: Page) =>

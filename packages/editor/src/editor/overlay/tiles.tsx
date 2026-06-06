@@ -2,6 +2,23 @@ import type { Tiling } from "../layout/index.js";
 import { useShadowSheet } from "./use-shadow-sheet.js";
 import css from "./tiles.css?inline";
 
+/** 1px horizontal line from the container's left edge to the marker's left edge,
+ *  at the marker's vertical center. Returns null when the marker is already flush
+ *  with or left of the container (width ≤ 0). */
+export const leaderRect = (
+  containerRect: DOMRect,
+  marker: DOMRect,
+): DOMRect | null => {
+  const width = marker.left - containerRect.left;
+  if (width <= 0) return null;
+  return new DOMRect(
+    containerRect.left,
+    marker.top + marker.height / 2,
+    width,
+    1,
+  );
+};
+
 type TilesProps = {
   tiling: Tiling;
   containerRect: DOMRect;
@@ -31,17 +48,20 @@ function Tile({
   label,
   active,
   discrete,
+  carved,
 }: {
   rect: DOMRect;
   label: string;
   active: boolean;
   discrete?: boolean;
+  carved?: boolean;
 }) {
   return (
     <div
       data-role="slot-tile"
       data-active={active || undefined}
       data-discrete={discrete || undefined}
+      data-carved={carved || undefined}
       className="slot-tile"
       style={{
         top: rect.top,
@@ -66,15 +86,32 @@ function DiscreteStack({
   activeSlotKey?: string;
   labels: Readonly<Record<string, string>>;
 }) {
-  return slotKeys.map((slotKey, i) => (
-    <Tile
-      key={slotKey}
-      rect={stackRect(containerRect, slotKeys.length, i)}
-      label={labels[slotKey] ?? slotKey}
-      active={slotKey === activeSlotKey}
-      discrete
-    />
-  ));
+  return slotKeys.flatMap((slotKey, i) => {
+    const markerRect = stackRect(containerRect, slotKeys.length, i);
+    const leader = leaderRect(containerRect, markerRect);
+    return [
+      leader ? (
+        <div
+          key={`${slotKey}-leader`}
+          data-role="slot-leader"
+          className="slot-leader"
+          style={{
+            top: leader.top,
+            left: leader.left,
+            width: leader.width,
+            height: leader.height,
+          }}
+        />
+      ) : null,
+      <Tile
+        key={slotKey}
+        rect={markerRect}
+        label={labels[slotKey] ?? slotKey}
+        active={slotKey === activeSlotKey}
+        discrete
+      />,
+    ].filter(Boolean);
+  });
 }
 
 /** Painted slot destinations over a container during drag. Pure visuals —
@@ -104,6 +141,7 @@ export function Tiles({
       rect={tile.rect}
       label={labels[tile.slotKey] ?? tile.slotKey}
       active={tile.slotKey === activeSlotKey}
+      carved={tiling.carved.includes(tile.slotKey)}
     />
   ));
 

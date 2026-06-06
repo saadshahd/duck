@@ -1,7 +1,7 @@
 import { describe, test, expect } from "bun:test";
 import { renderToStaticMarkup } from "react-dom/server";
 import type { Tiling } from "../layout/index.js";
-import { Tiles } from "./tiles.js";
+import { Tiles, leaderRect } from "./tiles.js";
 
 const dom = (markup: string): HTMLDivElement => {
   const host = document.createElement("div");
@@ -34,6 +34,7 @@ describe("Tiles — tiled", () => {
       { slotKey: "body", rect: new DOMRect(0, 100, 400, 200) },
     ],
     yielded: [],
+    carved: [],
   };
   const labels = { header: "Card › header", body: "Card › body" };
 
@@ -102,6 +103,7 @@ describe("Tiles — empty tilings", () => {
       axis: "vertical",
       tiles: [],
       yielded: [],
+      carved: [],
     };
     expect(render({ tiling, containerRect: container, labels: {} })).toEqual(
       [],
@@ -122,6 +124,7 @@ describe("Tiles — yielded slots", () => {
     axis: "vertical",
     tiles: [{ slotKey: "body", rect: new DOMRect(0, 0, 400, 300) }],
     yielded: ["caption"],
+    carved: [],
   };
   const labels = { body: "Card › body", caption: "Card › caption" };
 
@@ -140,5 +143,83 @@ describe("Tiles — yielded slots", () => {
     const marker = els.find((el) => el.textContent === "Card › caption");
     expect(marker?.hasAttribute("data-discrete")).toBe(true);
     expect(marker?.hasAttribute("data-active")).toBe(true);
+  });
+});
+
+describe("leaderRect", () => {
+  test("returns a 1px rect from container left to marker left at marker vertical center", () => {
+    const containerR = new DOMRect(10, 0, 400, 300);
+    const markerR = new DOMRect(130, 100, 160, 24);
+    const leader = leaderRect(containerR, markerR);
+    expect(leader).not.toBeNull();
+    expect(leader!.left).toBe(10);
+    expect(leader!.top).toBe(112); // 100 + 24/2
+    expect(leader!.width).toBe(120); // 130 - 10
+    expect(leader!.height).toBe(1);
+  });
+
+  test("returns null when marker is flush with or left of the container", () => {
+    const containerR = new DOMRect(130, 0, 400, 300);
+    const markerR = new DOMRect(130, 100, 160, 24);
+    expect(leaderRect(containerR, markerR)).toBeNull();
+  });
+
+  test("returns null when marker is to the left of the container", () => {
+    const containerR = new DOMRect(200, 0, 400, 300);
+    const markerR = new DOMRect(130, 100, 160, 24);
+    expect(leaderRect(containerR, markerR)).toBeNull();
+  });
+});
+
+describe("Tiles — carved bands", () => {
+  const tiling: Tiling = {
+    kind: "tiled",
+    axis: "vertical",
+    tiles: [
+      { slotKey: "header", rect: new DOMRect(0, 0, 400, 100) },
+      { slotKey: "body", rect: new DOMRect(0, 100, 400, 200) },
+    ],
+    yielded: [],
+    carved: ["header"],
+  };
+  const labels = { header: "Card › header", body: "Card › body" };
+
+  test("carved slot tile carries data-carved attribute", () => {
+    const markup = renderToStaticMarkup(
+      <Tiles tiling={tiling} containerRect={container} labels={labels} />,
+    );
+    const host = dom(markup);
+    const headerTile = [
+      ...host.querySelectorAll("[data-role='slot-tile']"),
+    ].find((el) => el.textContent === "Card › header");
+    const bodyTile = [...host.querySelectorAll("[data-role='slot-tile']")].find(
+      (el) => el.textContent === "Card › body",
+    );
+    expect(headerTile?.hasAttribute("data-carved")).toBe(true);
+    expect(bodyTile?.hasAttribute("data-carved")).toBe(false);
+  });
+});
+
+describe("Tiles — discrete leader lines", () => {
+  const tiling: Tiling = {
+    kind: "discrete",
+    slotKeys: ["header", "body", "footer"],
+  };
+  const labels = {
+    header: "Card › header",
+    body: "Card › body",
+    footer: "Card › footer",
+  };
+  // Container offset from left so leader lines have positive width.
+  const offsetContainer = new DOMRect(10, 0, 400, 300);
+
+  test("each discrete marker gets a leader line", () => {
+    const markup = renderToStaticMarkup(
+      <Tiles tiling={tiling} containerRect={offsetContainer} labels={labels} />,
+    );
+    const host = dom(markup);
+    const leaders = [...host.querySelectorAll("[data-role='slot-leader']")];
+    const tiles = [...host.querySelectorAll("[data-role='slot-tile']")];
+    expect(leaders.length).toBe(tiles.length);
   });
 });

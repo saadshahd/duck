@@ -12,6 +12,7 @@ const shape = (t: Tiling) =>
         kind: t.kind,
         axis: t.axis,
         yielded: t.yielded,
+        carved: [...t.carved].sort(),
         tiles: t.tiles.map((tile) => ({
           slotKey: tile.slotKey,
           rect: xywh(tile.rect),
@@ -36,6 +37,7 @@ describe("tileSlots — single slot", () => {
       kind: "tiled",
       axis: "vertical",
       yielded: [],
+      carved: [],
       tiles: [{ slotKey: "only", rect: { x: 0, y: 0, w: 200, h: 300 } }],
     });
   });
@@ -53,6 +55,7 @@ describe("tileSlots — single slot", () => {
       kind: "tiled",
       axis: "vertical",
       yielded: [],
+      carved: ["only"],
       tiles: [{ slotKey: "only", rect: { x: 0, y: 0, w: 200, h: 300 } }],
     });
   });
@@ -74,6 +77,7 @@ describe("tileSlots — axis selection", () => {
       kind: "tiled",
       axis: "vertical",
       yielded: [],
+      carved: [],
       tiles: [
         { slotKey: "top", rect: { x: 0, y: 0, w: 200, h: 150 } },
         { slotKey: "bottom", rect: { x: 0, y: 150, w: 200, h: 150 } },
@@ -97,6 +101,7 @@ describe("tileSlots — axis selection", () => {
       kind: "tiled",
       axis: "horizontal",
       yielded: [],
+      carved: [],
       tiles: [
         { slotKey: "left", rect: { x: 0, y: 0, w: 150, h: 100 } },
         { slotKey: "right", rect: { x: 150, y: 0, w: 150, h: 100 } },
@@ -160,6 +165,7 @@ describe("tileSlots — band geometry", () => {
       kind: "tiled",
       axis: "vertical",
       yielded: [],
+      carved: [],
       tiles: [
         { slotKey: "top", rect: { x: 0, y: 0, w: 200, h: 150 } },
         { slotKey: "bottom", rect: { x: 0, y: 150, w: 200, h: 150 } },
@@ -184,6 +190,7 @@ describe("tileSlots — band geometry", () => {
       kind: "tiled",
       axis: "vertical",
       yielded: [],
+      carved: [],
       tiles: [
         { slotKey: "a", rect: { x: 0, y: 0, w: 200, h: 75 } },
         { slotKey: "b", rect: { x: 0, y: 75, w: 200, h: 100 } },
@@ -204,6 +211,7 @@ describe("tileSlots — band geometry", () => {
       kind: "tiled",
       axis: "vertical",
       yielded: [],
+      carved: [],
       tiles: [{ slotKey: "only", rect: { x: 0, y: 0, w: 200, h: 300 } }],
     });
   });
@@ -273,6 +281,7 @@ describe("tileSlots — sub-floor measured slot yields", () => {
       kind: "tiled",
       axis: "vertical",
       yielded: ["a"],
+      carved: [],
       tiles: [
         { slotKey: "b", rect: { x: 0, y: 0, w: 200, h: 152.5 } },
         { slotKey: "c", rect: { x: 0, y: 152.5, w: 200, h: 147.5 } },
@@ -299,6 +308,7 @@ describe("tileSlots — empty slots among measured", () => {
       kind: "tiled",
       axis: "vertical",
       yielded: [],
+      carved: ["mid"],
       tiles: [
         { slotKey: "a", rect: { x: 0, y: 0, w: 200, h: 138 } },
         { slotKey: "mid", rect: { x: 0, y: 138, w: 200, h: 24 } },
@@ -323,6 +333,7 @@ describe("tileSlots — empty slots among measured", () => {
       kind: "tiled",
       axis: "vertical",
       yielded: [],
+      carved: ["head"],
       tiles: [
         { slotKey: "head", rect: { x: 0, y: 0, w: 200, h: 24 } },
         { slotKey: "a", rect: { x: 0, y: 24, w: 200, h: 126 } },
@@ -347,6 +358,7 @@ describe("tileSlots — empty slots among measured", () => {
       kind: "tiled",
       axis: "vertical",
       yielded: [],
+      carved: ["foot"],
       tiles: [
         { slotKey: "a", rect: { x: 0, y: 0, w: 200, h: 150 } },
         { slotKey: "b", rect: { x: 0, y: 150, w: 200, h: 126 } },
@@ -373,6 +385,7 @@ describe("tileSlots — empty slots among measured", () => {
       kind: "tiled",
       axis: "vertical",
       yielded: [],
+      carved: ["e1", "e2"],
       tiles: [
         { slotKey: "a", rect: { x: 0, y: 0, w: 200, h: 126 } },
         { slotKey: "e1", rect: { x: 0, y: 126, w: 200, h: 24 } },
@@ -409,6 +422,7 @@ describe("tileSlots — all empty", () => {
       kind: "tiled",
       axis: "vertical",
       yielded: [],
+      carved: ["a", "b", "c"],
       tiles: [
         { slotKey: "a", rect: { x: 0, y: 0, w: 200, h: 100 } },
         { slotKey: "b", rect: { x: 0, y: 100, w: 200, h: 100 } },
@@ -430,6 +444,7 @@ describe("tileSlots — all empty", () => {
       kind: "tiled",
       axis: "horizontal",
       yielded: [],
+      carved: ["a", "b"],
       tiles: [
         { slotKey: "a", rect: { x: 0, y: 0, w: 100, h: 300 } },
         { slotKey: "b", rect: { x: 100, y: 0, w: 100, h: 300 } },
@@ -477,6 +492,7 @@ describe("axis tie-breaker with single measured slot", () => {
       kind: "tiled",
       axis: "vertical",
       yielded: [],
+      carved: ["footer", "header"],
       tiles: [
         { slotKey: "header", rect: { x: 0, y: 0, w: 300, h: 24 } },
         { slotKey: "body", rect: { x: 0, y: 24, w: 300, h: 552 } },
@@ -504,9 +520,59 @@ describe("axis tie-breaker with single measured slot", () => {
       kind: "tiled",
       axis: "vertical",
       yielded: [],
+      carved: [],
       tiles: [
         { slotKey: "a", rect: { x: 0, y: 0, w: 600, h: 130 } },
         { slotKey: "b", rect: { x: 0, y: 130, w: 600, h: 170 } },
+      ],
+    });
+  });
+});
+
+describe("tileSlots — carved slot keys", () => {
+  test("empty slots adjacent to measured report their keys as carved", () => {
+    expect(
+      shape(
+        tileSlots({
+          containerRect: rect(0, 0, 300, 600),
+          slots: [
+            { slotKey: "header" },
+            { slotKey: "body", rect: rect(10, 250, 280, 100) },
+            { slotKey: "footer" },
+          ],
+          cssAxis: "vertical",
+        }),
+      ),
+    ).toEqual({
+      kind: "tiled",
+      axis: "vertical",
+      yielded: [],
+      carved: ["footer", "header"],
+      tiles: [
+        { slotKey: "header", rect: { x: 0, y: 0, w: 300, h: 24 } },
+        { slotKey: "body", rect: { x: 0, y: 24, w: 300, h: 552 } },
+        { slotKey: "footer", rect: { x: 0, y: 576, w: 300, h: 24 } },
+      ],
+    });
+  });
+
+  test("equal-split (all empty) reports every slot key as carved", () => {
+    expect(
+      shape(
+        tileSlots({
+          containerRect: rect(0, 0, 300, 600),
+          slots: [{ slotKey: "a" }, { slotKey: "b" }],
+          cssAxis: "vertical",
+        }),
+      ),
+    ).toEqual({
+      kind: "tiled",
+      axis: "vertical",
+      yielded: [],
+      carved: ["a", "b"],
+      tiles: [
+        { slotKey: "a", rect: { x: 0, y: 0, w: 300, h: 300 } },
+        { slotKey: "b", rect: { x: 0, y: 300, w: 300, h: 300 } },
       ],
     });
   });

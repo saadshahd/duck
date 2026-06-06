@@ -10,6 +10,7 @@ export type Tiling =
       axis: Axis;
       tiles: readonly Tile[];
       yielded: readonly string[];
+      carved: readonly string[];
     }
   | { kind: "discrete"; slotKeys: readonly string[] };
 
@@ -92,6 +93,7 @@ const discrete = (slots: readonly SlotInput[]): Tiling => ({
 const toTiling = (
   bands: readonly Band[],
   yielded: readonly string[],
+  carved: readonly string[],
   axis: Axis,
   container: DOMRect,
 ): Tiling => {
@@ -103,11 +105,12 @@ const toTiling = (
       .sort(byStart)
       .map((b) => ({ slotKey: b.slotKey, rect: g.build(b.band, container) })),
     yielded,
+    carved,
   };
 };
 
 /** Equal split of the container into one band per slot along `axis`,
- *  in declaration order. */
+ *  in declaration order. All slots are empty → all are carved. */
 const equalSplit = (
   slots: readonly SlotInput[],
   axis: Axis,
@@ -122,6 +125,7 @@ const equalSplit = (
       band: { start: lo + i * step, end: lo + (i + 1) * step },
     })),
     [],
+    slots.map((s) => s.slotKey),
     axis,
     container,
   );
@@ -300,11 +304,13 @@ export const tileSlots = (args: {
   const { kept, yielded } = absorbSubFloor(measuredBands, span);
   if (!kept.length) return discrete(slots);
 
-  if (slots.every((s) => s.rect))
-    return toTiling(kept, yielded, axis, containerRect);
+  const emptyKeys = slots.filter((s) => !s.rect).map((s) => s.slotKey);
 
-  const carved = carveEmpties(slots, kept, span);
-  if (carved.some((b) => extent(b.band) < TILE_FLOOR - 1e-9))
+  if (slots.every((s) => s.rect))
+    return toTiling(kept, yielded, [], axis, containerRect);
+
+  const carvedBands = carveEmpties(slots, kept, span);
+  if (carvedBands.some((b) => extent(b.band) < TILE_FLOOR - 1e-9))
     return discrete(slots);
-  return toTiling(carved, yielded, axis, containerRect);
+  return toTiling(carvedBands, yielded, emptyKeys, axis, containerRect);
 };

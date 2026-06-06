@@ -43,3 +43,13 @@
   border: none;
   background: transparent;
 }
+
+.slot-tile[data-carved] {
+  background: none;
+}
+
+.slot-leader {
+  position: absolute;
+  pointer-events: none;
+  background: var(--accent);
+}
