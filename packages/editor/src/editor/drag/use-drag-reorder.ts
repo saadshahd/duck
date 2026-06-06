@@ -143,9 +143,14 @@ export function useDragReorder({
       onGenerateDragPreview: ({ nativeSetDragImage }) => {
         const allIds = [...indexRef.current.keys()];
         clearNames = tagTransitionNames(registry, allIds);
-        const typeName =
-          indexRef.current.get(lastSelectedId)?.component.type ??
-          lastSelectedId;
+        const entry = indexRef.current.get(lastSelectedId);
+        if (!entry) {
+          console.error(
+            `[drag] onGenerateDragPreview: no index entry for id=${lastSelectedId}`,
+          );
+          return;
+        }
+        const typeName = entry.component.type;
         setCustomNativeDragPreview({
           nativeSetDragImage,
           getOffset: pointerOutsideOfPreview({ x: "16px", y: "8px" }),
