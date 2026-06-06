@@ -30,9 +30,12 @@ describe("isPrintable", () => {
   test("single printable character returns true", () => {
     expect(isPrintable(key("a"))).toBe(true);
     expect(isPrintable(key("1"))).toBe(true);
-    expect(isPrintable(key(" "))).toBe(true);
     expect(isPrintable(key("."))).toBe(true);
     expect(isPrintable(key("@"))).toBe(true);
+  });
+
+  test("space is not printable — it belongs to carry lift", () => {
+    expect(isPrintable(new KeyboardEvent("keydown", { key: " " }))).toBe(false);
   });
 
   test("unicode single character returns true", () => {
