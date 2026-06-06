@@ -417,6 +417,19 @@ export const getCycleChipText = (page: Page) =>
         ?.textContent ?? null,
   ) as Promise<string | null>;
 
+// --- Drag preview pill helpers ---
+
+/** Text content of the custom native drag preview pill (mounted in light DOM). */
+export const getDragPreviewPillText = (page: Page): Promise<string | null> =>
+  page.evaluate(
+    () =>
+      (
+        document.querySelector(
+          "[data-role='drag-preview-pill']",
+        ) as HTMLElement | null
+      )?.textContent ?? null,
+  );
+
 // --- Animation & measurement helpers ---
 
 /** Wait for exactly N animation frames to elapse. */

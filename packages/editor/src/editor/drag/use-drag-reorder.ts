@@ -5,6 +5,8 @@ import {
   dropTargetForElements,
   monitorForElements,
 } from "@atlaskit/pragmatic-drag-and-drop/element/adapter";
+import { setCustomNativeDragPreview } from "@atlaskit/pragmatic-drag-and-drop/element/set-custom-native-drag-preview";
+import { pointerOutsideOfPreview } from "@atlaskit/pragmatic-drag-and-drop/element/pointer-outside-of-preview";
 import { attachClosestEdge } from "@atlaskit/pragmatic-drag-and-drop-hitbox/closest-edge";
 import {
   buildIndex,
@@ -38,6 +40,38 @@ const stateOf = (s: EditorSnapshot) =>
   s.value as { pointer: string; drag: string };
 
 type CycleStatus = { step: number; total: number };
+
+/** Mount a fixed-size pill into the drag preview container.
+ *  The container lives in document.body (light DOM), so inline styles are used
+ *  rather than shadow-scoped CSS — adoptedStyleSheets cannot reach this node. */
+const renderDragPreviewPill = (container: HTMLElement, typeName: string) => {
+  const pill = document.createElement("div");
+  pill.setAttribute("data-role", "drag-preview-pill");
+  pill.textContent = typeName;
+  Object.assign(pill.style, {
+    width: "120px",
+    height: "32px",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    fontFamily:
+      '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
+    fontSize: "13px",
+    fontWeight: "600",
+    color: "#1e1e1e",
+    background: "#ffffff",
+    border: "1.5px solid #e2e8f0",
+    borderRadius: "6px",
+    boxShadow: "0 2px 8px rgba(0,0,0,0.12)",
+    pointerEvents: "none",
+    overflow: "hidden",
+    textOverflow: "ellipsis",
+    whiteSpace: "nowrap",
+    padding: "0 12px",
+    boxSizing: "border-box",
+  });
+  container.appendChild(pill);
+};
 
 const sameStatus = (a: CycleStatus | null, b: CycleStatus | null): boolean =>
   a?.step === b?.step && a?.total === b?.total;
@@ -106,9 +140,19 @@ export function useDragReorder({
         index: parent.index,
         role: "sibling",
       }),
-      onGenerateDragPreview: () => {
+      onGenerateDragPreview: ({ nativeSetDragImage }) => {
         const allIds = [...indexRef.current.keys()];
         clearNames = tagTransitionNames(registry, allIds);
+        const typeName =
+          indexRef.current.get(lastSelectedId)?.component.type ??
+          lastSelectedId;
+        setCustomNativeDragPreview({
+          nativeSetDragImage,
+          getOffset: pointerOutsideOfPreview({ x: "16px", y: "8px" }),
+          render: ({ container }) => {
+            renderDragPreviewPill(container, typeName);
+          },
+        });
       },
       onDragStart: () => send({ type: "DRAG_START", sourceId: lastSelectedId }),
       onDrop: () => {
