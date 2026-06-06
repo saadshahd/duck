@@ -50,6 +50,7 @@
 
 .slot-tile[data-carved][data-active] {
   background: none;
+  border-style: dashed;
 }
 
 .slot-leader {

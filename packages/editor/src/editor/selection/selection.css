@@ -225,11 +225,3 @@
 .move-chip:hover {
   opacity: 1;
 }
-
-.label-trailing:not([data-side="bottom"]) .move-chip:last-child {
-  border-top-right-radius: 4px;
-}
-
-.label-trailing[data-side="bottom"] .move-chip:last-child {
-  border-bottom-right-radius: 4px;
-}
