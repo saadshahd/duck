@@ -133,15 +133,6 @@ export const readTiles = (page: Page) =>
     })),
   ) as Promise<{ label: string; discrete: boolean }[] | null>;
 
-const getDropIndicatorRect = (page: Page) =>
-  shadowQuery(page, (r) => {
-    const el = r.querySelector(
-      "[data-role='drop-indicator']",
-    ) as HTMLElement | null;
-    if (!el) return null;
-    return { top: el.style.top, left: el.style.left, width: el.style.width };
-  }) as Promise<{ top: string; left: string; width: string } | null>;
-
 // --- Slot tile helpers ---
 
 export const getTileLabels = (page: Page) =>

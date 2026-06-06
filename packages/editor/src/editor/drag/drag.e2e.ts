@@ -133,12 +133,14 @@ test.describe("Drag-to-reorder", () => {
     await dragAndDrop(page, heading, description, "bottom");
     await page.waitForTimeout(500);
 
-    // Re-select (now the description is first)
     await description.click();
     await page.waitForTimeout(300);
 
-    // Should be able to drag again
-    expect(await description.getAttribute("draggable")).toBe("true");
+    // The draggable affordance lands on the selected component's registered root
+    // element, which wraps the inner <p>. Re-selection after a drop must
+    // re-attach it — proving a second drag can begin.
+    const descriptionRoot = description.locator("..");
+    expect(await descriptionRoot.getAttribute("draggable")).toBe("true");
 
     // Drag back
     const movedHeading = page.locator("h1");
