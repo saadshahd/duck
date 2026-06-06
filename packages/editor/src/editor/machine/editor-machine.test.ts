@@ -32,6 +32,9 @@ const stateVerifiers: Record<string, Verify> = {
   "drag.dragging": (ctx) => {
     expect(ctx.dragSourceId).not.toBeNull();
   },
+  "drag.carrying": (ctx) => {
+    expect(ctx.dragSourceId).not.toBeNull();
+  },
 };
 
 // --- Event samples (one per event type, flat array for model traversal) ---
@@ -61,6 +64,9 @@ const sampleEvents = [
     toIndex: 1,
   },
   { type: "DRAG_CANCEL" as const },
+  { type: "CARRY_START" as const, sourceId: "el-1" },
+  { type: "CARRY_COMMIT" as const },
+  { type: "CARRY_CANCEL" as const },
   { type: "ESCAPE" as const },
 ];
 
@@ -323,5 +329,129 @@ describe("multi-select", () => {
       elementId: "b",
       mode: "popover",
     });
+  });
+});
+
+// --- Carry: exhaustive drag-region state × event matrix ---
+
+const dragOf = (s: { value: unknown }) => (s.value as MachineValue).drag;
+
+const carryStart = { type: "CARRY_START" as const, sourceId: "el-1" };
+const dragStart = { type: "DRAG_START" as const, sourceId: "el-1" };
+
+describe("carry: from drag.idle", () => {
+  it("CARRY_START → carrying, assigns dragSourceId", () => {
+    const s = walk({ type: "SELECT", elementId: "el-1" }, carryStart);
+    expect(dragOf(s)).toBe("carrying");
+    expect(s.context.dragSourceId).toBe("el-1");
+  });
+
+  it("CARRY_START blocked while editing (notEditing guard)", () => {
+    const s = walk(
+      { type: "SELECT", elementId: "el-1" },
+      { type: "OPEN_POPOVER" },
+      carryStart,
+    );
+    expect(dragOf(s)).toBe("idle");
+    expect(s.context.dragSourceId).toBeNull();
+  });
+
+  it("CARRY_COMMIT ignored (no transition)", () => {
+    const s = walk({ type: "CARRY_COMMIT" });
+    expect(dragOf(s)).toBe("idle");
+    expect(s.context.dragSourceId).toBeNull();
+  });
+
+  it("CARRY_CANCEL ignored (no transition)", () => {
+    const s = walk({ type: "CARRY_CANCEL" });
+    expect(dragOf(s)).toBe("idle");
+    expect(s.context.dragSourceId).toBeNull();
+  });
+});
+
+describe("carry: from drag.carrying", () => {
+  const enterCarry = [
+    { type: "SELECT" as const, elementId: "el-1" },
+    carryStart,
+  ];
+
+  it("CARRY_COMMIT → idle, clears dragSourceId", () => {
+    const s = walk(...enterCarry, { type: "CARRY_COMMIT" });
+    expect(dragOf(s)).toBe("idle");
+    expect(s.context.dragSourceId).toBeNull();
+  });
+
+  it("CARRY_CANCEL → idle, clears dragSourceId", () => {
+    const s = walk(...enterCarry, { type: "CARRY_CANCEL" });
+    expect(dragOf(s)).toBe("idle");
+    expect(s.context.dragSourceId).toBeNull();
+  });
+
+  it("ESCAPE → idle, clears dragSourceId", () => {
+    const s = walk(...enterCarry, { type: "ESCAPE" });
+    expect(dragOf(s)).toBe("idle");
+    expect(s.context.dragSourceId).toBeNull();
+  });
+
+  it("CARRY_START ignored while already carrying", () => {
+    const s = walk(...enterCarry, {
+      type: "CARRY_START",
+      sourceId: "el-2",
+    });
+    expect(dragOf(s)).toBe("carrying");
+    expect(s.context.dragSourceId).toBe("el-1");
+  });
+
+  it("DRAG_START ignored while carrying", () => {
+    const s = walk(...enterCarry, { type: "DRAG_START", sourceId: "el-2" });
+    expect(dragOf(s)).toBe("carrying");
+    expect(s.context.dragSourceId).toBe("el-1");
+  });
+});
+
+describe("carry/drag mutual exclusion", () => {
+  it("CARRY_START ignored while dragging", () => {
+    const s = walk({ type: "SELECT", elementId: "el-1" }, dragStart, {
+      type: "CARRY_START",
+      sourceId: "el-2",
+    });
+    expect(dragOf(s)).toBe("dragging");
+    expect(s.context.dragSourceId).toBe("el-1");
+  });
+
+  it("CARRY_COMMIT ignored while dragging", () => {
+    const s = walk({ type: "SELECT", elementId: "el-1" }, dragStart, {
+      type: "CARRY_COMMIT",
+    });
+    expect(dragOf(s)).toBe("dragging");
+    expect(s.context.dragSourceId).toBe("el-1");
+  });
+
+  it("CARRY_CANCEL ignored while dragging", () => {
+    const s = walk({ type: "SELECT", elementId: "el-1" }, dragStart, {
+      type: "CARRY_CANCEL",
+    });
+    expect(dragOf(s)).toBe("dragging");
+    expect(s.context.dragSourceId).toBe("el-1");
+  });
+
+  it("DROP ignored while carrying", () => {
+    const s = walk({ type: "SELECT", elementId: "el-1" }, carryStart, {
+      type: "DROP",
+      sourceParentId: "page",
+      targetParentId: "page",
+      fromIndex: 0,
+      toIndex: 1,
+    });
+    expect(dragOf(s)).toBe("carrying");
+    expect(s.context.dragSourceId).toBe("el-1");
+  });
+
+  it("DRAG_CANCEL ignored while carrying", () => {
+    const s = walk({ type: "SELECT", elementId: "el-1" }, carryStart, {
+      type: "DRAG_CANCEL",
+    });
+    expect(dragOf(s)).toBe("carrying");
+    expect(s.context.dragSourceId).toBe("el-1");
   });
 });

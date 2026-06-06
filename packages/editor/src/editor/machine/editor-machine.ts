@@ -55,6 +55,9 @@ export type EditorEvent =
       toIndex: number;
     }
   | { type: "DRAG_CANCEL" }
+  | { type: "CARRY_START"; sourceId: string }
+  | { type: "CARRY_COMMIT" }
+  | { type: "CARRY_CANCEL" }
   | { type: "OPEN_INSERT" }
   | { type: "ESCAPE" };
 
@@ -318,6 +321,13 @@ export const editorMachine = setup({
                 dragSourceId: ({ event }) => event.sourceId,
               }),
             },
+            CARRY_START: {
+              guard: "notEditing",
+              target: "carrying",
+              actions: assign({
+                dragSourceId: ({ event }) => event.sourceId,
+              }),
+            },
           },
         },
         dragging: {
@@ -327,6 +337,22 @@ export const editorMachine = setup({
               actions: assign({ dragSourceId: null }),
             },
             DRAG_CANCEL: {
+              target: "idle",
+              actions: assign({ dragSourceId: null }),
+            },
+          },
+        },
+        carrying: {
+          on: {
+            CARRY_COMMIT: {
+              target: "idle",
+              actions: assign({ dragSourceId: null }),
+            },
+            CARRY_CANCEL: {
+              target: "idle",
+              actions: assign({ dragSourceId: null }),
+            },
+            ESCAPE: {
               target: "idle",
               actions: assign({ dragSourceId: null }),
             },
