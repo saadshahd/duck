@@ -1,4 +1,4 @@
-import type { Page } from "@playwright/test";
+import type { Page, Locator } from "@playwright/test";
 
 // --- Shadow DOM access ---
 
@@ -252,3 +252,63 @@ export const waitFrames = (page: Page, count: number) =>
       }),
     count,
   );
+
+// --- Native drag simulation ---
+
+export type Point = { x: number; y: number };
+
+export const sourceCenter = async (source: Locator): Promise<Point> => {
+  const box = await source.boundingBox();
+  if (!box) throw new Error("Source not visible");
+  return { x: box.x + box.width / 2, y: box.y + box.height / 2 };
+};
+
+export const edgePoint = async (
+  target: Locator,
+  edge: "top" | "bottom",
+): Promise<Point> => {
+  const box = await target.boundingBox();
+  if (!box) throw new Error("Target not visible");
+  return {
+    x: box.x + box.width / 2,
+    y: edge === "top" ? box.y + 2 : box.y + box.height - 2,
+  };
+};
+
+/**
+ * Dispatch native HTML5 drag phases between two points. pragmatic-drag-and-drop
+ * uses native drag events with a shared DataTransfer, so each call builds one
+ * DataTransfer and fires the phase's events together.
+ *
+ * - `hold`: dragstart + dragenter + dragover (a drag in progress).
+ * - `release`: drop + dragend.
+ * - `full`: hold then release in one call (shared DataTransfer).
+ *
+ * Split `hold` / `release` calls let a test observe mid-drag overlay state.
+ */
+export const dispatchDrag = (
+  page: Page,
+  args: { from: Point; to: Point; phase: "hold" | "release" | "full" },
+) =>
+  page.evaluate(({ from, to, phase }) => {
+    const dt = new DataTransfer();
+    const opts = (p: { x: number; y: number }): DragEventInit => ({
+      bubbles: true,
+      cancelable: true,
+      composed: true,
+      clientX: p.x,
+      clientY: p.y,
+      dataTransfer: dt,
+    });
+    const src = document.elementFromPoint(from.x, from.y)!;
+    const tgt = document.elementFromPoint(to.x, to.y)!;
+    if (phase === "hold" || phase === "full") {
+      src.dispatchEvent(new DragEvent("dragstart", opts(from)));
+      tgt.dispatchEvent(new DragEvent("dragenter", opts(to)));
+      tgt.dispatchEvent(new DragEvent("dragover", opts(to)));
+    }
+    if (phase === "release" || phase === "full") {
+      tgt.dispatchEvent(new DragEvent("drop", opts(to)));
+      src.dispatchEvent(new DragEvent("dragend", opts(to)));
+    }
+  }, args);

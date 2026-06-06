@@ -27,6 +27,7 @@ import {
   useActionHandler,
   useMoveInfo,
   createSelectParent,
+  useToolbarYield,
 } from "./selection/index.js";
 import { usePropEditor } from "./prop-editor/use-prop-editor.jsx";
 import { useDragReorder, DragOverlay } from "./drag/index.js";
@@ -221,8 +222,14 @@ export function Editor<UserConfig extends Config = Config>({
     fiberRegistry &&
     selectedIds.size > 0;
 
+  const yieldingToolbar = useToolbarYield(fiberRegistry, singleSelected);
+
   const showActionBar =
-    hasSelection && pointer === "selected" && singleSelected;
+    hasSelection &&
+    pointer === "selected" &&
+    singleSelected &&
+    drag === "idle" &&
+    !yieldingToolbar;
 
   const { registry: patternRegistry, remintIds } = usePatterns(
     config,

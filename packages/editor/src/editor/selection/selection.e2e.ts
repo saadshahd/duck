@@ -1,11 +1,21 @@
-import { test, expect } from "@playwright/test";
+import { test, expect, type Locator, type Page } from "@playwright/test";
 import {
   countHighlights,
   getHighlightRect,
   waitFrames,
   isToolbarVisible,
   clickToolbar,
+  dispatchDrag,
+  sourceCenter,
+  edgePoint,
 } from "../overlay/testing.js";
+
+/** Press the pointer over an element without releasing — a drag could begin. */
+const pressOn = async (page: Page, target: Locator) => {
+  const { x, y } = await sourceCenter(target);
+  await page.mouse.move(x, y);
+  await page.mouse.down();
+};
 
 test.describe("Editor overlay", () => {
   test.beforeEach(async ({ page }) => {
@@ -127,5 +137,39 @@ test.describe("Editor overlay", () => {
 
     const actualDelta = topBefore - topAfter;
     expect(Math.abs(actualDelta - scrollDelta)).toBeLessThan(5);
+  });
+
+  test("toolbar yields on pointerdown over selected, returns on pointerup", async ({
+    page,
+  }) => {
+    const heading = page.locator("h1");
+    await heading.click();
+    await page.waitForTimeout(300);
+    expect(await isToolbarVisible(page)).toBe(true);
+
+    await pressOn(page, heading);
+    await expect.poll(() => isToolbarVisible(page)).toBe(false);
+
+    await page.mouse.up();
+    await expect.poll(() => isToolbarVisible(page)).toBe(true);
+  });
+
+  test("toolbar stays hidden through a drag and returns after drop", async ({
+    page,
+  }) => {
+    const heading = page.locator("h1");
+    await heading.click();
+    await page.waitForTimeout(300);
+    expect(await isToolbarVisible(page)).toBe(true);
+
+    const description = page.locator("p").first();
+    const from = await sourceCenter(heading);
+    const to = await edgePoint(description, "bottom");
+
+    await dispatchDrag(page, { from, to, phase: "hold" });
+    await expect.poll(() => isToolbarVisible(page)).toBe(false);
+
+    await dispatchDrag(page, { from, to, phase: "release" });
+    await expect.poll(() => isToolbarVisible(page)).toBe(true);
   });
 });

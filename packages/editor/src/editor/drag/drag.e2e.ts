@@ -6,64 +6,11 @@ import {
   getActiveTileLabel,
   getActiveTileRect,
   getActiveDestinationLabel,
+  dispatchDrag,
+  sourceCenter,
+  edgePoint,
+  type Point,
 } from "../overlay/testing.js";
-
-type Point = { x: number; y: number };
-
-const center = (box: {
-  x: number;
-  y: number;
-  width: number;
-  height: number;
-}): Point => ({ x: box.x + box.width / 2, y: box.y + box.height / 2 });
-
-const sourceCenter = async (source: Locator): Promise<Point> => {
-  const box = await source.boundingBox();
-  if (!box) throw new Error("Source not visible");
-  return center(box);
-};
-
-const edgePoint = async (
-  target: Locator,
-  edge: "top" | "bottom",
-): Promise<Point> => {
-  const box = await target.boundingBox();
-  if (!box) throw new Error("Target not visible");
-  return {
-    x: box.x + box.width / 2,
-    y: edge === "top" ? box.y + 2 : box.y + box.height - 2,
-  };
-};
-
-/**
- * Dispatch a native drag sequence between two viewport points.
- * pragmatic-drag-and-drop uses native HTML5 drag events with a shared
- * DataTransfer, so the whole sequence runs in a single evaluate call.
- */
-async function dispatchDrag(
-  page: Page,
-  args: { from: Point; to: Point; drop: boolean },
-) {
-  await page.evaluate(({ from, to, drop }) => {
-    const dt = new DataTransfer();
-    const opts = (p: { x: number; y: number }): DragEventInit => ({
-      bubbles: true,
-      cancelable: true,
-      composed: true,
-      clientX: p.x,
-      clientY: p.y,
-      dataTransfer: dt,
-    });
-    const src = document.elementFromPoint(from.x, from.y)!;
-    const tgt = document.elementFromPoint(to.x, to.y)!;
-    src.dispatchEvent(new DragEvent("dragstart", opts(from)));
-    tgt.dispatchEvent(new DragEvent("dragenter", opts(to)));
-    tgt.dispatchEvent(new DragEvent("dragover", opts(to)));
-    if (!drop) return;
-    tgt.dispatchEvent(new DragEvent("drop", opts(to)));
-    src.dispatchEvent(new DragEvent("dragend", opts(to)));
-  }, args);
-}
 
 /** Simulate a full native drag-and-drop onto a sibling's edge. */
 const dragAndDrop = async (
@@ -75,7 +22,7 @@ const dragAndDrop = async (
   dispatchDrag(page, {
     from: await sourceCenter(source),
     to: await edgePoint(target, targetEdge),
-    drop: true,
+    phase: "full",
   });
 
 /** Start a drag without dropping — for testing indicators. */
@@ -83,7 +30,7 @@ const dragOver = async (page: Page, source: Locator, target: Locator) =>
   dispatchDrag(page, {
     from: await sourceCenter(source),
     to: await edgePoint(target, "bottom"),
-    drop: false,
+    phase: "hold",
   });
 
 /** Drag a source over a viewport point without dropping. */
@@ -91,7 +38,7 @@ const dragOverPoint = async (page: Page, source: Locator, point: Point) =>
   dispatchDrag(page, {
     from: await sourceCenter(source),
     to: point,
-    drop: false,
+    phase: "hold",
   });
 
 /** Full drag-and-drop onto a viewport point. */
@@ -99,7 +46,7 @@ const dragAndDropPoint = async (page: Page, source: Locator, point: Point) =>
   dispatchDrag(page, {
     from: await sourceCenter(source),
     to: point,
-    drop: true,
+    phase: "full",
   });
 
 test.describe("Drag-to-reorder", () => {
@@ -347,11 +294,7 @@ test.describe("Shift-cycle destination stack", () => {
   const cardTitle = (page: Page) => page.locator('h3:has-text("Zero Chrome")');
   const card = (page: Page) => cardTitle(page).locator("..");
 
-  const cardCenter = async (page: Page): Promise<Point> => {
-    const box = await card(page).boundingBox();
-    if (!box) throw new Error("Card not visible");
-    return center(box);
-  };
+  const cardCenter = (page: Page): Promise<Point> => sourceCenter(card(page));
 
   test("shift tap steps the active destination; repeated taps wrap", async ({
     page,
