@@ -35,7 +35,7 @@ describe("isPrintable", () => {
   });
 
   test("space is not printable — it belongs to carry lift", () => {
-    expect(isPrintable(new KeyboardEvent("keydown", { key: " " }))).toBe(false);
+    expect(isPrintable(key(" "))).toBe(false);
   });
 
   test("unicode single character returns true", () => {

@@ -63,10 +63,12 @@ export function useInlineEdit({
 
         /*
          * Take full control of printable key insertion to prevent native
-         * element behavior (e.g. button activation on space). Composition
-         * (IME) events pass through — isPrintable excludes them.
+         * element behavior (e.g. button activation on space). Space is not
+         * printable globally (it is the carry-lift key) but must be inserted
+         * here. Composition (IME) events pass through — isPrintable excludes
+         * them.
          */
-        if (isPrintable(e)) {
+        if (isPrintable(e) || e.key === " ") {
           e.preventDefault();
           document.execCommand("insertText", false, e.key);
         }
