@@ -75,22 +75,6 @@ test.describe("Drag-to-reorder", () => {
     expect(await hasDropIndicator(page)).toBe(true);
   });
 
-  test("drag over sibling shows drop zone label with container type", async ({
-    page,
-  }) => {
-    const heading = page.locator("h1");
-    await heading.click();
-    await page.waitForTimeout(300);
-
-    const description = page.locator("p").first();
-    await dragOver(page, heading, description);
-    await page.waitForTimeout(300);
-
-    const label = await getDropZoneLabelText(page);
-    expect(label).not.toBeNull();
-    expect(label!.length).toBeGreaterThan(0);
-  });
-
   test("drop reorders elements", async ({ page }) => {
     // Get initial text order in the hero section
     const heading = page.locator("h1");

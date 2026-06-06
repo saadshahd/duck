@@ -11,6 +11,7 @@ import { findById } from "@duckeditor/spec";
 import { useShadowSheet, useRegistryAnchor } from "../overlay/index.js";
 import type { FiberRegistry } from "../fiber/index.js";
 import type { DropTarget } from "../layout/index.js";
+import { edgePosition } from "./announcement.js";
 import css from "./drag.css?inline";
 
 const EDGE_PLACEMENT: Record<Edge, Placement> = {
@@ -19,9 +20,6 @@ const EDGE_PLACEMENT: Record<Edge, Placement> = {
   left: "left",
   right: "right",
 };
-
-const positionText = (edge: Edge, siblingType: string): string =>
-  `${edge === "top" || edge === "left" ? "before" : "after"} ${siblingType}`;
 
 type Props = {
   registry: FiberRegistry;
@@ -52,7 +50,7 @@ export function DropPositionChip({ registry, data, target }: Props) {
       className="drop-position-chip"
       style={{ ...floatingStyles, zIndex: 1 }}
     >
-      {positionText(target.edge, siblingType)}
+      {`${edgePosition(target.edge)} ${siblingType}`}
     </div>
   );
 }
