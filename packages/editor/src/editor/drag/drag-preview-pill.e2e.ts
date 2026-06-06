@@ -28,12 +28,12 @@ test.describe("Custom native drag preview pill", () => {
     page,
   }) => {
     // Select the heading (Puck type: "Heading") and drag it.
-    const heading = page.locator("h1");
+    const heading = page.getByRole("heading", { level: 1 });
     await heading.click();
     await page.waitForTimeout(300);
 
     const headingBox = await heading.boundingBox();
-    if (!headingBox) throw new Error("h1 not visible");
+    if (!headingBox) throw new Error("heading not visible");
     const waypoint = {
       x: headingBox.x + headingBox.width / 2,
       y: headingBox.y + headingBox.height + 60,
