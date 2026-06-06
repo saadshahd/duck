@@ -48,9 +48,16 @@ export function useDragReorder({
   commit,
 }: Props): {
   dropTarget: DropTarget | null;
+  cycleStatus: { step: number; total: number } | null;
 } {
   const [dropTarget, setDropTarget] = useState<DropTarget | null>(null);
   const dropTargetRef = useRef<DropTarget | null>(null);
+  const [cycleStatus, setCycleStatus] = useState<{
+    step: number;
+    total: number;
+  } | null>(null);
+  const cycleStatusRef = useRef<{ step: number; total: number } | null>(null);
+
   const updateDropTarget = (target: DropTarget | null) => {
     dropTargetRef.current = target;
     setDropTarget(target);
@@ -199,7 +206,25 @@ export function useDragReorder({
         cycleRef.current = Cycle.step(cycleRef.current, stack);
       prevShiftRef.current = shiftKey;
       cycleRef.current = Cycle.syncPointer(cycleRef.current, stack);
-      return Cycle.selected(cycleRef.current, stack);
+      const picked = Cycle.selected(cycleRef.current, stack);
+
+      // Update cycle counter UI state — guard against redundant sets since this
+      // runs per pointer move. cycleStatusRef tracks last-set value for comparison.
+      const next =
+        cycleRef.current.active && stack.length > 0
+          ? { step: cycleRef.current.index + 1, total: stack.length }
+          : null;
+      const prev = cycleStatusRef.current;
+      if (
+        next?.step !== prev?.step ||
+        next?.total !== prev?.total ||
+        (next === null) !== (prev === null)
+      ) {
+        cycleStatusRef.current = next;
+        setCycleStatus(next);
+      }
+
+      return picked;
     };
 
     // Pragmatic path: cycle override wins, else pointer resolution.
@@ -233,6 +258,8 @@ export function useDragReorder({
         );
         cycleRef.current = Cycle.idle;
         prevShiftRef.current = false;
+        cycleStatusRef.current = null;
+        setCycleStatus(null);
         // Native fallback: spec dragover fires on modifier-only changes that
         // pragmatic may swallow when coordinates don't move (~350ms cadence).
         // It only drives the cycle — pointer resolution stays with pragmatic.
@@ -257,6 +284,8 @@ export function useDragReorder({
         detachShift = null;
         cycleRef.current = Cycle.idle;
         prevShiftRef.current = false;
+        cycleStatusRef.current = null;
+        setCycleStatus(null);
         const lastIndicator = dropTargetRef.current;
         updateDropTarget(null);
         const beforeData = dataRef.current;
@@ -265,7 +294,6 @@ export function useDragReorder({
           target: location.current.dropTargets[0],
           indicator: lastIndicator,
           data: beforeData,
-          registry,
           descendantSet: descendants,
         });
         descendants = new Set();
@@ -290,5 +318,5 @@ export function useDragReorder({
     };
   }, [registry, data, send]);
 
-  return { dropTarget };
+  return { dropTarget, cycleStatus };
 }

@@ -1,16 +1,10 @@
 import type { Data } from "@puckeditor/core";
-import { extractClosestEdge } from "@atlaskit/pragmatic-drag-and-drop-hitbox/closest-edge";
 import type { Result } from "neverthrow";
-import type { FiberRegistry } from "../fiber/index.js";
+import { findParent } from "@duckeditor/spec";
 import { move, type SpecOpsError } from "../spec-ops/index.js";
 import type { EditorEvent } from "../machine/index.js";
 import type { DropTarget } from "../layout/index.js";
-import {
-  readData,
-  resolveSlotAxis,
-  resolveDropIndex,
-  resolveInsertIndex,
-} from "./helpers.js";
+import { readData, resolveInsertIndex } from "./helpers.js";
 
 type TargetBag = { data: Record<string | symbol, unknown> };
 
@@ -30,14 +24,12 @@ export function resolveDrop({
   target,
   indicator,
   data,
-  registry,
   descendantSet,
 }: {
   source: TargetBag;
   target?: TargetBag;
   indicator: DropTarget | null;
   data: Data;
-  registry: FiberRegistry;
   descendantSet: ReadonlySet<string>;
 }): DropResult | null {
   if (!target) return null;
@@ -54,6 +46,31 @@ export function resolveDrop({
   // No indicator, or an explicit no-target → cancel.
   if (!indicator || indicator.kind === "none") return null;
 
+  // Line indicator: commit from the indicator's elementId + edge, not from the
+  // drop target bag. This handles both ordinary sibling lines and same-parent
+  // container siblings (whose bags carry no closest-edge data).
+  if (indicator.kind === "line") {
+    const parent = findParent(data, indicator.elementId);
+    if (!parent) return null;
+    const insertIndex = resolveInsertIndex(parent.index, indicator.edge);
+    return {
+      newData: move(
+        data,
+        sourceData.elementId,
+        parent.parentId,
+        parent.slotKey,
+        insertIndex,
+      ),
+      event: {
+        type: "DROP",
+        sourceParentId: sourceData.parentId,
+        targetParentId: parent.parentId,
+        fromIndex: sourceData.index,
+        toIndex: insertIndex,
+      },
+    };
+  }
+
   // Cycle-selected root content — commit the destination index verbatim.
   if (indicator.kind === "root") {
     return {
@@ -68,74 +85,22 @@ export function resolveDrop({
     };
   }
 
-  // Drop INTO a container — commit what the indicator showed, verbatim
-  if (indicator.kind === "container") {
-    return {
-      newData: move(
-        data,
-        sourceData.elementId,
-        indicator.elementId,
-        indicator.slotKey,
-        indicator.index,
-      ),
-      event: {
-        type: "DROP",
-        sourceParentId: sourceData.parentId,
-        targetParentId: indicator.elementId,
-        fromIndex: sourceData.index,
-        toIndex: indicator.index,
-      },
-    };
-  }
-
-  // Same-slot reorder
-  if (
-    targetData.parentId === sourceData.parentId &&
-    targetData.slotKey === sourceData.slotKey
-  ) {
-    const axis =
-      resolveSlotAxis(
-        data,
-        sourceData.parentId,
-        sourceData.slotKey,
-        registry,
-      ) ?? "vertical";
-    const to = resolveDropIndex(sourceData.index, target, axis);
-    return {
-      newData: move(
-        data,
-        sourceData.elementId,
-        sourceData.parentId,
-        sourceData.slotKey,
-        to,
-      ),
-      event: {
-        type: "DROP",
-        sourceParentId: sourceData.parentId,
-        targetParentId: sourceData.parentId,
-        fromIndex: sourceData.index,
-        toIndex: to,
-      },
-    };
-  }
-
-  // Cross-slot sibling drop
-  const edge = extractClosestEdge(target.data);
-  const insertIndex = resolveInsertIndex(targetData.index, edge);
+  // Drop INTO a container — commit what the indicator showed, verbatim.
+  // `indicator` is now narrowed to `{ kind: "container" }`.
   return {
     newData: move(
       data,
       sourceData.elementId,
-      targetData.parentId,
-      targetData.slotKey,
-      insertIndex,
+      indicator.elementId,
+      indicator.slotKey,
+      indicator.index,
     ),
     event: {
       type: "DROP",
       sourceParentId: sourceData.parentId,
-      targetParentId: targetData.parentId,
+      targetParentId: indicator.elementId,
       fromIndex: sourceData.index,
-      toIndex: insertIndex,
+      toIndex: indicator.index,
     },
   };
 }

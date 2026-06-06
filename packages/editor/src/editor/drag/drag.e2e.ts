@@ -10,6 +10,7 @@ import {
   countCarvedTiles,
   countLeaderLines,
   readTiles,
+  getCycleChipText,
   dispatchDrag,
   sourceCenter,
   edgePoint,
@@ -489,5 +490,106 @@ test.describe("Band grammar — carved and discrete", () => {
     expect(leaderCount, "leader count equals discrete tile count").toBe(
       discreteCount,
     );
+  });
+});
+
+// --- Same-parent container guard + cycle chip ---
+
+/** The features grid contains three sibling Card containers. Dragging one Card
+ *  over another resolves to a reorder-beside line, not the target's slot tiles.
+ *  Shift-cycle dives into the target's slots and reveals the cycle counter chip. */
+test.describe("Same-parent container guard and cycle chip", () => {
+  test.beforeEach(async ({ page }) => {
+    await page.goto("/");
+    await page.waitForTimeout(500);
+  });
+
+  // Card siblings in the features grid
+  const card1 = (page: Page) =>
+    page.locator("h3:has-text('Zero Chrome')").locator("..");
+  const card2 = (page: Page) =>
+    page.locator("h3:has-text('MCP-Native')").locator("..");
+  const card2Center = (page: Page): Promise<Point> => sourceCenter(card2(page));
+
+  test("same-parent sibling card: drag shows line indicator, no slot tiles for target", async ({
+    page,
+  }) => {
+    // Select card1 and start dragging over card2's interior.
+    const source = card1(page);
+    await source.scrollIntoViewIfNeeded();
+    await page.waitForTimeout(200);
+    await source.click();
+    await page.waitForTimeout(300);
+
+    const at = await card2Center(page);
+    await holdDragAt(page, source, at);
+    await page.waitForTimeout(200);
+
+    // Must show a line indicator (reorder-beside), not slot tiles.
+    const hasLine = await hasDropIndicator(page);
+    const tiles = (await readTiles(page)) ?? [];
+    await page.mouse.up();
+
+    expect(hasLine, "line indicator present for same-parent card drag").toBe(
+      true,
+    );
+    expect(
+      tiles.filter((t) => !t.discrete).length,
+      "no slot tiles for same-parent target card",
+    ).toBe(0);
+  });
+
+  test("shift-cycle on same-parent sibling: dives into target slots and shows chip", async ({
+    page,
+  }) => {
+    const source = card1(page);
+    await source.scrollIntoViewIfNeeded();
+    await page.waitForTimeout(200);
+    await source.click();
+    await page.waitForTimeout(300);
+
+    const at = await card2Center(page);
+    await holdDragAt(page, source, at);
+
+    // First shift tap dives into card2's slots.
+    await tapShift(page, at);
+    await page.waitForTimeout(200);
+
+    const tileLabels = await getTileLabels(page);
+    const chipText = await getCycleChipText(page);
+    await page.mouse.up();
+
+    // After shift, tile labels should appear (dived into card2's slots).
+    expect(
+      tileLabels && tileLabels.length > 0,
+      "slot tiles visible after shift-cycle dive",
+    ).toBe(true);
+
+    // Cycle chip must show a step counter.
+    expect(chipText, "cycle chip text present").not.toBeNull();
+    expect(chipText, "cycle chip shows N of M format").toMatch(/\d+ of \d+/);
+  });
+
+  test("cycle chip disappears after drop", async ({ page }) => {
+    const source = card1(page);
+    await source.scrollIntoViewIfNeeded();
+    await page.waitForTimeout(200);
+    await source.click();
+    await page.waitForTimeout(300);
+
+    const at = await card2Center(page);
+    await holdDragAt(page, source, at);
+    await tapShift(page, at);
+    await page.waitForTimeout(200);
+
+    // Chip present before drop.
+    const chipBefore = await getCycleChipText(page);
+
+    await page.mouse.up();
+    await page.waitForTimeout(300);
+
+    const chipAfter = await getCycleChipText(page);
+    expect(chipBefore, "chip present before drop").not.toBeNull();
+    expect(chipAfter, "chip gone after drop").toBeNull();
   });
 });

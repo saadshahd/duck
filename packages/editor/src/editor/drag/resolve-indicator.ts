@@ -68,6 +68,20 @@ const indexInSlot = ({
   return (component.props[slotKey] as ComponentData[]).length;
 };
 
+/** Geometric edge for a rect + point + axis: which half the point falls in. */
+const geometricEdge = (
+  rect: DOMRect,
+  point: Point,
+  axis: "vertical" | "horizontal",
+): "top" | "bottom" | "left" | "right" =>
+  axis === "vertical"
+    ? point.y < rect.top + rect.height / 2
+      ? "top"
+      : "bottom"
+    : point.x < rect.left + rect.width / 2
+      ? "left"
+      : "right";
+
 /** Active tile under the pointer: the current tile holds while the point stays
  *  within its 8px-expanded rect (sticky), else the tile that contains the point. */
 const aimedTile = (
@@ -230,6 +244,38 @@ export function resolveIndicator({
     return null;
 
   if (targetData.role === "container") {
+    // Same-parent sibling guard: a container whose slot shares the source's
+    // parent/slot resolves to a reorder-beside line, not to its own interiors.
+    // Shift-cycle still dives in via the destination stack.
+    const sharesParentSlot =
+      targetData.parentId === sourceData.parentId &&
+      targetData.slotKey === sourceData.slotKey;
+
+    if (sharesParentSlot) {
+      const rect = registry.get(targetData.elementId)?.getBoundingClientRect();
+      if (!rect) return null;
+      const axis =
+        resolveSlotAxis(
+          data,
+          targetData.parentId,
+          targetData.slotKey,
+          registry,
+        ) ?? "vertical";
+      const edge = geometricEdge(rect, point, axis);
+      const insertIndex =
+        edge === "top" || edge === "left"
+          ? targetData.index
+          : targetData.index + 1;
+      const adjusted = adjustSameSlot({
+        index: insertIndex,
+        source: sourceData,
+        parentId: targetData.parentId ?? "",
+        slotKey: targetData.slotKey ?? "",
+      });
+      if (adjusted === null) return null;
+      return { kind: "line", elementId: targetData.elementId, edge, axis };
+    }
+
     const outcome = resolveContainer({
       elementId: targetData.elementId,
       source: sourceData,

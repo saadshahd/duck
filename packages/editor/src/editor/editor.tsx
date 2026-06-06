@@ -31,7 +31,12 @@ import {
   useToolbarYield,
 } from "./selection/index.js";
 import { usePropEditor } from "./prop-editor/use-prop-editor.jsx";
-import { useDragReorder, DragOverlay, announcementFor } from "./drag/index.js";
+import {
+  useDragReorder,
+  DragOverlay,
+  CycleChip,
+  announcementFor,
+} from "./drag/index.js";
 import { useCarry } from "./carry/index.js";
 import { OverlayRoot, Announcer } from "./overlay/index.js";
 import { BoxModelLayer } from "./box-model/index.js";
@@ -135,7 +140,7 @@ export function Editor<UserConfig extends Config = Config>({
 
   useSelectionReconcile(state.context, elementIds, send);
   useEditorSelection(fiberRegistry, send);
-  const { dropTarget } = useDragReorder({
+  const { dropTarget, cycleStatus } = useDragReorder({
     registry: fiberRegistry,
     data: currentData,
     index,
@@ -442,17 +447,29 @@ export function Editor<UserConfig extends Config = Config>({
                 ? carryTarget
                 : null;
           return target && fiberRegistry ? (
-            <DragOverlay
-              registry={fiberRegistry}
-              data={currentData}
-              target={target}
-            />
+            <>
+              <DragOverlay
+                registry={fiberRegistry}
+                data={currentData}
+                target={target}
+              />
+              {drag === "dragging" && cycleStatus && (
+                <CycleChip
+                  registry={fiberRegistry}
+                  data={currentData}
+                  target={target}
+                  status={cycleStatus}
+                />
+              )}
+            </>
           ) : null;
         })()}
         <Announcer
           message={
             drag === "dragging" && dropTarget
-              ? announcementFor(currentData, dropTarget)
+              ? cycleStatus
+                ? `Destination ${cycleStatus.step} of ${cycleStatus.total}: ${announcementFor(currentData, dropTarget)}`
+                : announcementFor(currentData, dropTarget)
               : drag === "carrying" && carryTarget
                 ? announcementFor(currentData, carryTarget)
                 : pointer === "slot-selected" && slotAddress

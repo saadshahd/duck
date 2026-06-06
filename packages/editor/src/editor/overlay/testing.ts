@@ -344,6 +344,16 @@ export const hasMorphOverlay = (page: Page) =>
     () => document.querySelector("[data-role='morph-overlay']") !== null,
   );
 
+// --- Cycle chip helpers ---
+
+export const getCycleChipText = (page: Page) =>
+  shadowQuery(
+    page,
+    (r) =>
+      (r.querySelector("[data-role='cycle-chip']") as HTMLElement | null)
+        ?.textContent ?? null,
+  ) as Promise<string | null>;
+
 // --- Animation & measurement helpers ---
 
 /** Wait for exactly N animation frames to elapse. */

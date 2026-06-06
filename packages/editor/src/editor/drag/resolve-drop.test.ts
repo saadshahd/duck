@@ -3,13 +3,7 @@ import type { Data } from "@puckeditor/core";
 import { findById } from "@duckeditor/spec";
 import { resolveDrop } from "./resolve-drop.js";
 import type { DropTarget } from "../layout/index.js";
-import {
-  text,
-  box,
-  bag,
-  stubRegistry,
-  emptyRegistry,
-} from "./drag-test-fixtures.js";
+import { text, box, bag } from "./drag-test-fixtures.js";
 
 const containerIndicator = (
   elementId: string,
@@ -52,7 +46,6 @@ const resolve = (overrides: Partial<Parameters<typeof resolveDrop>[0]>) =>
     target: undefined,
     indicator: null,
     data: data(),
-    registry: emptyRegistry,
     descendantSet: new Set(),
     ...overrides,
   });
@@ -180,12 +173,13 @@ describe("resolveDrop", () => {
     ).toBeNull();
   });
 
-  test("cross-slot sibling drop with null edge uses target index", () => {
+  test("line indicator commits from indicator elementId + edge, ignoring target bag", () => {
+    // d is at index 0 in box.items; top edge → insert before d at index 0.
     const target = bag({
       elementId: "d",
       parentId: "box",
       slotKey: "items",
-      index: 1,
+      index: 0,
       role: "sibling",
     });
     const result = resolve({
@@ -203,16 +197,13 @@ describe("resolveDrop", () => {
       sourceParentId: null,
       targetParentId: "box",
       fromIndex: 0,
-      toIndex: 1,
+      toIndex: 0,
     });
     expect(result!.newData.isOk()).toBe(true);
   });
 
-  test("same-slot reorder produces correct event", () => {
-    const registry = stubRegistry({
-      a: new DOMRect(0, 0, 100, 50),
-      b: new DOMRect(0, 60, 100, 50),
-    });
+  test("same-slot reorder: line indicator on b (bottom edge) inserts after b", () => {
+    // b is at index 1 in root content; bottom edge → insert after → index 2.
     const target = bag({
       elementId: "b",
       parentId: null,
@@ -222,7 +213,6 @@ describe("resolveDrop", () => {
     });
     const result = resolve({
       target,
-      registry,
       indicator: {
         kind: "line",
         elementId: "b",
@@ -232,8 +222,11 @@ describe("resolveDrop", () => {
     });
 
     expect(result?.event).toMatchObject({
+      type: "DROP",
       sourceParentId: null,
       targetParentId: null,
+      toIndex: 2,
     });
+    expect(result!.newData.isOk()).toBe(true);
   });
 });
