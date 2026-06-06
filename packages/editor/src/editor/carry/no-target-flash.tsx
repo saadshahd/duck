@@ -15,8 +15,8 @@ export function NoTargetFlash({ point }: { point: Point }) {
       className="carry-no-target-flash"
       style={{
         position: "absolute",
-        top: point.y + window.scrollY + 8,
-        left: point.x + window.scrollX + 8,
+        top: point.y + 8,
+        left: point.x + 8,
         zIndex: 1,
       }}
     >

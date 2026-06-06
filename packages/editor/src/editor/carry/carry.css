@@ -16,7 +16,6 @@
 }
 
 .lift-pulse {
-  position: absolute;
   border: 2px solid var(--accent-select);
   border-radius: 4px;
   background: color-mix(in srgb, var(--accent-select) 10%, transparent);

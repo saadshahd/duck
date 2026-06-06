@@ -1,6 +1,6 @@
 import type { Data } from "@puckeditor/core";
 import { findById } from "@duckeditor/spec";
-import type { DropTarget } from "../layout/index.js";
+import { NO_TARGET_LABEL, type DropTarget } from "../layout/index.js";
 import { announcementFor } from "../drag/index.js";
 
 type CycleStatus = { step: number; total: number };
@@ -37,7 +37,7 @@ export const announcerMessage = ({
       : label;
   }
   if (drag === "carrying") {
-    if (noTargetFlash) return "No target here";
+    if (noTargetFlash) return NO_TARGET_LABEL;
     if (carryTarget) return announcementFor(data, carryTarget);
   }
   if (pointer === "slot-selected" && slotAddress)

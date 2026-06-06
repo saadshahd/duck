@@ -9,7 +9,9 @@ import {
   getMoveChipText,
   clickMoveChip,
   isLiftPulseVisible,
+  getLiftPulseRect,
   isNoTargetFlashVisible,
+  waitFrames,
   type Point,
 } from "../overlay/testing.js";
 
@@ -192,9 +194,9 @@ test.describe("Carry affordances", () => {
     await page.waitForTimeout(150);
 
     // Move pointer to a void area (top-left corner — outside all page elements).
-    // Wait for the rAF to fire and settle selected=null before clicking.
+    // Wait for the rAF callbacks to fire and settle selected=null before clicking.
     await page.mouse.move(5, 5);
-    await page.waitForTimeout(200);
+    await waitFrames(page, 3);
 
     // Click — should trigger no-target flash (no valid destination at corner)
     await page.mouse.click(5, 5);
@@ -246,6 +248,42 @@ test.describe("Carry affordances", () => {
     expect(tiles && tiles.length > 0).toBe(true);
 
     // Cancel to restore
+    await page.keyboard.press("Escape");
+  });
+
+  test("lift pulse overlaps the source element after the page is scrolled", async ({
+    page,
+  }) => {
+    // Scroll the page so the source sits at a non-zero scroll offset — a
+    // viewport-vs-document coordinate bug would render the pulse scrollY px off.
+    // The "Zero Chrome" card title stays in the viewport at this scroll.
+    await page.evaluate(() => window.scrollTo(0, 300));
+    await waitFrames(page, 2);
+
+    const title = cardTitle(page);
+    const box = await title.boundingBox();
+    if (!box) throw new Error("Card title not visible after scroll");
+
+    // Select via raw pointer coords so Playwright never auto-scrolls the page back.
+    await page.mouse.click(box.x + box.width / 2, box.y + box.height / 2);
+    await page.waitForTimeout(300);
+
+    // Lift via Space (keyboard never re-scrolls), keeping the scroll offset intact.
+    await lift(page);
+
+    const pulse = await getLiftPulseRect(page);
+    const source = await title.boundingBox();
+    expect(pulse).not.toBeNull();
+    expect(source).not.toBeNull();
+
+    // The pulse must sit over the source's viewport box, not scrollDelta px off.
+    const overlaps =
+      pulse!.x < source!.x + source!.width &&
+      pulse!.x + pulse!.width > source!.x &&
+      pulse!.y < source!.y + source!.height &&
+      pulse!.y + pulse!.height > source!.y;
+    expect(overlaps).toBe(true);
+
     await page.keyboard.press("Escape");
   });
 });

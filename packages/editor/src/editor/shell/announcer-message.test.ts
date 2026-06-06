@@ -1,6 +1,6 @@
 import { describe, test, expect } from "bun:test";
 import type { ComponentData, Data } from "@puckeditor/core";
-import type { DropTarget } from "../layout/index.js";
+import { NO_TARGET_LABEL, type DropTarget } from "../layout/index.js";
 import {
   announcerMessage,
   assertiveCarryMessage,
@@ -102,7 +102,7 @@ describe("announcerMessage", () => {
         carryTarget: containerTarget("card", "body", 1),
         noTargetFlash: flashPoint,
       }),
-    ).toBe("No target here");
+    ).toBe(NO_TARGET_LABEL);
   });
 
   test("slot-selected with slotAddress → slot selected message", () => {

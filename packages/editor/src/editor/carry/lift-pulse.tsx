@@ -13,8 +13,9 @@ export function LiftPulse({ rect }: { rect: DOMRect }) {
       data-role="lift-pulse"
       className="lift-pulse"
       style={{
-        top: rect.top + window.scrollY,
-        left: rect.left + window.scrollX,
+        position: "absolute",
+        top: rect.top,
+        left: rect.left,
         width: rect.width,
         height: rect.height,
       }}

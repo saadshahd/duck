@@ -378,6 +378,21 @@ export const isLiftPulseVisible = (page: Page) =>
     (r) => r.querySelector("[data-role='lift-pulse']") !== null,
   ) as Promise<boolean>;
 
+/** The lift pulse's actual on-screen (viewport) bounding box. Reads the rendered
+ *  rect rather than inline style so it reflects real positioning after scroll. */
+export const getLiftPulseRect = (page: Page) =>
+  shadowQuery(page, (r) => {
+    const el = r.querySelector("[data-role='lift-pulse']");
+    if (!el) return null;
+    const box = el.getBoundingClientRect();
+    return { x: box.x, y: box.y, width: box.width, height: box.height };
+  }) as Promise<{
+    x: number;
+    y: number;
+    width: number;
+    height: number;
+  } | null>;
+
 export const isNoTargetFlashVisible = (page: Page) =>
   shadowQuery(
     page,
