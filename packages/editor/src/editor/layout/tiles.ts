@@ -2,6 +2,22 @@ import type { Axis } from "./axis.js";
 
 export const TILE_FLOOR = 24;
 
+/** 1px horizontal line from the container's left edge to the marker's left edge,
+ *  at the marker's vertical center. Width is clamped to 0 when the marker is
+ *  flush with or left of the container — the caller filters degenerate widths. */
+export const leaderRect = (
+  containerRect: DOMRect,
+  marker: DOMRect,
+): DOMRect => {
+  const width = Math.max(0, marker.left - containerRect.left);
+  return new DOMRect(
+    containerRect.left,
+    marker.top + marker.height / 2,
+    width,
+    1,
+  );
+};
+
 export type Tile = { slotKey: string; rect: DOMRect };
 
 export type Tiling =
@@ -304,11 +320,10 @@ export const tileSlots = (args: {
   const { kept, yielded } = absorbSubFloor(measuredBands, span);
   if (!kept.length) return discrete(slots);
 
-  const emptyKeys = slots.filter((s) => !s.rect).map((s) => s.slotKey);
-
   if (slots.every((s) => s.rect))
     return toTiling(kept, yielded, [], axis, containerRect);
 
+  const emptyKeys = slots.filter((s) => !s.rect).map((s) => s.slotKey);
   const carvedBands = carveEmpties(slots, kept, span);
   if (carvedBands.some((b) => extent(b.band) < TILE_FLOOR - 1e-9))
     return discrete(slots);

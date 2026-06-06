@@ -1,22 +1,6 @@
-import type { Tiling } from "../layout/index.js";
+import { type Tiling, leaderRect } from "../layout/index.js";
 import { useShadowSheet } from "./use-shadow-sheet.js";
 import css from "./tiles.css?inline";
-
-/** 1px horizontal line from the container's left edge to the marker's left edge,
- *  at the marker's vertical center. Width is clamped to 0 when the marker is
- *  flush with or left of the container — the caller filters degenerate widths. */
-export const leaderRect = (
-  containerRect: DOMRect,
-  marker: DOMRect,
-): DOMRect => {
-  const width = Math.max(0, marker.left - containerRect.left);
-  return new DOMRect(
-    containerRect.left,
-    marker.top + marker.height / 2,
-    width,
-    1,
-  );
-};
 
 type TilesProps = {
   tiling: Tiling;

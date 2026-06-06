@@ -1,7 +1,7 @@
 import { describe, test, expect } from "bun:test";
 import { renderToStaticMarkup } from "react-dom/server";
 import type { Tiling } from "../layout/index.js";
-import { Tiles, leaderRect } from "./tiles.js";
+import { Tiles } from "./tiles.js";
 
 const dom = (markup: string): HTMLDivElement => {
   const host = document.createElement("div");
@@ -143,32 +143,6 @@ describe("Tiles — yielded slots", () => {
     const marker = els.find((el) => el.textContent === "Card › caption");
     expect(marker?.hasAttribute("data-discrete")).toBe(true);
     expect(marker?.hasAttribute("data-active")).toBe(true);
-  });
-});
-
-describe("leaderRect", () => {
-  test("returns a 1px rect from container left to marker left at marker vertical center", () => {
-    const containerR = new DOMRect(10, 0, 400, 300);
-    const markerR = new DOMRect(130, 100, 160, 24);
-    expect(leaderRect(containerR, markerR)).toEqual(
-      new DOMRect(10, 112, 120, 1),
-    );
-  });
-
-  test("returns a rect with width 0 when marker is flush with the container", () => {
-    const containerR = new DOMRect(130, 0, 400, 300);
-    const markerR = new DOMRect(130, 100, 160, 24);
-    expect(leaderRect(containerR, markerR)).toEqual(
-      new DOMRect(130, 112, 0, 1),
-    );
-  });
-
-  test("returns a rect with width 0 when marker is to the left of the container", () => {
-    const containerR = new DOMRect(200, 0, 400, 300);
-    const markerR = new DOMRect(130, 100, 160, 24);
-    expect(leaderRect(containerR, markerR)).toEqual(
-      new DOMRect(200, 112, 0, 1),
-    );
   });
 });
 

@@ -1,5 +1,11 @@
 import { describe, test, expect } from "bun:test";
-import { TILE_FLOOR, tileSlots, type SlotInput, type Tiling } from "./tiles.js";
+import {
+  TILE_FLOOR,
+  leaderRect,
+  tileSlots,
+  type SlotInput,
+  type Tiling,
+} from "./tiles.js";
 
 const rect = (x: number, y: number, w: number, h: number): DOMRect =>
   new DOMRect(x, y, w, h);
@@ -623,5 +629,25 @@ describe("tileSlots — purity & ordering", () => {
 
   test("TILE_FLOOR is 24", () => {
     expect(TILE_FLOOR).toBe(24);
+  });
+});
+
+describe("leaderRect", () => {
+  test("returns a 1px rect from container left to marker left at marker vertical center", () => {
+    expect(leaderRect(rect(10, 0, 400, 300), rect(130, 100, 160, 24))).toEqual(
+      new DOMRect(10, 112, 120, 1),
+    );
+  });
+
+  test("returns a rect with width 0 when marker is flush with the container", () => {
+    expect(leaderRect(rect(130, 0, 400, 300), rect(130, 100, 160, 24))).toEqual(
+      new DOMRect(130, 112, 0, 1),
+    );
+  });
+
+  test("returns a rect with width 0 when marker is to the left of the container", () => {
+    expect(leaderRect(rect(200, 0, 400, 300), rect(130, 100, 160, 24))).toEqual(
+      new DOMRect(200, 112, 0, 1),
+    );
   });
 });

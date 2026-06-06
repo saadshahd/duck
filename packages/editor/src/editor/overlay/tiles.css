@@ -48,6 +48,10 @@
   background: none;
 }
 
+.slot-tile[data-carved][data-active] {
+  background: none;
+}
+
 .slot-leader {
   position: absolute;
   pointer-events: none;
