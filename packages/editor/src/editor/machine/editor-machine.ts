@@ -191,12 +191,22 @@ export const editorMachine = setup({
         },
         selected: {
           on: {
+            DRAG_START: {
+              guard: "notEditing",
+              target: "dragging",
+            },
+            CARRY_START: {
+              guard: "notEditing",
+              target: "dragging",
+            },
             SELECT: {
               actions: assign(({ event }) => Selection.of(event.elementId)),
             },
             SELECT_SLOT: {
               target: "slot-selected",
-              actions: assign(({ event }) => ({
+              actions: assign(({ context, event }) => ({
+                selectedIds: new Set<string>(),
+                lastSelectedId: context.lastSelectedId,
                 selectedSlot: {
                   parentId: event.parentId,
                   slotKey: event.slotKey,
@@ -335,7 +345,10 @@ export const editorMachine = setup({
             },
             ESCAPE: {
               target: "selected",
-              actions: assign({ selectedSlot: null }),
+              actions: assign(({ context }) => ({
+                ...Selection.collapseToLast(context),
+                selectedSlot: null,
+              })),
             },
             DESELECT: {
               target: "idle",
@@ -346,13 +359,28 @@ export const editorMachine = setup({
               })),
             },
             DRAG_START: {
-              target: "selected",
-              actions: assign({ selectedSlot: null }),
+              target: "dragging",
+              actions: assign(({ context }) => ({
+                ...Selection.collapseToLast(context),
+                selectedSlot: null,
+              })),
             },
             CARRY_START: {
-              target: "selected",
-              actions: assign({ selectedSlot: null }),
+              target: "dragging",
+              actions: assign(({ context }) => ({
+                ...Selection.collapseToLast(context),
+                selectedSlot: null,
+              })),
             },
+          },
+        },
+        dragging: {
+          on: {
+            DROP: { target: "selected" },
+            DRAG_CANCEL: { target: "selected" },
+            CARRY_COMMIT: { target: "selected" },
+            CARRY_CANCEL: { target: "selected" },
+            ESCAPE: { target: "selected" },
           },
         },
       },

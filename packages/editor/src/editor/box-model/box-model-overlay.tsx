@@ -141,6 +141,7 @@ export function BoxModelOverlay({ data }: { data: BoxModelData }) {
     <>
       <div
         className="box-model-layer"
+        data-role="box-model-bands"
         style={{
           top: marginRect.y,
           left: marginRect.x,

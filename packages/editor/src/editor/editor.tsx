@@ -252,12 +252,12 @@ export function Editor<UserConfig extends Config = Config>({
   const [boxModelVisible, setBoxModelVisible] = useState(false);
 
   const hasSelection =
-    (pointer === "selected" ||
-      pointer === "slot-selected" ||
-      pointer === "editing" ||
-      pointer === "inserting") &&
     fiberRegistry &&
-    selectedIds.size > 0;
+    ((pointer === "slot-selected" && state.context.selectedSlot) ||
+      ((pointer === "selected" ||
+        pointer === "editing" ||
+        pointer === "inserting") &&
+        selectedIds.size > 0));
 
   const { selectedSlot } = state.context;
   const slotAddress = useSlotAddress(currentData, lastSelectedId);

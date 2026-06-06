@@ -259,6 +259,40 @@ export const isSlotStopVisible = (page: Page) =>
     (r) => r.querySelector("[data-role='slot-stop']") !== null,
   ) as Promise<boolean>;
 
+/** Count of selection rings (element selection borders) painted in the overlay. */
+export const countSelectionRings = (page: Page) =>
+  shadowQuery(
+    page,
+    (r) => r.querySelectorAll("[data-role='selection-ring']").length,
+  ) as Promise<number>;
+
+/** True when the selection label cluster (chip + trailing actions) is mounted. */
+export const isSelectionLabelVisible = (page: Page) =>
+  shadowQuery(
+    page,
+    (r) => r.querySelector(".selection-label-root") !== null,
+  ) as Promise<boolean>;
+
+/** Count of box-model band overlays painted in the overlay. */
+export const countBoxModelBands = (page: Page) =>
+  shadowQuery(
+    page,
+    (r) => r.querySelectorAll("[data-role='box-model-bands']").length,
+  ) as Promise<number>;
+
+/** Click the box-model toggle in the selection label cluster. */
+export const toggleBoxModel = (page: Page) =>
+  page.evaluate(() => {
+    for (const d of document.querySelectorAll("div")) {
+      if (!d.shadowRoot || d.style.position !== "fixed") continue;
+      const btn = d.shadowRoot.querySelector(
+        ".label-action-btn",
+      ) as HTMLElement | null;
+      btn?.click();
+      return;
+    }
+  });
+
 export const getSlotStopLabelText = (page: Page) =>
   shadowQuery(
     page,

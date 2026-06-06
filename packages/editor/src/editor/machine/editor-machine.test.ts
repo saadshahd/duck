@@ -25,8 +25,12 @@ const stateVerifiers: Record<string, Verify> = {
     expect(ctx.selectedSlot).toBeNull();
   },
   "pointer.slot-selected": (ctx) => {
-    expect(ctx.selectedIds.size).toBeGreaterThan(0);
+    expect(ctx.selectedIds.size).toBe(0);
     expect(ctx.selectedSlot).not.toBeNull();
+  },
+  "pointer.dragging": (ctx) => {
+    expect(ctx.dragSourceId).not.toBeNull();
+    expect(ctx.selectedSlot).toBeNull();
   },
   "pointer.editing": (ctx) => {
     expect(ctx.editing).not.toBeNull();
@@ -135,7 +139,7 @@ describe("exclusivity guards", () => {
       { type: "DRAG_START", sourceId: "x" },
       { type: "OPEN_POPOVER" },
     );
-    expect((s.value as MachineValue).pointer).toBe("selected");
+    expect((s.value as MachineValue).pointer).toBe("dragging");
     expect(s.context.editing).toBeNull();
   });
 
@@ -152,7 +156,7 @@ describe("exclusivity guards", () => {
         trigger: "select" as const,
       },
     );
-    expect((s.value as MachineValue).pointer).toBe("selected");
+    expect((s.value as MachineValue).pointer).toBe("dragging");
     expect(s.context.editing).toBeNull();
   });
 });
@@ -473,14 +477,15 @@ const enterSlotSelected = [
 ];
 
 describe("slot-selected: entry", () => {
-  it("selected + SELECT_SLOT → slot-selected, assigns selectedSlot", () => {
+  it("selected + SELECT_SLOT → slot-selected, assigns selectedSlot, clears selectedIds", () => {
     const s = walk(...enterSlotSelected);
     expect(pointerOf(s)).toBe("slot-selected");
     expect(s.context.selectedSlot).toEqual({
       parentId: "card",
       slotKey: "body",
     });
-    expect(s.context.selectedIds.size).toBeGreaterThan(0);
+    expect(s.context.selectedIds.size).toBe(0);
+    expect(s.context.lastSelectedId).toBe("el-1");
   });
 
   it("SELECT_SLOT from idle is ignored (guard: must be in selected)", () => {
@@ -542,23 +547,27 @@ describe("slot-selected: REPLACE_SELECT clears selectedSlot", () => {
   });
 });
 
-describe("slot-selected: drag/carry entry clears selectedSlot", () => {
-  it("DRAG_START while in slot-selected → drag.dragging, pointer.selected, selectedSlot cleared", () => {
+describe("slot-selected: drag/carry entry clears selectedSlot, pointer yields", () => {
+  it("DRAG_START while in slot-selected → drag.dragging, pointer.dragging, selectedSlot cleared, ring restored", () => {
     const s = walk(...enterSlotSelected, {
       type: "DRAG_START",
       sourceId: "el-1",
     });
     expect(dragOf(s)).toBe("dragging");
+    expect(pointerOf(s)).toBe("dragging");
     expect(s.context.selectedSlot).toBeNull();
+    expect(s.context.selectedIds).toEqual(new Set(["el-1"]));
   });
 
-  it("CARRY_START while in slot-selected → drag.carrying, selectedSlot cleared", () => {
+  it("CARRY_START while in slot-selected → drag.carrying, pointer.dragging, selectedSlot cleared, ring restored", () => {
     const s = walk(...enterSlotSelected, {
       type: "CARRY_START",
       sourceId: "el-1",
     });
     expect(dragOf(s)).toBe("carrying");
+    expect(pointerOf(s)).toBe("dragging");
     expect(s.context.selectedSlot).toBeNull();
+    expect(s.context.selectedIds).toEqual(new Set(["el-1"]));
   });
 });
 
@@ -601,6 +610,142 @@ describe("slot-selected: dropped events keep slot-selected intact", () => {
       const s = walk(...enterSlotSelected, event);
       expect(pointerOf(s)).toBe("slot-selected");
       expect(s.context.selectedSlot).toEqual(slotContext);
+    });
+  }
+});
+
+// --- R1: selection yields — pointer region exits `selected` on drag/carry start ---
+//
+// Law: while drag is not idle, the pointer region must be OUT of `selected`
+// (and `slot-selected`) so the shell's selection-chrome gates suppress the ring,
+// label cluster, and box-model bands. The drag overlay is the sole source mark.
+// Drop AND cancel restore the pointer to `selected`.
+
+const drop = {
+  type: "DROP" as const,
+  sourceParentId: "page",
+  targetParentId: "page",
+  fromIndex: 0,
+  toIndex: 1,
+};
+
+describe("R1: pointer yields entirely while dragging", () => {
+  it("selected + DRAG_START → pointer.dragging (out of selected)", () => {
+    const s = walk({ type: "SELECT", elementId: "el-1" }, dragStart);
+    expect(pointerOf(s)).toBe("dragging");
+    expect(dragOf(s)).toBe("dragging");
+  });
+
+  it("selected + CARRY_START → pointer.dragging (out of selected)", () => {
+    const s = walk({ type: "SELECT", elementId: "el-1" }, carryStart);
+    expect(pointerOf(s)).toBe("dragging");
+    expect(dragOf(s)).toBe("carrying");
+  });
+
+  it("ring identity survives a drag round-trip — selectedIds untouched", () => {
+    const before = walk({ type: "SELECT", elementId: "el-1" }, dragStart);
+    expect(before.context.selectedIds).toEqual(new Set(["el-1"]));
+  });
+
+  it("DRAG_START blocked while editing — pointer stays editing, drag idle", () => {
+    const s = walk(
+      { type: "SELECT", elementId: "el-1" },
+      { type: "OPEN_POPOVER" },
+      dragStart,
+    );
+    expect(pointerOf(s)).toBe("editing");
+    expect(dragOf(s)).toBe("idle");
+  });
+
+  it("CARRY_START blocked while editing — pointer stays editing, drag idle", () => {
+    const s = walk(
+      { type: "SELECT", elementId: "el-1" },
+      { type: "OPEN_POPOVER" },
+      carryStart,
+    );
+    expect(pointerOf(s)).toBe("editing");
+    expect(dragOf(s)).toBe("idle");
+  });
+});
+
+describe("R1: drop and cancel restore the pointer to selected", () => {
+  const enterDrag = [{ type: "SELECT" as const, elementId: "el-1" }, dragStart];
+  const enterCarry = [
+    { type: "SELECT" as const, elementId: "el-1" },
+    carryStart,
+  ];
+
+  it("DROP → pointer.selected, ring back, both regions idle/selected", () => {
+    const s = walk(...enterDrag, drop);
+    expect(pointerOf(s)).toBe("selected");
+    expect(dragOf(s)).toBe("idle");
+    expect(s.context.selectedIds).toEqual(new Set(["el-1"]));
+  });
+
+  it("DRAG_CANCEL → pointer.selected, ring back", () => {
+    const s = walk(...enterDrag, { type: "DRAG_CANCEL" });
+    expect(pointerOf(s)).toBe("selected");
+    expect(dragOf(s)).toBe("idle");
+    expect(s.context.selectedIds).toEqual(new Set(["el-1"]));
+  });
+
+  it("CARRY_COMMIT → pointer.selected, ring back", () => {
+    const s = walk(...enterCarry, { type: "CARRY_COMMIT" });
+    expect(pointerOf(s)).toBe("selected");
+    expect(dragOf(s)).toBe("idle");
+    expect(s.context.selectedIds).toEqual(new Set(["el-1"]));
+  });
+
+  it("CARRY_CANCEL → pointer.selected, ring back", () => {
+    const s = walk(...enterCarry, { type: "CARRY_CANCEL" });
+    expect(pointerOf(s)).toBe("selected");
+    expect(dragOf(s)).toBe("idle");
+    expect(s.context.selectedIds).toEqual(new Set(["el-1"]));
+  });
+
+  it("ESCAPE while carrying → pointer.selected (not deselect), ring back", () => {
+    const s = walk(...enterCarry, { type: "ESCAPE" });
+    expect(pointerOf(s)).toBe("selected");
+    expect(dragOf(s)).toBe("idle");
+    expect(s.context.selectedIds).toEqual(new Set(["el-1"]));
+  });
+});
+
+describe("R1: slot-selected yields too", () => {
+  it("slot-selected + DRAG_START → pointer.dragging, slot cleared, ring restored", () => {
+    const s = walk(...enterSlotSelected, dragStart);
+    expect(pointerOf(s)).toBe("dragging");
+    expect(dragOf(s)).toBe("dragging");
+    expect(s.context.selectedSlot).toBeNull();
+    expect(s.context.selectedIds).toEqual(new Set(["el-1"]));
+  });
+
+  it("slot-selected drag round-trips back to element selection on DROP", () => {
+    const s = walk(...enterSlotSelected, dragStart, drop);
+    expect(pointerOf(s)).toBe("selected");
+    expect(s.context.selectedIds).toEqual(new Set(["el-1"]));
+    expect(s.context.selectedSlot).toBeNull();
+  });
+});
+
+describe("R1: terminating drag events are no-ops outside the dragging pointer state", () => {
+  const dragEnders: EditorEvent[] = [
+    drop,
+    { type: "DRAG_CANCEL" },
+    { type: "CARRY_COMMIT" },
+    { type: "CARRY_CANCEL" },
+  ];
+
+  for (const event of dragEnders) {
+    it(`${event.type} from pointer.selected leaves pointer.selected intact`, () => {
+      const s = walk({ type: "SELECT", elementId: "el-1" }, event);
+      expect(pointerOf(s)).toBe("selected");
+      expect(s.context.selectedIds).toEqual(new Set(["el-1"]));
+    });
+
+    it(`${event.type} from pointer.idle leaves pointer.idle intact`, () => {
+      const s = walk(event);
+      expect(pointerOf(s)).toBe("idle");
     });
   }
 });
