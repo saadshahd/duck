@@ -379,6 +379,7 @@ export function Editor<UserConfig extends Config = Config>({
                 )}
                 <button
                   type="button"
+                  data-role="box-model-toggle"
                   className={`label-action-btn${boxModelVisible ? " label-action-btn--active" : ""}`}
                   onClick={() => setBoxModelVisible((v) => !v)}
                 >

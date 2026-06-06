@@ -270,7 +270,7 @@ export const countSelectionRings = (page: Page) =>
 export const isSelectionLabelVisible = (page: Page) =>
   shadowQuery(
     page,
-    (r) => r.querySelector(".selection-label-root") !== null,
+    (r) => r.querySelector("[data-role='selection-label']") !== null,
   ) as Promise<boolean>;
 
 /** Count of box-model band overlays painted in the overlay. */
@@ -286,7 +286,7 @@ export const toggleBoxModel = (page: Page) =>
     for (const d of document.querySelectorAll("div")) {
       if (!d.shadowRoot || d.style.position !== "fixed") continue;
       const btn = d.shadowRoot.querySelector(
-        ".label-action-btn",
+        "[data-role='box-model-toggle']",
       ) as HTMLElement | null;
       btn?.click();
       return;

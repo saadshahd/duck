@@ -728,6 +728,212 @@ describe("R1: slot-selected yields too", () => {
   });
 });
 
+// --- Exhaustive: every pointer-region state × {DRAG_START, CARRY_START} ---
+//
+// The pointer region only *yields* from `selected` and `slot-selected` (it has
+// chrome to suppress). From `idle`, `hovering`, and `inserting` there is no
+// selection chrome, so the pointer state stays put while the drag region moves
+// and dragSourceId is assigned. From `editing` both starts are blocked
+// (notEditing guard) — drag never begins. This block crosses every remaining
+// pointer state with both drag-entry events so the matrix is complete.
+
+describe("DRAG_START / CARRY_START across every pointer-region state", () => {
+  const enterIdle: EditorEvent[] = [];
+  const enterHovering: EditorEvent[] = [{ type: "HOVER", elementId: "el-1" }];
+  const enterInserting: EditorEvent[] = [
+    { type: "SELECT", elementId: "el-1" },
+    { type: "OPEN_INSERT" },
+  ];
+
+  it("idle + DRAG_START → pointer stays idle, drag.dragging, dragSourceId set", () => {
+    const s = walk(...enterIdle, dragStart);
+    expect(pointerOf(s)).toBe("idle");
+    expect(dragOf(s)).toBe("dragging");
+    expect(s.context.dragSourceId).toBe("el-1");
+  });
+
+  it("idle + CARRY_START → pointer stays idle, drag.carrying, dragSourceId set", () => {
+    const s = walk(...enterIdle, carryStart);
+    expect(pointerOf(s)).toBe("idle");
+    expect(dragOf(s)).toBe("carrying");
+    expect(s.context.dragSourceId).toBe("el-1");
+  });
+
+  it("hovering + DRAG_START → pointer stays hovering, drag.dragging", () => {
+    const s = walk(...enterHovering, dragStart);
+    expect(pointerOf(s)).toBe("hovering");
+    expect(dragOf(s)).toBe("dragging");
+    expect(s.context.dragSourceId).toBe("el-1");
+  });
+
+  it("hovering + CARRY_START → pointer stays hovering, drag.carrying", () => {
+    const s = walk(...enterHovering, carryStart);
+    expect(pointerOf(s)).toBe("hovering");
+    expect(dragOf(s)).toBe("carrying");
+    expect(s.context.dragSourceId).toBe("el-1");
+  });
+
+  it("inserting + DRAG_START → pointer stays inserting, drag.dragging", () => {
+    const s = walk(...enterInserting, dragStart);
+    expect(pointerOf(s)).toBe("inserting");
+    expect(dragOf(s)).toBe("dragging");
+    expect(s.context.dragSourceId).toBe("el-1");
+  });
+
+  it("inserting + CARRY_START → pointer stays inserting, drag.carrying", () => {
+    const s = walk(...enterInserting, carryStart);
+    expect(pointerOf(s)).toBe("inserting");
+    expect(dragOf(s)).toBe("carrying");
+    expect(s.context.dragSourceId).toBe("el-1");
+  });
+
+  it("editing + DRAG_START → blocked: pointer.editing, drag.idle, no source", () => {
+    const s = walk(
+      { type: "SELECT", elementId: "el-1" },
+      { type: "OPEN_POPOVER" },
+      dragStart,
+    );
+    expect(pointerOf(s)).toBe("editing");
+    expect(dragOf(s)).toBe("idle");
+    expect(s.context.dragSourceId).toBeNull();
+  });
+
+  it("editing + CARRY_START → blocked: pointer.editing, drag.idle, no source", () => {
+    const s = walk(
+      { type: "SELECT", elementId: "el-1" },
+      { type: "OPEN_POPOVER" },
+      carryStart,
+    );
+    expect(pointerOf(s)).toBe("editing");
+    expect(dragOf(s)).toBe("idle");
+    expect(s.context.dragSourceId).toBeNull();
+  });
+
+  it("selected + DRAG_START → pointer.dragging, drag.dragging", () => {
+    const s = walk({ type: "SELECT", elementId: "el-1" }, dragStart);
+    expect(pointerOf(s)).toBe("dragging");
+    expect(dragOf(s)).toBe("dragging");
+    expect(s.context.dragSourceId).toBe("el-1");
+  });
+
+  it("selected + CARRY_START → pointer.dragging, drag.carrying", () => {
+    const s = walk({ type: "SELECT", elementId: "el-1" }, carryStart);
+    expect(pointerOf(s)).toBe("dragging");
+    expect(dragOf(s)).toBe("carrying");
+    expect(s.context.dragSourceId).toBe("el-1");
+  });
+
+  it("slot-selected + DRAG_START → pointer.dragging, slot cleared", () => {
+    const s = walk(...enterSlotSelected, dragStart);
+    expect(pointerOf(s)).toBe("dragging");
+    expect(dragOf(s)).toBe("dragging");
+    expect(s.context.selectedSlot).toBeNull();
+  });
+
+  it("slot-selected + CARRY_START → pointer.dragging, slot cleared", () => {
+    const s = walk(...enterSlotSelected, carryStart);
+    expect(pointerOf(s)).toBe("dragging");
+    expect(dragOf(s)).toBe("carrying");
+    expect(s.context.selectedSlot).toBeNull();
+  });
+
+  it("dragging + DRAG_START → ignored, pointer.dragging, source unchanged", () => {
+    const s = walk({ type: "SELECT", elementId: "el-1" }, dragStart, {
+      type: "DRAG_START",
+      sourceId: "el-2",
+    });
+    expect(pointerOf(s)).toBe("dragging");
+    expect(dragOf(s)).toBe("dragging");
+    expect(s.context.dragSourceId).toBe("el-1");
+  });
+
+  it("dragging + CARRY_START → ignored, pointer.dragging, source unchanged", () => {
+    const s = walk({ type: "SELECT", elementId: "el-1" }, dragStart, {
+      type: "CARRY_START",
+      sourceId: "el-2",
+    });
+    expect(pointerOf(s)).toBe("dragging");
+    expect(dragOf(s)).toBe("dragging");
+    expect(s.context.dragSourceId).toBe("el-1");
+  });
+});
+
+// --- Exhaustive: every pointer-region state × SELECT_SLOT ---
+//
+// SELECT_SLOT only transitions from `selected` (the one state with an element
+// ring to replace). From every other pointer state it is an inert no-op:
+// pointer unchanged, selectedSlot stays null. This block crosses each remaining
+// pointer state with SELECT_SLOT so the matrix is complete.
+
+describe("SELECT_SLOT across every pointer-region state", () => {
+  const selectSlot = {
+    type: "SELECT_SLOT" as const,
+    parentId: "card",
+    slotKey: "body",
+  };
+
+  it("idle + SELECT_SLOT → no-op, pointer.idle, no slot", () => {
+    const s = walk(selectSlot);
+    expect(pointerOf(s)).toBe("idle");
+    expect(s.context.selectedSlot).toBeNull();
+  });
+
+  it("hovering + SELECT_SLOT → no-op, pointer.hovering, no slot", () => {
+    const s = walk({ type: "HOVER", elementId: "el-1" }, selectSlot);
+    expect(pointerOf(s)).toBe("hovering");
+    expect(s.context.selectedSlot).toBeNull();
+  });
+
+  it("selected + SELECT_SLOT → slot-selected, slot assigned, ids cleared", () => {
+    const s = walk({ type: "SELECT", elementId: "el-1" }, selectSlot);
+    expect(pointerOf(s)).toBe("slot-selected");
+    expect(s.context.selectedSlot).toEqual({
+      parentId: "card",
+      slotKey: "body",
+    });
+    expect(s.context.selectedIds.size).toBe(0);
+  });
+
+  it("editing + SELECT_SLOT → no-op, pointer.editing, no slot", () => {
+    const s = walk(
+      { type: "SELECT", elementId: "el-1" },
+      { type: "OPEN_POPOVER" },
+      selectSlot,
+    );
+    expect(pointerOf(s)).toBe("editing");
+    expect(s.context.selectedSlot).toBeNull();
+  });
+
+  it("inserting + SELECT_SLOT → no-op, pointer.inserting, no slot", () => {
+    const s = walk(
+      { type: "SELECT", elementId: "el-1" },
+      { type: "OPEN_INSERT" },
+      selectSlot,
+    );
+    expect(pointerOf(s)).toBe("inserting");
+    expect(s.context.selectedSlot).toBeNull();
+  });
+
+  it("slot-selected + SELECT_SLOT → no-op, slot unchanged", () => {
+    const s = walk(...enterSlotSelected, selectSlot);
+    expect(pointerOf(s)).toBe("slot-selected");
+    expect(s.context.selectedSlot).toEqual({
+      parentId: "card",
+      slotKey: "body",
+    });
+  });
+
+  it("dragging + SELECT_SLOT → no-op, pointer.dragging, no slot", () => {
+    const s = walk(
+      { type: "SELECT", elementId: "el-1" },
+      dragStart,
+      selectSlot,
+    );
+    expect(pointerOf(s)).toBe("dragging");
+    expect(s.context.selectedSlot).toBeNull();
+  });
+});
+
 describe("R1: terminating drag events are no-ops outside the dragging pointer state", () => {
   const dragEnders: EditorEvent[] = [
     drop,

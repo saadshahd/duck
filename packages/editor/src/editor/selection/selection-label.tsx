@@ -78,6 +78,7 @@ export function SelectionLabel({
     <div
       ref={refs.setFloating}
       className="selection-label-root"
+      data-role="selection-label"
       style={{ ...floatingStyles, zIndex: 1 }}
     >
       <span
