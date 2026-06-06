@@ -298,7 +298,7 @@ describe("resolveLabel", () => {
     ).toBe("No target here");
   });
 
-  test("line target → parent component type", () => {
+  test("line target → 'Component › slot'", () => {
     expect(
       resolveLabel(stackData([leaf("a"), leaf("b")]), {
         kind: "line",
@@ -306,7 +306,7 @@ describe("resolveLabel", () => {
         edge: "bottom",
         axis: "vertical",
       }),
-    ).toBe("Stack");
+    ).toBe("Stack › items");
   });
 
   test("unknown container → null", () => {
@@ -324,5 +324,38 @@ describe("resolveLabel", () => {
         axis: "vertical",
       }),
     ).toBeNull();
+  });
+
+  test("line target labels carry the qualified slot", () => {
+    // Section(id "s1") with slot "content" containing two children c1, c2
+    const section = (id: string, children: ComponentData[]): ComponentData => ({
+      type: "Section",
+      props: { id, content: children },
+    });
+    const data: Data = {
+      root: { props: {} },
+      content: [section("s1", [leaf("c1"), leaf("c2")])],
+    };
+    const target: DropTarget = {
+      kind: "line",
+      elementId: "c2",
+      edge: "top",
+      axis: "vertical",
+    };
+    expect(resolveLabel(data, target)).toBe("Section › content");
+  });
+
+  test("root-level line target labels as Root", () => {
+    const data: Data = {
+      root: { props: {} },
+      content: [leaf("child1"), leaf("child2")],
+    };
+    const target: DropTarget = {
+      kind: "line",
+      elementId: "child1",
+      edge: "top",
+      axis: "vertical",
+    };
+    expect(resolveLabel(data, target)).toBe("Root");
   });
 });

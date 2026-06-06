@@ -77,18 +77,21 @@ export const resolveContainerId = (
   return target.elementId;
 };
 
-/** Display label for a drop target: `Component › slot` for container drops, the
- *  parent component type for line drops, a constant for no-target. Null when the
+/** Display label for a drop target: `Component › slot` for container and line
+ *  drops, "Root" for root-level lines, a constant for no-target. Null when the
  *  container is unknown. */
 export const resolveLabel = (data: Data, target: DropTarget): string | null => {
   if (target.kind === "none") return NO_TARGET_LABEL;
   if (target.kind === "root") return target.label;
-  const containerId = resolveContainerId(data, target);
-  const type = containerId ? findById(data, containerId)?.type : undefined;
-  if (!type) return null;
-  return target.kind === "container"
-    ? qualifiedLabel(type, target.slotKey)
-    : type;
+  if (target.kind === "line") {
+    const parent = findParent(data, target.elementId);
+    if (!parent) return null;
+    if (parent.parentId === null || parent.slotKey === null) return ROOT_LABEL;
+    const type = findById(data, parent.parentId)?.type;
+    return type ? qualifiedLabel(type, parent.slotKey) : null;
+  }
+  const type = findById(data, target.elementId)?.type;
+  return type ? qualifiedLabel(type, target.slotKey) : null;
 };
 
 type Located = {
