@@ -202,8 +202,10 @@ describe("resolveDrop", () => {
     expect(result!.newData.isOk()).toBe(true);
   });
 
-  test("same-slot reorder: line indicator on b (bottom edge) inserts after b", () => {
-    // b is at index 1 in root content; bottom edge → insert after → index 2.
+  test("same-slot reorder: source a onto b's bottom edge lands removal-adjusted", () => {
+    // Root content [a, b, c, box, empty]; a (index 0) onto b's (index 1) bottom
+    // edge. getReorderDestinationIndex accounts for a's removal → index 1 →
+    // [b, a, c, box, empty]. Without the adjustment it would land at index 2.
     const target = bag({
       elementId: "b",
       parentId: null,
@@ -225,8 +227,55 @@ describe("resolveDrop", () => {
       type: "DROP",
       sourceParentId: null,
       targetParentId: null,
-      toIndex: 2,
+      fromIndex: 0,
+      toIndex: 1,
     });
-    expect(result!.newData.isOk()).toBe(true);
+    const moved = result!.newData._unsafeUnwrap();
+    expect(moved.content.map((c) => c.props.id)).toEqual([
+      "b",
+      "a",
+      "c",
+      "box",
+      "empty",
+    ]);
+  });
+
+  test("same-parent container guard: source before sibling container, bottom edge", () => {
+    // Root content [a, b, c, box, empty]; a (index 0) dropped onto the box
+    // CONTAINER's bottom edge (same-parent guard line). box is at index 3 in
+    // root content. getReorderDestinationIndex accounts for a's removal →
+    // index 3 → [b, c, box, a, empty].
+    const target = bag({
+      elementId: "box",
+      parentId: null,
+      slotKey: null,
+      index: 3,
+      role: "container",
+    });
+    const result = resolve({
+      target,
+      indicator: {
+        kind: "line",
+        elementId: "box",
+        edge: "bottom",
+        axis: "vertical",
+      },
+    });
+
+    expect(result?.event).toMatchObject({
+      type: "DROP",
+      sourceParentId: null,
+      targetParentId: null,
+      fromIndex: 0,
+      toIndex: 3,
+    });
+    const moved = result!.newData._unsafeUnwrap();
+    expect(moved.content.map((c) => c.props.id)).toEqual([
+      "b",
+      "c",
+      "box",
+      "a",
+      "empty",
+    ]);
   });
 });

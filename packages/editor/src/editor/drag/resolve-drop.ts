@@ -1,5 +1,6 @@
 import type { Data } from "@puckeditor/core";
 import type { Result } from "neverthrow";
+import { getReorderDestinationIndex } from "@atlaskit/pragmatic-drag-and-drop-hitbox/util/get-reorder-destination-index";
 import { findParent } from "@duckeditor/spec";
 import { move, type SpecOpsError } from "../spec-ops/index.js";
 import type { EditorEvent } from "../machine/index.js";
@@ -52,7 +53,19 @@ export function resolveDrop({
   if (indicator.kind === "line") {
     const parent = findParent(data, indicator.elementId);
     if (!parent) return null;
-    const insertIndex = resolveInsertIndex(parent.index, indicator.edge);
+    // Same-slot reorder must account for the source's removal, or a forward
+    // move lands one position too far. Cross-slot inserts have no such shift.
+    const sameSlot =
+      parent.parentId === sourceData.parentId &&
+      parent.slotKey === sourceData.slotKey;
+    const insertIndex = sameSlot
+      ? getReorderDestinationIndex({
+          startIndex: sourceData.index,
+          indexOfTarget: parent.index,
+          closestEdgeOfTarget: indicator.edge,
+          axis: indicator.axis,
+        })
+      : resolveInsertIndex(parent.index, indicator.edge);
     return {
       newData: move(
         data,

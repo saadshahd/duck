@@ -32,8 +32,6 @@ export function CycleChip({ registry, data, target, status }: Props) {
       data-role="cycle-chip"
       className="cycle-chip"
       style={{ ...floatingStyles, zIndex: 1 }}
-      aria-live="polite"
-      aria-atomic="true"
     >
       {status.step} of {status.total}
     </div>
