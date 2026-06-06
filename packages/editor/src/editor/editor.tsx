@@ -503,6 +503,7 @@ export function Editor<UserConfig extends Config = Config>({
             carryTarget,
             cycleStatus,
             slotAddress,
+            noTargetFlash,
           })}
         />
         <Announcer
@@ -511,7 +512,6 @@ export function Editor<UserConfig extends Config = Config>({
             data: currentData,
             drag,
             dragSourceId,
-            noTargetFlash,
           })}
         />
         {menu && (

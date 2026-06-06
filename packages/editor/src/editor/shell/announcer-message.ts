@@ -13,12 +13,13 @@ type Args = {
   carryTarget: DropTarget | null;
   cycleStatus: CycleStatus | null;
   slotAddress: string | undefined;
+  noTargetFlash: { x: number; y: number } | null;
 };
 
 /** The single polite live-region message for the editor. Precedence: an active
- *  drag (cycle-prefixed while cycling) wins, then a carry, then a selected slot
- *  stop. Empty string when nothing is announceable — callers must not announce
- *  a blank message. */
+ *  drag (cycle-prefixed while cycling) wins, then — during carry — an invalid-click
+ *  echo over the carry destination status, then a selected slot stop. Empty string
+ *  when nothing is announceable — callers must not announce a blank message. */
 export const announcerMessage = ({
   data,
   drag,
@@ -27,6 +28,7 @@ export const announcerMessage = ({
   carryTarget,
   cycleStatus,
   slotAddress,
+  noTargetFlash,
 }: Args): string => {
   if (drag === "dragging" && dropTarget) {
     const label = announcementFor(data, dropTarget);
@@ -34,8 +36,10 @@ export const announcerMessage = ({
       ? `Destination ${cycleStatus.step} of ${cycleStatus.total}: ${label}`
       : label;
   }
-  if (drag === "carrying" && carryTarget)
-    return announcementFor(data, carryTarget);
+  if (drag === "carrying") {
+    if (noTargetFlash) return "No target here";
+    if (carryTarget) return announcementFor(data, carryTarget);
+  }
   if (pointer === "slot-selected" && slotAddress)
     return `Slot ${slotAddress} selected`;
   return "";
@@ -45,20 +49,18 @@ type AssertiveArgs = {
   data: Data;
   drag: string;
   dragSourceId: string | null;
-  noTargetFlash: { x: number; y: number } | null;
 };
 
-/** Assertive live-region message for mode-entry and invalid-click echo. Emitted
- *  on a second Announcer instance (assertive region) so it doesn't interfere
- *  with the polite destination announcements. Returns empty string when silent. */
+/** Assertive live-region message for carry mode entry/exit. Emitted on a second
+ *  Announcer instance (assertive region) so the mode announcement interrupts, but
+ *  only on mode change — it never churns on the polite no-target flash. Returns
+ *  empty string when not carrying. */
 export const assertiveCarryMessage = ({
   data,
   drag,
   dragSourceId,
-  noTargetFlash,
 }: AssertiveArgs): string => {
   if (drag !== "carrying") return "";
-  if (noTargetFlash) return "No target here";
   if (!dragSourceId) return "";
   const sourceType = findById(data, dragSourceId)?.type ?? "element";
   return `Moving ${sourceType}. Click or press Enter to drop, Esc to cancel.`;
