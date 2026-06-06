@@ -220,6 +220,43 @@ export const selectParentElement = (page: Page) =>
     }
   });
 
+export const getSlotAddressText = (page: Page) =>
+  shadowQuery(
+    page,
+    (r) =>
+      (
+        r.querySelector(
+          "[data-role='selection-slot-address']",
+        ) as HTMLElement | null
+      )?.textContent ?? null,
+  ) as Promise<string | null>;
+
+export const isSlotStopVisible = (page: Page) =>
+  shadowQuery(
+    page,
+    (r) => r.querySelector("[data-role='slot-stop']") !== null,
+  ) as Promise<boolean>;
+
+export const getSlotStopLabelText = (page: Page) =>
+  shadowQuery(
+    page,
+    (r) =>
+      (r.querySelector("[data-role='slot-stop-label']") as HTMLElement | null)
+        ?.textContent ?? null,
+  ) as Promise<string | null>;
+
+export const clickSlotStopLabel = (page: Page) =>
+  page.evaluate(() => {
+    for (const d of document.querySelectorAll("div")) {
+      if (!d.shadowRoot || d.style.position !== "fixed") continue;
+      const btn = d.shadowRoot.querySelector(
+        "[data-role='slot-stop-label']",
+      ) as HTMLElement | null;
+      btn?.click();
+      return;
+    }
+  });
+
 // --- Morph helpers ---
 
 export const getMorphButtonState = (page: Page) =>

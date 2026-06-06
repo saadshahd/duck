@@ -156,6 +156,41 @@
   transition: opacity 150ms ease;
 }
 
+.element-label__slot {
+  display: block;
+  font-size: 10px;
+  opacity: 0.55;
+  font-weight: 400;
+  line-height: 1.3;
+  margin-top: 1px;
+}
+
+/* Slot-stop band: 2px outline around the owning slot's measured rect */
+
+.slot-stop {
+  position: absolute;
+  outline: 2px solid var(--accent-select);
+  border-radius: 2px;
+  pointer-events: none;
+}
+
+.slot-stop-label {
+  position: absolute;
+  background: var(--surface-bar);
+  color: var(--text-bar);
+  font-family: var(--font-system);
+  font-size: 11px;
+  font-weight: 500;
+  padding: 1px 5px;
+  border-radius: 3px;
+  white-space: nowrap;
+  pointer-events: auto;
+  cursor: pointer;
+  border: none;
+  line-height: 1.4;
+  transform: translateY(-100%);
+}
+
 .element-label--interactive:hover .element-label__arrow {
   opacity: 1;
 }

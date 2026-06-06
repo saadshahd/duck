@@ -8,6 +8,11 @@ import {
   dispatchDrag,
   sourceCenter,
   edgePoint,
+  getSlotAddressText,
+  isSlotStopVisible,
+  getSlotStopLabelText,
+  clickSlotStopLabel,
+  selectParentElement,
 } from "../overlay/testing.js";
 
 /** Press the pointer over an element without releasing — a drag could begin. */
@@ -171,5 +176,85 @@ test.describe("Editor overlay", () => {
 
     await dispatchDrag(page, { from, to, phase: "release" });
     await expect.poll(() => isToolbarVisible(page)).toBe(true);
+  });
+});
+
+test.describe("Slot address and slot-stop", () => {
+  test.beforeEach(async ({ page }) => {
+    await page.goto("/");
+    await page.waitForTimeout(500);
+  });
+
+  test("selecting a nested element shows slot address on chip", async ({
+    page,
+  }) => {
+    // "Zero Chrome" h3 is feature-1-title inside Card feature-1's header slot
+    await page.locator("h3").first().click();
+    await page.waitForTimeout(300);
+
+    const address = await getSlotAddressText(page);
+    expect(address).toMatch(/^in .+ › .+$/);
+  });
+
+  test("first ↑ click on chip shows slot-stop band", async ({ page }) => {
+    await page.locator("h3").first().click();
+    await page.waitForTimeout(300);
+
+    await selectParentElement(page);
+    await page.waitForTimeout(300);
+
+    expect(await isSlotStopVisible(page)).toBe(true);
+    const labelText = await getSlotStopLabelText(page);
+    expect(labelText).toMatch(/.+ › .+/);
+  });
+
+  test("second ↑ click (via slot-stop label) selects parent element", async ({
+    page,
+  }) => {
+    await page.locator("h3").first().click();
+    await page.waitForTimeout(300);
+
+    // First ↑ → slot-selected
+    await selectParentElement(page);
+    await page.waitForTimeout(300);
+    expect(await isSlotStopVisible(page)).toBe(true);
+
+    // Second climb via slot-stop-label click → parent element selected
+    await clickSlotStopLabel(page);
+    await page.waitForTimeout(300);
+
+    expect(await isSlotStopVisible(page)).toBe(false);
+    expect(await isToolbarVisible(page)).toBe(true);
+    // slot address gone (parent is a top-level or shallower element)
+  });
+
+  test("Escape from slot-stop returns to element selection (slot-stop gone)", async ({
+    page,
+  }) => {
+    await page.locator("h3").first().click();
+    await page.waitForTimeout(300);
+
+    await selectParentElement(page);
+    await page.waitForTimeout(300);
+    expect(await isSlotStopVisible(page)).toBe(true);
+
+    await page.keyboard.press("Escape");
+    await page.waitForTimeout(300);
+
+    expect(await isSlotStopVisible(page)).toBe(false);
+    expect(await isToolbarVisible(page)).toBe(true);
+  });
+
+  test("root-content element has no slot address on chip", async ({ page }) => {
+    // The page Box is a root-content child (no slot parent). Its top padding
+    // band — centered, just below the very top — is the Box itself, not any
+    // nested element.
+    const box = await page.locator("h1").boundingBox();
+    if (!box) throw new Error("page not visible");
+    await page.mouse.click(box.x + box.width / 2, 8);
+    await page.waitForTimeout(300);
+
+    expect(await isToolbarVisible(page)).toBe(true);
+    expect(await getSlotAddressText(page)).toBeNull();
   });
 });

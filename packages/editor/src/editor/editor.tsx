@@ -13,9 +13,11 @@ import { deepEqual } from "fast-equals";
 import {
   buildIndex,
   findById,
+  findParent,
   normalizeData,
   type PatternConfig,
 } from "@duckeditor/spec";
+import { qualifiedLabel, slotRegions } from "./layout/index.js";
 import { useMachine } from "@xstate/react";
 import { editorMachine } from "./machine/index.js";
 import {
@@ -23,6 +25,7 @@ import {
   HoverHighlight,
   SelectionRing,
   SelectionLabel,
+  SlotStop,
   FloatingActionBar,
   useActionHandler,
   useMoveInfo,
@@ -206,7 +209,13 @@ export function Editor<UserConfig extends Config = Config>({
     onDelete: () => handleAction({ tag: "delete" }),
   });
 
-  const selectParent = createSelectParent(currentData, lastSelectedId, send);
+  const selectParent = createSelectParent({
+    data: currentData,
+    lastSelectedId,
+    pointer,
+    selectedSlot: state.context.selectedSlot,
+    send,
+  });
   const toolbarRef = useRef<HTMLElement | null>(null);
   const morphButtonRef = useRef<HTMLButtonElement | null>(null);
 
@@ -225,10 +234,38 @@ export function Editor<UserConfig extends Config = Config>({
 
   const hasSelection =
     (pointer === "selected" ||
+      pointer === "slot-selected" ||
       pointer === "editing" ||
       pointer === "inserting") &&
     fiberRegistry &&
     selectedIds.size > 0;
+
+  const { selectedSlot } = state.context;
+
+  const slotAddress = useMemo(() => {
+    if (!lastSelectedId) return undefined;
+    const parent = findParent(currentData, lastSelectedId);
+    if (!parent || parent.parentId === null || parent.slotKey === null)
+      return undefined;
+    const parentEl = findById(currentData, parent.parentId);
+    if (!parentEl) return undefined;
+    return qualifiedLabel(parentEl.type, parent.slotKey);
+  }, [currentData, lastSelectedId]);
+
+  const slotStopRect = useMemo(() => {
+    if (pointer !== "slot-selected" || !selectedSlot || !fiberRegistry)
+      return null;
+    const regions = slotRegions({
+      data: currentData,
+      parentId: selectedSlot.parentId,
+      registry: fiberRegistry,
+    });
+    const region = regions.find((r) => r.slotKey === selectedSlot.slotKey);
+    if (region) return region.rect;
+    return (
+      fiberRegistry.get(selectedSlot.parentId)?.getBoundingClientRect() ?? null
+    );
+  }, [pointer, selectedSlot, currentData, fiberRegistry]);
 
   const yieldingToolbar = useToolbarYield(fiberRegistry, singleSelected);
 
@@ -330,6 +367,7 @@ export function Editor<UserConfig extends Config = Config>({
                 elementId={lastSelectedId}
                 elementType={index.get(lastSelectedId)?.component.type}
                 selectionCount={selectedIds.size}
+                slotAddress={slotAddress}
                 toolbarRef={toolbarRef}
                 onSelectParent={selectParent}
               >
@@ -405,6 +443,17 @@ export function Editor<UserConfig extends Config = Config>({
                 anchorRef={morphButtonRef}
               />
             )}
+            {pointer === "slot-selected" &&
+              selectedSlot &&
+              slotStopRect &&
+              slotAddress &&
+              selectParent && (
+                <SlotStop
+                  rect={slotStopRect}
+                  label={slotAddress}
+                  onClimb={selectParent}
+                />
+              )}
           </>
         )}
         {(() => {
@@ -428,7 +477,9 @@ export function Editor<UserConfig extends Config = Config>({
               ? announcementFor(currentData, dropTarget)
               : drag === "carrying" && carryTarget
                 ? announcementFor(currentData, carryTarget)
-                : ""
+                : pointer === "slot-selected" && slotAddress
+                  ? `Slot ${slotAddress} selected`
+                  : ""
           }
         />
         {menu && (

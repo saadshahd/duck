@@ -1,6 +1,10 @@
 export { type Axis, resolveSlotAxis } from "./axis.js";
 export { containsPoint, expandRect } from "./rect.js";
-export { slotInsertIndex, type MeasuredRegion } from "./slot-regions.js";
+export {
+  slotInsertIndex,
+  slotRegions,
+  type MeasuredRegion,
+} from "./slot-regions.js";
 export { ghostCandidateIds } from "./ghost.js";
 export { type Tile, type Tiling } from "./tiles.js";
 export { buildTiling } from "./tiling.js";

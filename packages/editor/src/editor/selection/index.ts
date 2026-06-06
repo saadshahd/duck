@@ -1,6 +1,7 @@
 export { useEditorSelection } from "./use-selection.js";
 export { HoverHighlight, SelectionRing } from "./highlight.js";
 export { SelectionLabel } from "./selection-label.js";
+export { SlotStop } from "./slot-stop.js";
 export { FloatingActionBar } from "./action-bar.js";
 export { useActionHandler } from "./use-action-handler.js";
 export { useMoveInfo } from "./use-move-info.js";

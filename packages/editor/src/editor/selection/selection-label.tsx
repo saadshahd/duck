@@ -39,6 +39,7 @@ export function SelectionLabel({
   elementId,
   elementType,
   selectionCount,
+  slotAddress,
   toolbarRef,
   onSelectParent,
   children,
@@ -47,6 +48,7 @@ export function SelectionLabel({
   elementId: string;
   elementType: string | undefined;
   selectionCount?: number;
+  slotAddress?: string;
   toolbarRef: RefObject<HTMLElement | null>;
   onSelectParent?: () => void;
   children?: ReactNode;
@@ -87,6 +89,14 @@ export function SelectionLabel({
         {elementType}
         {selectionCount && selectionCount > 1 && (
           <span className="element-label__count"> +{selectionCount - 1}</span>
+        )}
+        {slotAddress && (
+          <span
+            className="element-label__slot"
+            data-role="selection-slot-address"
+          >
+            in {slotAddress}
+          </span>
         )}
       </span>
       {children && (

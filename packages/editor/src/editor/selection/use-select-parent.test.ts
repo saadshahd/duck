@@ -23,32 +23,65 @@ const collect = () => {
   return { calls, send };
 };
 
+const make = (
+  lastSelectedId: string | null,
+  pointer = "selected",
+  selectedSlot: { parentId: string; slotKey: string } | null = null,
+) => {
+  const { calls, send } = collect();
+  const fn = createSelectParent({
+    data: data(),
+    lastSelectedId,
+    pointer,
+    selectedSlot,
+    send,
+  });
+  return { calls, fn };
+};
+
 describe("createSelectParent", () => {
   test("returns undefined when lastSelectedId is null", () => {
-    const { send } = collect();
-    expect(createSelectParent(data(), null, send)).toBeUndefined();
+    const { fn } = make(null);
+    expect(fn).toBeUndefined();
   });
 
   test("returns a function when lastSelectedId is valid", () => {
-    const { send } = collect();
-    expect(typeof createSelectParent(data(), "item", send)).toBe("function");
+    const { fn } = make("item");
+    expect(typeof fn).toBe("function");
   });
 
-  test("sends SELECT with parent id", () => {
-    const { calls, send } = collect();
-    createSelectParent(data(), "item", send)!();
-    expect(calls).toEqual([{ type: "SELECT", elementId: "section" }]);
+  test("in selected: sends SELECT_SLOT with parent + slot when element has a slot parent", () => {
+    const { calls, fn } = make("item");
+    fn!();
+    expect(calls).toEqual([
+      { type: "SELECT_SLOT", parentId: "section", slotKey: "items" },
+    ]);
   });
 
-  test("sends DESELECT for top-level child (no component parent)", () => {
-    const { calls, send } = collect();
-    createSelectParent(data(), "section", send)!();
+  test("in selected: sends DESELECT for top-level child (no component parent)", () => {
+    const { calls, fn } = make("section");
+    fn!();
     expect(calls).toEqual([{ type: "DESELECT" }]);
   });
 
-  test("sends DESELECT for orphan element", () => {
-    const { calls, send } = collect();
-    createSelectParent(data(), "missing", send)!();
+  test("in selected: sends DESELECT for orphan element", () => {
+    const { calls, fn } = make("missing");
+    fn!();
+    expect(calls).toEqual([{ type: "DESELECT" }]);
+  });
+
+  test("in slot-selected: sends SELECT with the selectedSlot parentId (climbs to parent element)", () => {
+    const { calls, fn } = make("item", "slot-selected", {
+      parentId: "section",
+      slotKey: "items",
+    });
+    fn!();
+    expect(calls).toEqual([{ type: "SELECT", elementId: "section" }]);
+  });
+
+  test("in slot-selected without selectedSlot: falls back to DESELECT path", () => {
+    const { calls, fn } = make("section", "slot-selected", null);
+    fn!();
     expect(calls).toEqual([{ type: "DESELECT" }]);
   });
 });
