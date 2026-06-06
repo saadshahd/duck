@@ -16,12 +16,9 @@ import type { FiberRegistry } from "../fiber/index.js";
 import type { EditorEvent, EditorSnapshot } from "../machine/index.js";
 import type { DropTarget } from "../layout/index.js";
 import type { DragData } from "./helpers.js";
-import {
-  EDGES,
-  resolveSlotAxis,
-  isInContainerZone,
-  tagTransitionNames,
-} from "./helpers.js";
+import { EDGES, resolveSlotAxis, tagTransitionNames } from "./helpers.js";
+import { destinationStack } from "../layout/index.js";
+import { Cycle, type CycleState } from "./cycle.js";
 import { animatedUpdate } from "../animated-update.js";
 import type { EditorCommit } from "../types.js";
 import { resolveIndicator } from "./resolve-indicator.js";
@@ -65,6 +62,10 @@ export function useDragReorder({
   indexRef.current = index;
   const commitRef = useRef(commit);
   commitRef.current = commit;
+
+  // Transient drag state — refs, never deps, so handlers stay attached mid-drag.
+  const cycleRef = useRef<CycleState>(Cycle.idle);
+  const prevShiftRef = useRef(false);
 
   const { lastSelectedId, selectedIds } = state.context;
   const pointer = stateOf(state).pointer;
@@ -139,10 +140,7 @@ export function useDragReorder({
           element: el,
           canDrop: ({ source }) => (source.data.elementId as string) !== id,
           getData: ({ input, element }) => {
-            if (
-              isContainer &&
-              isInContainerZone(input, element.getBoundingClientRect())
-            )
+            if (isContainer)
               return {
                 elementId: id,
                 parentId: parent.parentId,
@@ -174,41 +172,92 @@ export function useDragReorder({
     if (!registry) return;
 
     let descendants: ReadonlySet<string> = new Set();
+    let detachShift: (() => void) | null = null;
 
-    const updateIndicator = (
-      source: { data: Record<string | symbol, unknown> },
-      location: {
-        current: {
-          dropTargets: readonly { data: Record<string | symbol, unknown> }[];
-          input: { clientX: number; clientY: number };
-        };
-      },
-    ) =>
+    type Source = { data: Record<string | symbol, unknown> };
+    type Location = {
+      current: {
+        dropTargets: readonly { data: Record<string | symbol, unknown> }[];
+        input: { clientX: number; clientY: number; shiftKey: boolean };
+      };
+    };
+
+    // Stack of reachable destinations under the pointer, excluding the dragged
+    // subtree. The rising shift edge steps the cycle over it; pointer drift
+    // within the same deepest container holds, a new container resets.
+    const driveCycle = (
+      source: Source,
+      point: { x: number; y: number },
+      shiftKey: boolean,
+    ) => {
+      const stack = destinationStack({
+        point,
+        data: dataRef.current,
+        registry,
+        excludeId: source.data.elementId as string,
+      });
+      if (shiftKey && !prevShiftRef.current)
+        cycleRef.current = Cycle.step(cycleRef.current, stack);
+      prevShiftRef.current = shiftKey;
+      cycleRef.current = Cycle.syncPointer(cycleRef.current, stack);
+      return Cycle.selected(cycleRef.current, stack);
+    };
+
+    // Pragmatic path: cycle override wins, else pointer resolution.
+    const updateFromLocation = (source: Source, location: Location) => {
+      const point = {
+        x: location.current.input.clientX,
+        y: location.current.input.clientY,
+      };
+      const picked = driveCycle(source, point, location.current.input.shiftKey);
+      if (picked)
+        return updateDropTarget(
+          Cycle.toTarget(picked, dataRef.current, registry),
+        );
       updateDropTarget(
         resolveIndicator({
           source,
           target: location.current.dropTargets[0],
-          point: {
-            x: location.current.input.clientX,
-            y: location.current.input.clientY,
-          },
+          point,
           previous: dropTargetRef.current,
           data: dataRef.current,
           registry,
           descendantSet: descendants,
         }),
       );
+    };
 
-    return monitorForElements({
+    const stopMonitor = monitorForElements({
       onDragStart: ({ source }) => {
         descendants = new Set(
           collectDescendants(dataRef.current, source.data.elementId as string),
         );
+        cycleRef.current = Cycle.idle;
+        prevShiftRef.current = false;
+        // Native fallback: spec dragover fires on modifier-only changes that
+        // pragmatic may swallow when coordinates don't move (~350ms cadence).
+        // It only drives the cycle — pointer resolution stays with pragmatic.
+        const onDragOver = (e: DragEvent) => {
+          const picked = driveCycle(
+            source,
+            { x: e.clientX, y: e.clientY },
+            e.shiftKey,
+          );
+          if (picked)
+            updateDropTarget(Cycle.toTarget(picked, dataRef.current, registry));
+        };
+        document.addEventListener("dragover", onDragOver);
+        detachShift = () =>
+          document.removeEventListener("dragover", onDragOver);
       },
-      onDrag: ({ source, location }) => updateIndicator(source, location),
+      onDrag: ({ source, location }) => updateFromLocation(source, location),
       onDropTargetChange: ({ source, location }) =>
-        updateIndicator(source, location),
+        updateFromLocation(source, location),
       onDrop: ({ source, location }) => {
+        detachShift?.();
+        detachShift = null;
+        cycleRef.current = Cycle.idle;
+        prevShiftRef.current = false;
         const lastIndicator = dropTargetRef.current;
         updateDropTarget(null);
         const beforeData = dataRef.current;
@@ -235,6 +284,11 @@ export function useDragReorder({
         send(result.event);
       },
     });
+
+    return () => {
+      detachShift?.();
+      stopMonitor();
+    };
   }, [registry, data, send]);
 
   return { dropTarget };

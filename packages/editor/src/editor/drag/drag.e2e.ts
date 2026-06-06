@@ -5,6 +5,7 @@ import {
   getTileLabels,
   getActiveTileLabel,
   getActiveTileRect,
+  getActiveDestinationLabel,
 } from "../overlay/testing.js";
 
 type Point = { x: number; y: number };
@@ -308,5 +309,135 @@ test.describe("Slot-aware container drops", () => {
       [...el.children].map((c) => c.tagName),
     );
     expect(tags).toEqual(["DIV", "H3"]);
+  });
+});
+
+// --- Shift-cycle over the destination stack ---
+
+/** Press and hold the source, glide to a point, and hold the pointer there.
+ *  Leaves the drag live so the caller can tap Shift and release. */
+async function holdDragAt(page: Page, source: Locator, point: Point) {
+  const start = await sourceCenter(source);
+  await page.mouse.move(start.x, start.y);
+  await page.mouse.down();
+  await page.mouse.move(point.x, point.y, { steps: 8 });
+  await page.waitForTimeout(80);
+}
+
+/** Tap Shift once during a live native drag. Chromium emits no dragover for a
+ *  modifier-only change without pointer motion, so a 1px nudge follows BOTH
+ *  key-down (rising edge → step) and key-up (falling edge → re-arm the next
+ *  rising edge). Without the key-up nudge shiftKey stays latched true and no
+ *  further step ever fires. */
+async function tapShift(page: Page, at: Point) {
+  await page.keyboard.down("Shift");
+  await page.mouse.move(at.x + 1, at.y, { steps: 1 });
+  await page.waitForTimeout(120);
+  await page.keyboard.up("Shift");
+  await page.mouse.move(at.x, at.y, { steps: 1 });
+  await page.waitForTimeout(80);
+}
+
+test.describe("Shift-cycle destination stack", () => {
+  test.beforeEach(async ({ page }) => {
+    await page.goto("/");
+    await page.waitForTimeout(500);
+  });
+
+  const cardTitle = (page: Page) => page.locator('h3:has-text("Zero Chrome")');
+  const card = (page: Page) => cardTitle(page).locator("..");
+
+  const cardCenter = async (page: Page): Promise<Point> => {
+    const box = await card(page).boundingBox();
+    if (!box) throw new Error("Card not visible");
+    return center(box);
+  };
+
+  test("shift tap steps the active destination; repeated taps wrap", async ({
+    page,
+  }) => {
+    const heading = page.locator("h1");
+    await heading.click();
+    await page.waitForTimeout(300);
+
+    const at = await cardCenter(page);
+    await holdDragAt(page, heading, at);
+
+    // First tap selects within 500ms.
+    await tapShift(page, at);
+    const first = await getActiveDestinationLabel(page);
+
+    const seen = first ? [first] : [];
+    for (let i = 0; i < 12; i++) {
+      await tapShift(page, at);
+      const label = await getActiveDestinationLabel(page);
+      if (label) seen.push(label);
+    }
+    await page.mouse.up();
+
+    expect(first).toBe("Card › header");
+    // Deepest container's slots come first, in declaration order.
+    expect(seen.slice(0, 3)).toEqual([
+      "Card › header",
+      "Card › body",
+      "Card › footer",
+    ]);
+    // Then beside-in-parent climbs the ancestry (non-Card entries appear).
+    expect(seen.some((l) => !l.startsWith("Card ›"))).toBe(true);
+    // The cycle is a closed loop: header recurs after a full revolution.
+    expect(seen.slice(1)).toContain("Card › header");
+  });
+
+  test("drop into the empty footer via its carved bottom band", async ({
+    page,
+  }) => {
+    const heading = page.locator("h1");
+    await heading.click();
+    await page.waitForTimeout(300);
+
+    const box = await card(page).boundingBox();
+    if (!box) throw new Error("Card not visible");
+    // Bottom carved band — previously given to the sibling role by the gate.
+    const footerBand: Point = {
+      x: box.x + box.width / 2,
+      y: box.y + box.height - 10,
+    };
+
+    await mouseDrag(page, heading, [footerBand], true);
+    await page.waitForTimeout(500);
+
+    const tags = await card(page).evaluate((el) =>
+      [...el.children].map((c) => c.tagName),
+    );
+    // H1 lands as the card's last child (the footer slot's only element).
+    expect(tags.at(-1)).toBe("H1");
+  });
+
+  test("cycle to beside-in-parent and drop lands the element as a sibling", async ({
+    page,
+  }) => {
+    const grid = card(page).locator("..");
+    const before = await grid.evaluate((el) => el.children.length);
+
+    const heading = page.locator("h1");
+    await heading.click();
+    await page.waitForTimeout(300);
+
+    const at = await cardCenter(page);
+    await holdDragAt(page, heading, at);
+
+    // Step until the active destination is a non-Card (beside-in-parent) entry.
+    let landed = false;
+    for (let i = 0; i < 6 && !landed; i++) {
+      await tapShift(page, at);
+      const label = await getActiveDestinationLabel(page);
+      if (label && !label.startsWith("Card ›")) landed = true;
+    }
+    await page.mouse.up();
+    await page.waitForTimeout(500);
+
+    expect(landed).toBe(true);
+    const after = await grid.evaluate((el) => el.children.length);
+    expect(after).toBe(before + 1);
   });
 });

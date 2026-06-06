@@ -3,16 +3,13 @@ import { extractClosestEdge } from "@atlaskit/pragmatic-drag-and-drop-hitbox/clo
 import { findById, slotKeysOf } from "@duckeditor/spec";
 import type { FiberRegistry } from "../fiber/index.js";
 import {
+  buildTiling,
   containsPoint,
-  cssAxis,
   expandRect,
   qualifiedLabel,
   slotInsertIndex,
-  slotRegions,
-  tileSlots,
   type DropTarget,
   type MeasuredRegion,
-  type SlotInput,
   type Tile,
   type Tiling,
 } from "../layout/index.js";
@@ -84,15 +81,6 @@ const aimedTile = (
   return tiling.tiles.find((t) => containsPoint(t.rect, point));
 };
 
-const slotInputs = (
-  slotKeys: readonly string[],
-  regions: readonly MeasuredRegion[],
-): SlotInput[] =>
-  slotKeys.map((slotKey) => {
-    const measured = regions.find((r) => r.slotKey === slotKey);
-    return measured ? { slotKey, rect: measured.rect } : { slotKey };
-  });
-
 const containerTarget = ({
   elementId,
   slotKey,
@@ -156,19 +144,11 @@ const resolveContainer = ({
   const slotKeys = slotKeysOf(component);
   if (!slotKeys.length) return { tag: "none" };
 
-  const containerEl = registry.get(elementId);
-  const containerRect = containerEl?.getBoundingClientRect();
-  const regions = containerEl
-    ? slotRegions({ data, parentId: elementId, registry })
-    : [];
-  const tiling: Tiling =
-    containerEl && containerRect
-      ? tileSlots({
-          containerRect,
-          slots: slotInputs(slotKeys, regions),
-          cssAxis: cssAxis(containerEl) ?? undefined,
-        })
-      : { kind: "discrete", slotKeys };
+  const { tiling, regions } = buildTiling({
+    data,
+    containerId: elementId,
+    registry,
+  });
 
   const axisOf = (slotKey: string) =>
     resolveSlotAxis(data, elementId, slotKey, registry) ?? "vertical";

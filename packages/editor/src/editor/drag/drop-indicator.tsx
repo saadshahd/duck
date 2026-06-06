@@ -5,7 +5,7 @@ import css from "./drag.css?inline";
 
 type Props = {
   registry: FiberRegistry;
-  target: Exclude<DropTarget, { kind: "none" }>;
+  target: Extract<DropTarget, { kind: "line" } | { kind: "container" }>;
 };
 
 const INSET = -2;

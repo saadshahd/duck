@@ -54,6 +54,20 @@ export function resolveDrop({
   // No indicator, or an explicit no-target → cancel.
   if (!indicator || indicator.kind === "none") return null;
 
+  // Cycle-selected root content — commit the destination index verbatim.
+  if (indicator.kind === "root") {
+    return {
+      newData: move(data, sourceData.elementId, null, null, indicator.index),
+      event: {
+        type: "DROP",
+        sourceParentId: sourceData.parentId,
+        targetParentId: null,
+        fromIndex: sourceData.index,
+        toIndex: indicator.index,
+      },
+    };
+  }
+
   // Drop INTO a container — commit what the indicator showed, verbatim
   if (indicator.kind === "container") {
     return {

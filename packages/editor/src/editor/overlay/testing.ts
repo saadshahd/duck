@@ -145,6 +145,19 @@ export const getActiveTileRect = (page: Page) =>
     height: string;
   } | null>;
 
+/** The currently selected destination's label: an active container tile, or the
+ *  root drop marker when the cycle lands on root content. Null when neither. */
+export const getActiveDestinationLabel = (page: Page) =>
+  shadowQuery(
+    page,
+    (r) =>
+      (
+        r.querySelector(
+          "[data-role='slot-tile'][data-active], [data-role='root-drop-label']",
+        ) as HTMLElement | null
+      )?.textContent ?? null,
+  ) as Promise<string | null>;
+
 // --- Drop zone label helpers ---
 
 export const getDropZoneLabelText = (page: Page) =>

@@ -30,25 +30,6 @@ export const EDGES: Record<Axis, Edge[]> = {
   horizontal: ["left", "right"],
 };
 
-// --- Zone detection ---
-
-export const CONTAINER_THRESHOLD = 0.2;
-
-/** True when cursor is in the inner 60% of the element (container drop zone). */
-export const isInContainerZone = (
-  input: { clientX: number; clientY: number },
-  rect: DOMRect,
-): boolean => {
-  const x = (input.clientX - rect.left) / rect.width;
-  const y = (input.clientY - rect.top) / rect.height;
-  return (
-    x > CONTAINER_THRESHOLD &&
-    x < 1 - CONTAINER_THRESHOLD &&
-    y > CONTAINER_THRESHOLD &&
-    y < 1 - CONTAINER_THRESHOLD
-  );
-};
-
 // --- Drop index ---
 
 /** Resolve a same-slot reorder destination index. */

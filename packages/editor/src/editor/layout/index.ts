@@ -13,6 +13,7 @@ export {
   type Tiling,
   type SlotInput,
 } from "./tiles.js";
+export { buildTiling } from "./tiling.js";
 export { isCollapsed, ZERO_RECT } from "./rect.js";
 export {
   type DropTarget,

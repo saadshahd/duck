@@ -5,6 +5,7 @@ import { slotLabels, type DropTarget } from "../layout/index.js";
 import { DropIndicator } from "./drop-indicator.js";
 import { DropZoneLabel } from "./drop-zone-label.js";
 import { NoTargetMarker } from "./no-target-marker.js";
+import { RootDropLabel } from "./root-drop-label.js";
 
 type Props = {
   registry: FiberRegistry;
@@ -26,6 +27,8 @@ export function DragOverlay({ registry, data, target }: Props) {
 
   if (target.kind === "none")
     return <NoTargetMarker registry={registry} elementId={target.elementId} />;
+
+  if (target.kind === "root") return <RootDropLabel label={target.label} />;
 
   const containerRect = registry.get(target.elementId)?.getBoundingClientRect();
   if (!containerRect) return null;

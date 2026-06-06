@@ -28,6 +28,7 @@ export type DropTarget =
       tiling: Tiling;
       activeLabel: string;
     }
+  | { kind: "root"; index: number; label: string }
   | { kind: "none"; elementId: string };
 
 /** One reachable drop position in the cycle: a slot append or a between-siblings
@@ -70,6 +71,7 @@ export const resolveContainerId = (
   data: Data,
   target: DropTarget,
 ): string | null => {
+  if (target.kind === "root") return null;
   if (target.kind === "line")
     return findParent(data, target.elementId)?.parentId ?? null;
   return target.elementId;
@@ -80,6 +82,7 @@ export const resolveContainerId = (
  *  container is unknown. */
 export const resolveLabel = (data: Data, target: DropTarget): string | null => {
   if (target.kind === "none") return NO_TARGET_LABEL;
+  if (target.kind === "root") return target.label;
   const containerId = resolveContainerId(data, target);
   const type = containerId ? findById(data, containerId)?.type : undefined;
   if (!type) return null;
