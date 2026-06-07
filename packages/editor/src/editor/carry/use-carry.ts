@@ -17,6 +17,7 @@ import {
 import { animatedUpdate } from "../animated-update.js";
 import { move } from "../spec-ops/index.js";
 import type { EditorCommit } from "../types.js";
+import { useScrollResolve } from "./use-scroll-resolve.js";
 
 type Props = {
   registry: FiberRegistry | null;
@@ -39,12 +40,18 @@ export function useCarry({ registry, data, state, send, commit }: Props): {
   noTargetHover: Point | null;
   noTargetFlash: Point | null;
   cycleStatus: CycleStatus | null;
+  liftRect: DOMRect | null;
 } {
   const [target, setTarget] = useState<DropTarget | null>(null);
   const [noTargetHover, setNoTargetHover] = useState<Point | null>(null);
   const [noTargetFlash, setNoTargetFlash] = useState<Point | null>(null);
   const [cycleStatus, setCycleStatus] = useState<CycleStatus | null>(null);
+  const [liftRect, setLiftRect] = useState<DOMRect | null>(null);
   const flashTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // The latest carry resolution closure — the same path pointermove runs. The
+  // scroll subscription calls it so a scroll re-aims every affordance (tiles,
+  // labels, lift pulse) against the geometry now under the viewport pointer.
+  const resolveRef = useRef<(() => void) | null>(null);
 
   const dataRef = useRef(data);
   dataRef.current = data;
@@ -120,15 +127,20 @@ export function useCarry({ registry, data, state, send, commit }: Props): {
           ? { step: cycle.index + 1, total: stack.length }
           : null;
       setCycleStatus((prev) => (sameStatus(prev, next) ? prev : next));
+      // Lift pulse rides the source's live viewport rect so a scroll re-resolves
+      // it in lockstep with the tiles — never a frozen pulse over stale geometry.
+      setLiftRect(registry.get(sourceId)?.getBoundingClientRect() ?? null);
+    };
+
+    resolveRef.current = () => {
+      cycle = Cycle.reclaim(cycle);
+      render(stackAt());
     };
 
     const onPointerMove = (e: PointerEvent) => {
       point = { x: e.clientX, y: e.clientY };
       cancelAnimationFrame(raf);
-      raf = requestAnimationFrame(() => {
-        cycle = Cycle.reclaim(cycle);
-        render(stackAt());
-      });
+      raf = requestAnimationFrame(() => resolveRef.current?.());
     };
 
     /** Anchor index from the hovered tile: the stack position the pointer aims
@@ -239,6 +251,7 @@ export function useCarry({ registry, data, state, send, commit }: Props): {
     return () => {
       clearTimeout(armTimer);
       cancelAnimationFrame(raf);
+      resolveRef.current = null;
       document.removeEventListener("pointermove", onPointerMove);
       document.removeEventListener("click", onClick, { capture: true });
       document.removeEventListener("keydown", onKeyDown, { capture: true });
@@ -246,6 +259,7 @@ export function useCarry({ registry, data, state, send, commit }: Props): {
       setTarget(null);
       setNoTargetHover(null);
       setCycleStatus(null);
+      setLiftRect(null);
       // Clear any pending flash timer on carry exit.
       if (flashTimerRef.current) {
         clearTimeout(flashTimerRef.current);
@@ -255,5 +269,7 @@ export function useCarry({ registry, data, state, send, commit }: Props): {
     };
   }, [registry, carrying, sourceId, send]);
 
-  return { target, noTargetHover, noTargetFlash, cycleStatus };
+  useScrollResolve({ active: carrying, resolve: resolveRef });
+
+  return { target, noTargetHover, noTargetFlash, cycleStatus, liftRect };
 }

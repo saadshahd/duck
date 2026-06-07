@@ -211,10 +211,12 @@ test.describe("Carry affordances", () => {
       .poll(() => isNoTargetFlashVisible(page), { timeout: 1000 })
       .toBe(false);
 
-    // Still carrying: cursor is still "move" and move chip is gone (carrying hides
-    // selection label) — confirmed by the cursor signal which is the clearest carry indicator.
+    // Still carrying: the pointer sits over a void corner, so the continuous
+    // no-target signal makes the body cursor "not-allowed" — a carry cursor, not
+    // the default it is restored to on carry exit. That it is one of carry's two
+    // cursor states (not the restored "") is the clearest proof carry persists.
     const cursor = await page.evaluate(() => document.body.style.cursor);
-    expect(cursor).toBe("move");
+    expect(cursor).toBe("not-allowed");
   });
 
   test("Esc cancels carry: cursor restored", async ({ page }) => {
@@ -305,12 +307,20 @@ test.describe("Carry tracks scroll", () => {
     await page.waitForTimeout(300);
     await lift(page);
 
-    // Aim at the Card header band so there is a live destination to track.
-    const gap = await headerGapPoint(page);
-    await page.mouse.move(gap.x, gap.y);
+    // Aim mid-Card-body — deep inside a tall band, clear of its boundaries — so a
+    // moderate scroll keeps the SAME destination under the fixed viewport pointer.
+    // A boundary-grazing aim would flip the named slot on the first pixel of
+    // scroll (correct re-aiming, but it would mask the lockstep this test pins).
+    const cardBox = await card(page).boundingBox();
+    if (!cardBox) throw new Error("Card not visible");
+    const aim = {
+      x: cardBox.x + cardBox.width / 2,
+      y: cardBox.y + cardBox.height * 0.55,
+    };
+    await page.mouse.move(aim.x, aim.y);
     await expect
-      .poll(async () => (await getTileLabels(page))?.[0] ?? null)
-      .toBe("Card › header");
+      .poll(() => getActiveDestinationLabel(page))
+      .toBe("Card › body");
 
     // Snapshot all carry affordances before the scroll.
     const pulseBefore = await getLiftPulseRect(page);
@@ -332,9 +342,9 @@ test.describe("Carry tracks scroll", () => {
       pulse.y + pulse.height > src.y;
     expect(overlapsSource(pulseBefore!, sourceBefore!)).toBe(true);
 
-    // Wheel 250px without moving the pointer. The viewport point is unchanged;
-    // the content beneath it scrolls up by ~250px.
-    const SCROLL = 250;
+    // Wheel 50px without moving the pointer. The viewport point is unchanged; the
+    // content beneath it scrolls up 50px while staying inside the same body band.
+    const SCROLL = 50;
     await page.mouse.wheel(0, SCROLL);
     // Re-resolution must land in the same frame as the scroll — give it two
     // frames to flush, but never a pointer move (that would mask a stale window).
@@ -348,26 +358,27 @@ test.describe("Carry tracks scroll", () => {
     expect(tilesAfter && tilesAfter.length > 0).toBe(true);
     expect(sourceAfter).not.toBeNull();
 
-    // 1. Lift pulse tracked: it still overlaps the source's NEW viewport box,
-    //    and it actually moved up with the scroll (not frozen at stale coords).
+    const sourceShift = sourceBefore!.y - sourceAfter!.y;
+
+    // 1. Lift pulse tracked: it still overlaps the source's NEW viewport box, and
+    //    it shifted up by exactly the source's scroll delta — not frozen at stale
+    //    coords, not lagging behind the tiles.
     expect(overlapsSource(pulseAfter!, sourceAfter!)).toBe(true);
     const pulseShift = pulseBefore!.y - pulseAfter!.y;
-    const sourceShift = sourceBefore!.y - sourceAfter!.y;
     expect(Math.abs(pulseShift - sourceShift)).toBeLessThan(4);
-    expect(pulseShift).toBeGreaterThan(50);
+    expect(pulseShift).toBeGreaterThan(20);
 
-    // 2. Tiles re-resolved against the new geometry: every painted tile's top
-    //    edge shifted up by the same scroll delta the source did. A partial
-    //    (frozen-tile) update would leave tiles at their pre-scroll y.
+    // 2. Tiles re-resolved in lockstep: every painted tile's top edge shifted up
+    //    by the same scroll delta the source did. A partial (frozen-tile) update
+    //    would leave tiles at their pre-scroll y.
     const tileShift = (tilesBefore![0]?.top ?? 0) - (tilesAfter![0]?.top ?? 0);
     expect(Math.abs(tileShift - sourceShift)).toBeLessThan(4);
-    expect(tileShift).toBeGreaterThan(50);
+    expect(tileShift).toBeGreaterThan(20);
 
-    // 3. Active label re-resolved through the same path — the destination under
-    //    the unchanged pointer is named, not a stale label from before the scroll.
-    //    The pointer never moved, so the band beneath it resolves to the SAME
-    //    destination; a broken re-resolution emitting any other non-null label
-    //    would slip past a mere not-null check.
+    // 3. Active label re-resolved through the same path — the pointer stayed deep
+    //    in the body band, so the destination beneath it resolves to the SAME
+    //    slot. A broken re-resolution emitting any other non-null label would slip
+    //    past a mere not-null check.
     expect(labelBefore).not.toBeNull();
     expect(labelAfter).toBe(labelBefore);
 

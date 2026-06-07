@@ -155,6 +155,7 @@ export function Editor<UserConfig extends Config = Config>({
     noTargetHover,
     noTargetFlash,
     cycleStatus: carryCycleStatus,
+    liftRect,
   } = useCarry({
     registry: fiberRegistry,
     data: currentData,
@@ -189,21 +190,6 @@ export function Editor<UserConfig extends Config = Config>({
     drag: string;
   };
   const dragSourceId = state.context.dragSourceId;
-
-  // Capture a snapshot rect at the moment carry starts for the lift pulse.
-  const liftRectRef = useRef<DOMRect | null>(null);
-  const prevDragRef = useRef(drag);
-  if (
-    drag === "carrying" &&
-    prevDragRef.current !== "carrying" &&
-    dragSourceId &&
-    fiberRegistry
-  ) {
-    liftRectRef.current =
-      fiberRegistry.get(dragSourceId)?.getBoundingClientRect() ?? null;
-  }
-  if (drag !== "carrying") liftRectRef.current = null;
-  prevDragRef.current = drag;
   const { hoveredId } = state.context;
 
   const clipboard = useClipboard({
@@ -503,9 +489,7 @@ export function Editor<UserConfig extends Config = Config>({
               </>
             ) : null;
           })()}
-        {affordances.liftPulse && liftRectRef.current && (
-          <LiftPulse rect={liftRectRef.current} />
-        )}
+        {affordances.liftPulse && liftRect && <LiftPulse rect={liftRect} />}
         {noTargetHover && <NoTargetMarker point={noTargetHover} kind="hover" />}
         {noTargetFlash && <NoTargetMarker point={noTargetFlash} kind="flash" />}
         <Announcer
