@@ -1,9 +1,8 @@
 import { SegmentGroup } from "@ark-ui/react/segment-group";
 import type { Field } from "@puckeditor/core";
 import { useShadowSheet } from "../../overlay/index.js";
-import { FieldLabel, fieldClass } from "../field-shell.js";
-import { selectDisplay } from "../puck-fields.js";
-import type { ControlRenderer } from "./index.js";
+import { FieldLabel, fieldClass, selectDisplay } from "../field-shell.js";
+import type { ControlRenderer, FieldProps } from "./index.js";
 import css from "./segmented.css?inline";
 
 type SelectField = Extract<Field, { type: "select" }>;
@@ -19,21 +18,20 @@ const resolveOptionValue = (
   return match ? match.value : strValue;
 };
 
-function SegmentedControlInner({
+// Cast to the base ControlRenderer at the export: the registry is
+// Record<string, ControlRenderer>, but resolveRenderer only dispatches here for
+// select fields tagged metadata.control="segmented", so the field is a SelectField.
+export const Segmented = (({
   label,
   field,
   value,
   onChange,
   readOnly,
-}: {
-  label: string;
-  field: Field;
-  value: unknown;
-  onChange: (value: unknown) => void;
-  readOnly?: boolean;
-}) {
+}: FieldProps<Field, unknown>) => {
   useShadowSheet(css);
 
+  // Dispatch (resolveRenderer) guarantees this renderer is only reached for a
+  // select field, so the narrowing cast is safe.
   const selectField = field as SelectField;
   const { isUnset, display } = selectDisplay(value, selectField.options);
   // SegmentGroup requires a string value prop; undefined = no selection (honest unset).
@@ -73,10 +71,4 @@ function SegmentedControlInner({
       </SegmentGroup.Root>
     </div>
   );
-}
-
-// Cast to the base ControlRenderer type so the registry (Record<string, ControlRenderer>)
-// accepts it. The runtime dispatch in resolveRenderer only calls this for select fields
-// annotated with metadata.control = "segmented", so the narrowed field cast is safe.
-export const SegmentedControl: ControlRenderer =
-  SegmentedControlInner as ControlRenderer;
+}) as ControlRenderer;

@@ -4,6 +4,8 @@ import {
   isSheetVisible,
   readSegmentedItems,
   focusFirstSegmentedItem,
+  getSegmentedRole,
+  getSegmentedItemCenter,
 } from "../overlay/testing.js";
 
 /**
@@ -35,15 +37,7 @@ test.describe("Segmented control — Heading.level (T4)", () => {
     await openHeadingSheet(page);
     expect(await isSheetVisible(page)).toBe(true);
 
-    const role = await page.evaluate(() => {
-      for (const d of document.querySelectorAll("div")) {
-        if (!d.shadowRoot || d.style.position !== "fixed") continue;
-        const el = d.shadowRoot.querySelector("[data-role='segmented']");
-        return el?.getAttribute("role") ?? null;
-      }
-      return null;
-    });
-    expect(role).toBe("radiogroup");
+    expect(await getSegmentedRole(page)).toBe("radiogroup");
   });
 
   // O1b: renders one segment per option (H1/H2/H3/H4) and the stored value ("h1"
@@ -85,6 +79,12 @@ test.describe("Segmented control — Heading.level (T4)", () => {
     // Focus moved to h2 (the second item).
     expect(focusedItem?.value).toBe("h2");
 
+    // Single-select: arrow nav in a radiogroup moves selection too — exactly one
+    // segment is checked, and it is the now-focused h2.
+    const selectedAfterRight = afterRight!.filter((i) => i.checked);
+    expect(selectedAfterRight.length).toBe(1);
+    expect(selectedAfterRight[0].value).toBe("h2");
+
     // ArrowLeft wraps back to h1.
     await page.keyboard.press("ArrowLeft");
     await page.waitForTimeout(100);
@@ -99,18 +99,12 @@ test.describe("Segmented control — Heading.level (T4)", () => {
   }) => {
     await openHeadingSheet(page);
 
-    // Click the H3 segment directly inside the shadow root.
-    await page.evaluate(() => {
-      for (const d of document.querySelectorAll("div")) {
-        if (!d.shadowRoot || d.style.position !== "fixed") continue;
-        const items = [
-          ...d.shadowRoot.querySelectorAll("[data-role='segmented-item']"),
-        ] as HTMLElement[];
-        const h3 = items.find((el) => el.getAttribute("data-value") === "h3");
-        h3?.click();
-        return;
-      }
-    });
+    // Click the H3 segment with a REAL mouse click at its viewport center —
+    // synthetic .click() can mask self-unmount races (project memory). This is
+    // the selection pattern T5/T6 copy.
+    const h3Center = await getSegmentedItemCenter(page, "h3");
+    expect(h3Center).not.toBeNull();
+    await page.mouse.click(h3Center!.x, h3Center!.y);
     await page.waitForTimeout(200);
 
     // Close via Escape.

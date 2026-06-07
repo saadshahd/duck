@@ -5,7 +5,7 @@ import { grouped } from "./grouping.js";
 import { useDisclosureState } from "./use-disclosure-state.js";
 import { controlRenderers } from "./controls/index.js";
 import { resolveRenderer } from "./controls/dispatch.js";
-import { FieldLabel, fieldClass } from "./field-shell.js";
+import { FieldLabel, fieldClass, selectDisplay } from "./field-shell.js";
 
 // --- Controlled field props (decoupled from form library) ---
 
@@ -20,8 +20,6 @@ export type FieldProps<F extends Field = Field, V = unknown> = {
   isOpen?: (p: string) => boolean;
   toggle?: (p: string) => void;
 };
-
-// --- Shared field primitives ---
 
 // --- Field renderers ---
 
@@ -86,18 +84,6 @@ const NumberInput = ({
     />
   </div>
 );
-
-/** Membership-derived select state: a value counts as "set" only when it is one
- *  of the catalog's option values (so an explicit empty-string option is honest,
- *  and an absent/foreign value shows the synthetic placeholder, never option[0]). */
-export const selectDisplay = (
-  value: unknown,
-  options: readonly { value: unknown }[],
-): { isUnset: boolean; display: string } => {
-  const current = String(value ?? "");
-  const isUnset = !options.some((o) => String(o.value) === current);
-  return { isUnset, display: isUnset ? "" : current };
-};
 
 const SelectInput = ({
   label,

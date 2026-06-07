@@ -1,5 +1,5 @@
 import { describe, it, expect } from "bun:test";
-import { selectDisplay } from "./puck-fields.js";
+import { selectDisplay } from "./field-shell.js";
 
 const opts = [
   { value: "h1", label: "H1" },

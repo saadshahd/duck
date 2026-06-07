@@ -34,7 +34,7 @@
 
 .segmented-item[data-state="checked"] {
   background: var(--accent);
-  color: #ffffff;
+  color: var(--text-bar-strong);
 }
 
 .segmented-item:not([data-state="checked"]):hover {

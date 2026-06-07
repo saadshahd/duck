@@ -1,9 +1,11 @@
 /**
- * Shared field chrome: label + readonly badge, and the field wrapper class.
- * Extracted here so control renderers (segmented, swatch, …) can import them
- * without creating a circular value dependency:
- *   puck-fields.tsx → controls/index.ts → controls/segmented.tsx → puck-fields.tsx  (cycle)
- *   puck-fields.tsx → controls/index.ts → controls/segmented.tsx → field-shell.tsx  (fine)
+ * Leaf module for shared field building blocks: the label + readonly badge,
+ * the field wrapper class, and the membership-derived select state. Both the
+ * native renderers in puck-fields.tsx and the registered control renderers in
+ * controls/ import from here, so nothing in this module may import from either —
+ * that is what keeps the control registry off the puck-fields cycle:
+ *   puck-fields.tsx → controls/index.ts → controls/segmented.tsx → field-shell.tsx
+ * (field-shell imports nothing back, so the chain terminates — no cycle).
  */
 
 export const FieldLabel = ({
@@ -34,3 +36,15 @@ export const FieldLabel = ({
 
 export const fieldClass = (readOnly?: boolean) =>
   `prop-field${readOnly ? " prop-field--readonly" : ""}`;
+
+/** Membership-derived select state: a value counts as "set" only when it is one
+ *  of the catalog's option values (so an explicit empty-string option is honest,
+ *  and an absent/foreign value shows the synthetic placeholder, never option[0]). */
+export const selectDisplay = (
+  value: unknown,
+  options: readonly { value: unknown }[],
+): { isUnset: boolean; display: string } => {
+  const current = String(value ?? "");
+  const isUnset = !options.some((o) => String(o.value) === current);
+  return { isUnset, display: isUnset ? "" : current };
+};
