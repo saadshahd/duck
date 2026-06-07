@@ -28,5 +28,8 @@
   "trustedDependencies": [
     "esbuild",
     "fallow"
-  ]
+  ],
+  "patchedDependencies": {
+    "@ark-ui/react@5.37.1": "patches/@ark-ui%2Freact@5.37.1.patch"
+  }
 }

@@ -1,0 +1,90 @@
+diff --git a/package.json b/package.json
+index e366fccad5925791eb6723f85e002c2fada52e2c..1bcb94da8de236671c1e57268f6eb4e1e86171ef 100644
+--- a/package.json
++++ b/package.json
+@@ -62,71 +62,71 @@
+   "exports": {
+     ".": {
+       "import": {
+-        "types": "./dist/index.d.ts",
++        "types": "./dist/src/index.d.ts",
+         "default": "./dist/index.js"
+       },
+       "require": {
+-        "types": "./dist/index.d.cts",
++        "types": "./dist/src/index.d.cts",
+         "default": "./dist/index.cjs"
+       }
+     },
+     "./anatomy": {
+       "import": {
+-        "types": "./dist/components/anatomy.d.ts",
++        "types": "./dist/src/components/anatomy.d.ts",
+         "default": "./dist/components/anatomy.js"
+       },
+       "require": {
+-        "types": "./dist/components/anatomy.d.cts",
++        "types": "./dist/src/components/anatomy.d.cts",
+         "default": "./dist/components/anatomy.cjs"
+       }
+     },
+     "./factory": {
+       "import": {
+-        "types": "./dist/components/factory.d.ts",
++        "types": "./dist/src/components/factory.d.ts",
+         "default": "./dist/components/factory.js"
+       },
+       "require": {
+-        "types": "./dist/components/factory.d.cts",
++        "types": "./dist/src/components/factory.d.cts",
+         "default": "./dist/components/factory.cjs"
+       }
+     },
+     "./environment": {
+       "import": {
+-        "types": "./dist/providers/environment/index.d.ts",
++        "types": "./dist/src/providers/environment/index.d.ts",
+         "default": "./dist/providers/environment/index.js"
+       },
+       "require": {
+-        "types": "./dist/providers/environment/index.d.cts",
++        "types": "./dist/src/providers/environment/index.d.cts",
+         "default": "./dist/providers/environment/index.cjs"
+       }
+     },
+     "./locale": {
+       "import": {
+-        "types": "./dist/providers/locale/index.d.ts",
++        "types": "./dist/src/providers/locale/index.d.ts",
+         "default": "./dist/providers/locale/index.js"
+       },
+       "require": {
+-        "types": "./dist/providers/locale/index.d.cts",
++        "types": "./dist/src/providers/locale/index.d.cts",
+         "default": "./dist/providers/locale/index.cjs"
+       }
+     },
+     "./utils": {
+       "import": {
+-        "types": "./dist/utils/index.d.ts",
++        "types": "./dist/src/utils/index.d.ts",
+         "default": "./dist/utils/index.js"
+       },
+       "require": {
+-        "types": "./dist/utils/index.d.cts",
++        "types": "./dist/src/utils/index.d.cts",
+         "default": "./dist/utils/index.cjs"
+       }
+     },
+     "./*": {
+       "import": {
+-        "types": "./dist/components/*/index.d.ts",
++        "types": "./dist/src/components/*/index.d.ts",
+         "default": "./dist/components/*/index.js"
+       },
+       "require": {
+-        "types": "./dist/components/*/index.d.cts",
++        "types": "./dist/src/components/*/index.d.cts",
+         "default": "./dist/components/*/index.cjs"
+       }
+     },
