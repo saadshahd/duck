@@ -935,3 +935,18 @@ export const getBackdropCutoutRect = (page: Page) =>
     width: string;
     height: string;
   } | null>;
+
+/** Expand every collapsed disclosure group in the open sheet so its nested
+ *  fields render into the DOM. Returns how many triggers were clicked. */
+export const expandSheetDisclosures = (page: Page) =>
+  shadowQuery(page, (r) => {
+    const triggers = [
+      ...r.querySelectorAll(
+        "[data-role='prop-sheet'] [data-role='disclosure-trigger']",
+      ),
+    ] as HTMLElement[];
+    triggers
+      .filter((t) => t.getAttribute("aria-expanded") !== "true")
+      .forEach((t) => t.click());
+    return triggers.length;
+  }) as Promise<number>;

@@ -176,6 +176,7 @@ function SheetView({
           values={component.props as Record<string, unknown>}
           readOnlyFields={readOnlyFields}
           onChange={onPropChange}
+          elementId={elementId}
         />
       </PropSheet.Panel>
     </>

@@ -103,33 +103,32 @@ test.describe("Focus sheet shell", () => {
   // Observer #5 — expand a style object → the element is un-occluded AND
   // un-dimmed. Depends on data-role="disclosure-trigger" added in Task 15
   // (Disclosure). Unblocks after Task 15 lands; remove fixme marker then.
-  test.fixme(
-    "Observer 5: expanding a style object never dims/occludes the element",
-    async ({ page }) => {
-      await page.locator("h1").click();
-      await page.waitForTimeout(200);
-      await clickToolbarAction(page, "edit");
-      await page.waitForTimeout(400);
+  test("Observer 5: expanding a style object never dims/occludes the element", async ({
+    page,
+  }) => {
+    await page.locator("h1").click();
+    await page.waitForTimeout(200);
+    await clickToolbarAction(page, "edit");
+    await page.waitForTimeout(400);
 
-      const beforeCutout = await getBackdropCutoutRect(page);
-      expect(beforeCutout).not.toBeNull();
+    const beforeCutout = await getBackdropCutoutRect(page);
+    expect(beforeCutout).not.toBeNull();
 
-      // Expand the first disclosure (style object) in the sheet.
-      await page.evaluate(() => {
-        for (const d of document.querySelectorAll("div")) {
-          if (!d.shadowRoot || d.style.position !== "fixed") continue;
-          const trigger = d.shadowRoot.querySelector(
-            "[data-role='prop-sheet'] [data-role='disclosure-trigger']",
-          ) as HTMLElement | null;
-          trigger?.click();
-        }
-      });
-      await page.waitForTimeout(300);
+    // Expand the first disclosure (style object) in the sheet.
+    await page.evaluate(() => {
+      for (const d of document.querySelectorAll("div")) {
+        if (!d.shadowRoot || d.style.position !== "fixed") continue;
+        const trigger = d.shadowRoot.querySelector(
+          "[data-role='prop-sheet'] [data-role='disclosure-trigger']",
+        ) as HTMLElement | null;
+        trigger?.click();
+      }
+    });
+    await page.waitForTimeout(300);
 
-      // The cutout still tracks the same element rect (un-occluded, un-dimmed).
-      const afterCutout = await getBackdropCutoutRect(page);
-      expect(afterCutout).toEqual(beforeCutout);
-      expect(await isSheetVisible(page)).toBe(true);
-    },
-  );
+    // The cutout still tracks the same element rect (un-occluded, un-dimmed).
+    const afterCutout = await getBackdropCutoutRect(page);
+    expect(afterCutout).toEqual(beforeCutout);
+    expect(await isSheetVisible(page)).toBe(true);
+  });
 });

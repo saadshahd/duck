@@ -1,5 +1,8 @@
 import { type ReactNode, useState, useEffect } from "react";
 import type { Field } from "@puckeditor/core";
+import { Disclosure } from "./disclosure.js";
+import { grouped } from "./grouping.js";
+import { useDisclosureState } from "./use-disclosure-state.js";
 
 // --- Controlled field props (decoupled from form library) ---
 
@@ -9,7 +12,42 @@ type FieldProps<F extends Field = Field, V = unknown> = {
   value: V;
   onChange: (value: V) => void;
   readOnly?: boolean;
+  path?: string;
+  depth?: number;
+  isOpen?: (p: string) => boolean;
+  toggle?: (p: string) => void;
 };
+
+// --- Shared field primitives ---
+
+const FieldLabel = ({
+  text,
+  readOnly,
+}: {
+  text: string;
+  readOnly?: boolean;
+}) => (
+  <label>
+    {text}
+    {readOnly && (
+      <span className="prop-readonly-badge" data-role="readonly-badge">
+        <svg width="9" height="11" viewBox="0 0 9 11" aria-hidden>
+          <path
+            d="M2 5V3a2.5 2.5 0 0 1 5 0v2"
+            stroke="currentColor"
+            strokeWidth="1"
+            fill="none"
+          />
+          <rect x="1" y="5" width="7" height="5" rx="1" fill="currentColor" />
+        </svg>
+        read-only
+      </span>
+    )}
+  </label>
+);
+
+const fieldClass = (readOnly?: boolean) =>
+  `prop-field${readOnly ? " prop-field--readonly" : ""}`;
 
 // --- Field renderers ---
 
@@ -20,8 +58,8 @@ const TextInput = ({
   onChange,
   readOnly,
 }: FieldProps<Extract<Field, { type: "text" }>, unknown>) => (
-  <div>
-    <label>{field.label ?? label}</label>
+  <div className={fieldClass(readOnly)}>
+    <FieldLabel text={field.label ?? label} readOnly={readOnly} />
     <input
       type="text"
       value={(value as string) ?? ""}
@@ -39,8 +77,8 @@ const TextareaInput = ({
   onChange,
   readOnly,
 }: FieldProps<Extract<Field, { type: "textarea" }>, unknown>) => (
-  <div>
-    <label>{field.label ?? label}</label>
+  <div className={fieldClass(readOnly)}>
+    <FieldLabel text={field.label ?? label} readOnly={readOnly} />
     <textarea
       value={(value as string) ?? ""}
       readOnly={readOnly}
@@ -58,8 +96,8 @@ const NumberInput = ({
   onChange,
   readOnly,
 }: FieldProps<Extract<Field, { type: "number" }>, unknown>) => (
-  <div>
-    <label>{field.label ?? label}</label>
+  <div className={fieldClass(readOnly)}>
+    <FieldLabel text={field.label ?? label} readOnly={readOnly} />
     <input
       type="number"
       value={(value as number) ?? ""}
@@ -96,8 +134,8 @@ const SelectInput = ({
 }: FieldProps<Extract<Field, { type: "select" }>, unknown>) => {
   const { isUnset, display } = selectDisplay(value, field.options);
   return (
-    <div>
-      <label>{field.label ?? label}</label>
+    <div className={fieldClass(readOnly)}>
+      <FieldLabel text={field.label ?? label} readOnly={readOnly} />
       <select
         value={display}
         disabled={readOnly}
@@ -128,8 +166,8 @@ const RadioInput = ({
   const disabled = readOnly;
   const groupName = `radio-${label}`;
   return (
-    <div>
-      <label>{field.label ?? label}</label>
+    <div className={fieldClass(readOnly)}>
+      <FieldLabel text={field.label ?? label} readOnly={readOnly} />
       {field.options.map((opt) => (
         <label key={String(opt.value)}>
           <input
@@ -153,24 +191,41 @@ const ObjectInput = ({
   value,
   onChange,
   readOnly,
+  path = "",
+  depth = 0,
+  isOpen,
+  toggle,
 }: FieldProps<Extract<Field, { type: "object" }>, unknown>) => {
   const obj = (value ?? {}) as Record<string, unknown>;
+  const open = isOpen?.(path) ?? false;
+  const entries = Object.entries(field.objectFields);
   return (
-    <details>
-      <summary>{field.label ?? label}</summary>
-      <div className="prop-field-nested">
-        {Object.entries(field.objectFields).map(([key, childField]) => (
-          <PuckFieldInput
-            key={key}
-            label={key}
-            field={childField as Field}
-            value={obj[key]}
-            onChange={(v) => onChange({ ...obj, [key]: v })}
-            readOnly={readOnly}
-          />
-        ))}
-      </div>
-    </details>
+    <Disclosure.Root>
+      <Disclosure.Trigger
+        label={field.label ?? label}
+        count={entries.length}
+        open={open}
+        onToggle={() => toggle?.(path)}
+      />
+      {open && (
+        <Disclosure.Panel depth={depth + 1}>
+          {entries.map(([key, childField]) => (
+            <PuckFieldInput
+              key={key}
+              label={key}
+              field={childField as Field}
+              value={obj[key]}
+              onChange={(v) => onChange({ ...obj, [key]: v })}
+              readOnly={readOnly}
+              path={`${path}.${key}`}
+              depth={depth + 1}
+              isOpen={isOpen}
+              toggle={toggle}
+            />
+          ))}
+        </Disclosure.Panel>
+      )}
+    </Disclosure.Root>
   );
 };
 
@@ -180,40 +235,66 @@ const ArrayInput = ({
   value,
   onChange,
   readOnly,
+  path = "",
+  depth = 0,
+  isOpen,
+  toggle,
 }: FieldProps<Extract<Field, { type: "array" }>, unknown>) => {
   const items = Array.isArray(value)
     ? (value as Record<string, unknown>[])
     : [];
   const summarize = field.getItemSummary;
+  const open = isOpen?.(path) ?? false;
   return (
-    <details>
-      <summary>{field.label ?? label}</summary>
-      <div className="prop-field-nested">
-        {items.map((item, i) => (
-          <details key={i}>
-            <summary>
-              {summarize ? summarize(item, i) : `Item ${i + 1}`}
-            </summary>
-            <div className="prop-field-nested">
-              {Object.entries(field.arrayFields).map(([key, childField]) => (
-                <PuckFieldInput
-                  key={key}
-                  label={key}
-                  field={childField as Field}
-                  value={item[key]}
-                  onChange={(v) => {
-                    const next = items.slice();
-                    next[i] = { ...item, [key]: v };
-                    onChange(next);
-                  }}
-                  readOnly={readOnly}
+    <Disclosure.Root>
+      <Disclosure.Trigger
+        label={field.label ?? label}
+        count={items.length}
+        open={open}
+        onToggle={() => toggle?.(path)}
+      />
+      {open && (
+        <Disclosure.Panel depth={depth + 1}>
+          {items.map((item, i) => {
+            const itemPath = `${path}.${i}`;
+            const itemOpen = isOpen?.(itemPath) ?? false;
+            return (
+              <Disclosure.Root key={i}>
+                <Disclosure.Trigger
+                  label={summarize ? summarize(item, i) : `Item ${i + 1}`}
+                  open={itemOpen}
+                  onToggle={() => toggle?.(itemPath)}
                 />
-              ))}
-            </div>
-          </details>
-        ))}
-      </div>
-    </details>
+                {itemOpen && (
+                  <Disclosure.Panel depth={depth + 2}>
+                    {Object.entries(field.arrayFields).map(
+                      ([key, childField]) => (
+                        <PuckFieldInput
+                          key={key}
+                          label={key}
+                          field={childField as Field}
+                          value={item[key]}
+                          onChange={(v) => {
+                            const next = items.slice();
+                            next[i] = { ...item, [key]: v };
+                            onChange(next);
+                          }}
+                          readOnly={readOnly}
+                          path={`${itemPath}.${key}`}
+                          depth={depth + 2}
+                          isOpen={isOpen}
+                          toggle={toggle}
+                        />
+                      ),
+                    )}
+                  </Disclosure.Panel>
+                )}
+              </Disclosure.Root>
+            );
+          })}
+        </Disclosure.Panel>
+      )}
+    </Disclosure.Root>
   );
 };
 
@@ -221,9 +302,9 @@ const SlotHint = ({
   label,
   field,
 }: FieldProps<Extract<Field, { type: "slot" }>, unknown>) => (
-  <div>
-    <label>{field.label ?? label}</label>
-    <p className="prop-field-hint">Manage children in canvas.</p>
+  <div className="prop-field">
+    <FieldLabel text={field.label ?? label} />
+    <p className="prop-sheet-hint">Manage children in canvas.</p>
   </div>
 );
 
@@ -270,8 +351,8 @@ const ExternalInput = ({
   const mapProp = externalMapProp(field);
 
   return (
-    <div>
-      <label>{field.label ?? label}</label>
+    <div className={fieldClass(readOnly)}>
+      <FieldLabel text={field.label ?? label} readOnly={readOnly} />
       <button type="button" disabled={readOnly} onClick={load}>
         {value ? summarize(value as never) : (field.placeholder ?? "Select...")}
       </button>
@@ -332,8 +413,8 @@ const FallbackField = ({
   }, [value]);
 
   return (
-    <div>
-      <label>{field.label ?? label}</label>
+    <div className="prop-field">
+      <FieldLabel text={field.label ?? label} />
       <textarea
         value={text}
         data-invalid={invalid || undefined}
@@ -379,21 +460,24 @@ function PuckFieldInput(props: FieldProps): ReactNode {
   return <FallbackField {...props} />;
 }
 
-/** Render all top-level fields for a component. */
+/** Render all top-level fields for a component, grouped primary → disclosed → slot. */
 export function PuckFields({
   fields,
   values,
   readOnlyFields,
   onChange,
+  elementId,
 }: {
   fields: Record<string, Field>;
   values: Record<string, unknown>;
   readOnlyFields?: Partial<Record<string, boolean>>;
   onChange: (key: string, value: unknown) => void;
+  elementId: string;
 }): ReactNode {
+  const { isOpen, toggle } = useDisclosureState(elementId);
   return (
     <>
-      {Object.entries(fields).map(([key, field]) => (
+      {grouped(fields).map(([key, field]) => (
         <PuckFieldInput
           key={key}
           label={key}
@@ -401,6 +485,10 @@ export function PuckFields({
           value={values[key]}
           readOnly={readOnlyFields?.[key]}
           onChange={(v) => onChange(key, v)}
+          path={key}
+          depth={0}
+          isOpen={isOpen}
+          toggle={toggle}
         />
       ))}
     </>

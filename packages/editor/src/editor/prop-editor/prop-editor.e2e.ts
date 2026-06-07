@@ -1,5 +1,9 @@
 import { test, expect } from "@playwright/test";
-import { hasToolbarAction, clickToolbarAction } from "../overlay/testing.js";
+import {
+  hasToolbarAction,
+  clickToolbarAction,
+  expandSheetDisclosures,
+} from "../overlay/testing.js";
 
 test.describe("Inline text editing", () => {
   test.beforeEach(async ({ page }) => {
@@ -115,6 +119,10 @@ test.describe("Sheet editing", () => {
     await page.waitForTimeout(300);
     await clickToolbarAction(page, "edit");
     await page.waitForTimeout(300);
+    // The `style` object is a collapsed disclosure group; expand it so its
+    // nested selects render before asserting they are blank.
+    await expandSheetDisclosures(page);
+    await page.waitForTimeout(100);
 
     const values = await page.evaluate(() => {
       for (const d of document.querySelectorAll("div")) {

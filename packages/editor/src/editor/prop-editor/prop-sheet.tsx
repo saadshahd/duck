@@ -1,6 +1,7 @@
 import type { ReactNode, RefObject } from "react";
 import { useShadowSheet } from "../overlay/index.js";
 import css from "./prop-sheet.css?inline";
+import { useScrollFade } from "./use-scroll-fade.js";
 
 /** Single-div dim layer. The div is positioned over the selected element (via
  *  cutoutRef, driven by useSheetAnchor's rAF loop) so its own box is the
@@ -44,13 +45,18 @@ function Tether({ lineRef }: { lineRef: RefObject<SVGLineElement | null> }) {
  *  (see occlusion reserve in editor.tsx, Task 7). Children are the field renderers. */
 function Panel({ open, children }: { open: boolean; children: ReactNode }) {
   useShadowSheet(css);
+  const { viewportRef, sentinelRef, fadeRef } = useScrollFade();
   return (
     <div
       className="prop-sheet"
       data-role="prop-sheet"
       data-open={open || undefined}
     >
-      {children}
+      <div className="prop-sheet-viewport" ref={viewportRef}>
+        {children}
+        <div className="prop-sheet-sentinel" ref={sentinelRef} aria-hidden />
+      </div>
+      <div className="prop-sheet-fade" ref={fadeRef} aria-hidden />
     </div>
   );
 }
