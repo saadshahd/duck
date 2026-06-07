@@ -28,6 +28,70 @@ export type Tile = { slotKey: string; rect: DOMRect };
 
 type Point = { x: number; y: number };
 
+/** Discrete marker size. The marker hosts the slot label; clamping the marker
+ *  inside its container clamps the only information-bearing element there. */
+export const DISCRETE_MARKER = { width: 160, height: 24, gap: 4 } as const;
+
+/** Confine an interval of `length` to `[lo, hi]`: snap a marker that would spill
+ *  past either edge flush to that edge. Degenerate spans (length exceeds the
+ *  container) pin to the low edge. */
+const confine = (
+  start: number,
+  length: number,
+  lo: number,
+  hi: number,
+): number => Math.min(Math.max(start, lo), Math.max(lo, hi - length));
+
+/** Vertical center of a discrete stack's `index`-th slot when no child geometry
+ *  anchors it: equal-height markers centered as a column over the container. */
+const stackedTop = (
+  containerRect: DOMRect,
+  count: number,
+  index: number,
+): number => {
+  const { height, gap } = DISCRETE_MARKER;
+  const total = count * height + (count - 1) * gap;
+  return (
+    containerRect.top +
+    (containerRect.height - total) / 2 +
+    index * (height + gap)
+  );
+};
+
+/** Discrete drop markers anchored to real child geometry: each marker's center
+ *  rides its slot's child-rect midpoint, falling back to a centered stack slot
+ *  when the slot has no measured children. Every marker is clamped inside the
+ *  container so its label never paints outside the box it names. Scattered
+ *  children → markers at their actual y, not an equidistant column. */
+export const discreteMarkers = (
+  tiling: Extract<Tiling, { kind: "discrete" }>,
+  containerRect: DOMRect,
+): readonly Tile[] => {
+  const { width, height } = DISCRETE_MARKER;
+  const count = tiling.slots.length;
+  const left = containerRect.left + (containerRect.width - width) / 2;
+  return tiling.slots.map((slot, index) => {
+    const midpoint = slot.rect
+      ? slot.rect.top + slot.rect.height / 2
+      : stackedTop(containerRect, count, index) + height / 2;
+    const top = confine(
+      midpoint - height / 2,
+      height,
+      containerRect.top,
+      containerRect.bottom,
+    );
+    return {
+      slotKey: slot.slotKey,
+      rect: new DOMRect(
+        confine(left, width, containerRect.left, containerRect.right),
+        top,
+        width,
+        height,
+      ),
+    };
+  });
+};
+
 /** Active tile under the pointer: the current tile holds while the point stays
  *  within its hysteresis-expanded rect (sticky), else the tile that contains the
  *  point. The one hit-test for which slot a pointer aims at — drag and carry both
@@ -51,7 +115,7 @@ export type Tiling =
       yielded: readonly string[];
       carved: readonly string[];
     }
-  | { kind: "discrete"; slotKeys: readonly string[] };
+  | { kind: "discrete"; slots: readonly SlotInput[] };
 
 export type SlotInput = { slotKey: string; rect?: DOMRect };
 
@@ -126,7 +190,7 @@ const spread = (intervals: readonly Interval[]): number =>
 
 const discrete = (slots: readonly SlotInput[]): Tiling => ({
   kind: "discrete",
-  slotKeys: slots.map((s) => s.slotKey),
+  slots,
 });
 
 const toTiling = (
@@ -303,7 +367,7 @@ export const tileSlots = (args: {
   cssAxis?: Axis;
 }): Tiling => {
   const { containerRect, slots, cssAxis } = args;
-  if (!slots.length) return { kind: "discrete", slotKeys: [] };
+  if (!slots.length) return discrete(slots);
 
   const measured = slots.flatMap((s) =>
     s.rect ? [{ slotKey: s.slotKey, rect: s.rect }] : [],

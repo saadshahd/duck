@@ -133,6 +133,32 @@ export const readTiles = (page: Page) =>
     })),
   ) as Promise<{ label: string; discrete: boolean }[] | null>;
 
+/** Every painted slot tile's label and its on-screen (viewport) bounding box,
+ *  read from the rendered element so it reflects real layout. The y-midpoint of
+ *  a discrete marker is what the panel law pins to the slot's child rect. */
+export const readTileRects = (page: Page) =>
+  shadowQuery(page, (r) =>
+    [...r.querySelectorAll("[data-role='slot-tile']")].map((el) => {
+      const box = el.getBoundingClientRect();
+      return {
+        label: el.textContent ?? "",
+        top: box.top,
+        left: box.left,
+        bottom: box.bottom,
+        right: box.right,
+      };
+    }),
+  ) as Promise<
+    | {
+        label: string;
+        top: number;
+        left: number;
+        bottom: number;
+        right: number;
+      }[]
+    | null
+  >;
+
 /** Count of slot tiles that carry data-carved (synthetic carved bands). */
 export const countCarvedTiles = (page: Page) =>
   shadowQuery(

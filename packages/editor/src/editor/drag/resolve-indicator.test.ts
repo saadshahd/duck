@@ -64,7 +64,7 @@ const containerTarget = (slotKey: string, index: number): DropTarget => ({
   elementId: "card",
   slotKey,
   index,
-  tiling: { kind: "discrete", slotKeys: [slotKey] },
+  tiling: { kind: "discrete", slots: [{ slotKey }] },
   activeLabel: `Card › ${slotKey}`,
 });
 

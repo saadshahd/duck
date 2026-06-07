@@ -14,7 +14,7 @@ const containerIndicator = (
   elementId,
   slotKey,
   index,
-  tiling: { kind: "discrete", slotKeys: [slotKey] },
+  tiling: { kind: "discrete", slots: [{ slotKey }] },
   activeLabel: slotKey,
 });
 

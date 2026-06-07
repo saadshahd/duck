@@ -1,4 +1,9 @@
-import { type Tiling, leaderRect } from "../layout/index.js";
+import {
+  type Tile as TileGeometry,
+  type Tiling,
+  discreteMarkers,
+  leaderRect,
+} from "../layout/index.js";
 import { useShadowSheet } from "./use-shadow-sheet.js";
 import css from "./tiles.css?inline";
 
@@ -7,23 +12,6 @@ type TilesProps = {
   containerRect: DOMRect;
   activeSlotKey?: string;
   labels: Readonly<Record<string, string>>;
-};
-
-const DISCRETE = { width: 160, height: 24, gap: 4 };
-
-/** Vertically centered stack of equal-height markers over the container. */
-const stackRect = (
-  containerRect: DOMRect,
-  count: number,
-  index: number,
-): DOMRect => {
-  const total = count * DISCRETE.height + (count - 1) * DISCRETE.gap;
-  const top =
-    containerRect.top +
-    (containerRect.height - total) / 2 +
-    index * (DISCRETE.height + DISCRETE.gap);
-  const left = containerRect.left + (containerRect.width - DISCRETE.width) / 2;
-  return new DOMRect(left, top, DISCRETE.width, DISCRETE.height);
 };
 
 function Tile({
@@ -59,19 +47,18 @@ function Tile({
 }
 
 function DiscreteStack({
-  slotKeys,
+  markers,
   containerRect,
   activeSlotKey,
   labels,
 }: {
-  slotKeys: readonly string[];
+  markers: readonly TileGeometry[];
   containerRect: DOMRect;
   activeSlotKey?: string;
   labels: Readonly<Record<string, string>>;
 }) {
-  return slotKeys.flatMap((slotKey, i) => {
-    const markerRect = stackRect(containerRect, slotKeys.length, i);
-    const leader = leaderRect(containerRect, markerRect);
+  return markers.flatMap(({ slotKey, rect }) => {
+    const leader = leaderRect(containerRect, rect);
     return [
       leader.width > 0 ? (
         <div
@@ -88,7 +75,7 @@ function DiscreteStack({
       ) : null,
       <Tile
         key={slotKey}
-        rect={markerRect}
+        rect={rect}
         label={labels[slotKey] ?? slotKey}
         active={slotKey === activeSlotKey}
         discrete
@@ -111,7 +98,7 @@ export function Tiles({
   if (tiling.kind === "discrete")
     return (
       <DiscreteStack
-        slotKeys={tiling.slotKeys}
+        markers={discreteMarkers(tiling, containerRect)}
         containerRect={containerRect}
         activeSlotKey={activeSlotKey}
         labels={labels}
@@ -138,7 +125,12 @@ export function Tiles({
       {tiles}
       {activeYielded ? (
         <Tile
-          rect={stackRect(containerRect, 1, 0)}
+          rect={
+            discreteMarkers(
+              { kind: "discrete", slots: [{ slotKey: activeYielded }] },
+              containerRect,
+            )[0].rect
+          }
           label={labels[activeYielded] ?? activeYielded}
           active
           discrete

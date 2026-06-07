@@ -30,7 +30,13 @@ export const buildTiling = (args: {
   const containerEl = registry.get(containerId);
   const containerRect = containerEl?.getBoundingClientRect();
   if (!containerEl || !containerRect)
-    return { tiling: { kind: "discrete", slotKeys }, regions: [] };
+    return {
+      tiling: {
+        kind: "discrete",
+        slots: slotKeys.map((slotKey) => ({ slotKey })),
+      },
+      regions: [],
+    };
 
   const regions = slotRegions({ data, parentId: containerId, registry });
   return {

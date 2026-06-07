@@ -67,7 +67,7 @@ describe("Tiles — tiled", () => {
 describe("Tiles — discrete", () => {
   const tiling: Tiling = {
     kind: "discrete",
-    slotKeys: ["header", "body", "footer"],
+    slots: [{ slotKey: "header" }, { slotKey: "body" }, { slotKey: "footer" }],
   };
   const labels = {
     header: "Card › header",
@@ -111,7 +111,7 @@ describe("Tiles — empty tilings", () => {
   });
 
   test("discrete with no slots renders nothing", () => {
-    const tiling: Tiling = { kind: "discrete", slotKeys: [] };
+    const tiling: Tiling = { kind: "discrete", slots: [] };
     expect(render({ tiling, containerRect: container, labels: {} })).toEqual(
       [],
     );
@@ -178,7 +178,7 @@ describe("Tiles — carved bands", () => {
 describe("Tiles — discrete leader lines", () => {
   const tiling: Tiling = {
     kind: "discrete",
-    slotKeys: ["header", "body", "footer"],
+    slots: [{ slotKey: "header" }, { slotKey: "body" }, { slotKey: "footer" }],
   };
   const labels = {
     header: "Card › header",

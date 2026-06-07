@@ -1,6 +1,8 @@
 import { describe, test, expect } from "bun:test";
 import {
+  DISCRETE_MARKER,
   TILE_FLOOR,
+  discreteMarkers,
   leaderRect,
   tileSlots,
   type SlotInput,
@@ -24,7 +26,13 @@ const shape = (t: Tiling) =>
           rect: xywh(tile.rect),
         })),
       }
-    : t;
+    : {
+        kind: t.kind,
+        slots: t.slots.map((s) => ({
+          slotKey: s.slotKey,
+          ...(s.rect ? { rect: xywh(s.rect) } : {}),
+        })),
+      };
 
 // containerRect used across most cases: 200 wide, 300 tall
 const C = rect(0, 0, 200, 300);
@@ -143,14 +151,22 @@ describe("tileSlots — axis selection", () => {
   test("interleaved on both axes → discrete with all keys", () => {
     // two rects overlapping on both X and Y projections
     expect(
-      tileSlots({
-        containerRect: C,
-        slots: [
-          { slotKey: "a", rect: rect(0, 0, 150, 150) },
-          { slotKey: "b", rect: rect(50, 50, 150, 150) },
-        ],
-      }),
-    ).toEqual({ kind: "discrete", slotKeys: ["a", "b"] });
+      shape(
+        tileSlots({
+          containerRect: C,
+          slots: [
+            { slotKey: "a", rect: rect(0, 0, 150, 150) },
+            { slotKey: "b", rect: rect(50, 50, 150, 150) },
+          ],
+        }),
+      ),
+    ).toEqual({
+      kind: "discrete",
+      slots: [
+        { slotKey: "a", rect: { x: 0, y: 0, w: 150, h: 150 } },
+        { slotKey: "b", rect: { x: 50, y: 50, w: 150, h: 150 } },
+      ],
+    });
   });
 });
 
@@ -406,11 +422,19 @@ describe("tileSlots — empty slots among measured", () => {
     // of the 40px measured band, leaving 16px < floor → discrete.
     const small = rect(0, 0, 40, 40);
     expect(
-      tileSlots({
-        containerRect: small,
-        slots: [{ slotKey: "a", rect: rect(0, 0, 40, 40) }, { slotKey: "e" }],
-      }),
-    ).toEqual({ kind: "discrete", slotKeys: ["a", "e"] });
+      shape(
+        tileSlots({
+          containerRect: small,
+          slots: [{ slotKey: "a", rect: rect(0, 0, 40, 40) }, { slotKey: "e" }],
+        }),
+      ),
+    ).toEqual({
+      kind: "discrete",
+      slots: [
+        { slotKey: "a", rect: { x: 0, y: 0, w: 40, h: 40 } },
+        { slotKey: "e" },
+      ],
+    });
   });
 });
 
@@ -460,17 +484,22 @@ describe("tileSlots — all empty", () => {
 
   test("no cssAxis → discrete with all keys", () => {
     expect(
-      tileSlots({
-        containerRect: C,
-        slots: [{ slotKey: "a" }, { slotKey: "b" }],
-      }),
-    ).toEqual({ kind: "discrete", slotKeys: ["a", "b"] });
+      shape(
+        tileSlots({
+          containerRect: C,
+          slots: [{ slotKey: "a" }, { slotKey: "b" }],
+        }),
+      ),
+    ).toEqual({
+      kind: "discrete",
+      slots: [{ slotKey: "a" }, { slotKey: "b" }],
+    });
   });
 
   test("no slots → empty discrete", () => {
-    expect(tileSlots({ containerRect: C, slots: [] })).toEqual({
+    expect(shape(tileSlots({ containerRect: C, slots: [] }))).toEqual({
       kind: "discrete",
-      slotKeys: [],
+      slots: [],
     });
   });
 });
@@ -649,5 +678,113 @@ describe("leaderRect", () => {
     expect(leaderRect(rect(200, 0, 400, 300), rect(130, 100, 160, 24))).toEqual(
       new DOMRect(200, 112, 0, 1),
     );
+  });
+});
+
+describe("discreteMarkers", () => {
+  const yMid = (r: DOMRect) => r.top + r.height / 2;
+  const containedBy = (inner: DOMRect, outer: DOMRect) =>
+    inner.left >= outer.left &&
+    inner.right <= outer.right &&
+    inner.top >= outer.top &&
+    inner.bottom <= outer.bottom;
+
+  const markersFor = (slots: readonly SlotInput[], containerRect: DOMRect) =>
+    discreteMarkers({ kind: "discrete", slots }, containerRect);
+
+  test("uniform marker size, one per slot", () => {
+    const markers = markersFor([{ slotKey: "a" }, { slotKey: "b" }], C);
+    expect(markers.map((m) => m.slotKey)).toEqual(["a", "b"]);
+    expect(
+      markers.every(
+        (m) =>
+          m.rect.width === DISCRETE_MARKER.width &&
+          m.rect.height === DISCRETE_MARKER.height,
+      ),
+    ).toBe(true);
+  });
+
+  test("scattered children → each marker rides its own child-rect midpoint, not an equidistant column", () => {
+    const container = rect(0, 0, 200, 500);
+    const slots: SlotInput[] = [
+      { slotKey: "a", rect: rect(11, 40, 40, 40) },
+      { slotKey: "b", rect: rect(121, 200, 40, 40) },
+      { slotKey: "c", rect: rect(151, 360, 40, 40) },
+    ];
+    const markers = markersFor(slots, container);
+    expect(markers.map((m) => yMid(m.rect))).toEqual([60, 220, 380]);
+    expect(markers.every((m) => containedBy(m.rect, container))).toBe(true);
+  });
+
+  test("stacked children → markers in along-axis midpoint order", () => {
+    const container = rect(0, 0, 200, 300);
+    const slots: SlotInput[] = [
+      { slotKey: "top", rect: rect(0, 0, 200, 100) },
+      { slotKey: "bottom", rect: rect(0, 200, 200, 100) },
+    ];
+    const markers = markersFor(slots, container);
+    expect(markers.map((m) => yMid(m.rect))).toEqual([50, 250]);
+    expect(markers.every((m) => containedBy(m.rect, container))).toBe(true);
+  });
+
+  test("single child → marker centered on that child", () => {
+    const container = rect(0, 0, 200, 300);
+    const markers = markersFor(
+      [{ slotKey: "only", rect: rect(20, 130, 60, 40) }],
+      container,
+    );
+    expect(yMid(markers[0].rect)).toBe(150);
+    expect(containedBy(markers[0].rect, container)).toBe(true);
+  });
+
+  test("child near the top edge → marker clamped inside the container", () => {
+    const container = rect(0, 100, 200, 300);
+    const markers = markersFor(
+      [{ slotKey: "a", rect: rect(10, 100, 40, 4) }],
+      container,
+    );
+    expect(markers[0].rect.top).toBe(container.top);
+    expect(containedBy(markers[0].rect, container)).toBe(true);
+  });
+
+  test("child near the bottom edge → marker clamped inside the container", () => {
+    const container = rect(0, 0, 200, 300);
+    const markers = markersFor(
+      [{ slotKey: "a", rect: rect(10, 296, 40, 4) }],
+      container,
+    );
+    expect(markers[0].rect.bottom).toBe(container.bottom);
+    expect(containedBy(markers[0].rect, container)).toBe(true);
+  });
+
+  test("narrow container → marker clamped to the left edge", () => {
+    const container = rect(0, 0, 80, 300);
+    const markers = markersFor(
+      [{ slotKey: "a", rect: rect(0, 100, 80, 40) }],
+      container,
+    );
+    expect(markers[0].rect.left).toBe(container.left);
+  });
+
+  test("slot without measured children → centered stack fallback, clamped", () => {
+    const container = rect(0, 0, 200, 300);
+    const markers = markersFor([{ slotKey: "a" }, { slotKey: "b" }], container);
+    expect(markers.every((m) => containedBy(m.rect, container))).toBe(true);
+    expect(markers[0].rect.top).toBeLessThan(markers[1].rect.top);
+  });
+
+  test("mixed measured and empty slots both stay inside the container", () => {
+    const container = rect(0, 0, 200, 300);
+    const markers = markersFor(
+      [
+        { slotKey: "a", rect: rect(10, 20, 40, 40) },
+        { slotKey: "b" },
+        { slotKey: "c", rect: rect(10, 260, 40, 40) },
+      ],
+      container,
+    );
+    expect(yMid(markers[0].rect)).toBe(40);
+    expect(yMid(markers[2].rect)).toBe(280);
+    expect(markers.every((m) => containedBy(m.rect, container))).toBe(true);
   });
 });
