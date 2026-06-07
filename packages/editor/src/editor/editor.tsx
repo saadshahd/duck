@@ -69,6 +69,7 @@ import { useResolution } from "./resolve/use-resolution.js";
 import { ShimmerOverlay } from "./resolve/shimmer-overlay.js";
 import { useEditorCommit } from "./commit.js";
 import type { EditorCommit } from "./types.js";
+import { commitTick as deriveCommitTick } from "./selection/commit-tick.js";
 
 export type EditorProps<UserConfig extends Config = Config> = {
   data: Partial<Data>;
@@ -205,6 +206,7 @@ export function Editor<UserConfig extends Config = Config>({
 
   const { selectedIds, lastSelectedId } = state.context;
   const singleSelected = selectedIds.size === 1 ? lastSelectedId : null;
+  const propCommitTick = deriveCommitTick(entries, lastSelectedId);
 
   const moveInfo = useMoveInfo(currentData, singleSelected, fiberRegistry);
   const handleAction = useActionHandler({
@@ -311,7 +313,10 @@ export function Editor<UserConfig extends Config = Config>({
     setHighlightId: setMenuHighlightId,
   } = useContextMenu(fiberRegistry);
 
-  const hoverHighlightId = !menu && pointer === "hovering" ? hoveredId : null;
+  const hoverHighlightId =
+    !menu && pointer === "hovering" && hoveredId !== lastSelectedId
+      ? hoveredId
+      : null;
   const highlightId = menuHighlightId ?? hoverHighlightId;
 
   const [boxModelVisible, setBoxModelVisible] = useState(false);
@@ -453,6 +458,7 @@ export function Editor<UserConfig extends Config = Config>({
             slotAddress={slotAddress}
             toolbarRef={toolbarRef}
             onSelectParent={selectParent}
+            commitTick={propCommitTick}
           >
             {operable && singleSelected && (
               <SelectionCluster.Move

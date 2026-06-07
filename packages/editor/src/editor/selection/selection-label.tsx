@@ -5,6 +5,7 @@ import { useShadowSheet, useRegistryAnchor } from "../overlay/index.js";
 import type { FiberRegistry } from "../fiber/index.js";
 import { rectsOverlap } from "../layout/rect.js";
 import css from "./selection.css?inline";
+import { CommitFlash } from "./commit-flash.js";
 
 const FALLBACKS: import("@floating-ui/react").Placement[] = [
   "top-end",
@@ -42,6 +43,7 @@ export function SelectionLabel({
   slotAddress,
   toolbarRef,
   onSelectParent,
+  commitTick,
   children,
 }: {
   registry: FiberRegistry;
@@ -51,6 +53,7 @@ export function SelectionLabel({
   slotAddress?: string;
   toolbarRef: RefObject<HTMLElement | null>;
   onSelectParent?: () => void;
+  commitTick?: number;
   children?: ReactNode;
 }) {
   useShadowSheet(css);
@@ -100,6 +103,7 @@ export function SelectionLabel({
             in {slotAddress}
           </span>
         )}
+        {(commitTick ?? 0) > 0 && <CommitFlash key={commitTick} />}
       </span>
       {children && (
         <span className="label-trailing" data-side={side}>

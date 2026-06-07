@@ -16,6 +16,7 @@ function Root({
   slotAddress,
   toolbarRef,
   onSelectParent,
+  commitTick,
   children,
 }: {
   registry: FiberRegistry;
@@ -25,6 +26,7 @@ function Root({
   slotAddress?: string;
   toolbarRef: RefObject<HTMLElement | null>;
   onSelectParent?: () => void;
+  commitTick?: number;
   children?: ReactNode;
 }) {
   return (
@@ -36,6 +38,7 @@ function Root({
       slotAddress={slotAddress}
       toolbarRef={toolbarRef}
       onSelectParent={onSelectParent}
+      commitTick={commitTick}
     >
       {children}
     </SelectionLabel>
