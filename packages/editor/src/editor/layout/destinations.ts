@@ -179,21 +179,20 @@ const siblingSlotDestinations = (args: {
     .flatMap(slotDestinations);
 };
 
-const dedupKey = (d: Destination): string =>
-  `${d.parentId}|${d.slotKey}|${d.index}`;
-
-/** Deduped drop positions for an already-resolved containment chain: each
- *  container's slots, its slot-bearing siblings' slots, then beside-it in its
- *  parent, deepest-first (R9: full reach — sibling slots are enumerable without
- *  pointer movement). Pure derivation from the chain — no DOM access, so callers
- *  that already have the chain reuse it instead of re-running `candidateChain`.
+/** Deduped drop positions for an already-resolved containment chain: per level,
+ *  the container's own slots, then beside-it in its parent, then its slot-bearing
+ *  siblings' slots — deepest-first (R9: full reach — sibling slots are enumerable
+ *  without pointer movement). Pure derivation from the chain — no DOM access, so
+ *  callers that already have the chain reuse it instead of re-running
+ *  `candidateChain`.
  *
- *  Two dedup passes: (1) position key (parentId|slotKey|index) removes exact
- *  duplicates; (2) consecutive identity (parentId|slotKey) collapses pairs where
- *  a beside-target and an ancestor slot-append point to the same slot but at
- *  different indices — the cycle would visit the same container/slot twice in a
- *  row. Keyed on identity rather than label so same-type nested containers with
- *  identically-named slots are both preserved. */
+ *  One global dedup pass on identity (parentId|slotKey): the first occurrence of
+ *  each unique slot wins, every later one is dropped. Identity (not label) is the
+ *  key so same-type nested containers with identically-named slots are both kept.
+ *  This is the cycle's unit — `stackIndexOf` matches on identity ignoring index,
+ *  and arrow keys refine the index within a chosen slot. Global dedup subsumes
+ *  the old exact-position and consecutive-identity passes: a beside-target and an
+ *  ancestor slot-append that share an identity collapse to the earlier one. */
 const stackFromChain = (args: {
   chain: Located[];
   data: Data;
@@ -202,34 +201,26 @@ const stackFromChain = (args: {
   const { chain, data, excluded } = args;
   const all = chain.flatMap((located) => [
     ...slotDestinations(located.component),
-    ...siblingSlotDestinations({ located, data, excluded }),
     besideDestination(located, data),
+    ...siblingSlotDestinations({ located, data, excluded }),
   ]);
 
   const seen = new Set<string>();
-  const deduped = all.filter((d) => {
-    const key = dedupKey(d);
+  return all.filter((d) => {
+    const key = identityKey(d);
     if (seen.has(key)) return false;
     seen.add(key);
     return true;
   });
-
-  // Remove consecutive entries that share the same identity (parentId + slotKey).
-  // A beside-target and the immediately following ancestor slot-append can
-  // refer to the same slot with different indices but the same identity — the
-  // cycle would step into the same container/slot twice in a row. Keying on
-  // identity (not label) preserves same-type nested containers whose slots
-  // happen to share a label (e.g., two nested Cards each with a "body" slot).
-  const identityKey = (d: Destination): string =>
-    `${d.parentId ?? "root"}|${d.slotKey ?? ""}`;
-  return deduped.filter(
-    (d, i) => i === 0 || identityKey(d) !== identityKey(deduped[i - 1]),
-  );
 };
 
+const identityKey = (d: Destination): string =>
+  `${d.parentId ?? "root"}|${d.slotKey ?? ""}`;
+
 /** The cycle of discrete drop positions under the pointer: deepest container's
- *  slots, then beside-it in its parent, repeating up the containment chain to
- *  the root. Pure; same inputs → same output. */
+ *  slots, then beside-it in its parent, then its slot-bearing siblings' slots,
+ *  repeating up the containment chain to the root. Pure; same inputs → same
+ *  output. */
 export const destinationStack = (args: {
   point: { x: number; y: number };
   data: Data;

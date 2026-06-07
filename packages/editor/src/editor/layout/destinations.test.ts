@@ -194,7 +194,8 @@ describe("destinationStack", () => {
       excludeId: "nope",
     });
 
-    // inner.body append (0), beside-inner in outer.main (1), outer.main append (1 → dedup), beside-outer in root (1)
+    // inner.body append (0), beside-inner in outer.main (1), outer.main append
+    // (1 → identity dup of beside-inner, dropped), beside-outer in root (1)
     expect(stack).toEqual([
       { parentId: "inner", slotKey: "body", index: 0, label: "Card › body" },
       { parentId: "outer", slotKey: "main", index: 1, label: "Card › main" },
@@ -202,12 +203,12 @@ describe("destinationStack", () => {
     ]);
   });
 
-  test("consecutive-identity dedup removes beside-then-slot-append with same parentId+slotKey", () => {
+  test("global identity dedup never repeats a (parentId, slotKey) — consecutive or not", () => {
     // inner is at index 0 in outer.body, and outer has a second child at index 1.
     // beside-inner = { parentId: "outer", slotKey: "body", index: 1, label: "Card › body" }
     // outer.body slot-append = { parentId: "outer", slotKey: "body", index: 2, label: "Card › body" }
-    // Both point to the same (parentId, slotKey) — the cycle would step into the
-    // same container slot twice in a row. Identity dedup removes the second.
+    // Both share the same (parentId, slotKey) identity — global dedup keeps the
+    // first and drops the rest, which trivially implies no consecutive dupes.
     const data: Data = {
       root: { props: {} },
       content: [
@@ -301,9 +302,9 @@ describe("destinationStack", () => {
         index: 1,
         label: "Card › header",
       },
+      { parentId: null, slotKey: null, index: 1, label: "Root" },
       { parentId: "card2", slotKey: "body", index: 0, label: "Card › body" },
       { parentId: "card3", slotKey: "main", index: 1, label: "Card › main" },
-      { parentId: null, slotKey: null, index: 1, label: "Root" },
     ]);
   });
 
@@ -340,7 +341,10 @@ describe("destinationStack", () => {
 
   test("leaf siblings contribute nothing; uncles' slots surface at the ancestor level", () => {
     // inner sits in outer.main beside a leaf; outer has a sibling container
-    // (aunt) at root. Each chain level expands its slot-bearing siblings.
+    // (aunt) at root. Each chain level emits own slots → beside-in-parent →
+    // slot-bearing siblings. At the outer level: outer.main (own, deduped against
+    // the beside-inner identity already seen) → Root (beside-outer) → aunt.slot.
+    // Root therefore precedes aunt.
     const data: Data = {
       root: { props: {} },
       content: [
@@ -366,8 +370,8 @@ describe("destinationStack", () => {
     ).toEqual([
       { parentId: "inner", slotKey: "body", index: 0, label: "Card › body" },
       { parentId: "outer", slotKey: "main", index: 1, label: "Card › main" },
-      { parentId: "aunt", slotKey: "slot", index: 0, label: "Card › slot" },
       { parentId: null, slotKey: null, index: 1, label: "Root" },
+      { parentId: "aunt", slotKey: "slot", index: 0, label: "Card › slot" },
     ]);
   });
 
@@ -388,10 +392,11 @@ describe("destinationStack", () => {
       excludeId: "nope",
     });
 
-    // Same depth → document order: first before second. Sibling expansion
-    // surfaces second's slot at first's level (position-key dedup absorbs its
-    // own chain entry), and the two adjacent root besides collapse to one.
-    expect(stack.map((d) => d.parentId)).toEqual(["first", "second", null]);
+    // Same depth → document order: first before second. At first's level:
+    // first.body → Root (beside-first) → second.body (first's sibling). At
+    // second's level every entry (second.body, Root, first.body) is already
+    // seen by global identity dedup, so the level adds nothing.
+    expect(stack.map((d) => d.parentId)).toEqual(["first", null, "second"]);
   });
 });
 
