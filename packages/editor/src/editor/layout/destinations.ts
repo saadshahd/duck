@@ -161,19 +161,11 @@ const besideDestination = (located: Located, data: Data): Destination => {
 const dedupKey = (d: Destination): string =>
   `${d.parentId}|${d.slotKey}|${d.index}`;
 
-/** The cycle of discrete drop positions under the pointer: deepest container's
- *  slots, then beside-it in its parent, repeating up the containment chain to
- *  the root. Pure; same inputs → same output. */
-export const destinationStack = (args: {
-  point: { x: number; y: number };
-  data: Data;
-  registry: FiberRegistry;
-  excludeId: string;
-}): readonly Destination[] => {
-  const { point, data, registry, excludeId } = args;
-  const excluded = new Set([excludeId, ...collectDescendants(data, excludeId)]);
-  const chain = candidateChain({ point, data, registry, excluded });
-
+/** Deduped drop positions for an already-resolved containment chain: each
+ *  container's slots then beside-it in its parent, deepest-first. Pure derivation
+ *  from the chain — no DOM access, so callers that already have the chain reuse
+ *  it instead of re-running `candidateChain`. */
+const stackFromChain = (chain: Located[], data: Data): Destination[] => {
   const all = chain.flatMap((located) => [
     ...slotDestinations(located.component),
     besideDestination(located, data),
@@ -186,6 +178,23 @@ export const destinationStack = (args: {
     seen.add(key);
     return true;
   });
+};
+
+/** The cycle of discrete drop positions under the pointer: deepest container's
+ *  slots, then beside-it in its parent, repeating up the containment chain to
+ *  the root. Pure; same inputs → same output. */
+export const destinationStack = (args: {
+  point: { x: number; y: number };
+  data: Data;
+  registry: FiberRegistry;
+  excludeId: string;
+}): readonly Destination[] => {
+  const { point, data, registry, excludeId } = args;
+  const excluded = new Set([excludeId, ...collectDescendants(data, excludeId)]);
+  return stackFromChain(
+    candidateChain({ point, data, registry, excluded }),
+    data,
+  );
 };
 
 /** The pointer-aimed slot for a real container: hit-test its painted tiling with
@@ -232,12 +241,13 @@ export const aimDestination = (args: {
 }): Destination | undefined => {
   const { point, data, registry, excludeId } = args;
   const excluded = new Set([excludeId, ...collectDescendants(data, excludeId)]);
-  const deepest = candidateChain({ point, data, registry, excluded })[0];
-  const stack = destinationStack({ point, data, registry, excludeId });
-  if (!deepest) return stack[0];
+  const chain = candidateChain({ point, data, registry, excluded });
+  const stackHead = stackFromChain(chain, data)[0];
+  const deepest = chain[0];
+  if (!deepest) return stackHead;
   return (
     aimedSlotDestination({ container: deepest, point, data, registry }) ??
-    stack[0]
+    stackHead
   );
 };
 

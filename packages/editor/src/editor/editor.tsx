@@ -33,12 +33,7 @@ import {
 } from "./selection/index.js";
 import { usePropEditor } from "./prop-editor/use-prop-editor.jsx";
 import { useDragReorder, DragOverlay, CycleChip } from "./drag/index.js";
-import {
-  useCarry,
-  LiftPulse,
-  NoTargetFlash,
-  NoTargetHover,
-} from "./carry/index.js";
+import { useCarry, LiftPulse, NoTargetMarker } from "./carry/index.js";
 import { OverlayRoot, Announcer } from "./overlay/index.js";
 import { BoxModelLayer } from "./box-model/index.js";
 import { useHistory, HistoryTimeline } from "./history/index.js";
@@ -508,8 +503,8 @@ export function Editor<UserConfig extends Config = Config>({
         {affordances.liftPulse && liftRectRef.current && (
           <LiftPulse rect={liftRectRef.current} />
         )}
-        {noTargetHover && <NoTargetHover point={noTargetHover} />}
-        {noTargetFlash && <NoTargetFlash point={noTargetFlash} />}
+        {noTargetHover && <NoTargetMarker point={noTargetHover} kind="hover" />}
+        {noTargetFlash && <NoTargetMarker point={noTargetFlash} kind="flash" />}
         <Announcer
           message={announcerMessage({
             data: currentData,

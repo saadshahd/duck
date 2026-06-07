@@ -4,36 +4,22 @@ import css from "./carry.css?inline";
 
 type Point = { x: number; y: number };
 
-/** Transient "no target here" flash at the pointer's last invalid click
- *  position. Visible for ~300ms, then unmounts. */
-export function NoTargetFlash({ point }: { point: Point }) {
+/** "No target here" marker at a pointer point. `kind` distinguishes the two
+ *  lifecycles the carry state drives: a continuous `hover` while the pointer
+ *  sits in a dead zone, and a transient `flash` at an invalid click. Visual is
+ *  identical; the data-role lets each be queried independently. */
+export function NoTargetMarker({
+  point,
+  kind,
+}: {
+  point: Point;
+  kind: "hover" | "flash";
+}) {
   useShadowSheet(css);
 
   return (
     <div
-      data-role="carry-no-target-flash"
-      className="carry-no-target-flash"
-      style={{
-        position: "absolute",
-        top: point.y + 8,
-        left: point.x + 8,
-        zIndex: 1,
-      }}
-    >
-      {NO_TARGET_LABEL}
-    </div>
-  );
-}
-
-/** Continuous "no target here" marker tracking the pointer whenever a carry hover
- *  lands in a dead zone (outside every container). One named outcome per pointer
- *  position: a destination, or this. */
-export function NoTargetHover({ point }: { point: Point }) {
-  useShadowSheet(css);
-
-  return (
-    <div
-      data-role="carry-no-target-hover"
+      data-role={`carry-no-target-${kind}`}
       className="carry-no-target-flash"
       style={{
         position: "absolute",
