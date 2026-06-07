@@ -12,14 +12,15 @@ type Args = {
   dropTarget: DropTarget | null;
   carryTarget: DropTarget | null;
   cycleStatus: CycleStatus | null;
+  carryCycleStatus: CycleStatus | null;
   slotAddress: string | undefined;
   noTargetFlash: { x: number; y: number } | null;
 };
 
 /** The single polite live-region message for the editor. Precedence: an active
  *  drag (cycle-prefixed while cycling) wins, then — during carry — an invalid-click
- *  echo over the carry destination status, then a selected slot stop. Empty string
- *  when nothing is announceable — callers must not announce a blank message. */
+ *  echo over the carry destination status (cycle-prefixed while cycling), then a
+ *  selected slot stop. Empty string when nothing is announceable. */
 export const announcerMessage = ({
   data,
   drag,
@@ -27,6 +28,7 @@ export const announcerMessage = ({
   dropTarget,
   carryTarget,
   cycleStatus,
+  carryCycleStatus,
   slotAddress,
   noTargetFlash,
 }: Args): string => {
@@ -38,7 +40,12 @@ export const announcerMessage = ({
   }
   if (drag === "carrying") {
     if (noTargetFlash) return NO_TARGET_LABEL;
-    if (carryTarget) return announcementFor(data, carryTarget);
+    if (carryTarget) {
+      const label = announcementFor(data, carryTarget);
+      return carryCycleStatus
+        ? `Destination ${carryCycleStatus.step} of ${carryCycleStatus.total}: ${label}`
+        : label;
+    }
   }
   if (pointer === "slot-selected" && slotAddress)
     return `Slot ${slotAddress} selected`;
@@ -53,8 +60,10 @@ type AssertiveArgs = {
 
 /** Assertive live-region message for carry mode entry/exit. Emitted on a second
  *  Announcer instance (assertive region) so the mode announcement interrupts, but
- *  only on mode change — it never churns on the polite no-target flash. Returns
- *  empty string when not carrying. */
+ *  only on mode change — it never churns on the polite no-target flash. Names the
+ *  Tab/Shift+Tab cycling mechanism so screen-reader users know how to cycle
+ *  destinations without needing to discover it. Returns empty string when not
+ *  carrying. */
 export const assertiveCarryMessage = ({
   data,
   drag,
@@ -63,5 +72,5 @@ export const assertiveCarryMessage = ({
   if (drag !== "carrying") return "";
   if (!dragSourceId) return "";
   const sourceType = findById(data, dragSourceId)?.type ?? "element";
-  return `Moving ${sourceType}. Click or press Enter to drop, Esc to cancel.`;
+  return `Moving ${sourceType}. Tab or Shift+Tab to cycle destinations. Click or press Enter to drop, Esc to cancel.`;
 };

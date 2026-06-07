@@ -3,6 +3,7 @@ import type { FiberRegistry } from "../fiber/index.js";
 import { buildTiling } from "./tiling.js";
 import {
   stepCycle,
+  stepCycleBack,
   type Destination,
   type DropTarget,
 } from "./destinations.js";
@@ -41,6 +42,26 @@ export const Cycle = {
     return {
       active: true,
       index: stepCycle(stack.length, cycle.index),
+      anchorId,
+    };
+  },
+
+  /** Rising reverse edge: same anchor semantics as `step`, but wraps backward
+   *  using (i−1+N)%N. On a fresh activation the anchor starts AT `from` (same as
+   *  `step`) — the first press locks the pointer's position, then reverse steps
+   *  from there. */
+  stepBack: (
+    cycle: CycleState,
+    stack: readonly Destination[],
+    from = 0,
+  ): CycleState => {
+    const anchorId = deepestId(stack);
+    if (!anchorId) return IDLE;
+    if (!cycle.active || cycle.anchorId !== anchorId)
+      return { active: true, index: from, anchorId };
+    return {
+      active: true,
+      index: stepCycleBack(stack.length, cycle.index),
       anchorId,
     };
   },

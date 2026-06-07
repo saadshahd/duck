@@ -11,6 +11,7 @@ export {
   type Tiling,
   leaderRect,
   aimedTile,
+  discreteMarkers,
   TILE_HYSTERESIS,
 } from "./tiles.js";
 export { buildTiling } from "./tiling.js";
@@ -26,5 +27,6 @@ export {
   qualifiedLabel,
   slotLabels,
   NO_TARGET_LABEL,
+  stepCycleBack,
 } from "./destinations.js";
 export { Cycle, type CycleState } from "./cycle.js";

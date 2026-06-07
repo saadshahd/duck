@@ -154,6 +154,7 @@ export function Editor<UserConfig extends Config = Config>({
     target: carryTarget,
     noTargetHover,
     noTargetFlash,
+    cycleStatus: carryCycleStatus,
   } = useCarry({
     registry: fiberRegistry,
     data: currentData,
@@ -482,6 +483,8 @@ export function Editor<UserConfig extends Config = Config>({
           fiberRegistry &&
           (() => {
             const target = drag === "dragging" ? dropTarget : carryTarget;
+            const activeCycleStatus =
+              drag === "dragging" ? cycleStatus : carryCycleStatus;
             return target ? (
               <>
                 <DragOverlay
@@ -489,12 +492,12 @@ export function Editor<UserConfig extends Config = Config>({
                   data={currentData}
                   target={target}
                 />
-                {drag === "dragging" && cycleStatus && (
+                {affordances.cycleChip && activeCycleStatus && (
                   <CycleChip
                     registry={fiberRegistry}
                     data={currentData}
                     target={target}
-                    status={cycleStatus}
+                    status={activeCycleStatus}
                   />
                 )}
               </>
@@ -513,6 +516,7 @@ export function Editor<UserConfig extends Config = Config>({
             dropTarget,
             carryTarget,
             cycleStatus,
+            carryCycleStatus,
             slotAddress,
             noTargetFlash,
           })}

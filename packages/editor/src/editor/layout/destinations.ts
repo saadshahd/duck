@@ -164,7 +164,12 @@ const dedupKey = (d: Destination): string =>
 /** Deduped drop positions for an already-resolved containment chain: each
  *  container's slots then beside-it in its parent, deepest-first. Pure derivation
  *  from the chain — no DOM access, so callers that already have the chain reuse
- *  it instead of re-running `candidateChain`. */
+ *  it instead of re-running `candidateChain`.
+ *
+ *  Two dedup passes: (1) position key (parentId|slotKey|index) removes exact
+ *  duplicates; (2) consecutive identical labels collapse — when a beside-target
+ *  and an ancestor slot-append share the same `Component › slot` label the cycle
+ *  would announce the same destination twice in a row. */
 const stackFromChain = (chain: Located[], data: Data): Destination[] => {
   const all = chain.flatMap((located) => [
     ...slotDestinations(located.component),
@@ -172,12 +177,18 @@ const stackFromChain = (chain: Located[], data: Data): Destination[] => {
   ]);
 
   const seen = new Set<string>();
-  return all.filter((d) => {
+  const deduped = all.filter((d) => {
     const key = dedupKey(d);
     if (seen.has(key)) return false;
     seen.add(key);
     return true;
   });
+
+  // Remove consecutive entries that share the same label. A beside-target and
+  // the immediately following ancestor slot-append can produce the same qualified
+  // label (e.g., "Card › body" beside-card then "Card › body" slot-append), which
+  // would announce the same slot twice when cycling.
+  return deduped.filter((d, i) => i === 0 || d.label !== deduped[i - 1].label);
 };
 
 /** The cycle of discrete drop positions under the pointer: deepest container's
@@ -265,3 +276,7 @@ export const stackIndexOf = (
 /** Wrapping forward step through a stack of length `stackLength`. 0 when empty. */
 export const stepCycle = (stackLength: number, current: number): number =>
   stackLength === 0 ? 0 : (current + 1) % stackLength;
+
+/** Wrapping reverse step through a stack of length `stackLength`. 0 when empty. */
+export const stepCycleBack = (stackLength: number, current: number): number =>
+  stackLength === 0 ? 0 : (current - 1 + stackLength) % stackLength;

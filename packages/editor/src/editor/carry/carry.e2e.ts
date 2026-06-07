@@ -11,6 +11,7 @@ import {
   isLiftPulseVisible,
   getLiftPulseRect,
   isNoTargetFlashVisible,
+  getCycleChipText,
   waitFrames,
   type Point,
 } from "../overlay/testing.js";
@@ -285,5 +286,146 @@ test.describe("Carry affordances", () => {
     expect(overlaps).toBe(true);
 
     await page.keyboard.press("Escape");
+  });
+});
+
+test.describe("Carry cycle chip", () => {
+  test.beforeEach(async ({ page }) => {
+    await page.goto("/");
+    await page.waitForTimeout(500);
+  });
+
+  test("cycle chip is absent before any Tab step", async ({ page }) => {
+    const heading = page.locator("h1");
+    await heading.click();
+    await page.waitForTimeout(300);
+
+    await clickMoveChip(page);
+    await page.waitForTimeout(150);
+
+    // Move to a destination zone so there is a drop target — chip should still
+    // be absent until a Tab step activates the cycle.
+    const gap = await headerGapPoint(page);
+    await page.mouse.move(gap.x, gap.y);
+    await page.waitForTimeout(80);
+
+    expect(await getCycleChipText(page)).toBeNull();
+
+    await page.keyboard.press("Escape");
+  });
+
+  test("Tab step activates cycle chip showing N of M", async ({ page }) => {
+    const heading = page.locator("h1");
+    await heading.click();
+    await page.waitForTimeout(300);
+
+    await clickMoveChip(page);
+    await page.waitForTimeout(150);
+
+    const gap = await headerGapPoint(page);
+    await page.mouse.move(gap.x, gap.y);
+    await page.waitForTimeout(80);
+
+    await page.keyboard.press("Tab");
+    await page.waitForTimeout(80);
+
+    const chip = await getCycleChipText(page);
+    expect(chip).not.toBeNull();
+    // Format: "N of M" where both N and M are positive integers.
+    expect(chip).toMatch(/^\d+ of \d+$/);
+
+    await page.keyboard.press("Escape");
+  });
+
+  test("Tab steps forward through destinations; Shift+Tab steps back", async ({
+    page,
+  }) => {
+    const heading = page.locator("h1");
+    await heading.click();
+    await page.waitForTimeout(300);
+
+    await clickMoveChip(page);
+    await page.waitForTimeout(150);
+
+    const gap = await headerGapPoint(page);
+    await page.mouse.move(gap.x, gap.y);
+    await page.waitForTimeout(80);
+
+    // First Tab — anchors at the hovered tile.
+    await page.keyboard.press("Tab");
+    await page.waitForTimeout(80);
+    const labelAfterFirst = await getActiveDestinationLabel(page);
+
+    // Second Tab — advances one step.
+    await page.keyboard.press("Tab");
+    await page.waitForTimeout(80);
+    const labelAfterSecond = await getActiveDestinationLabel(page);
+
+    // Shift+Tab — reverses one step, returning to the first label.
+    await page.keyboard.press("Shift+Tab");
+    await page.waitForTimeout(80);
+    const labelAfterBack = await getActiveDestinationLabel(page);
+
+    expect(labelAfterBack).toBe(labelAfterFirst);
+    // The two forward steps must have landed on different destinations.
+    expect(labelAfterFirst).not.toBe(labelAfterSecond);
+
+    await page.keyboard.press("Escape");
+  });
+
+  test("Tab calls preventDefault — focus never leaves the overlay", async ({
+    page,
+  }) => {
+    const heading = page.locator("h1");
+    await heading.click();
+    await page.waitForTimeout(300);
+
+    await clickMoveChip(page);
+    await page.waitForTimeout(150);
+
+    const gap = await headerGapPoint(page);
+    await page.mouse.move(gap.x, gap.y);
+    await page.waitForTimeout(80);
+
+    // Record the focused element before Tab.
+    const focusBefore = await page.evaluate(
+      () => document.activeElement?.tagName ?? "BODY",
+    );
+
+    await page.keyboard.press("Tab");
+    await page.waitForTimeout(80);
+
+    // Focus must not have moved to a different native element.
+    const focusAfter = await page.evaluate(
+      () => document.activeElement?.tagName ?? "BODY",
+    );
+    expect(focusAfter).toBe(focusBefore);
+
+    await page.keyboard.press("Escape");
+  });
+
+  test("cycle chip disappears after Esc cancels carry", async ({ page }) => {
+    const heading = page.locator("h1");
+    await heading.click();
+    await page.waitForTimeout(300);
+
+    await clickMoveChip(page);
+    await page.waitForTimeout(150);
+
+    const gap = await headerGapPoint(page);
+    await page.mouse.move(gap.x, gap.y);
+    await page.waitForTimeout(80);
+
+    await page.keyboard.press("Tab");
+    await page.waitForTimeout(80);
+
+    // Chip visible after Tab.
+    expect(await getCycleChipText(page)).not.toBeNull();
+
+    await page.keyboard.press("Escape");
+    await page.waitForTimeout(100);
+
+    // Chip gone after cancel.
+    expect(await getCycleChipText(page)).toBeNull();
   });
 });

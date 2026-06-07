@@ -141,6 +141,7 @@ describe("affordancesFor — sets are complete and non-overlapping", () => {
       slotInsert: false,
       dropOverlay: false,
       liftPulse: false,
+      cycleChip: false,
     });
   });
 
@@ -154,10 +155,11 @@ describe("affordancesFor — sets are complete and non-overlapping", () => {
       slotInsert: true,
       dropOverlay: false,
       liftPulse: false,
+      cycleChip: false,
     });
   });
 
-  test("dragging owns the drop overlay only", () => {
+  test("dragging owns the drop overlay and cycle chip", () => {
     expect(affordancesFor("dragging")).toEqual({
       selectionRings: false,
       labelCluster: false,
@@ -167,10 +169,11 @@ describe("affordancesFor — sets are complete and non-overlapping", () => {
       slotInsert: false,
       dropOverlay: true,
       liftPulse: false,
+      cycleChip: true,
     });
   });
 
-  test("carrying owns the drop overlay and lift pulse", () => {
+  test("carrying owns the drop overlay, lift pulse, and cycle chip", () => {
     expect(affordancesFor("carrying")).toEqual({
       selectionRings: false,
       labelCluster: false,
@@ -180,6 +183,7 @@ describe("affordancesFor — sets are complete and non-overlapping", () => {
       slotInsert: false,
       dropOverlay: true,
       liftPulse: true,
+      cycleChip: true,
     });
   });
 

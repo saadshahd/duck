@@ -14,9 +14,10 @@ export type InteractionState =
 /** Affordances a state owns. Each flag is a distinct datum: identity (rings),
  *  the consolidated label cluster (climb + move + box-model toggle + slot
  *  address), spacing geometry (box-model bands), available ops (action bar),
- *  the slot stop, the drop overlay, and the lift pulse. The boolean is the
- *  state's claim on that affordance; the shell still applies the per-affordance
- *  data preconditions (a single selection, box-model toggled on, etc.). */
+ *  the slot stop, the drop overlay, the lift pulse, and the cycle chip (N-of-M
+ *  counter shown during drag and carry cycling). The boolean is the state's claim
+ *  on that affordance; the shell still applies the per-affordance data
+ *  preconditions (a single selection, box-model toggled on, etc.). */
 export type AffordanceSet = {
   selectionRings: boolean;
   labelCluster: boolean;
@@ -27,6 +28,8 @@ export type AffordanceSet = {
   slotInsert: boolean;
   dropOverlay: boolean;
   liftPulse: boolean;
+  /** N-of-M cycle chip shown when cycling through destinations. Owned by dragging and carrying. */
+  cycleChip: boolean;
 };
 
 const NONE: AffordanceSet = {
@@ -38,6 +41,7 @@ const NONE: AffordanceSet = {
   slotInsert: false,
   dropOverlay: false,
   liftPulse: false,
+  cycleChip: false,
 };
 
 const AFFORDANCES: Record<InteractionState, AffordanceSet> = {
@@ -50,6 +54,7 @@ const AFFORDANCES: Record<InteractionState, AffordanceSet> = {
     slotInsert: false,
     dropOverlay: false,
     liftPulse: false,
+    cycleChip: false,
   },
   "slot-selected": {
     selectionRings: false,
@@ -60,6 +65,7 @@ const AFFORDANCES: Record<InteractionState, AffordanceSet> = {
     slotInsert: true,
     dropOverlay: false,
     liftPulse: false,
+    cycleChip: false,
   },
   dragging: {
     selectionRings: false,
@@ -70,6 +76,7 @@ const AFFORDANCES: Record<InteractionState, AffordanceSet> = {
     slotInsert: false,
     dropOverlay: true,
     liftPulse: false,
+    cycleChip: true,
   },
   carrying: {
     selectionRings: false,
@@ -80,6 +87,7 @@ const AFFORDANCES: Record<InteractionState, AffordanceSet> = {
     slotInsert: false,
     dropOverlay: true,
     liftPulse: true,
+    cycleChip: true,
   },
   none: NONE,
 };

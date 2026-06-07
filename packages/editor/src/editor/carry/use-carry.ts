@@ -12,6 +12,11 @@ import {
   type Destination,
   type DropTarget,
 } from "../layout/index.js";
+
+type CycleStatus = { step: number; total: number };
+
+const sameStatus = (a: CycleStatus | null, b: CycleStatus | null): boolean =>
+  a?.step === b?.step && a?.total === b?.total;
 import { animatedUpdate } from "../animated-update.js";
 import { move } from "../spec-ops/index.js";
 import type { EditorCommit } from "../types.js";
@@ -36,10 +41,12 @@ export function useCarry({ registry, data, state, send, commit }: Props): {
   target: DropTarget | null;
   noTargetHover: Point | null;
   noTargetFlash: Point | null;
+  cycleStatus: CycleStatus | null;
 } {
   const [target, setTarget] = useState<DropTarget | null>(null);
   const [noTargetHover, setNoTargetHover] = useState<Point | null>(null);
   const [noTargetFlash, setNoTargetFlash] = useState<Point | null>(null);
+  const [cycleStatus, setCycleStatus] = useState<CycleStatus | null>(null);
   const flashTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const dataRef = useRef(data);
@@ -110,6 +117,12 @@ export function useCarry({ registry, data, state, send, commit }: Props): {
       // explicit "no target here" over a dead zone. The cursor follows suit.
       setNoTargetHover(picked ? null : { ...point });
       document.body.style.cursor = picked ? "move" : "not-allowed";
+      // Cycle chip: show step counter when a cycle is active.
+      const next =
+        cycle.active && stack.length > 0
+          ? { step: cycle.index + 1, total: stack.length }
+          : null;
+      setCycleStatus((prev) => (sameStatus(prev, next) ? prev : next));
     };
 
     const onPointerMove = (e: PointerEvent) => {
@@ -121,13 +134,23 @@ export function useCarry({ registry, data, state, send, commit }: Props): {
       });
     };
 
-    const step = () => {
+    /** Resolve the anchor index from the hovered tile, then step forward. */
+    const stepForward = () => {
       const stack = stackAt();
       // Anchor a fresh cycle at the hovered slot so stepping continues from the
       // pointer's position rather than jumping to the first declaration slot.
       const aimed = aimAt();
       const from = aimed ? Math.max(0, stackIndexOf(stack, aimed)) : 0;
       cycle = Cycle.step(cycle, stack, from);
+      render(stack);
+    };
+
+    /** Reverse step using (i−1+N)%N. Same anchor semantics as forward. */
+    const stepReverse = () => {
+      const stack = stackAt();
+      const aimed = aimAt();
+      const from = aimed ? Math.max(0, stackIndexOf(stack, aimed)) : 0;
+      cycle = Cycle.stepBack(cycle, stack, from);
       render(stack);
     };
 
@@ -177,6 +200,8 @@ export function useCarry({ registry, data, state, send, commit }: Props): {
     // Capture-phase: carry owns these keys while active and stops them before
     // the window-level keyboard machine sees them — so Escape cancels the move
     // without also deselecting, and Space/Enter never double-fire.
+    // Tab steps forward and calls preventDefault so focus never leaves the overlay.
+    // Shift+Tab steps reverse using (i−1+N)%N. Arrows step forward.
     const onKeyDown = (e: KeyboardEvent) => {
       if (e.key === "Escape") {
         e.preventDefault();
@@ -184,16 +209,20 @@ export function useCarry({ registry, data, state, send, commit }: Props): {
         setTarget(null);
         return send({ type: "CARRY_CANCEL" });
       }
+      if (e.key === "Tab") {
+        e.preventDefault();
+        e.stopPropagation();
+        return e.shiftKey ? stepReverse() : stepForward();
+      }
       if (
         e.key === "ArrowUp" ||
         e.key === "ArrowDown" ||
         e.key === "ArrowLeft" ||
-        e.key === "ArrowRight" ||
-        e.key === "Shift"
+        e.key === "ArrowRight"
       ) {
         e.preventDefault();
         e.stopPropagation();
-        return step();
+        return stepForward();
       }
       if (e.key === "Enter" || e.key === " ") {
         if (!armed) return; // The Space that entered carry — ignore it.
@@ -218,6 +247,7 @@ export function useCarry({ registry, data, state, send, commit }: Props): {
       document.body.style.cursor = prevCursor;
       setTarget(null);
       setNoTargetHover(null);
+      setCycleStatus(null);
       // Clear any pending flash timer on carry exit.
       if (flashTimerRef.current) {
         clearTimeout(flashTimerRef.current);
@@ -227,5 +257,5 @@ export function useCarry({ registry, data, state, send, commit }: Props): {
     };
   }, [registry, carrying, sourceId, send]);
 
-  return { target, noTargetHover, noTargetFlash };
+  return { target, noTargetHover, noTargetFlash, cycleStatus };
 }

@@ -7,6 +7,7 @@ import {
   resolveContainerId,
   resolveLabel,
   stepCycle,
+  stepCycleBack,
   type Destination,
   type DropTarget,
 } from "./destinations.js";
@@ -21,7 +22,7 @@ const containerTarget = (
   elementId,
   slotKey,
   index,
-  tiling: { kind: "discrete", slotKeys: [slotKey] },
+  tiling: { kind: "discrete", slots: [{ slotKey }] },
   activeLabel: `${slotKey}`,
 });
 
@@ -201,6 +202,44 @@ describe("destinationStack", () => {
     ]);
   });
 
+  test("consecutive-label dedup removes beside-then-slot-append with identical label", () => {
+    // inner is at index 0 in outer.body, and outer has a second child at index 1.
+    // beside-inner = { parentId: "outer", slotKey: "body", index: 1, label: "Card › body" }
+    // outer.body slot-append = { parentId: "outer", slotKey: "body", index: 2, label: "Card › body" }
+    // These differ in position key (index 1 vs 2) but share the same label —
+    // the consecutive-label dedup removes the second, preventing a duplicate
+    // "Card › body" announcement in the cycle.
+    const data: Data = {
+      root: { props: {} },
+      content: [
+        card("outer", {
+          body: [card("inner", { slot: [] }), text("sibling")],
+        }),
+      ],
+    };
+    const registry = stubRegistry({
+      outer: new DOMRect(0, 0, 400, 400),
+      inner: new DOMRect(10, 10, 150, 150),
+    });
+
+    const result = destinationStack({
+      point: { x: 50, y: 50 },
+      data,
+      registry,
+      excludeId: "nope",
+    });
+
+    // Verify no two consecutive entries share the same label.
+    const consecutiveDupes = result.filter(
+      (d, i) => i > 0 && d.label === result[i - 1].label,
+    );
+    expect(consecutiveDupes).toEqual([]);
+    // The label "Card › body" must appear at most once.
+    expect(
+      result.filter((d) => d.label === "Card › body").length,
+    ).toBeLessThanOrEqual(1);
+  });
+
   test("overlapping non-ancestor siblings → deeper-in-tree wins, ties by document order", () => {
     const data: Data = {
       root: { props: {} },
@@ -374,6 +413,27 @@ describe("stepCycle", () => {
 
   test("zero length → 0", () => {
     expect(stepCycle(0, 0)).toBe(0);
+  });
+});
+
+describe("stepCycleBack", () => {
+  test("wraps reverse: (i−1+N)%N", () => {
+    expect(stepCycleBack(3, 1)).toBe(0);
+    expect(stepCycleBack(3, 2)).toBe(1);
+    // Wrap-around: index 0 → last
+    expect(stepCycleBack(3, 0)).toBe(2);
+  });
+
+  test("zero length → 0", () => {
+    expect(stepCycleBack(0, 0)).toBe(0);
+  });
+
+  test("reverse step is inverse of forward step", () => {
+    // One forward then one back returns to origin.
+    const origin = 1;
+    const forward = stepCycle(3, origin);
+    const back = stepCycleBack(3, forward);
+    expect(back).toBe(origin);
   });
 });
 

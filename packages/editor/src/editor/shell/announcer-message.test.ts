@@ -35,7 +35,7 @@ const containerTarget = (
   elementId,
   slotKey,
   index,
-  tiling: { kind: "discrete", slotKeys: [slotKey] },
+  tiling: { kind: "discrete", slots: [{ slotKey }] },
   activeLabel: slotKey,
 });
 
@@ -48,6 +48,7 @@ const baseArgs = {
   dropTarget: null,
   carryTarget: null,
   cycleStatus: null,
+  carryCycleStatus: null,
   slotAddress: undefined,
   noTargetFlash: null,
 };
@@ -128,6 +129,32 @@ describe("announcerMessage", () => {
       }),
     ).toBe("");
   });
+
+  test("carrying with carryTarget and carryCycleStatus → cycle-prefixed label", () => {
+    const d = data([card("card", { body: [leaf("b")] })]);
+    expect(
+      announcerMessage({
+        ...baseArgs,
+        data: d,
+        drag: "carrying",
+        carryTarget: containerTarget("card", "body", 1),
+        carryCycleStatus: { step: 1, total: 3 },
+      }),
+    ).toBe("Destination 1 of 3: Card › body");
+  });
+
+  test("carrying with carryTarget, no carryCycleStatus → bare label (cycle not active)", () => {
+    const d = data([card("card", { body: [leaf("b")] })]);
+    expect(
+      announcerMessage({
+        ...baseArgs,
+        data: d,
+        drag: "carrying",
+        carryTarget: containerTarget("card", "body", 1),
+        carryCycleStatus: null,
+      }),
+    ).toBe("Card › body");
+  });
 });
 
 // --- assertiveCarryMessage (assertive) ---
@@ -153,14 +180,16 @@ describe("assertiveCarryMessage", () => {
     ).toBe("");
   });
 
-  test("carrying with a source → mode-entry message naming the source type", () => {
+  test("carrying with a source → mode-entry message naming the source type and cycling mechanism", () => {
     expect(
       assertiveCarryMessage({
         data: data([leaf("a", "Heading")]),
         drag: "carrying",
         dragSourceId: "a",
       }),
-    ).toBe("Moving Heading. Click or press Enter to drop, Esc to cancel.");
+    ).toBe(
+      "Moving Heading. Tab or Shift+Tab to cycle destinations. Click or press Enter to drop, Esc to cancel.",
+    );
   });
 
   test("carrying with a source missing from data → falls back to 'element'", () => {
@@ -170,6 +199,8 @@ describe("assertiveCarryMessage", () => {
         drag: "carrying",
         dragSourceId: "missing",
       }),
-    ).toBe("Moving element. Click or press Enter to drop, Esc to cancel.");
+    ).toBe(
+      "Moving element. Tab or Shift+Tab to cycle destinations. Click or press Enter to drop, Esc to cancel.",
+    );
   });
 });
