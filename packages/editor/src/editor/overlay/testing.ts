@@ -887,3 +887,51 @@ export const dragEnd = (page: Page, p: Point) =>
       }),
     );
   }, p);
+
+// --- Prop sheet helpers ---
+
+/** True when the sheet panel is mounted in the overlay. */
+export const isSheetVisible = (page: Page) =>
+  shadowQuery(
+    page,
+    (r) => r.querySelector("[data-role='prop-sheet']") !== null,
+  ) as Promise<boolean>;
+
+/** The sheet panel's viewport bounding box. Lets a test assert the sheet is
+ *  fully on-screen and not occluding the canvas element. Null when absent. */
+export const getSheetRect = (page: Page) =>
+  shadowQuery(page, (r) => {
+    const el = r.querySelector(
+      "[data-role='prop-sheet']",
+    ) as HTMLElement | null;
+    if (!el) return null;
+    const b = el.getBoundingClientRect();
+    return { top: b.top, left: b.left, width: b.width, height: b.height };
+  }) as Promise<{
+    top: number;
+    left: number;
+    width: number;
+    height: number;
+  } | null>;
+
+/** The backdrop cutout div's inline-style geometry (set by the rAF anchor loop),
+ *  mirroring the selected element's position. Lets a test verify the cutout tracks
+ *  the element through retarget and layout changes. Null when absent. */
+export const getBackdropCutoutRect = (page: Page) =>
+  shadowQuery(page, (r) => {
+    const el = r.querySelector(
+      "[data-role='prop-sheet-backdrop']",
+    ) as HTMLElement | null;
+    if (!el) return null;
+    return {
+      top: el.style.top,
+      left: el.style.left,
+      width: el.style.width,
+      height: el.style.height,
+    };
+  }) as Promise<{
+    top: string;
+    left: string;
+    width: string;
+    height: string;
+  } | null>;
