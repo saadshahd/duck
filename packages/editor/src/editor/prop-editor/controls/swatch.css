@@ -1,0 +1,76 @@
+/* Swatch color grid control — plain CSS, shadow-DOM safe (no @property, no Tailwind).
+   Self-registered via useShadowSheet in swatch.tsx. Uses :host tokens. */
+
+.swatch-root {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  padding: 4px;
+  background: var(--control-bg);
+  border: 1px solid var(--control-border);
+  border-radius: 6px;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+/* Each swatch item is an Ark label (wraps a hidden radio input + visible swatch block).
+   The item IS the label element Ark renders — it carries data-state="checked". */
+.swatch-item {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 4px;
+  cursor: pointer;
+  position: relative;
+  border: 2px solid transparent;
+  transition: border-color 100ms ease;
+  flex-shrink: 0;
+}
+
+.swatch-item[data-state="checked"] {
+  border-color: var(--control-focus);
+}
+
+.swatch-item:not([data-state="checked"]):hover {
+  border-color: var(--control-border);
+}
+
+/* Focus ring on keyboard nav */
+.swatch-item:focus-within {
+  outline: 2px solid var(--control-focus);
+  outline-offset: 1px;
+}
+
+/* The color block fills the item interior */
+.swatch-color {
+  width: 100%;
+  height: 100%;
+  border-radius: 2px;
+  display: block;
+  /* Background is set inline as the hex value */
+}
+
+/* Sentinel chip — shown when stored value is not in the palette (unset).
+   T7 will centralize preset/literal/unset derivation across all controls. */
+.swatch-sentinel {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 4px;
+  border: 2px dashed var(--control-border);
+  color: var(--text-field-secondary);
+  font-size: 10px;
+  flex-shrink: 0;
+  cursor: default;
+  user-select: none;
+}
+
+/* Read-only state */
+.swatch-root[data-disabled] .swatch-item {
+  cursor: not-allowed;
+  opacity: 0.6;
+}

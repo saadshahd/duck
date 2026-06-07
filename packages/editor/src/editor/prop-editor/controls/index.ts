@@ -2,6 +2,7 @@ import type { ReactNode } from "react";
 import type { Field } from "@puckeditor/core";
 import type { FieldProps } from "../puck-fields.js";
 import { Segmented } from "./segmented.js";
+import { Swatch } from "./swatch.js";
 
 // Re-exported so control modules (T4+) and the dispatch can share one source.
 export type { FieldProps };
@@ -19,4 +20,5 @@ export type ControlRenderer<F extends Field = Field, V = unknown> = (
  *  2. Import it here and add one entry: `"<id>": MyControl`. */
 export const controlRenderers = {
   segmented: Segmented,
+  swatch: Swatch,
 } satisfies Record<string, ControlRenderer>;

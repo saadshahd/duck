@@ -996,6 +996,58 @@ export const getSegmentedItemCenter = (page: Page, value: string) =>
     return null;
   }, value) as Promise<{ x: number; y: number } | null>;
 
+// --- Swatch control helpers ---
+
+/** The ARIA role of the swatch grid root in the overlay shadow root —
+ *  "radiogroup" when the Ark SegmentGroup is mounted. Null when absent. */
+export const getSwatchRole = (page: Page) =>
+  shadowQuery(
+    page,
+    (r) =>
+      r.querySelector("[data-role='swatch']")?.getAttribute("role") ?? null,
+  ) as Promise<string | null>;
+
+/** Every swatch item currently rendered inside the prop sheet, read from the
+ *  overlay shadow root by data-role. Returns `{ value, checked }` for each item.
+ *  `checked` reads `data-state="checked"` (Ark SegmentGroup/zag radio-group
+ *  convention). `value` is the option's hex string. */
+export const readSwatchItems = (page: Page) =>
+  shadowQuery(page, (r) =>
+    [...r.querySelectorAll("[data-role='swatch-item']")].map((el) => ({
+      value: el.getAttribute("data-value") ?? "",
+      checked: el.getAttribute("data-state") === "checked",
+    })),
+  ) as Promise<{ value: string; checked: boolean }[] | null>;
+
+/** True when the swatch sentinel chip (shown for an unset/off-palette value) is
+ *  mounted in the overlay shadow root. The honest-unset signal: present when no
+ *  swatch is selected, absent once a palette value is chosen. */
+export const isSwatchSentinelVisible = (page: Page) =>
+  shadowQuery(
+    page,
+    (r) => r.querySelector("[data-role='swatch-sentinel']") !== null,
+  ) as Promise<boolean>;
+
+/** The on-screen (viewport) center of the swatch item whose data-value matches,
+ *  so a test can aim a REAL mouse click at it. Uses page.evaluate (not shadowQuery)
+ *  because shadowQuery stringifies its callback and cannot carry the `value` arg —
+ *  the same reason getSegmentedItemCenter is parameterized this way. Null when no
+ *  such item exists. */
+export const getSwatchItemCenter = (page: Page, value: string) =>
+  page.evaluate((wanted) => {
+    for (const d of document.querySelectorAll("div")) {
+      if (!d.shadowRoot || d.style.position !== "fixed") continue;
+      const items = [
+        ...d.shadowRoot.querySelectorAll("[data-role='swatch-item']"),
+      ] as HTMLElement[];
+      const el = items.find((i) => i.getAttribute("data-value") === wanted);
+      if (!el) return null;
+      const b = el.getBoundingClientRect();
+      return { x: b.left + b.width / 2, y: b.top + b.height / 2 };
+    }
+    return null;
+  }, value) as Promise<{ x: number; y: number } | null>;
+
 /** Expand every collapsed disclosure group in the open sheet so its nested
  *  fields render into the DOM. Returns how many triggers were clicked. */
 export const expandSheetDisclosures = (page: Page) =>
