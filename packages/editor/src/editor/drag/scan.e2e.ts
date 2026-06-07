@@ -2,6 +2,7 @@ import { test, expect, type Page, type Locator } from "@playwright/test";
 import {
   getActiveDestinationLabel,
   readResolution,
+  readTileRects,
   readTiles,
   sourceCenter,
   type Point,
@@ -55,8 +56,6 @@ type Container = {
   container: (page: Page) => Locator;
   /** Source element to drag/carry into the container. */
   source: (page: Page) => Locator;
-  /** Carry resolves anywhere inside to the deepest container's first slot. */
-  firstSlot: string;
   /** Every slot label the container may legitimately paint. */
   slots: readonly string[];
   /** Tiled (measured bands) vs discrete (centered marker stack). */
@@ -74,7 +73,6 @@ const CARD: Container = {
   title: "Zero Chrome",
   container: (page) => page.locator("h3:has-text('Zero Chrome')").locator(".."),
   source: (page) => page.locator("h1").first(),
-  firstSlot: "Card › header",
   slots: ["Card › header", "Card › body", "Card › footer"],
   tiled: true,
   truth: [
@@ -98,7 +96,6 @@ const PANEL_STACK: Container = {
   container: (page) =>
     page.locator("h3:has-text('Stack panel')").locator("..").locator(".."),
   source: ctaSource,
-  firstSlot: "Panel › head",
   slots: ["Panel › head", "Panel › divider", "Panel › body", "Panel › note"],
   tiled: true,
   truth: [
@@ -120,7 +117,6 @@ const PANEL_SCATTER: Container = {
   container: (page) =>
     page.locator("h3:has-text('Scatter')").locator("..").locator(".."),
   source: ctaSource,
-  firstSlot: "Panel › head",
   slots: ["Panel › head", "Panel › divider", "Panel › body", "Panel › note"],
   tiled: false,
   truth: [],
@@ -421,8 +417,11 @@ async function assertCarryTiled(
     ).toBe(true);
 }
 
-/** Discrete container: no aimable bands, so carry resolves the first slot at the
- *  container center — the documented fallback (the cycle reaches the rest). */
+/** Discrete container: no measured bands, but its labelled markers are
+ *  first-class hit-targets. Aiming at each marker's painted center resolves that
+ *  marker's slot — the per-marker resolution law is exercised in detail in
+ *  marker-aim.e2e.ts; here we pin the parity that carry reaches more than the
+ *  first slot, by hitting every marker center and collecting the resolved slots. */
 async function assertCarryDiscrete(page: Page, container: Container) {
   const el = container.container(page);
   const box = (await el.boundingBox())!;
@@ -430,10 +429,29 @@ async function assertCarryDiscrete(page: Page, container: Container) {
     steps: 1,
   });
   await page.waitForTimeout(40);
+
+  const rects = (await readTileRects(page)) ?? [];
+  expect(rects.length, `discrete markers painted in ${container.title}`).toBe(
+    container.slots.length,
+  );
+
+  const resolved = new Set<string>();
+  for (const r of rects) {
+    await page.mouse.move((r.left + r.right) / 2, (r.top + r.bottom) / 2, {
+      steps: 1,
+    });
+    await page.waitForTimeout(20);
+    const dest = await getActiveDestinationLabel(page);
+    expect(
+      dest,
+      `carry aim at marker "${r.label}" center resolves its slot in ${container.title}`,
+    ).toBe(r.label);
+    if (dest) resolved.add(dest);
+  }
   expect(
-    await getActiveDestinationLabel(page),
-    `carry discrete fallback in ${container.title}`,
-  ).toBe(container.firstSlot);
+    [...resolved].sort(),
+    `carry reaches every scatter slot via markers in ${container.title}`,
+  ).toEqual([...container.slots].sort());
 }
 
 // --- Drag scan: stepped dragover with real hit-testing ---

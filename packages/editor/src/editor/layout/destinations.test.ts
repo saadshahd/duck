@@ -353,8 +353,29 @@ describe("aimDestination", () => {
     expect(below!.index).toBeGreaterThan(above!.index);
   });
 
-  test("discrete container → falls back to the stack head (no aimable bands)", () => {
-    // No measured children → discrete tiling → aim falls back to stack[0].
+  test("empty-slot discrete container: a centered-stack marker is hit-testable, others via fallback", () => {
+    // Two empty slots → centered stack. Aiming at the SECOND marker resolves
+    // body (not the stack head) — markers are first-class targets even empty.
+    // container 200×300; total 2*24+4=52; top=(300-52)/2=124 → m0 y∈[124,148],
+    // m1 y∈[152,176]; x∈[20,180]. Point (100,164) lands on marker1 (body).
+    const data: Data = {
+      root: { props: {} },
+      content: [card("card", { header: [], body: [] })],
+    };
+    const registry = stubRegistry({ card: new DOMRect(0, 0, 200, 300) });
+    expect(
+      aimDestination({
+        point: { x: 100, y: 164 },
+        data,
+        registry,
+        excludeId: "nope",
+      })?.slotKey,
+    ).toBe("body");
+  });
+
+  test("discrete container, point clear of every marker → falls back to the stack head", () => {
+    // Point in the 4px gap between the two centered markers (y=150) hits no
+    // marker → fall back to stack[0] (the cycle reaches the rest).
     const data: Data = {
       root: { props: {} },
       content: [card("card", { header: [], body: [] })],
@@ -374,6 +395,46 @@ describe("aimDestination", () => {
         excludeId: "nope",
       }),
     ).toEqual(stack[0]);
+  });
+
+  test("scatter (interleaved children) discrete container: aiming a non-head marker resolves its slot", () => {
+    // header child and body child overlap on both axes → discrete tiling.
+    // Markers ride child midpoints: header y=75, body y=125, footer y=320.
+    // Aiming the body marker center (100,125) resolves body — the pre-fix bug
+    // resolved the stack head (header) here.
+    const data: Data = {
+      root: { props: {} },
+      content: [
+        card("card", {
+          header: [text("h")],
+          body: [text("b")],
+          footer: [text("f")],
+        }),
+      ],
+    };
+    const registry = stubRegistry({
+      card: new DOMRect(0, 0, 200, 500),
+      h: new DOMRect(0, 0, 150, 150), // mid y = 75
+      b: new DOMRect(50, 50, 150, 150), // mid y = 125, overlaps h → interleaved
+      f: new DOMRect(25, 300, 40, 40), // mid y = 320
+    });
+    expect(
+      aimDestination({
+        point: { x: 100, y: 125 },
+        data,
+        registry,
+        excludeId: "nope",
+      })?.slotKey,
+    ).toBe("body");
+    // …and the footer marker resolves footer — the deepest scattered slot.
+    expect(
+      aimDestination({
+        point: { x: 100, y: 320 },
+        data,
+        registry,
+        excludeId: "nope",
+      })?.slotKey,
+    ).toBe("footer");
   });
 
   test("pointer over nothing → undefined (a dead zone names no destination)", () => {

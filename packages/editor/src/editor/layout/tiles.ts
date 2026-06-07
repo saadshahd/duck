@@ -107,6 +107,24 @@ export const aimedTile = (
   return tiling.tiles.find((t) => containsPoint(t.rect, point));
 };
 
+/** The discrete marker the pointer aims at: a scattered/interleaved container
+ *  paints no bands, but its labelled markers are real targets — pointing at a
+ *  marker's painted rect resolves that marker's slot. Sticky like `aimedTile`:
+ *  the current marker holds while the point stays within its expanded rect.
+ *  Drag and carry both hit-test the same `discreteMarkers` geometry here. */
+export const aimedMarker = (
+  tiling: Extract<Tiling, { kind: "discrete" }>,
+  containerRect: DOMRect,
+  point: Point,
+  current?: string,
+): Tile | undefined => {
+  const markers = discreteMarkers(tiling, containerRect);
+  const cur = markers.find((m) => m.slotKey === current);
+  if (cur && containsPoint(expandRect(cur.rect, TILE_HYSTERESIS), point))
+    return cur;
+  return markers.find((m) => containsPoint(m.rect, point));
+};
+
 export type Tiling =
   | {
       kind: "tiled";

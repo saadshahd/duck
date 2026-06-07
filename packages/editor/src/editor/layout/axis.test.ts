@@ -1,5 +1,13 @@
 import { describe, test, expect, beforeEach, afterEach } from "bun:test";
-import { detectAxis, cssAxis, geometricEdge } from "./axis.js";
+import type { ComponentData, Data } from "@puckeditor/core";
+import {
+  detectAxis,
+  cssAxis,
+  geometricEdge,
+  rectAxis,
+  resolveSlotAxis,
+} from "./axis.js";
+import { stubRegistry } from "../fiber/testing.js";
 
 describe("detectAxis", () => {
   test("stacked rects → vertical", () => {
@@ -190,5 +198,108 @@ describe("cssAxis", () => {
   test("display:inline-block → null", () => {
     setStyle(el, "display: inline-block;");
     expect(cssAxis(el)).toBeNull();
+  });
+});
+
+// ── rectAxis — a lone child's before/after axis from its own shape ────────────
+
+describe("rectAxis", () => {
+  test("taller than wide → vertical (split top/bottom)", () => {
+    expect(rectAxis(new DOMRect(0, 0, 40, 120))).toBe("vertical");
+  });
+
+  test("wider than tall → horizontal (split left/right)", () => {
+    expect(rectAxis(new DOMRect(0, 0, 120, 40))).toBe("horizontal");
+  });
+
+  test("square → vertical (tie goes to block-flow default)", () => {
+    expect(rectAxis(new DOMRect(0, 0, 50, 50))).toBe("vertical");
+  });
+
+  test("zero-size rect → vertical (degenerate tie)", () => {
+    expect(rectAxis(new DOMRect(0, 0, 0, 0))).toBe("vertical");
+  });
+});
+
+// ── resolveSlotAxis — single child flips at its own rect midpoint ─────────────
+
+describe("resolveSlotAxis", () => {
+  const text = (id: string): ComponentData => ({
+    type: "Text",
+    props: { id },
+  });
+
+  const stack = (id: string, items: ComponentData[]): ComponentData => ({
+    type: "Stack",
+    props: { id, items },
+  });
+
+  const dataWith = (items: ComponentData[]): Data => ({
+    root: { props: {} },
+    content: [stack("container", items)],
+  });
+
+  test("no children → null (no geometry to measure)", () => {
+    const registry = stubRegistry({ container: new DOMRect(0, 0, 200, 300) });
+    expect(resolveSlotAxis(dataWith([]), "container", "items", registry)).toBe(
+      null,
+    );
+  });
+
+  test("single tall child → vertical (its own rect midpoint, not container axis)", () => {
+    const registry = stubRegistry({
+      container: new DOMRect(0, 0, 200, 300),
+      only: new DOMRect(80, 50, 40, 200), // taller than wide
+    });
+    expect(
+      resolveSlotAxis(dataWith([text("only")]), "container", "items", registry),
+    ).toBe("vertical");
+  });
+
+  test("single wide child → horizontal", () => {
+    const registry = stubRegistry({
+      container: new DOMRect(0, 0, 300, 200),
+      only: new DOMRect(20, 80, 240, 40), // wider than tall
+    });
+    expect(
+      resolveSlotAxis(dataWith([text("only")]), "container", "items", registry),
+    ).toBe("horizontal");
+  });
+
+  test("single child not in the registry → null", () => {
+    const registry = stubRegistry({ container: new DOMRect(0, 0, 200, 300) });
+    expect(
+      resolveSlotAxis(dataWith([text("only")]), "container", "items", registry),
+    ).toBe(null);
+  });
+
+  test("two stacked children → vertical (measured pair, not single-child path)", () => {
+    const registry = stubRegistry({
+      a: new DOMRect(0, 0, 200, 100),
+      b: new DOMRect(0, 200, 200, 100),
+    });
+    expect(
+      resolveSlotAxis(
+        dataWith([text("a"), text("b")]),
+        "container",
+        "items",
+        registry,
+      ),
+    ).toBe("vertical");
+  });
+
+  test("two side-by-side children → horizontal", () => {
+    const registry = stubRegistry({
+      a: new DOMRect(0, 0, 100, 200),
+      b: new DOMRect(200, 0, 100, 200),
+    });
+    expect(
+      resolveSlotAxis(
+        dataWith([text("a"), text("b")]),
+        "container",
+        "items",
+        registry,
+      ),
+    ).toBe("horizontal");
   });
 });

@@ -49,8 +49,18 @@ export const detectAxis = (a: DOMRect, b: DOMRect): Axis => {
   return dy > dx ? "vertical" : "horizontal";
 };
 
-/** Resolve axis for a slot by measuring its first two children.
- *  `parentId === null && slotKey === null` measures the top-level (`data.content`). */
+/** Before/after axis for a lone child: a single rect carries no cross-sibling
+ *  direction, so the child's own shape decides — taller-than-wide reads as a
+ *  vertical stack (split top/bottom at its midpoint), wider-than-tall as a row
+ *  (split left/right). Ties go vertical, the block-flow default. */
+export const rectAxis = (r: DOMRect): Axis =>
+  r.height >= r.width ? "vertical" : "horizontal";
+
+/** Resolve axis for a slot by measuring its children. Two-or-more children
+ *  measure the first adjacent pair; a single child has no cross-sibling
+ *  direction, so its before/after axis comes from its own rect midpoint
+ *  (`rectAxis`). `parentId === null && slotKey === null` measures the
+ *  top-level (`data.content`). */
 export const resolveSlotAxis = (
   data: Data,
   parentId: string | null,
@@ -58,7 +68,11 @@ export const resolveSlotAxis = (
   registry: FiberRegistry,
 ): Axis | null => {
   const children = getChildrenAt(data, parentId, slotKey);
-  if (!children || children.length < 2) return null;
+  if (!children || !children.length) return null;
+  if (children.length === 1) {
+    const only = registry.get(children[0].props.id as string);
+    return only ? rectAxis(only.getBoundingClientRect()) : null;
+  }
   const a = registry.get(children[0].props.id as string);
   const b = registry.get(children[1].props.id as string);
   if (!a || !b) return null;

@@ -2,6 +2,8 @@ import { describe, test, expect } from "bun:test";
 import {
   DISCRETE_MARKER,
   TILE_FLOOR,
+  TILE_HYSTERESIS,
+  aimedMarker,
   discreteMarkers,
   leaderRect,
   tileSlots,
@@ -786,5 +788,79 @@ describe("discreteMarkers", () => {
     expect(yMid(markers[0].rect)).toBe(40);
     expect(yMid(markers[2].rect)).toBe(280);
     expect(markers.every((m) => containedBy(m.rect, container))).toBe(true);
+  });
+});
+
+describe("aimedMarker — discrete markers are hit-targets", () => {
+  // Scatter: three children at distinct y-midpoints (60, 220, 380), markers
+  // ride each child's midpoint. Markers are 160 wide, centered → x ∈ [20, 180].
+  const scatterContainer = rect(0, 0, 200, 500);
+  const scatterSlots: SlotInput[] = [
+    { slotKey: "a", rect: rect(11, 40, 40, 40) }, // mid y = 60
+    { slotKey: "b", rect: rect(121, 200, 40, 40) }, // mid y = 220
+    { slotKey: "c", rect: rect(151, 360, 40, 40) }, // mid y = 380
+  ];
+  const scatter: Extract<Tiling, { kind: "discrete" }> = {
+    kind: "discrete",
+    slots: scatterSlots,
+  };
+
+  const aim = (x: number, y: number, current?: string) =>
+    aimedMarker(scatter, scatterContainer, { x, y }, current);
+
+  // Aiming at each marker's CENTER resolves that marker's slot — the core law:
+  // markers enter the aimable set in the discrete (scatter) modality.
+  const centers: Array<{ slot: string; x: number; y: number }> = [
+    { slot: "a", x: 100, y: 60 },
+    { slot: "b", x: 100, y: 220 },
+    { slot: "c", x: 100, y: 380 },
+  ];
+  for (const { slot, x, y } of centers) {
+    test(`marker center (${x},${y}) resolves slot "${slot}"`, () => {
+      expect(aim(x, y)?.slotKey).toBe(slot);
+    });
+  }
+
+  test("aiming at the marker's left/right extent still resolves that slot", () => {
+    expect(aim(20, 60)?.slotKey).toBe("a"); // left edge
+    expect(aim(180, 60)?.slotKey).toBe("a"); // right edge
+  });
+
+  test("a point clear of every marker (between rows, outside hysteresis) → undefined", () => {
+    // Between marker a (48..72) and marker b (208..232): far from both.
+    expect(aim(100, 140)).toBeUndefined();
+  });
+
+  test("a point left of every marker (outside the 160px band + hysteresis) → undefined", () => {
+    expect(aim(5, 60)).toBeUndefined();
+  });
+
+  test("current marker holds while the point stays within its hysteresis-expanded rect", () => {
+    // marker a spans y ∈ [48, 72]; just below at 72 + (HYSTERESIS-1) still sticks.
+    const justBelow = 72 + TILE_HYSTERESIS.bottom - 1;
+    expect(aim(100, justBelow, "a")?.slotKey).toBe("a");
+    // …but with no current marker, the same point hits nothing.
+    expect(aim(100, justBelow)).toBeUndefined();
+  });
+
+  test("current marker does NOT hold once the point leaves its expanded rect", () => {
+    const farBelow = 72 + TILE_HYSTERESIS.bottom + 5;
+    expect(aim(100, farBelow, "a")).toBeUndefined();
+  });
+
+  test("empty-slot discrete container: centered-stack markers are still hit-targets", () => {
+    // Two empty slots → centered stack. total = 2*24 + 4 = 52; top = (300-52)/2
+    // = 124 → marker0 y ∈ [124,148], marker1 y ∈ [152,176]; x ∈ [20,180].
+    const container = rect(0, 0, 200, 300);
+    const tiling: Extract<Tiling, { kind: "discrete" }> = {
+      kind: "discrete",
+      slots: [{ slotKey: "head" }, { slotKey: "foot" }],
+    };
+    expect(aimedMarker(tiling, container, { x: 100, y: 136 })?.slotKey).toBe(
+      "head",
+    );
+    expect(aimedMarker(tiling, container, { x: 100, y: 164 })?.slotKey).toBe(
+      "foot",
+    );
   });
 });

@@ -3,6 +3,7 @@ import { extractClosestEdge } from "@atlaskit/pragmatic-drag-and-drop-hitbox/clo
 import { findById, slotKeysOf } from "@duckeditor/spec";
 import type { FiberRegistry } from "../fiber/index.js";
 import {
+  aimedMarker,
   aimedTile,
   buildTiling,
   geometricEdge,
@@ -10,6 +11,7 @@ import {
   slotInsertIndex,
   type DropTarget,
   type MeasuredRegion,
+  type Tile,
   type Tiling,
 } from "../layout/index.js";
 import {
@@ -143,34 +145,45 @@ const resolveContainer = ({
       component,
     });
 
-  // Discrete tiling: no aimable bands — default to the first slot's append.
-  // The cycle (Task 6) is the only way to reach the others.
-  if (tiling.kind === "discrete")
-    return containerOutcome(appendTo(slotKeys[0]));
-
   const current =
     previous?.kind === "container" && previous.elementId === elementId
       ? previous.slotKey
       : undefined;
-  const tile = aimedTile(tiling, point, current);
-  if (!tile) return containerOutcome(appendTo(slotKeys[0]));
 
-  return containerOutcome(
+  const aimAt = (slotKey: string): DropTarget | null =>
     containerTarget({
       elementId,
-      slotKey: tile.slotKey,
+      slotKey,
       index: indexInSlot({
-        slotKey: tile.slotKey,
+        slotKey,
         point,
         regions,
         component,
-        axis: axisOf(tile.slotKey),
+        axis: axisOf(slotKey),
       }),
       source,
       tiling,
       component,
-    }),
-  );
+    });
+
+  // Discrete tiling: no measured bands, but its labelled markers are real
+  // targets — hit-test them. A marker hit resolves that slot (insert index from
+  // its single child's midpoint, via `indexInSlot`); missing every marker falls
+  // back to the first slot's append (the cycle reaches the rest).
+  if (tiling.kind === "discrete") {
+    const containerRect = registry.get(elementId)?.getBoundingClientRect();
+    const marker: Tile | undefined = containerRect
+      ? aimedMarker(tiling, containerRect, point, current)
+      : undefined;
+    return containerOutcome(
+      marker ? aimAt(marker.slotKey) : appendTo(slotKeys[0]),
+    );
+  }
+
+  const tile = aimedTile(tiling, point, current);
+  if (!tile) return containerOutcome(appendTo(slotKeys[0]));
+
+  return containerOutcome(aimAt(tile.slotKey));
 };
 
 /**

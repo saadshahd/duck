@@ -248,9 +248,13 @@ describe("resolveIndicator", () => {
     };
 
     expect(resolve(args)).toMatchObject({ slotKey: "body" });
+    // Sticky: header is held even though the point sits in the body band. The
+    // header slot has one wide child (h1, 180×40 → horizontal before/after axis),
+    // so its insert index flips at the child's x-midpoint (100); point.x=100 is
+    // not strictly past it → insert before → index 0.
     expect(
       resolve({ ...args, previous: containerTarget("header", 1) }),
-    ).toMatchObject({ slotKey: "header", index: 1 });
+    ).toMatchObject({ slotKey: "header", index: 0 });
   });
 
   test("pointer over an empty slot's carved band → that slot at append index", () => {
