@@ -36,3 +36,4 @@ export {
   type CycleStatus,
   sameStatus,
 } from "./cycle.js";
+export { ghostContent, type GhostContent } from "./ghost-content.js";

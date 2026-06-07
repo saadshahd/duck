@@ -34,7 +34,8 @@ import {
 import { usePropEditor } from "./prop-editor/use-prop-editor.jsx";
 import { useDragReorder, DragOverlay, CycleChip } from "./drag/index.js";
 import { useCarry, LiftPulse, NoTargetMarker } from "./carry/index.js";
-import { OverlayRoot, Announcer } from "./overlay/index.js";
+import { OverlayRoot, Announcer, MoveGhost } from "./overlay/index.js";
+import { ghostContent } from "./layout/index.js";
 import { BoxModelLayer } from "./box-model/index.js";
 import { useHistory, HistoryTimeline } from "./history/index.js";
 import { useKeyboard } from "./keyboard/index.js";
@@ -142,7 +143,12 @@ export function Editor<UserConfig extends Config = Config>({
 
   useSelectionReconcile(state.context, elementIds, send);
   useEditorSelection(fiberRegistry, send);
-  const { dropTarget, cycleStatus } = useDragReorder({
+  const {
+    dropTarget,
+    cycleStatus,
+    sourceType: dragSourceType,
+    point: dragPoint,
+  } = useDragReorder({
     registry: fiberRegistry,
     data: currentData,
     index,
@@ -152,10 +158,11 @@ export function Editor<UserConfig extends Config = Config>({
   });
   const {
     target: carryTarget,
-    noTargetHover,
     noTargetFlash,
     cycleStatus: carryCycleStatus,
     liftRect,
+    sourceType: carrySourceType,
+    point: carryPoint,
   } = useCarry({
     registry: fiberRegistry,
     data: currentData,
@@ -191,6 +198,36 @@ export function Editor<UserConfig extends Config = Config>({
   };
   const dragSourceId = state.context.dragSourceId;
   const { hoveredId } = state.context;
+
+  // One pointer-anchored move ghost across both modalities: it names the source,
+  // the resolved destination, and validity — the single owner of that datum. The
+  // active modality picks the inputs; absent a source type or point, no ghost.
+  const moveGhost = useMemo(() => {
+    const active =
+      drag === "dragging"
+        ? { sourceType: dragSourceType, point: dragPoint, target: dropTarget }
+        : drag === "carrying"
+          ? {
+              sourceType: carrySourceType,
+              point: carryPoint,
+              target: carryTarget,
+            }
+          : null;
+    if (!active || !active.sourceType || !active.point) return null;
+    return {
+      content: ghostContent(active.sourceType, active.target, currentData),
+      point: active.point,
+    };
+  }, [
+    drag,
+    dragSourceType,
+    dragPoint,
+    dropTarget,
+    carrySourceType,
+    carryPoint,
+    carryTarget,
+    currentData,
+  ]);
 
   const clipboard = useClipboard({
     data: currentData,
@@ -490,8 +527,10 @@ export function Editor<UserConfig extends Config = Config>({
             ) : null;
           })()}
         {affordances.liftPulse && liftRect && <LiftPulse rect={liftRect} />}
-        {noTargetHover && <NoTargetMarker point={noTargetHover} kind="hover" />}
-        {noTargetFlash && <NoTargetMarker point={noTargetFlash} kind="flash" />}
+        {moveGhost && (
+          <MoveGhost content={moveGhost.content} point={moveGhost.point} />
+        )}
+        {noTargetFlash && <NoTargetMarker point={noTargetFlash} />}
         <Announcer
           message={announcerMessage({
             data: currentData,

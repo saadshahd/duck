@@ -212,39 +212,69 @@ export const getActiveTileRect = (page: Page) =>
     height: string;
   } | null>;
 
-/** The currently selected destination's label: an active container tile, or the
- *  root drop marker when the cycle lands on root content. Null when neither. */
+/** The currently resolved destination's name, read from the single move ghost —
+ *  the one element that owns the resolved-destination datum across drag and carry.
+ *  Null over a dead zone (a blocked ghost names no destination). */
 export const getActiveDestinationLabel = (page: Page) =>
   shadowQuery(
     page,
     (r) =>
       (
         r.querySelector(
-          "[data-role='slot-tile'][data-active], [data-role='root-drop-label']",
+          "[data-role='move-ghost-destination']",
         ) as HTMLElement | null
       )?.textContent ?? null,
   ) as Promise<string | null>;
 
-// --- Drop zone label helpers ---
+// --- Move ghost helpers ---
 
-export const getDropZoneLabelText = (page: Page) =>
-  shadowQuery(
-    page,
-    (r) =>
-      (r.querySelector("[data-role='drop-zone-label']") as HTMLElement | null)
-        ?.textContent ?? null,
-  ) as Promise<string | null>;
+/** The single pointer-anchored move ghost's full reading: the source component
+ *  type, the resolved destination name (null when blocked), and validity. The one
+ *  element that names the move across both drag and carry. Null when absent. */
+export const readMoveGhost = (page: Page) =>
+  shadowQuery(page, (r) => {
+    const ghost = r.querySelector("[data-role='move-ghost']");
+    if (!ghost) return null;
+    const text = (sel: string) =>
+      (ghost.querySelector(sel) as HTMLElement | null)?.textContent ?? null;
+    return {
+      sourceType: text(".move-ghost-source"),
+      destination: text("[data-role='move-ghost-destination']"),
+      valid: ghost.hasAttribute("data-valid"),
+    };
+  }) as Promise<{
+    sourceType: string | null;
+    destination: string | null;
+    valid: boolean;
+  } | null>;
 
-export const getDropPositionChipText = (page: Page) =>
-  shadowQuery(
-    page,
-    (r) =>
-      (
-        r.querySelector(
-          "[data-role='drop-position-chip']",
-        ) as HTMLElement | null
-      )?.textContent ?? null,
-  ) as Promise<string | null>;
+/** The move ghost's on-screen position — its top-left viewport coordinates. Two
+ *  readings at two pointer positions prove the ghost follows the pointer. */
+export const getMoveGhostPosition = (page: Page) =>
+  shadowQuery(page, (r) => {
+    const el = r.querySelector("[data-role='move-ghost']");
+    if (!el) return null;
+    const box = el.getBoundingClientRect();
+    return { x: box.x, y: box.y };
+  }) as Promise<{ x: number; y: number } | null>;
+
+/** Count of elements in the overlay whose trimmed text equals the destination
+ *  name. R4's observer for the resolved-destination datum: exactly one during a
+ *  move (the ghost's destination span), proving no other element re-paints it.
+ *  Tiles name candidate slots, not the resolution — a same-named tile is allowed,
+ *  so this counts only the ghost's own destination element by data-role. */
+export const countDestinationText = (page: Page, name: string) =>
+  page.evaluate((n) => {
+    for (const d of document.querySelectorAll("div")) {
+      if (!d.shadowRoot || d.style.position !== "fixed") continue;
+      return [
+        ...d.shadowRoot.querySelectorAll(
+          "[data-role='move-ghost-destination']",
+        ),
+      ].filter((el) => (el.textContent ?? "").trim() === n).length;
+    }
+    return 0;
+  }, name) as Promise<number>;
 
 // --- Selection helpers ---
 
@@ -556,44 +586,18 @@ export const getCycleChipText = (page: Page) =>
         ?.textContent ?? null,
   ) as Promise<string | null>;
 
-// --- Drag preview pill helpers ---
-
-/** Arm a recorder for the custom native drag preview pill before starting a drag.
- *  The pill is mounted into light DOM during `onGenerateDragPreview` and removed
- *  the moment the browser snapshots it for the native drag image — it never
- *  survives a turn boundary, so a point-in-time `querySelector` always misses it.
- *  A MutationObserver installed up front captures its text as it is inserted.
- *  Returns a reader that yields the recorded text (or null if never seen). */
-export const recordDragPreviewPill = async (
-  page: Page,
-): Promise<() => Promise<string | null>> => {
-  await page.evaluate(() => {
-    const w = window as unknown as { __dragPillText?: string | null };
-    w.__dragPillText = null;
-    const observer = new MutationObserver((mutations) => {
-      for (const mutation of mutations) {
-        for (const node of Array.from(mutation.addedNodes)) {
-          if (!(node instanceof HTMLElement)) continue;
-          const pill = node.matches("[data-role='drag-preview-pill']")
-            ? node
-            : node.querySelector("[data-role='drag-preview-pill']");
-          if (pill) w.__dragPillText = pill.textContent;
-        }
-      }
-    });
-    observer.observe(document.documentElement, {
-      childList: true,
-      subtree: true,
-    });
-  });
-
-  return () =>
-    page.evaluate(
-      () =>
-        (window as unknown as { __dragPillText?: string | null })
-          .__dragPillText ?? null,
-    );
-};
+/** Count of overlay elements painting any retired resolved-destination label —
+ *  the line zone label, the edge position chip, the root drop label. All folded
+ *  into the move ghost; this must read zero during a move (R4: no resurrected
+ *  datum element). */
+export const countRetiredDestinationLabels = (page: Page) =>
+  shadowQuery(
+    page,
+    (r) =>
+      r.querySelectorAll(
+        "[data-role='drop-zone-label'], [data-role='drop-position-chip'], [data-role='root-drop-label']",
+      ).length,
+  ) as Promise<number>;
 
 // --- Animation & measurement helpers ---
 

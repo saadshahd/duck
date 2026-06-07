@@ -4,22 +4,16 @@ import css from "./carry.css?inline";
 
 type Point = { x: number; y: number };
 
-/** "No target here" marker at a pointer point. `kind` distinguishes the two
- *  lifecycles the carry state drives: a continuous `hover` while the pointer
- *  sits in a dead zone, and a transient `flash` at an invalid click. Visual is
- *  identical; the data-role lets each be queried independently. */
-export function NoTargetMarker({
-  point,
-  kind,
-}: {
-  point: Point;
-  kind: "hover" | "flash";
-}) {
+/** Transient "no target here" marker flashed at the pointer when a carry click
+ *  lands on a dead zone — momentary confirmation that the click was rejected. The
+ *  continuous blocked state is named by the MoveGhost; this is only the rejection
+ *  pulse, queried independently by its data-role. */
+export function NoTargetMarker({ point }: { point: Point }) {
   useShadowSheet(css);
 
   return (
     <div
-      data-role={`carry-no-target-${kind}`}
+      data-role="carry-no-target-flash"
       className="carry-no-target-flash"
       style={{
         position: "absolute",

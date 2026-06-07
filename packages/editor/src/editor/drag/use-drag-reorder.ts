@@ -5,8 +5,7 @@ import {
   dropTargetForElements,
   monitorForElements,
 } from "@atlaskit/pragmatic-drag-and-drop/element/adapter";
-import { setCustomNativeDragPreview } from "@atlaskit/pragmatic-drag-and-drop/element/set-custom-native-drag-preview";
-import { pointerOutsideOfPreview } from "@atlaskit/pragmatic-drag-and-drop/element/pointer-outside-of-preview";
+import { disableNativeDragPreview } from "@atlaskit/pragmatic-drag-and-drop/element/disable-native-drag-preview";
 import { attachClosestEdge } from "@atlaskit/pragmatic-drag-and-drop-hitbox/closest-edge";
 import {
   buildIndex,
@@ -45,37 +44,7 @@ type Props = {
 const stateOf = (s: EditorSnapshot) =>
   s.value as { pointer: string; drag: string };
 
-/** Mount a fixed-size pill into the drag preview container.
- *  The container lives in document.body (light DOM), so inline styles are used
- *  rather than shadow-scoped CSS — adoptedStyleSheets cannot reach this node. */
-const renderDragPreviewPill = (container: HTMLElement, typeName: string) => {
-  const pill = document.createElement("div");
-  pill.setAttribute("data-role", "drag-preview-pill");
-  pill.textContent = typeName;
-  Object.assign(pill.style, {
-    width: "120px",
-    height: "32px",
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-    fontFamily:
-      '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
-    fontSize: "13px",
-    fontWeight: "600",
-    color: "#1e1e1e",
-    background: "#ffffff",
-    border: "1.5px solid #e2e8f0",
-    borderRadius: "6px",
-    boxShadow: "0 2px 8px rgba(0,0,0,0.12)",
-    pointerEvents: "none",
-    overflow: "hidden",
-    textOverflow: "ellipsis",
-    whiteSpace: "nowrap",
-    padding: "0 12px",
-    boxSizing: "border-box",
-  });
-  container.appendChild(pill);
-};
+type Point = { x: number; y: number };
 
 // --- Hook ---
 
@@ -89,10 +58,14 @@ export function useDragReorder({
 }: Props): {
   dropTarget: DropTarget | null;
   cycleStatus: CycleStatus | null;
+  sourceType: string | null;
+  point: Point | null;
 } {
   const [dropTarget, setDropTarget] = useState<DropTarget | null>(null);
   const dropTargetRef = useRef<DropTarget | null>(null);
   const [cycleStatus, setCycleStatus] = useState<CycleStatus | null>(null);
+  const [sourceType, setSourceType] = useState<string | null>(null);
+  const [point, setPoint] = useState<Point | null>(null);
 
   const updateDropTarget = (target: DropTarget | null) => {
     dropTargetRef.current = target;
@@ -144,21 +117,22 @@ export function useDragReorder({
       onGenerateDragPreview: ({ nativeSetDragImage }) => {
         const allIds = [...indexRef.current.keys()];
         clearNames = tagTransitionNames(registry, allIds);
-        const entry = indexRef.current.get(lastSelectedId);
-        if (!entry) return;
-        const typeName = entry.component.type;
-        setCustomNativeDragPreview({
-          nativeSetDragImage,
-          getOffset: pointerOutsideOfPreview({ x: "16px", y: "8px" }),
-          render: ({ container }) => {
-            renderDragPreviewPill(container, typeName);
-          },
-        });
+        // No native preview snapshot — a static image cannot live-update the
+        // resolved destination. The overlay MoveGhost follows the pointer and
+        // re-resolves instead.
+        disableNativeDragPreview({ nativeSetDragImage });
       },
-      onDragStart: () => send({ type: "DRAG_START", sourceId: lastSelectedId }),
+      onDragStart: () => {
+        setSourceType(
+          indexRef.current.get(lastSelectedId)?.component.type ?? null,
+        );
+        send({ type: "DRAG_START", sourceId: lastSelectedId });
+      },
       onDrop: () => {
         clearNames?.();
         clearNames = null;
+        setSourceType(null);
+        setPoint(null);
       },
     });
   }, [registry, lastSelectedId, singleSelected, pointer, send]);
@@ -272,6 +246,7 @@ export function useDragReorder({
         x: location.current.input.clientX,
         y: location.current.input.clientY,
       };
+      setPoint(point);
       const picked = driveCycle(source, point, location.current.input.shiftKey);
       if (picked)
         return updateDropTarget(
@@ -323,6 +298,8 @@ export function useDragReorder({
         cycleRef.current = Cycle.idle;
         prevShiftRef.current = false;
         setCycleStatus(null);
+        setSourceType(null);
+        setPoint(null);
         const lastIndicator = dropTargetRef.current;
         updateDropTarget(null);
         const beforeData = dataRef.current;
@@ -355,5 +332,5 @@ export function useDragReorder({
     };
   }, [registry, data, send]);
 
-  return { dropTarget, cycleStatus };
+  return { dropTarget, cycleStatus, sourceType, point };
 }

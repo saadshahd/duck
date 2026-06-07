@@ -1,0 +1,42 @@
+/* Overlay — the single pointer-anchored move ghost (drag + carry) */
+
+.move-ghost {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  pointer-events: none;
+  z-index: 2;
+  font-family: var(--font-system);
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 1.4;
+  padding: 3px 8px;
+  border-radius: 4px;
+  white-space: nowrap;
+  color: #78716c;
+  background: rgba(120, 113, 108, 0.1);
+  border: 1px dashed #78716c;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);
+}
+
+.move-ghost[data-valid] {
+  color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 10%, white);
+  border: 1px solid var(--accent);
+}
+
+.move-ghost-source {
+  font-weight: 600;
+}
+
+.move-ghost-arrow {
+  opacity: 0.7;
+}
+
+.move-ghost-dest {
+  font-weight: 500;
+}
+
+.move-ghost-blocked {
+  font-weight: 500;
+}

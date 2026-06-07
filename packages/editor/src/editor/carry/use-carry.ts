@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import type { Data } from "@puckeditor/core";
-import { findParent } from "@duckeditor/spec";
+import { findById, findParent } from "@duckeditor/spec";
 import type { FiberRegistry } from "../fiber/index.js";
 import type { EditorEvent, EditorSnapshot } from "../machine/index.js";
 import {
@@ -37,16 +37,18 @@ const stateOf = (s: EditorSnapshot) => s.value as { drag: string };
  *  `move` op as drag — only the input is plain pointer events, not a native drag. */
 export function useCarry({ registry, data, state, send, commit }: Props): {
   target: DropTarget | null;
-  noTargetHover: Point | null;
   noTargetFlash: Point | null;
   cycleStatus: CycleStatus | null;
   liftRect: DOMRect | null;
+  sourceType: string | null;
+  point: Point | null;
 } {
   const [target, setTarget] = useState<DropTarget | null>(null);
-  const [noTargetHover, setNoTargetHover] = useState<Point | null>(null);
   const [noTargetFlash, setNoTargetFlash] = useState<Point | null>(null);
   const [cycleStatus, setCycleStatus] = useState<CycleStatus | null>(null);
   const [liftRect, setLiftRect] = useState<DOMRect | null>(null);
+  const [sourceType, setSourceType] = useState<string | null>(null);
+  const [point, setPoint] = useState<Point | null>(null);
   const flashTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   // The latest carry resolution closure — the same path pointermove runs. The
   // scroll subscription calls it so a scroll re-aims every affordance (tiles,
@@ -64,6 +66,8 @@ export function useCarry({ registry, data, state, send, commit }: Props): {
 
   useEffect(() => {
     if (!registry || !carrying || !sourceId) return;
+
+    setSourceType(findById(dataRef.current, sourceId)?.type ?? null);
 
     // Cursor lives on body for the duration of carry (body is outside the shadow
     // root). `render` keeps it honest: "move" over a real destination,
@@ -117,9 +121,10 @@ export function useCarry({ registry, data, state, send, commit }: Props): {
       setTarget(
         picked ? Cycle.toTarget(picked, dataRef.current, registry) : null,
       );
-      // Every pointer position names exactly one outcome: a destination, or an
-      // explicit "no target here" over a dead zone. The cursor follows suit.
-      setNoTargetHover(picked ? null : { ...point });
+      // The move ghost rides the live pointer; a null target paints its blocked
+      // state. The cursor follows suit: "move" over a destination, "not-allowed"
+      // over a dead zone — it never lies about reachability.
+      setPoint({ ...point });
       document.body.style.cursor = picked ? "move" : "not-allowed";
       // Cycle chip: show step counter when a cycle is active.
       const next =
@@ -257,7 +262,8 @@ export function useCarry({ registry, data, state, send, commit }: Props): {
       document.removeEventListener("keydown", onKeyDown, { capture: true });
       document.body.style.cursor = prevCursor;
       setTarget(null);
-      setNoTargetHover(null);
+      setSourceType(null);
+      setPoint(null);
       setCycleStatus(null);
       setLiftRect(null);
       // Clear any pending flash timer on carry exit.
@@ -271,5 +277,5 @@ export function useCarry({ registry, data, state, send, commit }: Props): {
 
   useScrollResolve({ active: carrying, resolve: resolveRef });
 
-  return { target, noTargetHover, noTargetFlash, cycleStatus, liftRect };
+  return { target, noTargetFlash, cycleStatus, liftRect, sourceType, point };
 }

@@ -1,12 +1,12 @@
 import { test, expect, type Page, type Locator } from "@playwright/test";
 import {
   hasDropIndicator,
-  getDropZoneLabelText,
-  getDropPositionChipText,
   getTileLabels,
   getActiveTileLabel,
   getActiveTileRect,
   getActiveDestinationLabel,
+  readMoveGhost,
+  countRetiredDestinationLabels,
   countCarvedTiles,
   countLeaderLines,
   readTiles,
@@ -376,15 +376,15 @@ test.describe("Shift-cycle destination stack", () => {
   });
 });
 
-// --- Qualified line labels + position chip ---
+// --- Ghost names the line destination (folded zone label + position chip) ---
 
-test.describe("Line drop labels and position chip", () => {
+test.describe("Move ghost on a between-siblings line drag", () => {
   test.beforeEach(async ({ page }) => {
     await page.goto("/");
     await page.waitForTimeout(500);
   });
 
-  test("between-siblings drag shows qualified slot label and position chip", async ({
+  test("ghost names source → qualified slot destination · valid; no retired label survives", async ({
     page,
   }) => {
     const heading = page.locator("h1");
@@ -395,13 +395,18 @@ test.describe("Line drop labels and position chip", () => {
     await dragOver(page, heading, description);
     await page.waitForTimeout(300);
 
-    const zoneLabel = await getDropZoneLabelText(page);
-    expect(zoneLabel).not.toBeNull();
-    expect(zoneLabel).toMatch(/›/);
+    // A line drop still paints the spatial indicator (where), and the single ghost
+    // names the resolution (what + validity). The zone label, position chip, and
+    // root label are folded into the ghost — none survives.
+    expect(await hasDropIndicator(page)).toBe(true);
 
-    const chipText = await getDropPositionChipText(page);
-    expect(chipText).not.toBeNull();
-    expect(chipText).toMatch(/^(before|after) /);
+    const ghost = await readMoveGhost(page);
+    expect(ghost).not.toBeNull();
+    expect(ghost!.sourceType).toBe("Heading");
+    expect(ghost!.valid).toBe(true);
+    expect(ghost!.destination).toMatch(/›/);
+
+    expect(await countRetiredDestinationLabels(page)).toBe(0);
   });
 });
 

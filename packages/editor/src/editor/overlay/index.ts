@@ -8,3 +8,4 @@ export { useSlotStopRect } from "./use-slot-stop-rect.js";
 export { isEditable } from "./dom-utils.js";
 export { Tiles } from "./tiles.js";
 export { Announcer } from "./announcer.js";
+export { MoveGhost } from "./move-ghost.js";
