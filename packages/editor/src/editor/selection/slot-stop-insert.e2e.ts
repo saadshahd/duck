@@ -2,9 +2,11 @@ import { test, expect } from "@playwright/test";
 import {
   selectParentElement,
   clickSlotInsertBtn,
+  clickFirstCatalogPickerItem,
   isSlotInsertBtnVisible,
   isCatalogPickerVisible,
   isSlotStopVisible,
+  getSlotAddressText,
 } from "../overlay/testing.js";
 
 /** T4 observer: slot-selected state owns an inline insert (+) inside the band.
@@ -52,37 +54,33 @@ test.describe("Slot-selected inline insert", () => {
   test("catalog picker opened from slot (+) inserts into that slot", async ({
     page,
   }) => {
+    // Click the first h3 (lives in a Card header slot) and climb to slot-selected.
     await page.locator("h3").first().click();
     await page.waitForTimeout(300);
 
     await selectParentElement(page);
     await page.waitForTimeout(300);
 
+    // Capture the slot address label before inserting so we can verify targeting.
+    const slotAddressBefore = await getSlotAddressText(page);
+    expect(slotAddressBefore).toBeTruthy();
+
     await clickSlotInsertBtn(page);
     await page.waitForTimeout(300);
 
     expect(await isCatalogPickerVisible(page)).toBe(true);
 
-    // Pick the first available component from the catalog picker
-    const firstItem = page
-      .locator("[data-role='catalog-picker'] .catalog-picker-item")
-      .first();
-
-    // The picker is inside shadow DOM — click via evaluate
-    await page.evaluate(() => {
-      for (const d of document.querySelectorAll("div")) {
-        if (!d.shadowRoot || d.style.position !== "fixed") continue;
-        const item = d.shadowRoot.querySelector(
-          ".catalog-picker-item",
-        ) as HTMLElement | null;
-        item?.click();
-        return;
-      }
-    });
+    // Click the first picker item via the named helper (data-role query, not CSS class).
+    await clickFirstCatalogPickerItem(page);
     await page.waitForTimeout(300);
 
-    // Picker closes after insert
+    // Picker closes after insert.
     expect(await isCatalogPickerVisible(page)).toBe(false);
+
+    // The new element is now selected; its slot address must match the slot we
+    // targeted — confirming insertion landed in the correct slot, not elsewhere.
+    const slotAddressAfter = await getSlotAddressText(page);
+    expect(slotAddressAfter).toBe(slotAddressBefore);
   });
 
   test("slot-stop and insert (+) are absent in resting-selected state", async ({

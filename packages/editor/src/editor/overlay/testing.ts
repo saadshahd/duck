@@ -370,6 +370,25 @@ export const isCatalogPickerVisible = (page: Page) =>
     (r) => r.querySelector("[data-role='catalog-picker']") !== null,
   ) as Promise<boolean>;
 
+/** Click the first item in the catalog picker and return the component type name
+ *  it represents (the text of the type badge), so callers can assert insertion. */
+export const clickFirstCatalogPickerItem = (page: Page) =>
+  page.evaluate(() => {
+    for (const d of document.querySelectorAll("div")) {
+      if (!d.shadowRoot || d.style.position !== "fixed") continue;
+      const item = d.shadowRoot.querySelector(
+        "[data-role='catalog-picker-item']",
+      ) as HTMLElement | null;
+      if (!item) return null;
+      const typeName =
+        (item.querySelector(".catalog-picker-item-type") as HTMLElement | null)
+          ?.textContent ?? null;
+      item.click();
+      return typeName;
+    }
+    return null;
+  }) as Promise<string | null>;
+
 export const getSlotStopRect = (page: Page) =>
   shadowQuery(page, (r) => {
     const el = r.querySelector("[data-role='slot-stop']") as HTMLElement | null;

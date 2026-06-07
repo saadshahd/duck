@@ -33,7 +33,12 @@ import {
 } from "./selection/index.js";
 import { usePropEditor } from "./prop-editor/use-prop-editor.jsx";
 import { useDragReorder, DragOverlay, CycleChip } from "./drag/index.js";
-import { useCarry, LiftPulse, NoTargetFlash } from "./carry/index.js";
+import {
+  useCarry,
+  LiftPulse,
+  NoTargetFlash,
+  NoTargetHover,
+} from "./carry/index.js";
 import { OverlayRoot, Announcer } from "./overlay/index.js";
 import { BoxModelLayer } from "./box-model/index.js";
 import { useHistory, HistoryTimeline } from "./history/index.js";
@@ -42,6 +47,7 @@ import { useGhostPlaceholders } from "./ghost/index.js";
 import { useFiberRegistry } from "./shell/use-fiber-registry.js";
 import { useSelectionReconcile } from "./shell/use-selection-reconcile.js";
 import { useSlotAddress } from "./shell/use-slot-stop.js";
+import { useSlotPickerGate } from "./shell/use-slot-picker-gate.js";
 import { interactionState, affordancesFor } from "./shell/affordances.js";
 import {
   announcerMessage,
@@ -149,7 +155,11 @@ export function Editor<UserConfig extends Config = Config>({
     send,
     commit,
   });
-  const { target: carryTarget, noTargetFlash } = useCarry({
+  const {
+    target: carryTarget,
+    noTargetHover,
+    noTargetFlash,
+  } = useCarry({
     registry: fiberRegistry,
     data: currentData,
     state,
@@ -257,10 +267,7 @@ export function Editor<UserConfig extends Config = Config>({
   const { selectedSlot } = state.context;
   const slotAddress = useSlotAddress(currentData, lastSelectedId);
 
-  // When slot-selected state exits, close the slot picker.
-  useEffect(() => {
-    if (pointer !== "slot-selected") setSlotPickerOpen(false);
-  }, [pointer]);
+  useSlotPickerGate(pointer, setSlotPickerOpen);
 
   const slotInsertTarget = useMemo((): InsertTarget | null => {
     if (!selectedSlot) return null;
@@ -501,6 +508,7 @@ export function Editor<UserConfig extends Config = Config>({
         {affordances.liftPulse && liftRectRef.current && (
           <LiftPulse rect={liftRectRef.current} />
         )}
+        {noTargetHover && <NoTargetHover point={noTargetHover} />}
         {noTargetFlash && <NoTargetFlash point={noTargetFlash} />}
         <Announcer
           message={announcerMessage({

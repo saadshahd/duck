@@ -86,6 +86,7 @@ export function CatalogPicker({
             key={name}
             type="button"
             className="catalog-picker-item"
+            data-role="catalog-picker-item"
             onClick={(e) => {
               e.stopPropagation();
               onInsert(name);
