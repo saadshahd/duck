@@ -575,6 +575,26 @@ test.describe("Same-parent container guard and cycle chip", () => {
     expect(chipText, "cycle chip shows N of M format").toMatch(/\d+ of \d+/);
   });
 
+  test("cycle chip is present at drag entry showing the ⇧ cycle hint", async ({
+    page,
+  }) => {
+    const source = card1(page);
+    await source.scrollIntoViewIfNeeded();
+    await page.waitForTimeout(200);
+    await source.click();
+    await page.waitForTimeout(300);
+
+    // R12: the chip discloses the cycle key from drag entry, before any Shift
+    // step — over any destination, not just after diving into slots.
+    const at = await card2Center(page);
+    await holdDragAt(page, source, at);
+    await page.waitForTimeout(80);
+
+    const chip = await getCycleChipText(page);
+    await page.mouse.up();
+    expect(chip, "drag entry shows the cycle hint").toBe("⇧ to cycle");
+  });
+
   test("cycle chip disappears after drop", async ({ page }) => {
     const source = card1(page);
     await source.scrollIntoViewIfNeeded();

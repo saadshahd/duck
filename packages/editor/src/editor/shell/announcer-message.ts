@@ -36,7 +36,7 @@ export const announcerMessage = ({
 }: Args): string => {
   if (drag === "dragging" && dropTarget) {
     const label = announcementFor(data, dropTarget);
-    return cycleStatus
+    return cycleStatus?.phase === "stepping"
       ? `Destination ${cycleStatus.step} of ${cycleStatus.total}: ${label}`
       : label;
   }
@@ -44,7 +44,7 @@ export const announcerMessage = ({
     if (noTargetFlash) return NO_TARGET_LABEL;
     if (carryTarget) {
       const label = announcementFor(data, carryTarget);
-      return carryCycleStatus
+      return carryCycleStatus?.phase === "stepping"
         ? `Destination ${carryCycleStatus.step} of ${carryCycleStatus.total}: ${label}`
         : label;
     }

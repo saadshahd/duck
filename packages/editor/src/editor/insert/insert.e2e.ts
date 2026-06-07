@@ -1,7 +1,8 @@
 import { test, expect } from "@playwright/test";
 import {
-  selectParentElement,
   climbToParent,
+  enterSlotChoice,
+  clickSlotInsertBtn,
   isCatalogPickerVisible,
   isSlotStopVisible,
   clickFirstCatalogPickerItem,
@@ -88,11 +89,13 @@ test.describe("Insert routing — explicit slot, no silent default", () => {
   test("/ in slot-selected opens the picker anchored over the chosen slot band", async ({
     page,
   }) => {
-    // Climb from a Card child to slot-selected (Card › header).
+    // Reach slot-selected via the insert flow on the multi-slot Card, then press
+    // / again: in slot-selected a slot is already chosen, so / opens the picker
+    // for it — it never re-routes or resets the choice (R11). The band's (+)
+    // opens the same picker.
     await page.locator("h3").first().click();
     await page.waitForTimeout(300);
-    await selectParentElement(page);
-    await page.waitForTimeout(300);
+    await enterSlotChoice(page);
     expect(await isSlotStopVisible(page)).toBe(true);
 
     await page.keyboard.press("/");
@@ -108,6 +111,44 @@ test.describe("Insert routing — explicit slot, no silent default", () => {
     expect(overlapsWithMargin(pickerRect!, active!)).toBe(true);
   });
 
+  test("/ in slot-selected opens the picker for the RETARGETED slot, never resetting to the first slot", async ({
+    page,
+  }) => {
+    // The reset-bug pin: enter slot-choice (header active by default), retarget
+    // to a non-first slot via a band click, then press /. The picker must anchor
+    // to the RETARGETED slot — / must not re-route back to the first slot.
+    await page.locator("h3").first().click();
+    await page.waitForTimeout(300);
+    await enterSlotChoice(page);
+
+    const bands = await readSlotBands(page);
+    expect(bands.length).toBeGreaterThanOrEqual(2);
+
+    // Choose a non-first (inactive) band — the second slot down.
+    const inactive = bands.find((b) => !b.active);
+    expect(inactive).toBeTruthy();
+    await page.mouse.click(
+      (inactive!.left + inactive!.right) / 2,
+      (inactive!.top + inactive!.bottom) / 2,
+    );
+    await page.waitForTimeout(300);
+
+    const retargeted = (await readSlotBands(page)).find((b) => b.active)!;
+    expect(Math.abs(retargeted.top - inactive!.top)).toBeLessThan(4);
+
+    // Press / — the picker opens anchored to the RETARGETED slot, not the first.
+    await page.keyboard.press("/");
+    await page.waitForTimeout(300);
+    expect(await isCatalogPickerVisible(page)).toBe(true);
+
+    const pickerRect = await getCatalogPickerRect(page);
+    expect(pickerRect).not.toBeNull();
+    expect(overlapsWithMargin(pickerRect!, retargeted)).toBe(true);
+    // And the active slot is still the retargeted one — / did not reset it.
+    const stillActive = (await readSlotBands(page)).find((b) => b.active)!;
+    expect(Math.abs(stillActive.top - retargeted.top)).toBeLessThan(4);
+  });
+
   test("the open picker is the topmost surface — its center hit-tests into the picker, not the slot band beneath it", async ({
     page,
   }) => {
@@ -119,8 +160,7 @@ test.describe("Insert routing — explicit slot, no silent default", () => {
 
     await page.locator("h3").first().click();
     await page.waitForTimeout(300);
-    await selectParentElement(page);
-    await page.waitForTimeout(300);
+    await enterSlotChoice(page);
     expect(await isSlotStopVisible(page)).toBe(true);
 
     await page.keyboard.press("/");
@@ -135,8 +175,7 @@ test.describe("Insert routing — explicit slot, no silent default", () => {
   }) => {
     await page.locator("h3").first().click();
     await page.waitForTimeout(300);
-    await selectParentElement(page);
-    await page.waitForTimeout(300);
+    await enterSlotChoice(page);
 
     const bands = await readSlotBands(page);
     expect(bands.length).toBeGreaterThanOrEqual(2);
@@ -157,7 +196,7 @@ test.describe("Insert routing — explicit slot, no silent default", () => {
 
     // Open the picker and insert — the new element becomes selected (a write).
     expect(await countSelectionRings(page)).toBe(0);
-    await page.keyboard.press("/");
+    await clickSlotInsertBtn(page);
     await page.waitForTimeout(300);
     expect(await isCatalogPickerVisible(page)).toBe(true);
     await clickFirstCatalogPickerItem(page);
@@ -169,10 +208,9 @@ test.describe("Insert routing — explicit slot, no silent default", () => {
   test("Escape exits the slot-choice/picker flow cleanly", async ({ page }) => {
     await page.locator("h3").first().click();
     await page.waitForTimeout(300);
-    await selectParentElement(page);
-    await page.waitForTimeout(300);
+    await enterSlotChoice(page);
 
-    // Open the picker, then Escape — picker closes, slot-stop survives.
+    // Open the picker with /, then Escape — picker closes, slot-stop survives.
     await page.keyboard.press("/");
     await page.waitForTimeout(300);
     expect(await isCatalogPickerVisible(page)).toBe(true);
@@ -192,11 +230,11 @@ test.describe("Insert routing — explicit slot, no silent default", () => {
   test("active slot band: clicking the child selects the child, clicking padding keeps the slot", async ({
     page,
   }) => {
-    // Climb from a Card child to slot-selected: the header slot (one child) is active.
+    // Enter the insert slot-choice on the Card: the header slot (one child) is
+    // active. (Climb no longer reaches slot-selected; insert does.)
     await page.locator("h3").first().click();
     await page.waitForTimeout(300);
-    await selectParentElement(page);
-    await page.waitForTimeout(300);
+    await enterSlotChoice(page);
     expect(await isSlotStopVisible(page)).toBe(true);
     expect(await countSelectionRings(page)).toBe(0);
 

@@ -392,32 +392,35 @@ test.describe("Carry cycle chip", () => {
     await page.waitForTimeout(500);
   });
 
-  test("cycle chip is absent before any Tab step", async ({ page }) => {
+  test("cycle chip is present at carry entry showing the ⇥ cycle hint", async ({
+    page,
+  }) => {
     const heading = page.locator("h1");
     await heading.click();
     await page.waitForTimeout(300);
 
+    // R12: the chip is the entire grammar disclosure — it appears at carry entry,
+    // before any Tab step, naming the cycle key for this modality.
     await clickMoveChip(page);
     await page.waitForTimeout(150);
 
-    // Move to a destination zone so there is a drop target — chip should still
-    // be absent until a Tab step activates the cycle.
-    const gap = await headerGapPoint(page);
-    await page.mouse.move(gap.x, gap.y);
-    await page.waitForTimeout(80);
-
-    expect(await getCycleChipText(page)).toBeNull();
+    expect(await getCycleChipText(page)).toBe("⇥ to cycle");
 
     await page.keyboard.press("Escape");
   });
 
-  test("Tab step activates cycle chip showing N of M", async ({ page }) => {
+  test("Tab step switches the cycle chip from the hint to N of M", async ({
+    page,
+  }) => {
     const heading = page.locator("h1");
     await heading.click();
     await page.waitForTimeout(300);
 
     await clickMoveChip(page);
     await page.waitForTimeout(150);
+
+    // Entry hint before stepping.
+    expect(await getCycleChipText(page)).toBe("⇥ to cycle");
 
     const gap = await headerGapPoint(page);
     await page.mouse.move(gap.x, gap.y);

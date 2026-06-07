@@ -24,7 +24,6 @@ export {
   destinationStack,
   aimDestination,
   stackIndexOf,
-  resolveContainerId,
   resolveLabel,
   qualifiedLabel,
   slotLabels,

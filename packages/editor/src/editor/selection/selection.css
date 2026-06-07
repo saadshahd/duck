@@ -196,6 +196,7 @@
 
 .slot-stop-label {
   position: absolute;
+  z-index: var(--z-slot-label);
   background: var(--surface-bar);
   color: var(--text-bar);
   font-family: var(--font-system);

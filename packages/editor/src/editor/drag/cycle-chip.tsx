@@ -1,21 +1,27 @@
 import { useFloating, offset, shift, autoUpdate } from "@floating-ui/react";
-import type { Data } from "@puckeditor/core";
 import { useShadowSheet, useRegistryAnchor } from "../overlay/index.js";
 import type { FiberRegistry } from "../fiber/index.js";
-import { resolveContainerId, type DropTarget } from "../layout/index.js";
+import type { CycleStatus } from "../layout/index.js";
 import css from "./drag.css?inline";
+
+/** The cycle key the modality binds at entry — the entire grammar disclosure
+ *  before any step is taken. */
+const ENTRY_HINT: Record<"drag" | "carry", string> = {
+  drag: "⇧ to cycle",
+  carry: "⇥ to cycle",
+};
 
 type Props = {
   registry: FiberRegistry;
-  data: Data;
-  target: DropTarget;
-  status: { step: number; total: number };
+  sourceId: string;
+  status: CycleStatus;
 };
 
-export function CycleChip({ registry, data, target, status }: Props) {
+/** Anchored to the moving source element so it is present from modality entry —
+ *  before any destination resolves — and rides the same anchor once stepping
+ *  starts. Reads "⇧/⇥ to cycle" at entry, "N of M" while stepping. */
+export function CycleChip({ registry, sourceId, status }: Props) {
   useShadowSheet(css);
-
-  const containerId = resolveContainerId(data, target);
 
   const { refs, floatingStyles } = useFloating({
     placement: "bottom-start",
@@ -24,7 +30,7 @@ export function CycleChip({ registry, data, target, status }: Props) {
       autoUpdate(ref, floating, update, { animationFrame: true }),
   });
 
-  useRegistryAnchor(refs, registry, containerId);
+  useRegistryAnchor(refs, registry, sourceId);
 
   return (
     <div
@@ -33,7 +39,9 @@ export function CycleChip({ registry, data, target, status }: Props) {
       className="cycle-chip"
       style={{ ...floatingStyles, zIndex: 1 }}
     >
-      {status.step} of {status.total}
+      {status.phase === "entry"
+        ? ENTRY_HINT[status.modality]
+        : `${status.step} of ${status.total}`}
     </div>
   );
 }

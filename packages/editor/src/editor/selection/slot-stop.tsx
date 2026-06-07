@@ -102,7 +102,10 @@ export function SlotStop({
         data-role="slot-stop-label"
         data-active={active || undefined}
         className="slot-stop-label"
-        onClick={active ? onClimb : onChoose}
+        onClick={(e) => {
+          e.stopPropagation();
+          (active ? onClimb : onChoose)();
+        }}
         aria-label={
           active
             ? `Slot: ${label}. Press to select parent element.`

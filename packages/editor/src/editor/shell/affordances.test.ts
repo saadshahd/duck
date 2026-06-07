@@ -156,10 +156,13 @@ describe("affordancesFor — sets are complete and non-overlapping", () => {
     });
   });
 
-  test("slot-selected owns label cluster, slot stop, and slot insert", () => {
+  test("slot-selected owns the slot stop and slot insert; node label cluster yields", () => {
+    // R12: the slot-stop label is the sole namer of the selected slot. The node
+    // label cluster (element type + slot address) yields entirely so the slot
+    // name is never double-painted.
     expect(affordancesFor("slot-selected")).toEqual({
       selectionRings: false,
-      labelCluster: true,
+      labelCluster: false,
       boxModel: false,
       actionBar: false,
       slotStop: true,

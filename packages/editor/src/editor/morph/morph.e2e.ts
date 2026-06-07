@@ -11,7 +11,7 @@ import {
 async function selectFeatureCard(page: import("@playwright/test").Page) {
   await page.locator("h3").first().click();
   await page.waitForTimeout(300);
-  await climbToParent(page); // Heading → slot-stop → Card
+  await climbToParent(page); // Heading → Card (one node→node climb)
   await page.waitForTimeout(300);
 }
 

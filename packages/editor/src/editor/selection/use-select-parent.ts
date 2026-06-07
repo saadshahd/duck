@@ -12,15 +12,14 @@ export function createSelectParent(args: {
   const { data, lastSelectedId, pointer, selectedSlot, send } = args;
   if (!lastSelectedId) return undefined;
   return () => {
+    // Climb is pure node→node navigation: it never enters slot-selected. From a
+    // slot-selected entry (the insert flow's slot-stop label) it climbs to the
+    // node owning the slot; otherwise it climbs to the parent node directly.
     if (pointer === "slot-selected" && selectedSlot)
       return send({ type: "SELECT", elementId: selectedSlot.parentId });
     const parent = findParent(data, lastSelectedId);
-    if (parent && parent.parentId !== null && parent.slotKey !== null)
-      return send({
-        type: "SELECT_SLOT",
-        parentId: parent.parentId,
-        slotKey: parent.slotKey,
-      });
+    if (parent && parent.parentId !== null)
+      return send({ type: "SELECT", elementId: parent.parentId });
     send({ type: "DESELECT" });
   };
 }

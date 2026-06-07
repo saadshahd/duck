@@ -16,7 +16,6 @@ export type EditorAction =
   | { tag: "insert" }
   | { tag: "move-up" }
   | { tag: "move-down" }
-  | { tag: "move" }
   | { tag: "delete" }
   | { tag: "edit" };
 

@@ -43,8 +43,11 @@
   --font-system: 'Helvetica Neue', Helvetica, Arial, sans-serif;
 
   /* Stacking — overlay surfaces share one shadow root, so cross-domain paint
-     order is explicit, not DOM order. Bands sit at the band layer; an open
+     order is explicit, not DOM order. Bands sit at the band layer; slot labels
+     sit above bands so a label is never occluded by a sibling slot's band (the
+     label of one slot is drawn above its band, over the slot above it); an open
      picker is the topmost surface and must paint above any band beneath it. */
   --z-slot-band: 1;
-  --z-picker: 2;
+  --z-slot-label: 2;
+  --z-picker: 3;
 }

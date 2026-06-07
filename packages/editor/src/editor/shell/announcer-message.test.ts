@@ -76,9 +76,22 @@ describe("announcerMessage", () => {
         data: d,
         drag: "dragging",
         dropTarget: containerTarget("card", "header", 1),
-        cycleStatus: { step: 2, total: 3 },
+        cycleStatus: { phase: "stepping", step: 2, total: 3 },
       }),
     ).toBe("Destination 2 of 3: Card › header");
+  });
+
+  test("dragging at entry (cycle not stepping) → bare label, no N-of-M prefix", () => {
+    const d = data([card("card", { header: [leaf("h")] })]);
+    expect(
+      announcerMessage({
+        ...baseArgs,
+        data: d,
+        drag: "dragging",
+        dropTarget: containerTarget("card", "header", 1),
+        cycleStatus: { phase: "entry", modality: "drag" },
+      }),
+    ).toBe("Card › header");
   });
 
   test("carrying with carryTarget → carry destination label", () => {
@@ -138,9 +151,22 @@ describe("announcerMessage", () => {
         data: d,
         drag: "carrying",
         carryTarget: containerTarget("card", "body", 1),
-        carryCycleStatus: { step: 1, total: 3 },
+        carryCycleStatus: { phase: "stepping", step: 1, total: 3 },
       }),
     ).toBe("Destination 1 of 3: Card › body");
+  });
+
+  test("carrying at entry (cycle not stepping) → bare label, no N-of-M prefix", () => {
+    const d = data([card("card", { body: [leaf("b")] })]);
+    expect(
+      announcerMessage({
+        ...baseArgs,
+        data: d,
+        drag: "carrying",
+        carryTarget: containerTarget("card", "body", 1),
+        carryCycleStatus: { phase: "entry", modality: "carry" },
+      }),
+    ).toBe("Card › body");
   });
 
   test("carrying with carryTarget, no carryCycleStatus → bare label (cycle not active)", () => {

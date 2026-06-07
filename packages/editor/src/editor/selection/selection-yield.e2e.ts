@@ -7,8 +7,10 @@ import {
   isMoveChipVisible,
   getSlotAddressText,
   isSlotStopVisible,
+  countSelectedSlotNamers,
+  getSlotStopLabelText,
   clickMoveChip,
-  selectParentElement,
+  enterSlotChoice,
   sourceCenter,
   edgePoint,
   dispatchDrag,
@@ -106,11 +108,51 @@ test.describe("Slot selection replaces the element ring", () => {
     await selectNested(page);
     expect(await countSelectionRings(page)).toBe(1);
 
-    // Climb one step: element ring yields to the slot stop band.
-    await selectParentElement(page);
-    await page.waitForTimeout(300);
+    // Enter the insert slot-choice on the Card: the element ring yields to the
+    // slot-stop band (slot-selected is reached via insert, not climb).
+    await enterSlotChoice(page);
 
     expect(await isSlotStopVisible(page)).toBe(true);
     expect(await countSelectionRings(page)).toBe(0);
+  });
+});
+
+/**
+ * R12 — exactly one element names a selected slot.
+ * - resting-selected (element inside a slot): the chip's slot address is the
+ *   sole namer; no slot-stop band exists yet.
+ * - slot-selected (in the insert flow): the slot-stop label is the sole namer;
+ *   the node label cluster (element type + slot address) yields entirely.
+ */
+test.describe("One painter for the selected slot name (R12)", () => {
+  test.beforeEach(async ({ page }) => {
+    await page.goto("/");
+    await page.waitForTimeout(500);
+  });
+
+  test("resting-selected: chip slot address is the only slot namer", async ({
+    page,
+  }) => {
+    await selectNested(page);
+
+    expect(await countSelectedSlotNamers(page)).toBe(1);
+    expect(await getSlotAddressText(page)).toMatch(/^in .+ › .+$/);
+    expect(await isSlotStopVisible(page)).toBe(false);
+  });
+
+  test("slot-selected: slot-stop label is the only slot namer; node label yields", async ({
+    page,
+  }) => {
+    await selectNested(page);
+
+    await enterSlotChoice(page);
+
+    // The node label cluster (and its slot address) yields entirely.
+    expect(await isSelectionLabelVisible(page)).toBe(false);
+    expect(await getSlotAddressText(page)).toBeNull();
+
+    // Exactly one element names the selected slot — the active slot-stop label.
+    expect(await countSelectedSlotNamers(page)).toBe(1);
+    expect(await getSlotStopLabelText(page)).toMatch(/.+ › .+/);
   });
 });

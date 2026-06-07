@@ -14,8 +14,8 @@ export type InteractionState =
 /** Affordances a state owns. Each flag is a distinct datum: identity (rings),
  *  the consolidated label cluster (climb + move + box-model toggle + slot
  *  address), spacing geometry (box-model bands), available ops (action bar),
- *  the slot stop, the drop overlay, the lift pulse, and the cycle chip (N-of-M
- *  counter shown during drag and carry cycling). The boolean is the state's claim
+ *  the slot stop, the drop overlay, the lift pulse, and the cycle chip (the
+ *  modality's cycle disclosure shown during drag and carry). The boolean is the state's claim
  *  on that affordance; the shell still applies the per-affordance data
  *  preconditions (a single selection, box-model toggled on, etc.). */
 export type AffordanceSet = {
@@ -58,7 +58,7 @@ const AFFORDANCES: Record<InteractionState, AffordanceSet> = {
   },
   "slot-selected": {
     selectionRings: false,
-    labelCluster: true,
+    labelCluster: false,
     boxModel: false,
     actionBar: false,
     slotStop: true,

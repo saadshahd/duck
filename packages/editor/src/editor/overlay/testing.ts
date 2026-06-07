@@ -290,12 +290,22 @@ export const selectParentElement = (page: Page) =>
     }
   });
 
-/** Two-step climb: ↑ to slot-stop, then click slot-stop label to land on parent element.
+/** Climb to the parent node. Climb is pure node→node navigation: one ↑ click on
+ *  the chip selects the parent element directly (it never enters slot-selected).
  *  Use when you need the FloatingActionBar (toolbar) visible on the parent. */
 export const climbToParent = async (page: Page) => {
   await selectParentElement(page);
   await page.waitForTimeout(300);
-  await clickSlotStopLabel(page);
+};
+
+/** Enter the insert slot-choice step (slot-selected) on a multi-slot node: climb
+ *  to the node, then open insert with `/`. The only path to slot-selected now
+ *  that climb navigates nodes only — the slot bands belong to the insert flow. */
+export const enterSlotChoice = async (page: Page) => {
+  await selectParentElement(page);
+  await page.waitForTimeout(300);
+  await page.keyboard.press("/");
+  await page.waitForTimeout(300);
 };
 
 export const getSlotAddressText = (page: Page) =>
@@ -314,6 +324,20 @@ export const isSlotStopVisible = (page: Page) =>
     page,
     (r) => r.querySelector("[data-role='slot-stop']") !== null,
   ) as Promise<boolean>;
+
+/** Count of overlay elements that name the SELECTED slot — the chip's slot
+ *  address line plus the active slot-stop label. Sibling (choosable) slot-stop
+ *  labels name other, candidate slots and are excluded. R12's one-painter
+ *  observer: exactly one may name the selected slot per state (the chip in
+ *  resting-selected, the active slot-stop in slot-selected), never both. */
+export const countSelectedSlotNamers = (page: Page) =>
+  shadowQuery(
+    page,
+    (r) =>
+      r.querySelectorAll(
+        "[data-role='selection-slot-address'], [data-role='slot-stop-label'][data-active]",
+      ).length,
+  ) as Promise<number>;
 
 /** A stable census of the rendered page's light-DOM elements by tag. The editor
  *  overlay lives in a shadow root, so a light-DOM query never counts overlay
@@ -440,17 +464,29 @@ export const getSlotStopLabelText = (page: Page) =>
         ?.textContent ?? null,
   ) as Promise<string | null>;
 
-export const clickSlotStopLabel = (page: Page) =>
-  page.evaluate(() => {
+/** The slot-stop label's viewport box. Lets a test aim a REAL mouse click
+ *  (with coordinates) at the label, exercising the document-level click handler
+ *  the way a designer's pointer does — `.click()` cannot. When `active` is set,
+ *  targets the ACTIVE label (the owning slot's), not a choosable sibling. */
+export const getSlotStopLabelViewportRect = (page: Page, active = false) =>
+  page.evaluate((act) => {
+    const sel = act
+      ? "[data-role='slot-stop-label'][data-active]"
+      : "[data-role='slot-stop-label']";
     for (const d of document.querySelectorAll("div")) {
       if (!d.shadowRoot || d.style.position !== "fixed") continue;
-      const btn = d.shadowRoot.querySelector(
-        "[data-role='slot-stop-label']",
-      ) as HTMLElement | null;
-      btn?.click();
-      return;
+      const el = d.shadowRoot.querySelector(sel) as HTMLElement | null;
+      if (!el) return null;
+      const b = el.getBoundingClientRect();
+      return { x: b.x, y: b.y, width: b.width, height: b.height };
     }
-  });
+    return null;
+  }, active) as Promise<{
+    x: number;
+    y: number;
+    width: number;
+    height: number;
+  } | null>;
 
 export const clickSlotInsertBtn = (page: Page) =>
   page.evaluate(() => {

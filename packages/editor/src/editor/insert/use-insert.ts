@@ -10,6 +10,7 @@ type InsertDeps = {
   data: Data;
   config: Config;
   lastSelectedId: string | null;
+  pointer: string;
   send: (event: EditorEvent) => void;
   commit: EditorCommit;
 };
@@ -48,6 +49,36 @@ const resolveDirectTarget = (
   return directTarget(route);
 };
 
+/** The event an insert intent dispatches, routed without a silent slot default:
+ *  - in slot-selected a slot is ALREADY chosen — open the picker for it
+ *    (OPEN_INSERT). Never re-route: re-choosing the first slot would silently
+ *    reset the user's choice. Retargeting a slot is the band click's job (R11).
+ *  - a multi-slot node enters the slot-choice step (slot-selected, every band
+ *    painted) — the user picks the slot, then opens the picker.
+ *  - a single-slot node inserts in ONE action: straight to the picker with its
+ *    one slot named on screen (no choice to make).
+ *  - anything else opens the direct (sibling/root) picker. */
+export const openInsertEvent = (args: {
+  data: Data;
+  lastSelectedId: string | null;
+  pointer: string;
+}): EditorEvent => {
+  if (args.pointer === "slot-selected") return { type: "OPEN_INSERT" };
+  const route = routeInsert(args.data, args.lastSelectedId);
+  if (route.kind !== "slot-choice") return { type: "OPEN_INSERT" };
+  return route.slotKeys.length === 1
+    ? {
+        type: "OPEN_INSERT_SLOT",
+        parentId: route.parentId,
+        slotKey: route.slotKeys[0],
+      }
+    : {
+        type: "SELECT_SLOT",
+        parentId: route.parentId,
+        slotKey: route.slotKeys[0],
+      };
+};
+
 export function useInsert(deps: InsertDeps): {
   openInsert: () => void;
   onInsert: (componentType: string, explicitTarget?: InsertTarget) => void;
@@ -55,32 +86,9 @@ export function useInsert(deps: InsertDeps): {
   const ref = useRef(deps);
   ref.current = deps;
 
-  // The user's intent to insert, routed without a silent slot default:
-  //  - a multi-slot node enters the slot-choice step (slot-selected, every band
-  //    painted) — the user picks the slot, then opens the picker.
-  //  - a single-slot node inserts in ONE action: straight to the picker with its
-  //    one slot named on screen (no choice to make).
-  //  - anything else opens the direct (sibling/root) picker.
   const openInsert = useCallback(() => {
-    const { data, lastSelectedId, send } = ref.current;
-    const route = routeInsert(data, lastSelectedId);
-    if (route.kind !== "slot-choice") {
-      send({ type: "OPEN_INSERT" });
-      return;
-    }
-    send(
-      route.slotKeys.length === 1
-        ? {
-            type: "OPEN_INSERT_SLOT",
-            parentId: route.parentId,
-            slotKey: route.slotKeys[0],
-          }
-        : {
-            type: "SELECT_SLOT",
-            parentId: route.parentId,
-            slotKey: route.slotKeys[0],
-          },
-    );
+    const { data, lastSelectedId, pointer, send } = ref.current;
+    send(openInsertEvent({ data, lastSelectedId, pointer }));
   }, []);
 
   const onInsert = useCallback(

@@ -252,6 +252,7 @@ export function Editor<UserConfig extends Config = Config>({
     data: currentData,
     config: config,
     lastSelectedId,
+    pointer,
     send,
     commit,
   });
@@ -435,9 +436,11 @@ export function Editor<UserConfig extends Config = Config>({
             toolbarRef={toolbarRef}
             onSelectParent={selectParent}
           >
-            {operable && (
+            {operable && singleSelected && (
               <SelectionCluster.Move
-                onMove={() => handleAction({ tag: "move" })}
+                onMove={() =>
+                  send({ type: "CARRY_START", sourceId: singleSelected })
+                }
               />
             )}
             {affordances.boxModel && (
@@ -548,24 +551,25 @@ export function Editor<UserConfig extends Config = Config>({
           fiberRegistry &&
           (() => {
             const target = drag === "dragging" ? dropTarget : carryTarget;
-            const activeCycleStatus =
-              drag === "dragging" ? cycleStatus : carryCycleStatus;
             return target ? (
-              <>
-                <DragOverlay
-                  registry={fiberRegistry}
-                  data={currentData}
-                  target={target}
-                />
-                {affordances.cycleChip && activeCycleStatus && (
-                  <CycleChip
-                    registry={fiberRegistry}
-                    data={currentData}
-                    target={target}
-                    status={activeCycleStatus}
-                  />
-                )}
-              </>
+              <DragOverlay
+                registry={fiberRegistry}
+                data={currentData}
+                target={target}
+              />
+            ) : null;
+          })()}
+        {affordances.cycleChip &&
+          fiberRegistry &&
+          dragSourceId &&
+          (() => {
+            const status = drag === "dragging" ? cycleStatus : carryCycleStatus;
+            return status ? (
+              <CycleChip
+                registry={fiberRegistry}
+                sourceId={dragSourceId}
+                status={status}
+              />
             ) : null;
           })()}
         {affordances.liftPulse && liftRect && <LiftPulse rect={liftRect} />}

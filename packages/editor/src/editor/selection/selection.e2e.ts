@@ -12,8 +12,11 @@ import {
   isSlotStopVisible,
   getSlotStopLabelText,
   getSlotStopRect,
-  clickSlotStopLabel,
+  getSlotStopLabelViewportRect,
+  countSelectionRings,
   selectParentElement,
+  enterSlotChoice,
+  readSlotBands,
 } from "../overlay/testing.js";
 
 /** Press the pointer over an element without releasing — a drag could begin. */
@@ -197,46 +200,88 @@ test.describe("Slot address and slot-stop", () => {
     expect(address).toMatch(/^in .+ › .+$/);
   });
 
-  test("first ↑ click on chip shows slot-stop band", async ({ page }) => {
-    await page.locator("h3").first().click();
-    await page.waitForTimeout(300);
-
-    await selectParentElement(page);
-    await page.waitForTimeout(300);
-
-    expect(await isSlotStopVisible(page)).toBe(true);
-    const labelText = await getSlotStopLabelText(page);
-    expect(labelText).toMatch(/.+ › .+/);
-  });
-
-  test("second ↑ click (via slot-stop label) selects parent element", async ({
+  test("↑ climbs node→node: selects the parent node directly, no slot stop", async ({
     page,
   }) => {
+    // Climb is pure node→node navigation. From a Heading inside a Card's header
+    // slot, one ↑ selects the Card node directly — it never enters slot-selected,
+    // so no slot-stop band paints.
     await page.locator("h3").first().click();
     await page.waitForTimeout(300);
 
-    // First ↑ → slot-selected
     await selectParentElement(page);
-    await page.waitForTimeout(300);
-    expect(await isSlotStopVisible(page)).toBe(true);
-
-    // Second climb via slot-stop-label click → parent element selected
-    await clickSlotStopLabel(page);
     await page.waitForTimeout(300);
 
     expect(await isSlotStopVisible(page)).toBe(false);
+    expect(await countSelectionRings(page)).toBe(1);
     expect(await isToolbarVisible(page)).toBe(true);
-    // slot address gone (parent is a top-level or shallower element)
   });
 
-  test("Escape from slot-stop returns to element selection (slot-stop gone)", async ({
+  test("real click on the active slot label (insert flow) selects the owning node", async ({
+    page,
+  }) => {
+    // Slot-selected is reached via the insert flow on the multi-slot Card. The
+    // active slot label climbs to the node owning the slot (the Card) — the
+    // binding ruling: a slot label click selects the parent node, never deselects.
+    await page.locator("h3").first().click();
+    await page.waitForTimeout(300);
+    await enterSlotChoice(page);
+    expect(await isSlotStopVisible(page)).toBe(true);
+
+    // A REAL pointer click at the label's coordinates — exercises the document
+    // click handler a designer triggers, unlike a synthetic .click().
+    const rect = await getSlotStopLabelViewportRect(page, true);
+    if (!rect) throw new Error("active slot-stop label not visible");
+    await page.mouse.click(rect.x + rect.width / 2, rect.y + rect.height / 2);
+    await page.waitForTimeout(300);
+
+    // The Card NODE is now selected: ring + toolbar, slot stop gone, no deselect.
+    expect(await isSlotStopVisible(page)).toBe(false);
+    expect(await countSelectionRings(page)).toBe(1);
+    expect(await isToolbarVisible(page)).toBe(true);
+  });
+
+  test("real click on the Card body slot label selects the Card (never deselects)", async ({
+    page,
+  }) => {
+    // Owner's path: the body slot is active and its label sits above the body
+    // band, overlapping the header band's rect — the label must still win the
+    // click (z-index) and climb to the Card node, never deselect.
+    await page.getByText("No panels, no toolbars", { exact: false }).click();
+    await page.waitForTimeout(300);
+    await enterSlotChoice(page);
+    expect(await isSlotStopVisible(page)).toBe(true);
+
+    // Choose the body band (the middle slot) so its label is the active one.
+    const bands = await readSlotBands(page);
+    const sorted = [...bands].sort((a, b) => a.top - b.top);
+    const body = sorted[1];
+    expect(body).toBeTruthy();
+    await page.mouse.click(
+      (body.left + body.right) / 2,
+      (body.top + body.bottom) / 2,
+    );
+    await page.waitForTimeout(300);
+
+    // Real click on the ACTIVE (body) label.
+    const rect = await getSlotStopLabelViewportRect(page, true);
+    if (!rect) throw new Error("active slot-stop label not visible");
+    await page.mouse.click(rect.x + rect.width / 2, rect.y + rect.height / 2);
+    await page.waitForTimeout(300);
+
+    // The Card NODE is now selected: ring + toolbar, slot stop gone.
+    expect(await isSlotStopVisible(page)).toBe(false);
+    expect(await countSelectionRings(page)).toBe(1);
+    expect(await isToolbarVisible(page)).toBe(true);
+  });
+
+  test("Escape from slot-stop (insert flow) returns to the node, slot-stop gone", async ({
     page,
   }) => {
     await page.locator("h3").first().click();
     await page.waitForTimeout(300);
 
-    await selectParentElement(page);
-    await page.waitForTimeout(300);
+    await enterSlotChoice(page);
     expect(await isSlotStopVisible(page)).toBe(true);
 
     await page.keyboard.press("Escape");
@@ -263,8 +308,7 @@ test.describe("Slot address and slot-stop", () => {
     await page.locator("h3").first().click();
     await page.waitForTimeout(300);
 
-    await selectParentElement(page);
-    await page.waitForTimeout(300);
+    await enterSlotChoice(page);
     const rectBefore = await getSlotStopRect(page);
     expect(rectBefore).not.toBeNull();
 

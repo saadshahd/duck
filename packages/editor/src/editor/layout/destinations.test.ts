@@ -4,7 +4,6 @@ import {
   destinationStack,
   aimDestination,
   stackIndexOf,
-  resolveContainerId,
   resolveLabel,
   stepCycle,
   stepCycleBack,
@@ -628,48 +627,6 @@ describe("stepCycleBack", () => {
     const forward = stepCycle(3, origin);
     const back = stepCycleBack(3, forward);
     expect(back).toBe(origin);
-  });
-});
-
-describe("resolveContainerId", () => {
-  test("container target returns elementId directly", () => {
-    expect(
-      resolveContainerId(
-        stackData([leaf("a")]),
-        containerTarget("container", "items", 1),
-      ),
-    ).toBe("container");
-  });
-
-  test("no-target returns elementId directly", () => {
-    expect(
-      resolveContainerId(stackData([leaf("a")]), {
-        kind: "none",
-        elementId: "container",
-      }),
-    ).toBe("container");
-  });
-
-  test("line target returns parent of elementId", () => {
-    expect(
-      resolveContainerId(stackData([leaf("a"), leaf("b"), leaf("c")]), {
-        kind: "line",
-        elementId: "b",
-        edge: "bottom",
-        axis: "vertical",
-      }),
-    ).toBe("container");
-  });
-
-  test("line target with orphan elementId returns null", () => {
-    expect(
-      resolveContainerId(stackData([leaf("a")]), {
-        kind: "line",
-        elementId: "orphan",
-        edge: "top",
-        axis: "vertical",
-      }),
-    ).toBeNull();
   });
 });
 

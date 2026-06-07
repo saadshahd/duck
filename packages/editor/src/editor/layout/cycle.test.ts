@@ -1,6 +1,6 @@
 import { describe, test, expect } from "bun:test";
 import type { ComponentData, Data } from "@puckeditor/core";
-import { Cycle } from "./cycle.js";
+import { Cycle, sameStatus } from "./cycle.js";
 import type { Destination } from "./destinations.js";
 import { stubRegistry, emptyRegistry } from "../fiber/testing.js";
 
@@ -192,5 +192,85 @@ describe("toTarget", () => {
     expect(
       Cycle.toTarget(dest(null, null, 2, "Root"), cardData(), emptyRegistry),
     ).toEqual({ kind: "root", index: 2, label: "Root" });
+  });
+});
+
+// --- status ---
+
+describe("status", () => {
+  test("active cycle + non-empty stack → stepping with 1-based index", () => {
+    const active = { active: true, index: 1, anchorId: "card" };
+    expect(Cycle.status(active, stack().length, "drag")).toEqual({
+      phase: "stepping",
+      step: 2,
+      total: 3,
+    });
+  });
+
+  test("active cycle + zero-length stack → entry with supplied modality", () => {
+    const active = { active: true, index: 0, anchorId: "card" };
+    expect(Cycle.status(active, 0, "carry")).toEqual({
+      phase: "entry",
+      modality: "carry",
+    });
+  });
+
+  test("inactive cycle → entry with supplied modality", () => {
+    expect(Cycle.status(Cycle.idle, stack().length, "drag")).toEqual({
+      phase: "entry",
+      modality: "drag",
+    });
+  });
+});
+
+// --- sameStatus ---
+
+describe("sameStatus", () => {
+  test("both null → equal", () => {
+    expect(sameStatus(null, null)).toBe(true);
+  });
+
+  test("null vs present → not equal", () => {
+    expect(sameStatus(null, { phase: "entry", modality: "drag" })).toBe(false);
+    expect(sameStatus({ phase: "entry", modality: "drag" }, null)).toBe(false);
+  });
+
+  test("different phase → not equal", () => {
+    expect(
+      sameStatus(
+        { phase: "entry", modality: "drag" },
+        { phase: "stepping", step: 1, total: 2 },
+      ),
+    ).toBe(false);
+  });
+
+  test("entry: same modality → equal, different modality → not equal", () => {
+    expect(
+      sameStatus(
+        { phase: "entry", modality: "carry" },
+        { phase: "entry", modality: "carry" },
+      ),
+    ).toBe(true);
+    expect(
+      sameStatus(
+        { phase: "entry", modality: "drag" },
+        { phase: "entry", modality: "carry" },
+      ),
+    ).toBe(false);
+  });
+
+  test("stepping: same step/total → equal, any differ → not equal", () => {
+    expect(
+      sameStatus(
+        { phase: "stepping", step: 2, total: 3 },
+        { phase: "stepping", step: 2, total: 3 },
+      ),
+    ).toBe(true);
+    expect(
+      sameStatus(
+        { phase: "stepping", step: 1, total: 3 },
+        { phase: "stepping", step: 2, total: 3 },
+      ),
+    ).toBe(false);
   });
 });

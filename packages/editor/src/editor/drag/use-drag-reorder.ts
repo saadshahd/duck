@@ -231,10 +231,7 @@ export function useDragReorder({
       // Update cycle counter UI state. This runs per pointer move; the
       // functional updater returns the previous reference when unchanged so
       // React bails out of the re-render.
-      const next =
-        cycleRef.current.active && stack.length > 0
-          ? { step: cycleRef.current.index + 1, total: stack.length }
-          : null;
+      const next = Cycle.status(cycleRef.current, stack.length, "drag");
       setCycleStatus((prev) => (sameStatus(prev, next) ? prev : next));
 
       return picked;
@@ -272,7 +269,9 @@ export function useDragReorder({
         );
         cycleRef.current = Cycle.idle;
         prevShiftRef.current = false;
-        setCycleStatus(null);
+        // Entry disclosure: the chip shows "⇧ to cycle" from the first frame,
+        // before any step. driveCycle flips it to "N of M" once stepping starts.
+        setCycleStatus({ phase: "entry", modality: "drag" });
         // Native fallback: spec dragover fires on modifier-only changes that
         // pragmatic may swallow when coordinates don't move (~350ms cadence).
         // It only drives the cycle — pointer resolution stays with pragmatic.

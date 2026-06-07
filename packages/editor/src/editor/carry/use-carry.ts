@@ -126,11 +126,9 @@ export function useCarry({ registry, data, state, send, commit }: Props): {
       // over a dead zone — it never lies about reachability.
       setPoint({ ...point });
       document.body.style.cursor = picked ? "move" : "not-allowed";
-      // Cycle chip: show step counter when a cycle is active.
-      const next =
-        cycle.active && stack.length > 0
-          ? { step: cycle.index + 1, total: stack.length }
-          : null;
+      // Cycle chip: "⇥ to cycle" from carry entry, "N of M" once a cycle is
+      // active — the chip is present for the whole carry, never just after Tab.
+      const next = Cycle.status(cycle, stack.length, "carry");
       setCycleStatus((prev) => (sameStatus(prev, next) ? prev : next));
       // Lift pulse rides the source's live viewport rect so a scroll re-resolves
       // it in lockstep with the tiles — never a frozen pulse over stale geometry.

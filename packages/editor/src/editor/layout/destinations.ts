@@ -68,18 +68,6 @@ export const slotLabels = (
   );
 };
 
-/** Container id for a drop target: the target itself for container/no-target
- *  drops, the parent of the line's element otherwise. */
-export const resolveContainerId = (
-  data: Data,
-  target: DropTarget,
-): string | null => {
-  if (target.kind === "root") return null;
-  if (target.kind === "line")
-    return findParent(data, target.elementId)?.parentId ?? null;
-  return target.elementId;
-};
-
 /** Display label for a drop target: `Component › slot` for container and line
  *  drops, "Root" for root-level lines, a constant for no-target. Null when the
  *  container is unknown. */

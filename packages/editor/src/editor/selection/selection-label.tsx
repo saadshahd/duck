@@ -73,6 +73,7 @@ export function SelectionLabel({
   if (!elementType) return null;
 
   const side = placement.startsWith("bottom") ? "bottom" : "top";
+  const extraCount = (selectionCount ?? 0) - 1;
 
   return (
     <div
@@ -88,8 +89,8 @@ export function SelectionLabel({
       >
         {onSelectParent && <span className="element-label__arrow">↑</span>}
         {elementType}
-        {selectionCount && selectionCount > 1 && (
-          <span className="element-label__count"> +{selectionCount - 1}</span>
+        {extraCount > 0 && (
+          <span className="element-label__count"> +{extraCount}</span>
         )}
         {slotAddress && (
           <span

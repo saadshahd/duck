@@ -50,12 +50,10 @@ describe("createSelectParent", () => {
     expect(typeof fn).toBe("function");
   });
 
-  test("in selected: sends SELECT_SLOT with parent + slot when element has a slot parent", () => {
+  test("in selected: climbs node→node — sends SELECT for the parent node, never SELECT_SLOT", () => {
     const { calls, fn } = make("item");
     fn!();
-    expect(calls).toEqual([
-      { type: "SELECT_SLOT", parentId: "section", slotKey: "items" },
-    ]);
+    expect(calls).toEqual([{ type: "SELECT", elementId: "section" }]);
   });
 
   test("in selected: sends DESELECT for top-level child (no component parent)", () => {

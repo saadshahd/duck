@@ -43,10 +43,6 @@ export function useActionHandler({
         case "edit":
           send({ type: "OPEN_POPOVER" });
           break;
-        case "move":
-          if (selectedIds.size > 1) return;
-          send({ type: "CARRY_START", sourceId: lastSelectedId });
-          break;
         case "move-up":
         case "move-down": {
           if (selectedIds.size > 1) return;

@@ -14,16 +14,28 @@ import {
  *  Empty `anchorId` means inactive (no container anchored). */
 export type CycleState = { active: boolean; index: number; anchorId: string };
 
-/** N-of-M counter for the cycle chip: 1-based step and total destinations.
- *  Shared by drag and carry — lives in infra so neither domain re-declares it. */
-export type CycleStatus = { step: number; total: number };
+/** The cycle chip's disclosure datum across a modality's lifetime. At entry —
+ *  before any step — it names the cycle key for the active modality; once stepping
+ *  starts it carries the 1-based N-of-M counter. Shared by drag and carry so
+ *  neither domain re-declares the chip's contract. */
+export type CycleStatus =
+  | { phase: "entry"; modality: "drag" | "carry" }
+  | { phase: "stepping"; step: number; total: number };
 
-/** Stable equality for CycleStatus: avoids re-renders when step/total
- *  haven't changed. Both domains share this predicate — single source of truth. */
+/** Stable equality for CycleStatus: avoids re-renders when the disclosure datum
+ *  hasn't changed. Both domains share this predicate — single source of truth. */
 export const sameStatus = (
   a: CycleStatus | null,
   b: CycleStatus | null,
-): boolean => a?.step === b?.step && a?.total === b?.total;
+): boolean => {
+  if (!a || !b) return a === b;
+  if (a.phase !== b.phase) return false;
+  if (a.phase === "entry" && b.phase === "entry")
+    return a.modality === b.modality;
+  if (a.phase === "stepping" && b.phase === "stepping")
+    return a.step === b.step && a.total === b.total;
+  return false;
+};
 
 const IDLE: CycleState = { active: false, index: 0, anchorId: "" };
 
@@ -99,6 +111,19 @@ export const Cycle = {
     stack: readonly Destination[],
   ): Destination | undefined =>
     cycle.active && cycle.index < stack.length ? stack[cycle.index] : undefined,
+
+  /** Compute the cycle chip's disclosure datum for the current frame.
+   *  Stepping (N-of-M) when the cycle is active and the stack is non-empty;
+   *  entry (name the key) otherwise. Both drag and carry share this path —
+   *  the caller supplies the modality literal. */
+  status: (
+    cycle: CycleState,
+    stackLength: number,
+    modality: "drag" | "carry",
+  ): CycleStatus =>
+    cycle.active && stackLength > 0
+      ? { phase: "stepping", step: cycle.index + 1, total: stackLength }
+      : { phase: "entry", modality },
 
   /** Render/drop target for a cycle destination. A real parent paints its tiles
    *  with the chosen slot active and drops verbatim; root content has no border

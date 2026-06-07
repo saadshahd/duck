@@ -1,7 +1,7 @@
 import { test, expect, type Page } from "@playwright/test";
 import {
   readOverlayElements,
-  selectParentElement,
+  enterSlotChoice,
   clickMoveChip,
   sourceCenter,
   edgePoint,
@@ -37,19 +37,21 @@ test.describe("R4 — state-owned affordance sets", () => {
     });
   });
 
-  test("slot-selected owns label cluster + slot stop; no rings, no move chip, no box-model, no action bar, no drop overlay", async ({
+  test("slot-selected owns the slot stop only; node label cluster yields (R12), no rings, no move chip, no box-model, no action bar, no drop overlay", async ({
     page,
   }) => {
     await page.locator("h3").first().click();
     await page.waitForTimeout(300);
 
-    // First ↑ on the chip climbs to the owning slot stop.
-    await selectParentElement(page);
+    // Slot-selected is reached via the insert slot-choice on the Card. R12: the
+    // node label cluster yields entirely so the slot-stop label is the sole
+    // slot namer.
+    await enterSlotChoice(page);
     await expect
       .poll(() => readOverlayElements(page))
       .toEqual({
         selectionRings: 0,
-        labelCluster: true,
+        labelCluster: false,
         moveChip: false,
         boxModelToggle: false,
         actionBar: false,
