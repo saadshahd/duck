@@ -132,13 +132,37 @@ export const config: Config = {
         style: {
           type: "object",
           objectFields: {
-            maxWidth: { type: "select", options: maxWidth },
-            margin: { type: "select", options: margin },
-            padding: { type: "select", options: space },
+            maxWidth: {
+              type: "select",
+              options: maxWidth,
+              metadata: { control: "dimension", unit: "px" },
+            },
+            margin: {
+              type: "select",
+              options: margin,
+              metadata: { control: "dimension", unit: "rem" },
+            },
+            padding: {
+              type: "select",
+              options: space,
+              metadata: { control: "dimension", unit: "rem" },
+            },
             fontFamily: { type: "select", options: fontFamily },
-            color: { type: "select", options: color },
-            background: { type: "select", options: color },
-            borderRadius: { type: "select", options: radius },
+            color: {
+              type: "select",
+              options: color,
+              metadata: { control: "swatch" },
+            },
+            background: {
+              type: "select",
+              options: color,
+              metadata: { control: "swatch" },
+            },
+            borderRadius: {
+              type: "select",
+              options: radius,
+              metadata: { control: "dimension", unit: "px" },
+            },
           },
         },
       },
@@ -165,14 +189,34 @@ export const config: Config = {
     Heading: {
       fields: {
         text: { type: "text" },
-        level: { type: "select", options: headingLevel },
+        level: {
+          type: "select",
+          options: headingLevel,
+          metadata: { control: "segmented" },
+        },
         style: {
           type: "object",
           objectFields: {
-            fontSize: { type: "select", options: fontSize },
-            marginBottom: { type: "select", options: space },
-            textAlign: { type: "select", options: textAlign },
-            color: { type: "select", options: color },
+            fontSize: {
+              type: "select",
+              options: fontSize,
+              metadata: { control: "dimension", unit: "rem" },
+            },
+            marginBottom: {
+              type: "select",
+              options: space,
+              metadata: { control: "dimension", unit: "rem" },
+            },
+            textAlign: {
+              type: "select",
+              options: textAlign,
+              metadata: { control: "segmented" },
+            },
+            color: {
+              type: "select",
+              options: color,
+              metadata: { control: "swatch" },
+            },
           },
         },
       },
@@ -206,11 +250,31 @@ export const config: Config = {
         style: {
           type: "object",
           objectFields: {
-            fontSize: { type: "select", options: fontSize },
-            color: { type: "select", options: color },
-            maxWidth: { type: "select", options: maxWidth },
-            marginBottom: { type: "select", options: space },
-            lineHeight: { type: "select", options: lineHeight },
+            fontSize: {
+              type: "select",
+              options: fontSize,
+              metadata: { control: "dimension", unit: "rem" },
+            },
+            color: {
+              type: "select",
+              options: color,
+              metadata: { control: "swatch" },
+            },
+            maxWidth: {
+              type: "select",
+              options: maxWidth,
+              metadata: { control: "dimension", unit: "px" },
+            },
+            marginBottom: {
+              type: "select",
+              options: space,
+              metadata: { control: "dimension", unit: "rem" },
+            },
+            lineHeight: {
+              type: "select",
+              options: lineHeight,
+              metadata: { control: "dimension" },
+            },
           },
         },
       },
@@ -263,7 +327,11 @@ export const config: Config = {
     Button: {
       fields: {
         label: { type: "text" },
-        variant: { type: "select", options: buttonVariant },
+        variant: {
+          type: "select",
+          options: buttonVariant,
+          metadata: { control: "segmented" },
+        },
       },
       defaultProps: { label: "Get started", variant: "primary" },
       render: ({ label, variant }) => {
@@ -295,10 +363,26 @@ export const config: Config = {
         style: {
           type: "object",
           objectFields: {
-            width: { type: "select", options: maxWidth },
-            maxWidth: { type: "select", options: maxWidth },
-            borderRadius: { type: "select", options: radius },
-            objectFit: { type: "select", options: objectFit },
+            width: {
+              type: "select",
+              options: maxWidth,
+              metadata: { control: "dimension", unit: "px" },
+            },
+            maxWidth: {
+              type: "select",
+              options: maxWidth,
+              metadata: { control: "dimension", unit: "px" },
+            },
+            borderRadius: {
+              type: "select",
+              options: radius,
+              metadata: { control: "dimension", unit: "px" },
+            },
+            objectFit: {
+              type: "select",
+              options: objectFit,
+              metadata: { control: "segmented" },
+            },
           },
         },
       },
@@ -319,17 +403,49 @@ export const config: Config = {
     Stack: {
       fields: {
         children: { type: "slot" },
-        direction: { type: "select", options: stackDirection },
-        gap: { type: "select", options: space },
+        direction: {
+          type: "select",
+          options: stackDirection,
+          metadata: { control: "segmented" },
+        },
+        gap: {
+          type: "select",
+          options: space,
+          metadata: { control: "dimension", unit: "rem" },
+        },
         style: {
           type: "object",
           objectFields: {
-            margin: { type: "select", options: margin },
-            padding: { type: "select", options: space },
-            textAlign: { type: "select", options: textAlign },
-            alignItems: { type: "select", options: alignItems },
-            background: { type: "select", options: color },
-            borderRadius: { type: "select", options: radius },
+            margin: {
+              type: "select",
+              options: margin,
+              metadata: { control: "dimension", unit: "rem" },
+            },
+            padding: {
+              type: "select",
+              options: space,
+              metadata: { control: "dimension", unit: "rem" },
+            },
+            textAlign: {
+              type: "select",
+              options: textAlign,
+              metadata: { control: "segmented" },
+            },
+            alignItems: {
+              type: "select",
+              options: alignItems,
+              metadata: { control: "segmented" },
+            },
+            background: {
+              type: "select",
+              options: color,
+              metadata: { control: "swatch" },
+            },
+            borderRadius: {
+              type: "select",
+              options: radius,
+              metadata: { control: "dimension", unit: "px" },
+            },
           },
         },
       },
@@ -370,9 +486,21 @@ export const config: Config = {
         style: {
           type: "object",
           objectFields: {
-            padding: { type: "select", options: space },
-            background: { type: "select", options: color },
-            borderRadius: { type: "select", options: radius },
+            padding: {
+              type: "select",
+              options: space,
+              metadata: { control: "dimension", unit: "rem" },
+            },
+            background: {
+              type: "select",
+              options: color,
+              metadata: { control: "swatch" },
+            },
+            borderRadius: {
+              type: "select",
+              options: radius,
+              metadata: { control: "dimension", unit: "px" },
+            },
           },
         },
       },
@@ -413,7 +541,11 @@ export const config: Config = {
       fields: {
         children: { type: "slot" },
         columns: { type: "select", options: gridColumns },
-        gap: { type: "select", options: space },
+        gap: {
+          type: "select",
+          options: space,
+          metadata: { control: "dimension", unit: "rem" },
+        },
       },
       defaultProps: {
         columns: 3,
@@ -512,6 +644,7 @@ export const config: Config = {
             { label: "Stack", value: "stack" },
             { label: "Scatter", value: "scatter" },
           ],
+          metadata: { control: "segmented" },
         },
       },
       defaultProps: {
