@@ -1,4 +1,5 @@
 export { OverlayRoot } from "./root.js";
+export { ArkEnvironment } from "./ark-environment.js";
 export { useShadowSheet } from "./use-shadow-sheet.js";
 export { useRegistryAnchor } from "./use-registry-anchor.js";
 export { useAnchor, type Anchor } from "./use-anchor.js";
