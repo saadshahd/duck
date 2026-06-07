@@ -1,13 +1,14 @@
 import type { ReactNode } from "react";
 import type { Field } from "@puckeditor/core";
+import type { FieldProps } from "../puck-fields.js";
 
 // Re-exported so control modules (T4+) and the dispatch can share one source.
-export type { FieldProps } from "../puck-fields.js";
+export type { FieldProps };
 
 /** Signature every registered control renderer must satisfy.
  *  Receives the same FieldProps as native type renderers. */
 export type ControlRenderer<F extends Field = Field, V = unknown> = (
-  props: import("../puck-fields.js").FieldProps<F, V>,
+  props: FieldProps<F, V>,
 ) => ReactNode;
 
 /** Registry: catalog-agnostic control id → renderer.

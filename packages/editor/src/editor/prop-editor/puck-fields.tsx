@@ -458,10 +458,7 @@ const renderers = {
 function PuckFieldInput(props: FieldProps): ReactNode {
   const Renderer = resolveRenderer(
     props as FieldProps<Field, unknown>,
-    controlRenderers as Record<
-      string,
-      (p: FieldProps<Field, unknown>) => ReactNode
-    >,
+    controlRenderers,
     renderers as Record<string, (p: FieldProps<Field, unknown>) => ReactNode>,
   );
   if (Renderer) return Renderer(props as FieldProps<never, unknown>);

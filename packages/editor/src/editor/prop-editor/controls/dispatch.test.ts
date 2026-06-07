@@ -96,6 +96,19 @@ describe("resolveRenderer — no metadata, falls through to type renderer", () =
 
     expect(result).toBe(textRenderer);
   });
+
+  it("routes to type renderer when metadata.control is non-string", () => {
+    const textRenderer = renderer("text-type");
+    const controlRenderers: Record<string, ControlRenderer> = {};
+    const typeRenderers: Record<string, ControlRenderer> = {
+      text: textRenderer,
+    };
+
+    const f = field("text", { control: 42 });
+    const result = resolveRenderer(props(f), controlRenderers, typeRenderers);
+
+    expect(result).toBe(textRenderer);
+  });
 });
 
 describe("resolveRenderer — fallback to undefined when both dispatch tables miss", () => {
