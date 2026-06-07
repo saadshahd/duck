@@ -2,6 +2,7 @@ import { test, expect, type Page } from "@playwright/test";
 import {
   countHighlights,
   getTileLabels,
+  readTileRects,
   getActiveDestinationLabel,
   isToolbarVisible,
   sourceCenter,
@@ -284,6 +285,91 @@ test.describe("Carry affordances", () => {
       pulse!.y < source!.y + source!.height &&
       pulse!.y + pulse!.height > source!.y;
     expect(overlaps).toBe(true);
+
+    await page.keyboard.press("Escape");
+  });
+});
+
+test.describe("Carry tracks scroll", () => {
+  test.beforeEach(async ({ page }) => {
+    await page.goto("/");
+    await page.waitForTimeout(500);
+  });
+
+  test("scroll mid-carry re-resolves every affordance in lockstep — pulse, tiles, and active label all follow the new geometry", async ({
+    page,
+  }) => {
+    // Lift the heading via Space so no auto-scroll perturbs the page offset.
+    const heading = page.locator("h1");
+    await heading.click();
+    await page.waitForTimeout(300);
+    await lift(page);
+
+    // Aim at the Card header band so there is a live destination to track.
+    const gap = await headerGapPoint(page);
+    await page.mouse.move(gap.x, gap.y);
+    await expect
+      .poll(async () => (await getTileLabels(page))?.[0] ?? null)
+      .toBe("Card › header");
+
+    // Snapshot all carry affordances before the scroll.
+    const pulseBefore = await getLiftPulseRect(page);
+    const tilesBefore = await readTileRects(page);
+    const labelBefore = await getActiveDestinationLabel(page);
+    const sourceBefore = await heading.boundingBox();
+    expect(pulseBefore).not.toBeNull();
+    expect(tilesBefore && tilesBefore.length > 0).toBe(true);
+    expect(sourceBefore).not.toBeNull();
+
+    // The pulse rides the source's viewport box before the scroll.
+    const overlapsSource = (
+      pulse: { x: number; y: number; width: number; height: number },
+      src: { x: number; y: number; width: number; height: number },
+    ) =>
+      pulse.x < src.x + src.width &&
+      pulse.x + pulse.width > src.x &&
+      pulse.y < src.y + src.height &&
+      pulse.y + pulse.height > src.y;
+    expect(overlapsSource(pulseBefore!, sourceBefore!)).toBe(true);
+
+    // Wheel 250px without moving the pointer. The viewport point is unchanged;
+    // the content beneath it scrolls up by ~250px.
+    const SCROLL = 250;
+    await page.mouse.wheel(0, SCROLL);
+    // Re-resolution must land in the same frame as the scroll — give it two
+    // frames to flush, but never a pointer move (that would mask a stale window).
+    await waitFrames(page, 2);
+
+    const pulseAfter = await getLiftPulseRect(page);
+    const tilesAfter = await readTileRects(page);
+    const labelAfter = await getActiveDestinationLabel(page);
+    const sourceAfter = await heading.boundingBox();
+    expect(pulseAfter).not.toBeNull();
+    expect(tilesAfter && tilesAfter.length > 0).toBe(true);
+    expect(sourceAfter).not.toBeNull();
+
+    // 1. Lift pulse tracked: it still overlaps the source's NEW viewport box,
+    //    and it actually moved up with the scroll (not frozen at stale coords).
+    expect(overlapsSource(pulseAfter!, sourceAfter!)).toBe(true);
+    const pulseShift = pulseBefore!.y - pulseAfter!.y;
+    const sourceShift = sourceBefore!.y - sourceAfter!.y;
+    expect(Math.abs(pulseShift - sourceShift)).toBeLessThan(4);
+    expect(pulseShift).toBeGreaterThan(50);
+
+    // 2. Tiles re-resolved against the new geometry: every painted tile's top
+    //    edge shifted up by the same scroll delta the source did. A partial
+    //    (frozen-tile) update would leave tiles at their pre-scroll y.
+    const tileShift = (tilesBefore![0]?.top ?? 0) - (tilesAfter![0]?.top ?? 0);
+    expect(Math.abs(tileShift - sourceShift)).toBeLessThan(4);
+    expect(tileShift).toBeGreaterThan(50);
+
+    // 3. Active label re-resolved through the same path — the destination under
+    //    the unchanged pointer is named, not a stale label from before the scroll.
+    //    The pointer never moved, so the band beneath it resolves to the SAME
+    //    destination; a broken re-resolution emitting any other non-null label
+    //    would slip past a mere not-null check.
+    expect(labelBefore).not.toBeNull();
+    expect(labelAfter).toBe(labelBefore);
 
     await page.keyboard.press("Escape");
   });
