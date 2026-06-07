@@ -280,6 +280,37 @@ export const countBoxModelBands = (page: Page) =>
     (r) => r.querySelectorAll("[data-role='box-model-bands']").length,
   ) as Promise<number>;
 
+/** One-pass census of the state-owned affordance elements in the overlay. R4's
+ *  observer: each interaction state declares a complete, non-overlapping set, so
+ *  asserting this whole census per state proves the partition. */
+export const readOverlayElements = (page: Page) =>
+  shadowQuery(page, (r) => {
+    const has = (sel: string) => r.querySelector(sel) !== null;
+    const count = (sel: string) => r.querySelectorAll(sel).length;
+    return {
+      selectionRings: count("[data-role='selection-ring']"),
+      labelCluster: has("[data-role='selection-label']"),
+      moveChip: has("[data-role='move-chip']"),
+      boxModelToggle: has("[data-role='box-model-toggle']"),
+      actionBar: has("[role='toolbar']"),
+      slotStop: has("[data-role='slot-stop']"),
+      dropIndicator:
+        has("[data-role='drop-indicator']") ||
+        has("[data-role='drop-indicator-container']") ||
+        count("[data-role='slot-tile']") > 0,
+      liftPulse: has("[data-role='lift-pulse']"),
+    };
+  }) as Promise<{
+    selectionRings: number;
+    labelCluster: boolean;
+    moveChip: boolean;
+    boxModelToggle: boolean;
+    actionBar: boolean;
+    slotStop: boolean;
+    dropIndicator: boolean;
+    liftPulse: boolean;
+  } | null>;
+
 /** Click the box-model toggle in the selection label cluster. */
 export const toggleBoxModel = (page: Page) =>
   page.evaluate(() => {

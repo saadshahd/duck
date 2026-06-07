@@ -22,7 +22,7 @@ import {
   useEditorSelection,
   HoverHighlight,
   SelectionRing,
-  SelectionLabel,
+  SelectionCluster,
   SlotStop,
   FloatingActionBar,
   useActionHandler,
@@ -41,6 +41,7 @@ import { useGhostPlaceholders } from "./ghost/index.js";
 import { useFiberRegistry } from "./shell/use-fiber-registry.js";
 import { useSelectionReconcile } from "./shell/use-selection-reconcile.js";
 import { useSlotAddress } from "./shell/use-slot-stop.js";
+import { interactionState, affordancesFor } from "./shell/affordances.js";
 import {
   announcerMessage,
   assertiveCarryMessage,
@@ -251,25 +252,22 @@ export function Editor<UserConfig extends Config = Config>({
 
   const [boxModelVisible, setBoxModelVisible] = useState(false);
 
-  const hasSelection =
-    fiberRegistry &&
-    ((pointer === "slot-selected" && state.context.selectedSlot) ||
-      ((pointer === "selected" ||
-        pointer === "editing" ||
-        pointer === "inserting") &&
-        selectedIds.size > 0));
-
   const { selectedSlot } = state.context;
   const slotAddress = useSlotAddress(currentData, lastSelectedId);
+
+  const affordances = affordancesFor(
+    interactionState({
+      pointer,
+      drag,
+      hasSelection: selectedIds.size > 0,
+      hasSlot: selectedSlot !== null,
+    }),
+  );
 
   const yieldingToolbar = useToolbarYield(fiberRegistry, singleSelected);
 
   const showActionBar =
-    hasSelection &&
-    pointer === "selected" &&
-    singleSelected &&
-    drag === "idle" &&
-    !yieldingToolbar;
+    affordances.actionBar && singleSelected && !yieldingToolbar;
 
   const { registry: patternRegistry, remintIds } = usePatterns(
     config,
@@ -351,147 +349,118 @@ export function Editor<UserConfig extends Config = Config>({
           resolvingIds={resolvingIds}
           errorIds={errorIds}
         />
-        {hasSelection && (
-          <>
-            {[...selectedIds].map((id) => (
-              <SelectionRing key={id} registry={fiberRegistry} elementId={id} />
-            ))}
-            {lastSelectedId && (
-              <SelectionLabel
-                registry={fiberRegistry}
-                elementId={lastSelectedId}
-                elementType={index.get(lastSelectedId)?.component.type}
-                selectionCount={selectedIds.size}
-                slotAddress={slotAddress}
-                toolbarRef={toolbarRef}
-                onSelectParent={selectParent}
-              >
-                {singleSelected && drag === "idle" && (
-                  <button
-                    type="button"
-                    data-role="move-chip"
-                    className="move-chip"
-                    aria-keyshortcuts="Space"
-                    onClick={() => handleAction({ tag: "move" })}
-                  >
-                    ⤢ Move
-                  </button>
-                )}
-                <button
-                  type="button"
-                  data-role="box-model-toggle"
-                  className={`label-action-btn${boxModelVisible ? " label-action-btn--active" : ""}`}
-                  onClick={() => setBoxModelVisible((v) => !v)}
-                >
-                  <svg
-                    width="10"
-                    height="10"
-                    viewBox="0 0 10 10"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="1.2"
-                  >
-                    <rect x="0.6" y="0.6" width="8.8" height="8.8" rx="0.8" />
-                    <rect x="3" y="3" width="4" height="4" />
-                  </svg>
-                </button>
-              </SelectionLabel>
-            )}
-            {boxModelVisible &&
-              fiberRegistry &&
-              [...selectedIds].map((id) => (
-                <BoxModelLayer
-                  key={id}
-                  registry={fiberRegistry}
-                  elementId={id}
-                />
-              ))}
-            {showActionBar && singleSelected && (
-              <FloatingActionBar
-                registry={fiberRegistry}
-                elementId={singleSelected}
-                axis={moveInfo.axis}
-                canMovePrev={moveInfo.canMovePrev}
-                canMoveNext={moveInfo.canMoveNext}
-                canInsert
-                onAction={handleAction}
-                toolbarRef={toolbarRef}
-              >
-                {patternRegistry && (
-                  <MorphButton
-                    count={morph.count}
-                    elementId={singleSelected}
-                    onClick={morph.openPicker}
-                    buttonRef={morphButtonRef}
-                  />
-                )}
-              </FloatingActionBar>
-            )}
-            {pointer === "editing" && singleSelected && popover}
-            {pointer === "inserting" &&
-              singleSelected &&
-              fiberRegistry &&
-              lastSelectedId && (
-                <CatalogPicker
-                  registry={fiberRegistry}
-                  elementId={lastSelectedId}
-                  config={config}
-                  onInsert={onInsert}
-                  onClose={() => send({ type: "ESCAPE" })}
-                />
-              )}
-            {morph.isOpen && singleSelected && (
-              <MorphPicker
-                patterns={morph.patterns}
-                onHover={onMorphHover}
-                onCommit={onMorphCommit}
-                onClose={morph.closePicker}
-                commitError={morph.commitError}
-                anchorRef={morphButtonRef}
-              />
-            )}
-            {pointer === "slot-selected" &&
-              selectedSlot &&
-              slotAddress &&
-              selectParent &&
-              fiberRegistry && (
-                <SlotStop
-                  registry={fiberRegistry}
-                  data={currentData}
-                  parentId={selectedSlot.parentId}
-                  slotKey={selectedSlot.slotKey}
-                  label={slotAddress}
-                  onClimb={selectParent}
-                />
-              )}
-          </>
+        {affordances.selectionRings &&
+          fiberRegistry &&
+          [...selectedIds].map((id) => (
+            <SelectionRing key={id} registry={fiberRegistry} elementId={id} />
+          ))}
+        {affordances.labelCluster && fiberRegistry && lastSelectedId && (
+          <SelectionCluster
+            registry={fiberRegistry}
+            elementId={lastSelectedId}
+            elementType={index.get(lastSelectedId)?.component.type}
+            selectionCount={selectedIds.size}
+            slotAddress={slotAddress}
+            toolbarRef={toolbarRef}
+            onSelectParent={selectParent}
+            showMove={Boolean(affordances.actionBar && singleSelected)}
+            showBoxModel={affordances.boxModel}
+            boxModelActive={boxModelVisible}
+            onMove={() => handleAction({ tag: "move" })}
+            onToggleBoxModel={() => setBoxModelVisible((v) => !v)}
+          />
         )}
-        {(() => {
-          const target =
-            drag === "dragging"
-              ? dropTarget
-              : drag === "carrying"
-                ? carryTarget
-                : null;
-          return target && fiberRegistry ? (
-            <>
-              <DragOverlay
-                registry={fiberRegistry}
-                data={currentData}
-                target={target}
+        {affordances.boxModel &&
+          boxModelVisible &&
+          fiberRegistry &&
+          [...selectedIds].map((id) => (
+            <BoxModelLayer key={id} registry={fiberRegistry} elementId={id} />
+          ))}
+        {showActionBar && singleSelected && fiberRegistry && (
+          <FloatingActionBar
+            registry={fiberRegistry}
+            elementId={singleSelected}
+            axis={moveInfo.axis}
+            canMovePrev={moveInfo.canMovePrev}
+            canMoveNext={moveInfo.canMoveNext}
+            canInsert
+            onAction={handleAction}
+            toolbarRef={toolbarRef}
+          >
+            {patternRegistry && (
+              <MorphButton
+                count={morph.count}
+                elementId={singleSelected}
+                onClick={morph.openPicker}
+                buttonRef={morphButtonRef}
               />
-              {drag === "dragging" && cycleStatus && (
-                <CycleChip
+            )}
+          </FloatingActionBar>
+        )}
+        {affordances.actionBar &&
+          pointer === "editing" &&
+          singleSelected &&
+          popover}
+        {affordances.actionBar &&
+          pointer === "inserting" &&
+          singleSelected &&
+          fiberRegistry &&
+          lastSelectedId && (
+            <CatalogPicker
+              registry={fiberRegistry}
+              elementId={lastSelectedId}
+              config={config}
+              onInsert={onInsert}
+              onClose={() => send({ type: "ESCAPE" })}
+            />
+          )}
+        {affordances.actionBar && morph.isOpen && singleSelected && (
+          <MorphPicker
+            patterns={morph.patterns}
+            onHover={onMorphHover}
+            onCommit={onMorphCommit}
+            onClose={morph.closePicker}
+            commitError={morph.commitError}
+            anchorRef={morphButtonRef}
+          />
+        )}
+        {affordances.slotStop &&
+          selectedSlot &&
+          slotAddress &&
+          selectParent &&
+          fiberRegistry && (
+            <SlotStop
+              registry={fiberRegistry}
+              data={currentData}
+              parentId={selectedSlot.parentId}
+              slotKey={selectedSlot.slotKey}
+              label={slotAddress}
+              onClimb={selectParent}
+            />
+          )}
+        {affordances.dropOverlay &&
+          fiberRegistry &&
+          (() => {
+            const target = drag === "dragging" ? dropTarget : carryTarget;
+            return target ? (
+              <>
+                <DragOverlay
                   registry={fiberRegistry}
                   data={currentData}
                   target={target}
-                  status={cycleStatus}
                 />
-              )}
-            </>
-          ) : null;
-        })()}
-        {drag === "carrying" && liftRectRef.current && (
+                {drag === "dragging" && cycleStatus && (
+                  <CycleChip
+                    registry={fiberRegistry}
+                    data={currentData}
+                    target={target}
+                    status={cycleStatus}
+                  />
+                )}
+              </>
+            ) : null;
+          })()}
+        {affordances.liftPulse && liftRectRef.current && (
           <LiftPulse rect={liftRectRef.current} />
         )}
         {noTargetFlash && <NoTargetFlash point={noTargetFlash} />}

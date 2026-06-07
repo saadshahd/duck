@@ -12,16 +12,6 @@
   border-radius: 1px;
 }
 
-.drop-indicator-line::after {
-  content: "";
-  position: absolute;
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  border: 2px solid var(--accent);
-  background: #fff;
-}
-
 /* Horizontal line (vertical-axis reorder: top/bottom edges) */
 .drop-indicator-line[data-axis="vertical"]::before {
   top: -1px;
@@ -30,22 +20,12 @@
   height: 2px;
 }
 
-.drop-indicator-line[data-axis="vertical"]::after {
-  top: -4px;
-  left: -4px;
-}
-
 /* Vertical line (horizontal-axis reorder: left/right edges) */
 .drop-indicator-line[data-axis="horizontal"]::before {
   left: -1px;
   top: 0;
   bottom: 0;
   width: 2px;
-}
-
-.drop-indicator-line[data-axis="horizontal"]::after {
-  left: -4px;
-  top: -4px;
 }
 
 .drop-indicator-container {
