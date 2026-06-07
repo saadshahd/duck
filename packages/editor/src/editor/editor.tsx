@@ -161,7 +161,10 @@ export function Editor<UserConfig extends Config = Config>({
   );
 
   useSelectionReconcile(state.context, elementIds, send);
-  useEditorSelection(fiberRegistry, send);
+  const sheetOpenForClicks =
+    (state.value as { pointer: string }).pointer === "editing" &&
+    state.context.editing?.mode === "sheet";
+  useEditorSelection(fiberRegistry, send, sheetOpenForClicks);
   const {
     dropTarget,
     cycleStatus,
@@ -409,7 +412,7 @@ export function Editor<UserConfig extends Config = Config>({
       </div>
 
       <style>{`
-        body { user-select: none; }
+        body { user-select: none; ${sheetOpenForClicks ? "padding-right: var(--sheet-width, 320px);" : ""} }
         ::view-transition-group(*) { animation-duration: 200ms; animation-timing-function: ease; }
       `}</style>
 

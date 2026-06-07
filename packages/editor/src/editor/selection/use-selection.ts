@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import type { FiberRegistry } from "../fiber/index.js";
 import { resolveHit, isFromShadowDom, type Hit } from "../fiber/index.js";
 import type { EditorEvent } from "../machine/index.js";
@@ -8,10 +8,15 @@ import type { EditorEvent } from "../machine/index.js";
 export const hoverEvent = (hit: Hit | null): EditorEvent =>
   hit ? { type: "HOVER", elementId: hit.elementId } : { type: "UNHOVER" };
 
-export const selectEvent = (hit: Hit | null, multi: boolean): EditorEvent =>
+export const selectEvent = (
+  hit: Hit | null,
+  { multi, sheetOpen }: { multi: boolean; sheetOpen: boolean },
+): EditorEvent =>
   hit
     ? { type: multi ? "TOGGLE_SELECT" : "SELECT", elementId: hit.elementId }
-    : { type: "DESELECT" };
+    : sheetOpen
+      ? { type: "CANCEL_EDIT" }
+      : { type: "DESELECT" };
 
 // --- Hook ---
 
@@ -19,7 +24,11 @@ export const selectEvent = (hit: Hit | null, multi: boolean): EditorEvent =>
 export function useEditorSelection(
   registry: FiberRegistry | null,
   send: (event: EditorEvent) => void,
+  sheetOpen: boolean,
 ): void {
+  const sheetOpenRef = useRef(sheetOpen);
+  sheetOpenRef.current = sheetOpen;
+
   useEffect(
     function wirePointerEvents() {
       if (!registry) return;
@@ -35,7 +44,10 @@ export function useEditorSelection(
       const onClick = (e: MouseEvent) => {
         if (isFromShadowDom(e)) return;
         send(
-          selectEvent(resolveHit(registry, e.clientX, e.clientY), e.shiftKey),
+          selectEvent(resolveHit(registry, e.clientX, e.clientY), {
+            multi: e.shiftKey,
+            sheetOpen: sheetOpenRef.current,
+          }),
         );
       };
 

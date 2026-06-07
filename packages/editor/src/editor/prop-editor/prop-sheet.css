@@ -1,0 +1,65 @@
+/* Focus sheet shell — backdrop dim + cutout, tether, slide-in panel */
+
+.prop-sheet-backdrop {
+  position: fixed;
+  border-radius: 4px; /* matches hover/selection ring radius — frames the same element */
+  box-shadow: 0 0 0 100vmax var(--backdrop-dim); /* scrim, not a surface — 0.90 rule N/A */
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 150ms ease;
+}
+
+.prop-sheet-backdrop[data-open] {
+  opacity: 1;
+}
+
+.prop-sheet-backdrop:not([data-tracking]) {
+  transition:
+    opacity 150ms ease,
+    top 150ms ease,
+    left 150ms ease,
+    width 150ms ease,
+    height 150ms ease;
+}
+
+.prop-sheet-tether {
+  position: fixed;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+}
+
+.prop-sheet {
+  pointer-events: auto;
+  position: fixed;
+  top: 0;
+  right: 0;
+  width: var(--sheet-width);
+  height: 100vh;
+  background: var(--surface-sheet);
+  backdrop-filter: blur(16px); /* System Sheet recipe — blur in place of shadow */
+  border-left: 1px solid var(--border-subtle); /* the docked edge; replaces the deleted cast shadow */
+  color: var(--text-sheet);
+  font-family: var(--font-system);
+  display: flex;
+  flex-direction: column;
+  transform: translateX(100%);
+  transition: transform 200ms cubic-bezier(0.32, 0.72, 0, 1); /* enter */
+  will-change: transform;
+}
+
+.prop-sheet[data-open] {
+  transform: translateX(0);
+}
+
+.prop-sheet[data-closing] {
+  transition-duration: 150ms; /* faster exit, mirrors the floating-bar 200/150 pair */
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .prop-sheet,
+  .prop-sheet-backdrop {
+    transition: none;
+  }
+}

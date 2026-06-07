@@ -1,54 +1,6 @@
-/* Prop-editor domain — property popover and inline input */
+/* Prop-editor domain — inline input and field components */
 
-.prop-popover {
-  pointer-events: auto;
-  background: var(--surface-bar);
-  border-radius: 8px;
-  box-shadow: var(--shadow-bar);
-  font-family: var(--font-system);
-  min-width: 220px;
-  max-width: 320px;
-  max-height: 400px;
-  overflow-y: auto;
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-  padding: 12px;
-}
-
-.prop-popover label {
-  display: block;
-  font-size: 13px;
-  font-weight: 500;
-  color: var(--text-bar);
-  margin-bottom: 4px;
-  user-select: none;
-}
-
-.prop-popover input,
-.prop-popover select,
-.prop-popover textarea {
-  width: 100%;
-  height: 28px;
-  padding: 0 8px;
-  font-family: var(--font-system);
-  font-size: 13px;
-  color: var(--text-bar);
-  background: rgba(255, 255, 255, 0.06);
-  border: 1px solid rgba(255, 255, 255, 0.10);
-  border-radius: 6px;
-  outline: none;
-  transition: border-color 150ms ease;
-}
-
-.prop-popover textarea {
-  height: auto;
-  min-height: 56px;
-  padding: 6px 8px;
-  resize: vertical;
-}
-
-.prop-popover select {
+.prop-field select {
   appearance: none;
   cursor: pointer;
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath d='M1 1l4 4 4-4' stroke='%23f5f5f4' stroke-width='1.5' fill='none'/%3E%3C/svg%3E");
@@ -57,36 +9,7 @@
   padding-right: 28px;
 }
 
-.prop-popover input::placeholder,
-.prop-popover textarea::placeholder {
-  color: var(--text-bar-muted);
-}
-
-.prop-popover input:focus,
-.prop-popover select:focus,
-.prop-popover textarea:focus {
-  border-color: var(--text-bar);
-}
-
-.prop-popover textarea[data-invalid] {
-  border-color: #f87171;
-}
-
-.prop-popover * + details {
-  border-top: 1px solid rgba(255, 255, 255, 0.10);
-  padding-top: 8px;
-}
-
-.prop-popover summary {
-  font-size: 13px;
-  font-weight: 500;
-  color: var(--text-bar);
-  cursor: pointer;
-  user-select: none;
-  list-style: revert;
-}
-
-.prop-popover-nested {
+.prop-field-nested {
   display: flex;
   flex-direction: column;
   gap: 8px;
@@ -94,7 +17,7 @@
   padding-left: 8px;
 }
 
-.prop-popover-hint {
+.prop-field-hint {
   font-size: 12px;
   color: var(--text-bar-muted);
   margin: 0;

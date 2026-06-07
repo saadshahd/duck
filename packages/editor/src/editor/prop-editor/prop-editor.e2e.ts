@@ -1,9 +1,5 @@
 import { test, expect } from "@playwright/test";
-import {
-  isToolbarVisible,
-  hasToolbarAction,
-  clickToolbarAction,
-} from "../overlay/testing.js";
+import { hasToolbarAction, clickToolbarAction } from "../overlay/testing.js";
 
 test.describe("Inline text editing", () => {
   test.beforeEach(async ({ page }) => {
@@ -85,21 +81,28 @@ test.describe("Inline text editing", () => {
   });
 });
 
-test.describe("Popover editing", () => {
+test.describe("Sheet editing", () => {
   test.beforeEach(async ({ page }) => {
     await page.goto("/");
     await page.waitForTimeout(500);
   });
 
-  test("edit button opens prop popover", async ({ page }) => {
+  test("edit button opens prop sheet", async ({ page }) => {
     await page.locator("h3").first().click();
     await page.waitForTimeout(300);
     expect(await hasToolbarAction(page, "edit")).toBe(true);
 
     await clickToolbarAction(page, "edit");
-    await page.waitForTimeout(300);
+    await page.waitForTimeout(400);
 
-    expect(await isToolbarVisible(page)).toBe(false);
+    const visible = await page.evaluate(() => {
+      for (const d of document.querySelectorAll("div")) {
+        if (!d.shadowRoot || d.style.position !== "fixed") continue;
+        return d.shadowRoot.querySelector("[data-role='prop-sheet']") !== null;
+      }
+      return false;
+    });
+    expect(visible).toBe(true);
   });
 
   test("unset select shows blank placeholder, not the first option", async ({
@@ -117,7 +120,7 @@ test.describe("Popover editing", () => {
       for (const d of document.querySelectorAll("div")) {
         if (!d.shadowRoot || d.style.position !== "fixed") continue;
         const selects = d.shadowRoot.querySelectorAll(
-          "[data-role='prop-popover'] select",
+          "[data-role='prop-sheet'] select",
         );
         if (!selects.length) return "NO_SELECTS";
         // First select is `level` (set to "h3"); the rest back the empty style object.
@@ -143,7 +146,7 @@ test.describe("Popover editing", () => {
         if (!d.shadowRoot || d.style.position !== "fixed") continue;
         const fields = [
           ...d.shadowRoot.querySelectorAll(
-            "[data-role='prop-popover'] input, [data-role='prop-popover'] textarea",
+            "[data-role='prop-sheet'] input, [data-role='prop-sheet'] textarea",
           ),
         ] as (HTMLInputElement | HTMLTextAreaElement)[];
         const resolved = fields.find((f) => f.readOnly);

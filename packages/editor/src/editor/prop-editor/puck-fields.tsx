@@ -158,7 +158,7 @@ const ObjectInput = ({
   return (
     <details>
       <summary>{field.label ?? label}</summary>
-      <div className="prop-popover-nested">
+      <div className="prop-field-nested">
         {Object.entries(field.objectFields).map(([key, childField]) => (
           <PuckFieldInput
             key={key}
@@ -188,13 +188,13 @@ const ArrayInput = ({
   return (
     <details>
       <summary>{field.label ?? label}</summary>
-      <div className="prop-popover-nested">
+      <div className="prop-field-nested">
         {items.map((item, i) => (
           <details key={i}>
             <summary>
               {summarize ? summarize(item, i) : `Item ${i + 1}`}
             </summary>
-            <div className="prop-popover-nested">
+            <div className="prop-field-nested">
               {Object.entries(field.arrayFields).map(([key, childField]) => (
                 <PuckFieldInput
                   key={key}
@@ -223,7 +223,7 @@ const SlotHint = ({
 }: FieldProps<Extract<Field, { type: "slot" }>, unknown>) => (
   <div>
     <label>{field.label ?? label}</label>
-    <p className="prop-popover-hint">Manage children in canvas.</p>
+    <p className="prop-field-hint">Manage children in canvas.</p>
   </div>
 );
 
@@ -276,7 +276,7 @@ const ExternalInput = ({
         {value ? summarize(value as never) : (field.placeholder ?? "Select...")}
       </button>
       {open && items && (
-        <ul className="prop-popover-nested">
+        <ul className="prop-field-nested">
           {items.map((item, i) => (
             <li key={i}>
               <button

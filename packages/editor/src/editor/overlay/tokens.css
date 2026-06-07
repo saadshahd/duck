@@ -42,6 +42,11 @@
   /* Typography */
   --font-system: 'Helvetica Neue', Helvetica, Arial, sans-serif;
 
+  /* Focus sheet (cross-domain) */
+  --backdrop-dim: rgba(0, 0, 0, 0.25);
+  --sheet-width: 320px;
+  --tether-stroke: rgba(17, 17, 17, 0.35);
+
   /* Stacking — overlay surfaces share one shadow root, so cross-domain paint
      order is explicit, not DOM order. Bands sit at the band layer; slot labels
      sit above bands so a label is never occluded by a sibling slot's band (the

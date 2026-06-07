@@ -13,8 +13,11 @@ import type { EditorCommit } from "../types.js";
 import { useDoubleClickEdit } from "./use-double-click-edit.js";
 import { useKeyboardEdit } from "./use-keyboard-edit.js";
 import { useInlineEdit } from "./inline-input.js";
-import { PropPopover } from "./prop-popover.js";
+import { PropSheet } from "./prop-sheet.js";
+import { useSheetAnchor } from "./use-sheet-anchor.js";
 import { useResolvedFields } from "./use-resolved-fields.js";
+import { PuckFields } from "./puck-fields.js";
+import type { ResolvedFields } from "./find-editable-prop.js";
 
 /** True when opening the editor for this node should kick a force-resolve so the
  *  node's read-only / resolved props enter committed data before first render. */
@@ -132,19 +135,49 @@ export function usePropEditor({
     [editing, commitPropEdit],
   );
 
-  const handleClose = useCallback(() => send({ type: "CANCEL_EDIT" }), [send]);
-
   if (!editing || editing.mode !== "sheet" || !sheetComponent || !registry) {
     return null;
   }
 
   return (
-    <PropPopover
+    <SheetView
+      key={editing.elementId}
       registry={registry}
       component={sheetComponent}
       fields={sheetFields}
       onPropChange={handlePropChange}
-      onClose={handleClose}
     />
+  );
+}
+
+function SheetView({
+  registry,
+  component,
+  fields,
+  onPropChange,
+}: {
+  registry: FiberRegistry;
+  component: ComponentData;
+  fields: ResolvedFields;
+  onPropChange: (propKey: string, value: unknown) => void;
+}): ReactNode {
+  const elementId = (component.props as { id?: string }).id ?? "";
+  const { cutoutRef, lineRef } = useSheetAnchor(registry, elementId);
+  const readOnlyFields = component.readOnly as
+    | Partial<Record<string, boolean>>
+    | undefined;
+  return (
+    <>
+      <PropSheet.Backdrop cutoutRef={cutoutRef} open />
+      <PropSheet.Tether lineRef={lineRef} />
+      <PropSheet.Panel open>
+        <PuckFields
+          fields={fields}
+          values={component.props as Record<string, unknown>}
+          readOnlyFields={readOnlyFields}
+          onChange={onPropChange}
+        />
+      </PropSheet.Panel>
+    </>
   );
 }
