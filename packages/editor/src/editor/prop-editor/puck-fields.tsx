@@ -75,28 +75,48 @@ const NumberInput = ({
   </div>
 );
 
+/** Membership-derived select state: a value counts as "set" only when it is one
+ *  of the catalog's option values (so an explicit empty-string option is honest,
+ *  and an absent/foreign value shows the synthetic placeholder, never option[0]). */
+export const selectDisplay = (
+  value: unknown,
+  options: readonly { value: unknown }[],
+): { isUnset: boolean; display: string } => {
+  const current = String(value ?? "");
+  const isUnset = !options.some((o) => String(o.value) === current);
+  return { isUnset, display: isUnset ? "" : current };
+};
+
 const SelectInput = ({
   label,
   field,
   value,
   onChange,
   readOnly,
-}: FieldProps<Extract<Field, { type: "select" }>, unknown>) => (
-  <div>
-    <label>{field.label ?? label}</label>
-    <select
-      value={(value as string | number) ?? ""}
-      disabled={readOnly}
-      onChange={(e) => onChange(e.target.value)}
-    >
-      {field.options.map((opt) => (
-        <option key={String(opt.value)} value={String(opt.value)}>
-          {opt.label}
-        </option>
-      ))}
-    </select>
-  </div>
-);
+}: FieldProps<Extract<Field, { type: "select" }>, unknown>) => {
+  const { isUnset, display } = selectDisplay(value, field.options);
+  return (
+    <div>
+      <label>{field.label ?? label}</label>
+      <select
+        value={display}
+        disabled={readOnly}
+        onChange={(e) => onChange(e.target.value)}
+      >
+        {isUnset && (
+          <option value="" disabled hidden>
+            — Select —
+          </option>
+        )}
+        {field.options.map((opt) => (
+          <option key={String(opt.value)} value={String(opt.value)}>
+            {opt.label}
+          </option>
+        ))}
+      </select>
+    </div>
+  );
+};
 
 const RadioInput = ({
   label,

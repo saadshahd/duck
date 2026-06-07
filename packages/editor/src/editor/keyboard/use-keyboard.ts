@@ -1,32 +1,19 @@
 import { useEffect, useRef } from "react";
 import { tinykeys } from "tinykeys";
-import type { Data } from "@puckeditor/core";
 import { nextInTreeOrder } from "../spec-ops/index.js";
 import type { ClipboardActions } from "../types.js";
 import { isEditable } from "../overlay/index.js";
 import { arrowToDirection } from "./navigation.js";
+import {
+  type NavContext,
+  selected,
+  notEditing,
+  insertable,
+  isDismissible,
+} from "./guards.js";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type Send = (event: any) => void;
-
-type NavContext = {
-  data: Data;
-  lastSelectedId: string | null;
-  pointer: string;
-};
-
-// --- Guards ---
-
-const selected = (nav: NavContext): boolean =>
-  nav.pointer === "selected" && nav.lastSelectedId !== null;
-
-const notEditing = (nav: NavContext): boolean => nav.pointer !== "editing";
-
-/** Insert is reachable wherever a destination is already established: a selected
- *  element (slot-choice or sibling) or an already-chosen slot. */
-const insertable = (nav: NavContext): boolean =>
-  (nav.pointer === "selected" || nav.pointer === "slot-selected") &&
-  nav.lastSelectedId !== null;
 
 // --- Event bindings: key → send(event) ---
 
@@ -38,7 +25,7 @@ type EventDef = {
 };
 
 const EVENT_DEFS: EventDef[] = [
-  { key: "Escape", event: "ESCAPE", target: "machine" },
+  { key: "Escape", event: "ESCAPE", target: "machine", guard: isDismissible },
   { key: "$mod+z", event: "UNDO", target: "history" },
   { key: "$mod+Shift+z", event: "REDO", target: "history" },
 ];
@@ -52,7 +39,7 @@ const eventBindings = (
       key,
       (e: KeyboardEvent) => {
         if (guard && !guard(navRef.current, e)) return;
-        if (key !== "Escape") e.preventDefault();
+        e.preventDefault();
         sends[target]({ type: event });
       },
     ]),

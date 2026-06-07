@@ -1,5 +1,5 @@
-import { useCallback, type ReactNode } from "react";
-import type { Config, Data, Metadata } from "@puckeditor/core";
+import { useCallback, useEffect, type ReactNode } from "react";
+import type { ComponentData, Config, Data, Metadata } from "@puckeditor/core";
 import { findById } from "@duckeditor/spec";
 import type { FiberRegistry } from "../fiber/index.js";
 import type {
@@ -8,12 +8,20 @@ import type {
   InlineEditing,
 } from "../machine/index.js";
 import { editProp } from "../spec-ops/index.js";
+import { hasResolver } from "../resolve-config.js";
 import type { EditorCommit } from "../types.js";
 import { useDoubleClickEdit } from "./use-double-click-edit.js";
 import { useKeyboardEdit } from "./use-keyboard-edit.js";
 import { useInlineEdit } from "./inline-input.js";
 import { PropPopover } from "./prop-popover.js";
 import { useResolvedFields } from "./use-resolved-fields.js";
+
+/** True when opening the editor for this node should kick a force-resolve so the
+ *  node's read-only / resolved props enter committed data before first render. */
+export const shouldForceResolveOnOpen = (
+  config: Config,
+  component: ComponentData | null,
+): boolean => !!component && hasResolver(config, component);
 
 type UsePropEditorProps = {
   registry: FiberRegistry | null;
@@ -23,6 +31,7 @@ type UsePropEditorProps = {
   state: EditorSnapshot;
   send: (event: EditorEvent) => void;
   commit: EditorCommit;
+  forceResolve: (elementId: string) => void;
 };
 
 export function usePropEditor({
@@ -33,6 +42,7 @@ export function usePropEditor({
   state,
   send,
   commit,
+  forceResolve,
 }: UsePropEditorProps): ReactNode {
   useDoubleClickEdit({ registry, data, config, send });
 
@@ -93,6 +103,15 @@ export function usePropEditor({
 
   const popoverComponent =
     editing?.mode === "popover" ? findById(data, editing.elementId) : null;
+
+  useEffect(
+    function forceResolveOnOpen() {
+      if (editing?.mode !== "popover" || !popoverComponent) return;
+      if (!shouldForceResolveOnOpen(config, popoverComponent)) return;
+      forceResolve(editing.elementId);
+    },
+    [editing?.mode, editing?.elementId, popoverComponent, config, forceResolve],
+  );
 
   const { fields: popoverFields } = useResolvedFields(
     popoverComponent,

@@ -69,17 +69,6 @@ export function PropPopover({
 
   useOnClickOutside(refs.floating, onClose);
 
-  useEffect(
-    function handleEscape() {
-      const onKeyDown = (e: KeyboardEvent) => {
-        if (e.key === "Escape") onClose();
-      };
-      document.addEventListener("keydown", onKeyDown);
-      return () => document.removeEventListener("keydown", onKeyDown);
-    },
-    [onClose],
-  );
-
   const readOnlyFields = component.readOnly as
     | Partial<Record<string, boolean>>
     | undefined;

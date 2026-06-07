@@ -101,4 +101,57 @@ test.describe("Popover editing", () => {
 
     expect(await isToolbarVisible(page)).toBe(false);
   });
+
+  test("unset select shows blank placeholder, not the first option", async ({
+    page,
+  }) => {
+    // "Zero Chrome" is an h3 whose `style` object is empty in the sample data,
+    // so its nested style selects (fontSize/textAlign/color/...) are all unset —
+    // an honest select must render them blank, never silently as option[0].
+    await page.getByText("Zero Chrome").click();
+    await page.waitForTimeout(300);
+    await clickToolbarAction(page, "edit");
+    await page.waitForTimeout(300);
+
+    const values = await page.evaluate(() => {
+      for (const d of document.querySelectorAll("div")) {
+        if (!d.shadowRoot || d.style.position !== "fixed") continue;
+        const selects = d.shadowRoot.querySelectorAll(
+          "[data-role='prop-popover'] select",
+        );
+        if (!selects.length) return "NO_SELECTS";
+        // First select is `level` (set to "h3"); the rest back the empty style object.
+        return [...selects].slice(1).map((s) => (s as HTMLSelectElement).value);
+      }
+      return "NO_ROOT";
+    });
+
+    expect(Array.isArray(values) && values.length).toBeTruthy();
+    expect(values).toEqual((values as string[]).map(() => ""));
+  });
+
+  test("read-only resolved field is non-editable after async resolve", async ({
+    page,
+  }) => {
+    await page.locator("p").first().click();
+    await page.waitForTimeout(300);
+    await clickToolbarAction(page, "edit");
+    await page.waitForTimeout(1500); // resolveData delay (~1s) + margin
+
+    const readOnly = await page.evaluate(() => {
+      for (const d of document.querySelectorAll("div")) {
+        if (!d.shadowRoot || d.style.position !== "fixed") continue;
+        const fields = [
+          ...d.shadowRoot.querySelectorAll(
+            "[data-role='prop-popover'] input, [data-role='prop-popover'] textarea",
+          ),
+        ] as (HTMLInputElement | HTMLTextAreaElement)[];
+        const resolved = fields.find((f) => f.readOnly);
+        return resolved ? resolved.readOnly : false;
+      }
+      return false;
+    });
+
+    expect(readOnly).toBe(true);
+  });
 });

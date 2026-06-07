@@ -127,6 +127,20 @@ export function Editor<UserConfig extends Config = Config>({
     history,
   });
   const commit = useEditorCommit({ push, emitOp });
+
+  const forceResolve = useCallback(
+    (elementId: string) => {
+      const entry = entries[currentIndex];
+      if (!entry) return;
+      emitOp(
+        { type: "force", ids: [elementId], trigger: "force" },
+        entry.id,
+        currentData,
+      );
+    },
+    [emitOp, entries, currentIndex, currentData],
+  );
+
   const lastSeenPropRef = useRef(data);
 
   useEffect(() => {
@@ -175,7 +189,7 @@ export function Editor<UserConfig extends Config = Config>({
     send,
     commit,
   });
-  const popover = usePropEditor({
+  const sheet = usePropEditor({
     registry: fiberRegistry,
     data: currentData,
     config,
@@ -183,6 +197,7 @@ export function Editor<UserConfig extends Config = Config>({
     state,
     send,
     commit,
+    forceResolve,
   });
 
   const { selectedIds, lastSelectedId } = state.context;
@@ -478,7 +493,7 @@ export function Editor<UserConfig extends Config = Config>({
             )}
           </FloatingActionBar>
         )}
-        {operable && pointer === "editing" && popover}
+        {operable && pointer === "editing" && sheet}
         {pointer === "inserting" &&
           fiberRegistry &&
           lastSelectedId &&
