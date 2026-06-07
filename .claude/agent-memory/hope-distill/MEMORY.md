@@ -1,0 +1,1 @@
+- [Editor null convention](project_editor_null_convention.md) — editor pkg uses null/T|null by design; don't flag it as a Result-type violation
