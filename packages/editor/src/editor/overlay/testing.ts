@@ -484,16 +484,42 @@ export const getCycleChipText = (page: Page) =>
 
 // --- Drag preview pill helpers ---
 
-/** Text content of the custom native drag preview pill (mounted in light DOM). */
-export const getDragPreviewPillText = (page: Page): Promise<string | null> =>
-  page.evaluate(
-    () =>
-      (
-        document.querySelector(
-          "[data-role='drag-preview-pill']",
-        ) as HTMLElement | null
-      )?.textContent ?? null,
-  );
+/** Arm a recorder for the custom native drag preview pill before starting a drag.
+ *  The pill is mounted into light DOM during `onGenerateDragPreview` and removed
+ *  the moment the browser snapshots it for the native drag image — it never
+ *  survives a turn boundary, so a point-in-time `querySelector` always misses it.
+ *  A MutationObserver installed up front captures its text as it is inserted.
+ *  Returns a reader that yields the recorded text (or null if never seen). */
+export const recordDragPreviewPill = async (
+  page: Page,
+): Promise<() => Promise<string | null>> => {
+  await page.evaluate(() => {
+    const w = window as unknown as { __dragPillText?: string | null };
+    w.__dragPillText = null;
+    const observer = new MutationObserver((mutations) => {
+      for (const mutation of mutations) {
+        for (const node of Array.from(mutation.addedNodes)) {
+          if (!(node instanceof HTMLElement)) continue;
+          const pill = node.matches("[data-role='drag-preview-pill']")
+            ? node
+            : node.querySelector("[data-role='drag-preview-pill']");
+          if (pill) w.__dragPillText = pill.textContent;
+        }
+      }
+    });
+    observer.observe(document.documentElement, {
+      childList: true,
+      subtree: true,
+    });
+  });
+
+  return () =>
+    page.evaluate(
+      () =>
+        (window as unknown as { __dragPillText?: string | null })
+          .__dragPillText ?? null,
+    );
+};
 
 // --- Animation & measurement helpers ---
 

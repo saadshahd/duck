@@ -1,5 +1,5 @@
 import { test, expect, type Page, type Locator } from "@playwright/test";
-import { getDragPreviewPillText, sourceCenter } from "../overlay/testing.js";
+import { recordDragPreviewPill, sourceCenter } from "../overlay/testing.js";
 
 // --- Helpers ---
 
@@ -39,8 +39,9 @@ test.describe("Custom native drag preview pill", () => {
       y: headingBox.y + headingBox.height + 60,
     };
 
+    const readPillText = await recordDragPreviewPill(page);
     await holdDrag(page, heading, waypoint);
-    const pillText = await getDragPreviewPillText(page);
+    const pillText = await readPillText();
     await page.mouse.up();
 
     // The demo catalog registers the component as "Heading".
