@@ -1,15 +1,10 @@
 import { useCallback, useRef } from "react";
 import type { ComponentData, Config, Data } from "@puckeditor/core";
-import {
-  buildIndex,
-  findById,
-  findParent,
-  getChildrenAt,
-  slotKeysOf,
-} from "@duckeditor/spec";
+import { buildIndex } from "@duckeditor/spec";
 import { add } from "../spec-ops/index.js";
 import type { EditorEvent } from "../machine/index.js";
 import type { EditorCommit } from "../types.js";
+import { routeInsert, directTarget } from "./route.js";
 
 type InsertDeps = {
   data: Data;
@@ -34,48 +29,66 @@ const mintId = (componentType: string, taken: ReadonlySet<string>): string => {
   return id;
 };
 
-/** Resolve where to place a new component relative to selection.
- *  - Selected component has slots → insert into first slot at end.
- *  - Otherwise → insert as next sibling of selected.
- *  - No selection → append at top level. */
-const resolveInsertTarget = (
+/** The write target for a direct (non-slot-choice) insert. A slot-choice route
+ *  must have been resolved to an explicit target upstream (the slot picker), so
+ *  reaching here with one is a wiring defect — surface it and write nothing,
+ *  never silently append to the root. */
+const resolveDirectTarget = (
   data: Data,
   selectedId: string | null,
-): InsertTarget | null => {
-  if (!selectedId) {
-    return { parentId: null, slotKey: null };
+): InsertTarget | undefined => {
+  const route = routeInsert(data, selectedId);
+  if (route.kind === "slot-choice") {
+    console.error(
+      "useInsert: slot-choice route reached the direct insert path without an explicit target",
+      route,
+    );
+    return undefined;
   }
-  const selected = findById(data, selectedId);
-  if (!selected) return null;
-
-  const slots = slotKeysOf(selected);
-  if (slots.length > 0) {
-    const slotKey = slots[0];
-    const children = getChildrenAt(data, selectedId, slotKey) ?? [];
-    return { parentId: selectedId, slotKey, index: children.length };
-  }
-
-  const parent = findParent(data, selectedId);
-  if (!parent) return null;
-  return {
-    parentId: parent.parentId,
-    slotKey: parent.slotKey,
-    index: parent.index + 1,
-  };
+  return directTarget(route);
 };
 
 export function useInsert(deps: InsertDeps): {
+  openInsert: () => void;
   onInsert: (componentType: string, explicitTarget?: InsertTarget) => void;
 } {
   const ref = useRef(deps);
   ref.current = deps;
+
+  // The user's intent to insert, routed without a silent slot default:
+  //  - a multi-slot node enters the slot-choice step (slot-selected, every band
+  //    painted) — the user picks the slot, then opens the picker.
+  //  - a single-slot node inserts in ONE action: straight to the picker with its
+  //    one slot named on screen (no choice to make).
+  //  - anything else opens the direct (sibling/root) picker.
+  const openInsert = useCallback(() => {
+    const { data, lastSelectedId, send } = ref.current;
+    const route = routeInsert(data, lastSelectedId);
+    if (route.kind !== "slot-choice") {
+      send({ type: "OPEN_INSERT" });
+      return;
+    }
+    send(
+      route.slotKeys.length === 1
+        ? {
+            type: "OPEN_INSERT_SLOT",
+            parentId: route.parentId,
+            slotKey: route.slotKeys[0],
+          }
+        : {
+            type: "SELECT_SLOT",
+            parentId: route.parentId,
+            slotKey: route.slotKeys[0],
+          },
+    );
+  }, []);
 
   const onInsert = useCallback(
     (componentType: string, explicitTarget?: InsertTarget) => {
       const { data, config, lastSelectedId, send, commit } = ref.current;
 
       const target =
-        explicitTarget ?? resolveInsertTarget(data, lastSelectedId);
+        explicitTarget ?? resolveDirectTarget(data, lastSelectedId);
       if (!target) return;
 
       const id = mintId(componentType, new Set(buildIndex(data).keys()));
@@ -106,5 +119,5 @@ export function useInsert(deps: InsertDeps): {
     [],
   );
 
-  return { onInsert };
+  return { openInsert, onInsert };
 }

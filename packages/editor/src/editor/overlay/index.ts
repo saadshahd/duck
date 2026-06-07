@@ -1,10 +1,11 @@
 export { OverlayRoot } from "./root.js";
 export { useShadowSheet } from "./use-shadow-sheet.js";
 export { useRegistryAnchor } from "./use-registry-anchor.js";
+export { useAnchor, type Anchor } from "./use-anchor.js";
 export { useOnClickOutside } from "./use-on-click-outside.js";
 export { useHighlightRef, INSET, EXPAND } from "./use-highlight-ref.js";
 export { useAutoFocus } from "./use-auto-focus.js";
-export { useSlotStopRect } from "./use-slot-stop-rect.js";
+export { useSlotStopRect, measureSlot } from "./use-slot-stop-rect.js";
 export { isEditable } from "./dom-utils.js";
 export { Tiles } from "./tiles.js";
 export { Announcer } from "./announcer.js";

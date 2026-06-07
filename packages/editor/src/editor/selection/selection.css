@@ -172,6 +172,26 @@
   outline: 2px solid var(--accent-select);
   border-radius: 2px;
   pointer-events: none;
+  z-index: var(--z-slot-band);
+}
+
+/* The active band is a hit-target too (loses pointer-events: none): a click in
+   its padding keeps the slot, a click on a child selects that child. */
+.slot-stop--active {
+  pointer-events: auto;
+}
+
+/* A sibling slot offered for choosing — the band itself becomes a hit-target
+   (loses pointer-events: none) so a click in its padding re-chooses the slot. */
+.slot-stop--choosable {
+  outline-style: dashed;
+  outline-color: var(--accent-hover);
+  pointer-events: auto;
+  cursor: pointer;
+}
+
+.slot-stop--choosable:hover {
+  background: rgba(255, 255, 255, 0.06);
 }
 
 .slot-stop-label {

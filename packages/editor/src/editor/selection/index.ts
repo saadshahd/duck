@@ -3,7 +3,7 @@ export { HoverHighlight, SelectionRing } from "./highlight.js";
 export { SelectionLabel } from "./selection-label.js";
 export { SelectionCluster } from "./selection-cluster.js";
 export { SlotStop } from "./slot-stop.js";
-export { FloatingActionBar } from "./action-bar.js";
+export { FloatingActionBar, type EditorAction } from "./action-bar.js";
 export { useActionHandler } from "./use-action-handler.js";
 export { useMoveInfo } from "./use-move-info.js";
 export { createSelectParent } from "./use-select-parent.js";

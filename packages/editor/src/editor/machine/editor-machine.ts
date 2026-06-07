@@ -29,6 +29,10 @@ export type EditorContext = {
   editing: Editing | null;
   dragSourceId: string | null;
   selectedSlot: SelectedSlot | null;
+  /** Whether `selectedSlot` was chosen by the user (the slot-choice step) vs
+   *  auto-named for a single-slot one-action insert. Decides where Escape from
+   *  `inserting` returns: to the slot-choice step only if the user entered it. */
+  slotExplicit: boolean;
 };
 
 // --- Events ---
@@ -41,6 +45,7 @@ export type EditorEvent =
   | { type: "TOGGLE_SELECT"; elementId: string }
   | { type: "DESELECT" }
   | { type: "SELECT_SLOT"; parentId: string; slotKey: string }
+  | { type: "OPEN_INSERT_SLOT"; parentId: string; slotKey: string }
   | { type: "OPEN_POPOVER" }
   | ({
       type: "START_INLINE_EDIT";
@@ -87,6 +92,9 @@ export const editorMachine = setup({
       Selection.wouldEmpty(context, event.elementId),
     replaceSelectEmpty: ({ event }) =>
       event.type === "REPLACE_SELECT" && event.elementIds.length === 0,
+    hasSlot: ({ context }) => context.selectedSlot !== null,
+    slotChosenExplicitly: ({ context }) =>
+      context.selectedSlot !== null && context.slotExplicit,
   },
 }).createMachine({
   id: "editor",
@@ -98,6 +106,7 @@ export const editorMachine = setup({
     editing: null,
     dragSourceId: null,
     selectedSlot: null,
+    slotExplicit: false,
   },
   states: {
     pointer: {
@@ -210,6 +219,18 @@ export const editorMachine = setup({
                   parentId: event.parentId,
                   slotKey: event.slotKey,
                 },
+                slotExplicit: true,
+              })),
+            },
+            OPEN_INSERT_SLOT: {
+              guard: "notDragging",
+              target: "inserting",
+              actions: assign(({ event }) => ({
+                selectedSlot: {
+                  parentId: event.parentId,
+                  slotKey: event.slotKey,
+                },
+                slotExplicit: false,
               })),
             },
             TOGGLE_SELECT: [
@@ -272,6 +293,7 @@ export const editorMachine = setup({
             OPEN_INSERT: {
               guard: "notDragging",
               target: "inserting",
+              actions: assign({ selectedSlot: null, slotExplicit: false }),
             },
             START_INLINE_EDIT: {
               guard: "notDragging",
@@ -319,22 +341,46 @@ export const editorMachine = setup({
           on: {
             SELECT: {
               target: "selected",
-              actions: assign(({ event }) => Selection.of(event.elementId)),
+              actions: assign(({ event }) => ({
+                ...Selection.of(event.elementId),
+                selectedSlot: null,
+              })),
             },
             DESELECT: {
               target: "idle",
               actions: assign(() => ({
                 ...Selection.clear(),
                 hoveredId: null,
+                selectedSlot: null,
               })),
             },
-            ESCAPE: {
-              target: "selected",
-            },
+            ESCAPE: [
+              {
+                guard: "slotChosenExplicitly",
+                target: "slot-selected",
+              },
+              {
+                target: "selected",
+                actions: assign({ selectedSlot: null, slotExplicit: false }),
+              },
+            ],
           },
         },
         "slot-selected": {
           on: {
+            SELECT_SLOT: {
+              actions: assign(({ event }) => ({
+                selectedSlot: {
+                  parentId: event.parentId,
+                  slotKey: event.slotKey,
+                },
+                slotExplicit: true,
+              })),
+            },
+            OPEN_INSERT: {
+              guard: "notDragging",
+              target: "inserting",
+            },
             SELECT: {
               target: "selected",
               actions: assign(({ event }) => ({

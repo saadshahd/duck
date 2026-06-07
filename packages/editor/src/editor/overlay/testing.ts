@@ -315,6 +315,56 @@ export const isSlotStopVisible = (page: Page) =>
     (r) => r.querySelector("[data-role='slot-stop']") !== null,
   ) as Promise<boolean>;
 
+/** A stable census of the rendered page's light-DOM elements by tag. The editor
+ *  overlay lives in a shadow root, so a light-DOM query never counts overlay
+ *  affordances — only the document the spec renders. A direct observer that an
+ *  insert flow has NOT written: the census must be identical before the action
+ *  and while a slot is merely being chosen. */
+export const pageContentCensus = (page: Page) =>
+  page.evaluate(() => {
+    const tags = ["h1", "h2", "h3", "h4", "p", "button", "img", "a"];
+    return tags.map((t) => document.querySelectorAll(t).length).join(",");
+  }) as Promise<string>;
+
+type Box = { top: number; left: number; bottom: number; right: number };
+
+/** A point inside `band` that is NOT inside `child` — the slot's padding. Walks
+ *  the band's own corners (inset a few px) and returns the first that clears the
+ *  child box. Undefined when the child fills the band (no padding to click). */
+export const bandPaddingPoint = (
+  band: Box,
+  child: Box,
+): { x: number; y: number } | undefined => {
+  const inside = (p: { x: number; y: number }) =>
+    p.x >= child.left &&
+    p.x <= child.right &&
+    p.y >= child.top &&
+    p.y <= child.bottom;
+  const candidates = [
+    { x: band.left + 3, y: band.top + 3 },
+    { x: band.right - 3, y: band.top + 3 },
+    { x: band.left + 3, y: band.bottom - 3 },
+    { x: band.right - 3, y: band.bottom - 3 },
+  ];
+  return candidates.find((p) => !inside(p));
+};
+
+/** The on-screen (viewport) box of a rendered page element by its CSS selector,
+ *  read from the light DOM. Lets a slot-band test aim a click at a child vs the
+ *  slot padding around it. */
+export const getPageElementBox = (page: Page, selector: string) =>
+  page.evaluate((sel) => {
+    const el = document.querySelector(sel);
+    if (!el) return null;
+    const b = el.getBoundingClientRect();
+    return { top: b.top, left: b.left, bottom: b.bottom, right: b.right };
+  }, selector) as Promise<{
+    top: number;
+    left: number;
+    bottom: number;
+    right: number;
+  } | null>;
+
 /** Count of selection rings (element selection borders) painted in the overlay. */
 export const countSelectionRings = (page: Page) =>
   shadowQuery(
@@ -425,6 +475,75 @@ export const isCatalogPickerVisible = (page: Page) =>
     page,
     (r) => r.querySelector("[data-role='catalog-picker']") !== null,
   ) as Promise<boolean>;
+
+/** The catalog picker's on-screen (viewport) bounding box, read from the rendered
+ *  element. Lets a test assert the picker sits over the slot band it targets. */
+export const getCatalogPickerRect = (page: Page) =>
+  shadowQuery(page, (r) => {
+    const el = r.querySelector("[data-role='catalog-picker']");
+    if (!el) return null;
+    const b = el.getBoundingClientRect();
+    return { top: b.top, left: b.left, bottom: b.bottom, right: b.right };
+  }) as Promise<{
+    top: number;
+    left: number;
+    bottom: number;
+    right: number;
+  } | null>;
+
+/** Hit-test the shadow root at the catalog picker's center: true when the topmost
+ *  surface there is the picker (or its descendant), false when another overlay
+ *  surface — e.g. a slot-stop band — paints above it. The picker must be the
+ *  topmost surface while open, so a click at its center reaches it. */
+export const pickerOwnsCenterPoint = (page: Page) =>
+  shadowQuery(page, (r) => {
+    const picker = r.querySelector("[data-role='catalog-picker']");
+    if (!picker) return false;
+    const b = picker.getBoundingClientRect();
+    const x = (b.left + b.right) / 2;
+    const y = (b.top + b.bottom) / 2;
+    const hit = (
+      r as unknown as ShadowRoot & {
+        elementFromPoint(x: number, y: number): Element | null;
+      }
+    ).elementFromPoint(x, y);
+    return hit !== null && picker.contains(hit);
+  }) as Promise<boolean>;
+
+/** Every painted slot-stop band's on-screen box plus its label and whether it is
+ *  the active (chosen) band — the full set of slot hit-targets in the slot-choice
+ *  step. */
+export const readSlotBands = (page: Page) =>
+  shadowQuery(page, (r) =>
+    [...r.querySelectorAll("[data-role='slot-stop']")].map((band) => {
+      const b = band.getBoundingClientRect();
+      return {
+        active: band.hasAttribute("data-active"),
+        top: b.top,
+        left: b.left,
+        bottom: b.bottom,
+        right: b.right,
+      };
+    }),
+  ) as Promise<
+    {
+      active: boolean;
+      top: number;
+      left: number;
+      bottom: number;
+      right: number;
+    }[]
+  >;
+
+/** Every slot-stop label currently on screen — the named slots offered/chosen in
+ *  the slot-choice step. The law: an insert never writes without one of these
+ *  visible. */
+export const readSlotStopLabels = (page: Page) =>
+  shadowQuery(page, (r) =>
+    [...r.querySelectorAll("[data-role='slot-stop-label']")].map(
+      (el) => el.textContent ?? "",
+    ),
+  ) as Promise<string[]>;
 
 /** Click the first item in the catalog picker and return the component type name
  *  it represents (the text of the type badge), so callers can assert insertion. */

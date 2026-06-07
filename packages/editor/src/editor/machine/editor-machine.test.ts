@@ -56,6 +56,7 @@ const sampleEvents = [
   { type: "TOGGLE_SELECT" as const, elementId: "el-2" },
   { type: "DESELECT" as const },
   { type: "SELECT_SLOT" as const, parentId: "card", slotKey: "body" },
+  { type: "OPEN_INSERT_SLOT" as const, parentId: "box", slotKey: "children" },
   { type: "OPEN_POPOVER" as const },
   {
     type: "START_INLINE_EDIT" as const,
@@ -602,7 +603,6 @@ describe("slot-selected: dropped events keep slot-selected intact", () => {
       original: "Hello",
       trigger: "select",
     },
-    { type: "OPEN_INSERT" },
   ];
 
   for (const event of droppedEvents) {
@@ -612,6 +612,102 @@ describe("slot-selected: dropped events keep slot-selected intact", () => {
       expect(s.context.selectedSlot).toEqual(slotContext);
     });
   }
+});
+
+describe("slot-selected: OPEN_INSERT opens the slot picker", () => {
+  it("OPEN_INSERT → inserting, selectedSlot retained for the picker to target", () => {
+    const s = walk(...enterSlotSelected, { type: "OPEN_INSERT" });
+    expect(pointerOf(s)).toBe("inserting");
+    expect(s.context.selectedSlot).toEqual({
+      parentId: "card",
+      slotKey: "body",
+    });
+  });
+
+  it("inserting (from slot-selected) + ESCAPE → back to slot-selected, slot retained", () => {
+    const s = walk(
+      ...enterSlotSelected,
+      { type: "OPEN_INSERT" },
+      {
+        type: "ESCAPE",
+      },
+    );
+    expect(pointerOf(s)).toBe("slot-selected");
+    expect(s.context.selectedSlot).toEqual({
+      parentId: "card",
+      slotKey: "body",
+    });
+  });
+
+  it("inserting (from selected) + ESCAPE → back to selected, no slot", () => {
+    const s = walk(
+      { type: "SELECT", elementId: "el-1" },
+      { type: "OPEN_INSERT" },
+      { type: "ESCAPE" },
+    );
+    expect(pointerOf(s)).toBe("selected");
+    expect(s.context.selectedSlot).toBeNull();
+  });
+
+  it("inserting (from slot-selected) + DESELECT → idle, slot cleared", () => {
+    const s = walk(
+      ...enterSlotSelected,
+      { type: "OPEN_INSERT" },
+      {
+        type: "DESELECT",
+      },
+    );
+    expect(pointerOf(s)).toBe("idle");
+    expect(s.context.selectedSlot).toBeNull();
+  });
+});
+
+// --- Single-slot insert: one action lands in the picker with the slot named ---
+//
+// Owner ruling: a multi-slot node's + opens the slot-choice step; a single-slot
+// node inserts in ONE action — straight to `inserting` with selectedSlot set so
+// the picker opens immediately, anchored to the (one) named slot band. The slot
+// was NOT explicitly chosen, so Escape returns to `selected` (no slot-choice step
+// the user never entered) — keeping the chain stuck-state-free.
+
+describe("single-slot insert: OPEN_INSERT_SLOT is one action", () => {
+  const openInsertSlot = {
+    type: "OPEN_INSERT_SLOT" as const,
+    parentId: "box",
+    slotKey: "children",
+  };
+
+  it("selected + OPEN_INSERT_SLOT → inserting with selectedSlot set in one step", () => {
+    const s = walk({ type: "SELECT", elementId: "box" }, openInsertSlot);
+    expect(pointerOf(s)).toBe("inserting");
+    expect(s.context.selectedSlot).toEqual({
+      parentId: "box",
+      slotKey: "children",
+    });
+  });
+
+  it("inserting (single-slot) + ESCAPE → selected, slot cleared (no stuck slot-choice)", () => {
+    const s = walk({ type: "SELECT", elementId: "box" }, openInsertSlot, {
+      type: "ESCAPE",
+    });
+    expect(pointerOf(s)).toBe("selected");
+    expect(s.context.selectedSlot).toBeNull();
+    expect(s.context.selectedIds).toEqual(new Set(["box"]));
+  });
+
+  it("inserting (single-slot) + DESELECT → idle, slot cleared", () => {
+    const s = walk({ type: "SELECT", elementId: "box" }, openInsertSlot, {
+      type: "DESELECT",
+    });
+    expect(pointerOf(s)).toBe("idle");
+    expect(s.context.selectedSlot).toBeNull();
+  });
+
+  it("OPEN_INSERT_SLOT from idle is ignored (must be in selected)", () => {
+    const s = walk(openInsertSlot);
+    expect(pointerOf(s)).toBe("idle");
+    expect(s.context.selectedSlot).toBeNull();
+  });
 });
 
 // --- R1: selection yields — pointer region exits `selected` on drag/carry start ---
@@ -922,12 +1018,16 @@ describe("SELECT_SLOT across every pointer-region state", () => {
     expect(s.context.selectedSlot).toBeNull();
   });
 
-  it("slot-selected + SELECT_SLOT → no-op, slot unchanged", () => {
-    const s = walk(...enterSlotSelected, selectSlot);
+  it("slot-selected + SELECT_SLOT → retargets the chosen slot, stays slot-selected", () => {
+    const s = walk(...enterSlotSelected, {
+      type: "SELECT_SLOT",
+      parentId: "card",
+      slotKey: "header",
+    });
     expect(pointerOf(s)).toBe("slot-selected");
     expect(s.context.selectedSlot).toEqual({
       parentId: "card",
-      slotKey: "body",
+      slotKey: "header",
     });
   });
 

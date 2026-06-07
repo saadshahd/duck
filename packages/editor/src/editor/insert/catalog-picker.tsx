@@ -10,8 +10,9 @@ import type { Config } from "@puckeditor/core";
 import {
   useShadowSheet,
   useOnClickOutside,
-  useRegistryAnchor,
+  useAnchor,
   useAutoFocus,
+  type Anchor,
 } from "../overlay/index.js";
 import type { FiberRegistry } from "../fiber/index.js";
 import css from "./insert.css?inline";
@@ -20,7 +21,7 @@ const MIDDLEWARE = [offset(8), flip(), shift({ padding: 8 })];
 
 type CatalogPickerProps = {
   registry: FiberRegistry;
-  elementId: string;
+  anchor: Anchor;
   config: Config;
   onInsert: (componentType: string) => void;
   onClose: () => void;
@@ -36,7 +37,7 @@ const entriesOf = (config: Config): Entry[] =>
 
 export function CatalogPicker({
   registry,
-  elementId,
+  anchor,
   config,
   onInsert,
   onClose,
@@ -52,7 +53,8 @@ export function CatalogPicker({
       autoUpdate(ref, floating, update, { animationFrame: true }),
   });
 
-  useRegistryAnchor(refs, registry, elementId);
+  useAnchor(refs, registry, anchor);
+
   useOnClickOutside(refs.floating, onClose);
 
   const needle = filter.toLowerCase();

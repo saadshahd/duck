@@ -2,23 +2,24 @@ import { autoUpdate } from "@floating-ui/react";
 import { useEffect, useRef, useCallback } from "react";
 import type { Data } from "@puckeditor/core";
 import type { FiberRegistry } from "../fiber/index.js";
-import { ZERO_RECT, slotRegions } from "../layout/index.js";
+import { ZERO_RECT, slotChoiceRect } from "../layout/index.js";
 
-/** The measured rect of a slot: the union of its measurable children clamped
- *  to the parent, falling back to the parent element's own rect when the slot
- *  has no measurable geometry (e.g. an empty slot). */
-const measureSlot = (args: {
+/** The measured rect of a slot for its overlay band: one slot's tile from the
+ *  container tiling, so every slot of a node — including empty ones — gets a
+ *  distinct, non-overlapping band. Falls back to the parent element's rect when
+ *  the slot is absent from the tiling. */
+export const measureSlot = (args: {
   registry: FiberRegistry;
   data: Data;
   parentId: string;
   slotKey: string;
 }): DOMRect => {
   const { registry, data, parentId, slotKey } = args;
-  const region = slotRegions({ data, parentId, registry }).find(
-    (r) => r.slotKey === slotKey,
+  return (
+    slotChoiceRect({ data, parentId, slotKey, registry }) ??
+    registry.get(parentId)?.getBoundingClientRect() ??
+    ZERO_RECT
   );
-  if (region) return region.rect;
-  return registry.get(parentId)?.getBoundingClientRect() ?? ZERO_RECT;
 };
 
 /** Live-track a slot's measured rect onto a band div and a corner label, with

@@ -16,6 +16,7 @@ export {
   TILE_HYSTERESIS,
 } from "./tiles.js";
 export { buildTiling } from "./tiling.js";
+export { slotChoiceRect, slotChildAt } from "./slot-choice.js";
 export { isCollapsed, ZERO_RECT } from "./rect.js";
 export {
   type DropTarget,

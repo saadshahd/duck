@@ -22,6 +22,12 @@ const selected = (nav: NavContext): boolean =>
 
 const notEditing = (nav: NavContext): boolean => nav.pointer !== "editing";
 
+/** Insert is reachable wherever a destination is already established: a selected
+ *  element (slot-choice or sibling) or an already-chosen slot. */
+const insertable = (nav: NavContext): boolean =>
+  (nav.pointer === "selected" || nav.pointer === "slot-selected") &&
+  nav.lastSelectedId !== null;
+
 // --- Event bindings: key → send(event) ---
 
 type EventDef = {
@@ -35,12 +41,6 @@ const EVENT_DEFS: EventDef[] = [
   { key: "Escape", event: "ESCAPE", target: "machine" },
   { key: "$mod+z", event: "UNDO", target: "history" },
   { key: "$mod+Shift+z", event: "REDO", target: "history" },
-  {
-    key: "/",
-    event: "OPEN_INSERT",
-    target: "machine",
-    guard: (nav, e) => selected(nav) && !isEditable(e.target),
-  },
 ];
 
 const eventBindings = (
@@ -140,12 +140,24 @@ const liftBinding = (send: Send, navRef: React.RefObject<NavContext>) => ({
   },
 });
 
+const insertBinding = (
+  navRef: React.RefObject<NavContext>,
+  onInsertRef: React.RefObject<() => void>,
+) => ({
+  "/": (e: KeyboardEvent) => {
+    if (!insertable(navRef.current) || isEditable(e.target)) return;
+    e.preventDefault();
+    onInsertRef.current();
+  },
+});
+
 export function useKeyboard(targets: {
   machine: Send;
   history: Send;
   nav: NavContext;
   clipboard: ClipboardActions;
   onDelete: () => void;
+  onInsert: () => void;
 }): void {
   const navRef = useRef(targets.nav);
   navRef.current = targets.nav;
@@ -155,6 +167,9 @@ export function useKeyboard(targets: {
 
   const deleteRef = useRef(targets.onDelete);
   deleteRef.current = targets.onDelete;
+
+  const insertRef = useRef(targets.onInsert);
+  insertRef.current = targets.onInsert;
 
   useEffect(
     () =>
@@ -167,6 +182,7 @@ export function useKeyboard(targets: {
         ...clipboardBindings(navRef, cbRef),
         ...deleteBindings(navRef, deleteRef),
         ...liftBinding(targets.machine, navRef),
+        ...insertBinding(navRef, insertRef),
       }),
     [targets.machine, targets.history],
   );

@@ -26,6 +26,7 @@ import {
   SelectionCluster,
   SlotStop,
   FloatingActionBar,
+  type EditorAction,
   useActionHandler,
   useMoveInfo,
   createSelectParent,
@@ -34,8 +35,13 @@ import {
 import { usePropEditor } from "./prop-editor/use-prop-editor.jsx";
 import { useDragReorder, DragOverlay, CycleChip } from "./drag/index.js";
 import { useCarry, LiftPulse, NoTargetMarker } from "./carry/index.js";
-import { OverlayRoot, Announcer, MoveGhost } from "./overlay/index.js";
-import { ghostContent } from "./layout/index.js";
+import {
+  OverlayRoot,
+  Announcer,
+  MoveGhost,
+  measureSlot,
+} from "./overlay/index.js";
+import { ghostContent, slotLabels } from "./layout/index.js";
 import { BoxModelLayer } from "./box-model/index.js";
 import { useHistory, HistoryTimeline } from "./history/index.js";
 import { useKeyboard } from "./keyboard/index.js";
@@ -43,7 +49,6 @@ import { useGhostPlaceholders } from "./ghost/index.js";
 import { useFiberRegistry } from "./shell/use-fiber-registry.js";
 import { useSelectionReconcile } from "./shell/use-selection-reconcile.js";
 import { useSlotAddress } from "./shell/use-slot-stop.js";
-import { useSlotPickerGate } from "./shell/use-slot-picker-gate.js";
 import { interactionState, affordancesFor } from "./shell/affordances.js";
 import {
   announcerMessage,
@@ -243,7 +248,7 @@ export function Editor<UserConfig extends Config = Config>({
     onDeselect: () => send({ type: "DESELECT" }),
   });
 
-  const { onInsert } = useInsert({
+  const { openInsert, onInsert } = useInsert({
     data: currentData,
     config: config,
     lastSelectedId,
@@ -251,12 +256,22 @@ export function Editor<UserConfig extends Config = Config>({
     commit,
   });
 
+  // Insert is routed (slot-choice vs sibling) by useInsert, not the action
+  // machine — so the action bar's (+) defers to openInsert; everything else is
+  // the plain action handler.
+  const onAction = useCallback(
+    (action: EditorAction) =>
+      action.tag === "insert" ? openInsert() : handleAction(action),
+    [openInsert, handleAction],
+  );
+
   useKeyboard({
     machine: send,
     history: historySend,
     nav: { data: currentData, lastSelectedId, pointer },
     clipboard,
     onDelete: () => handleAction({ tag: "delete" }),
+    onInsert: openInsert,
   });
 
   const selectParent = createSelectParent({
@@ -281,12 +296,9 @@ export function Editor<UserConfig extends Config = Config>({
   const highlightId = menuHighlightId ?? hoverHighlightId;
 
   const [boxModelVisible, setBoxModelVisible] = useState(false);
-  const [slotPickerOpen, setSlotPickerOpen] = useState(false);
 
   const { selectedSlot } = state.context;
   const slotAddress = useSlotAddress(currentData, lastSelectedId);
-
-  useSlotPickerGate(pointer, setSlotPickerOpen);
 
   const slotInsertTarget = useMemo((): InsertTarget | null => {
     if (!selectedSlot) return null;
@@ -300,7 +312,18 @@ export function Editor<UserConfig extends Config = Config>({
     };
   }, [selectedSlot, currentData]);
 
-  const onOpenSlotInsert = useCallback(() => setSlotPickerOpen(true), []);
+  // The node's slots offered for choosing, with their qualified labels. The
+  // active slot owns the (+)/climb; the rest are choosable bands. Every slot is
+  // named on screen — the law that no insert writes to an unnamed slot.
+  const slotBands = useMemo(() => {
+    if (!selectedSlot) return [];
+    const labels = slotLabels(currentData, selectedSlot.parentId);
+    return Object.entries(labels).map(([slotKey, label]) => ({
+      slotKey,
+      label,
+      active: slotKey === selectedSlot.slotKey,
+    }));
+  }, [selectedSlot, currentData]);
 
   const affordances = affordancesFor(
     interactionState({
@@ -351,11 +374,11 @@ export function Editor<UserConfig extends Config = Config>({
 
   const onMorphHover = useCallback(
     (i: number) => morph.setActivePattern(i >= 0 ? morph.patterns[i] : null),
-    [morph.setActivePattern, morph.patterns],
+    [morph],
   );
   const onMorphCommit = useCallback(
     (i: number) => morph.commit(morph.patterns[i]),
-    [morph.commit, morph.patterns],
+    [morph],
   );
 
   const internals = useMemo<EditorInternals>(
@@ -439,7 +462,7 @@ export function Editor<UserConfig extends Config = Config>({
             canMovePrev={moveInfo.canMovePrev}
             canMoveNext={moveInfo.canMoveNext}
             canInsert
-            onAction={handleAction}
+            onAction={onAction}
             toolbarRef={toolbarRef}
           >
             {patternRegistry && (
@@ -453,18 +476,37 @@ export function Editor<UserConfig extends Config = Config>({
           </FloatingActionBar>
         )}
         {operable && pointer === "editing" && popover}
-        {operable &&
-          pointer === "inserting" &&
+        {pointer === "inserting" &&
           fiberRegistry &&
-          lastSelectedId && (
+          lastSelectedId &&
+          (selectedSlot ? (
             <CatalogPicker
               registry={fiberRegistry}
-              elementId={lastSelectedId}
+              anchor={{
+                kind: "rect",
+                rect: () =>
+                  measureSlot({
+                    registry: fiberRegistry,
+                    data: currentData,
+                    parentId: selectedSlot.parentId,
+                    slotKey: selectedSlot.slotKey,
+                  }),
+              }}
+              config={config}
+              onInsert={(componentType) => {
+                if (slotInsertTarget) onInsert(componentType, slotInsertTarget);
+              }}
+              onClose={() => send({ type: "ESCAPE" })}
+            />
+          ) : (
+            <CatalogPicker
+              registry={fiberRegistry}
+              anchor={{ kind: "element", elementId: lastSelectedId }}
               config={config}
               onInsert={onInsert}
               onClose={() => send({ type: "ESCAPE" })}
             />
-          )}
+          ))}
         {operable && morph.isOpen && (
           <MorphPicker
             patterns={morph.patterns}
@@ -477,31 +519,31 @@ export function Editor<UserConfig extends Config = Config>({
         )}
         {affordances.slotStop &&
           selectedSlot &&
-          slotAddress &&
           selectParent &&
-          fiberRegistry && (
+          fiberRegistry &&
+          slotBands.map(({ slotKey, label, active }) => (
             <SlotStop
+              key={slotKey}
               registry={fiberRegistry}
               data={currentData}
               parentId={selectedSlot.parentId}
-              slotKey={selectedSlot.slotKey}
-              label={slotAddress}
+              slotKey={slotKey}
+              label={label}
+              active={active}
               onClimb={selectParent}
-              onInsert={onOpenSlotInsert}
+              onChoose={() =>
+                send({
+                  type: "SELECT_SLOT",
+                  parentId: selectedSlot.parentId,
+                  slotKey,
+                })
+              }
+              onSelectChild={(childId) =>
+                send({ type: "SELECT", elementId: childId })
+              }
+              onInsert={() => send({ type: "OPEN_INSERT" })}
             />
-          )}
-        {slotPickerOpen && selectedSlot && fiberRegistry && (
-          <CatalogPicker
-            registry={fiberRegistry}
-            elementId={selectedSlot.parentId}
-            config={config}
-            onInsert={(componentType) => {
-              if (slotInsertTarget) onInsert(componentType, slotInsertTarget);
-              setSlotPickerOpen(false);
-            }}
-            onClose={() => setSlotPickerOpen(false)}
-          />
-        )}
+          ))}
         {affordances.dropOverlay &&
           fiberRegistry &&
           (() => {

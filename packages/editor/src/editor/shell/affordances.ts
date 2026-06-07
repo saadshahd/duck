@@ -97,7 +97,9 @@ const AFFORDANCES: Record<InteractionState, AffordanceSet> = {
  *  on DRAG_START/CARRY_START, but reading drag first keeps the precedence
  *  explicit). `editing` and `inserting` are overlays layered on top of
  *  resting-selected — their pickers are contextual sub-affordances the shell
- *  gates separately, so they resolve to resting-selected here. */
+ *  gates separately, so they resolve to resting-selected here. `inserting` while
+ *  a slot is chosen (hasSlot) keeps the slot-selected affordances so the slot
+ *  bands stay painted under the picker. */
 export const interactionState = ({
   pointer,
   drag,
@@ -111,7 +113,8 @@ export const interactionState = ({
 }): InteractionState => {
   if (drag === "carrying") return "carrying";
   if (drag === "dragging") return "dragging";
-  if (pointer === "slot-selected" && hasSlot) return "slot-selected";
+  if ((pointer === "slot-selected" || pointer === "inserting") && hasSlot)
+    return "slot-selected";
   if (
     (pointer === "selected" ||
       pointer === "editing" ||

@@ -67,13 +67,24 @@ describe("interactionState", () => {
     ).toBe("resting-selected");
   });
 
-  test("editing and inserting resolve to resting-selected", () => {
+  test("editing and inserting (sibling, no slot) resolve to resting-selected", () => {
     expect(
       interactionState({ ...base, pointer: "editing", drag: "idle" }),
     ).toBe("resting-selected");
     expect(
       interactionState({ ...base, pointer: "inserting", drag: "idle" }),
     ).toBe("resting-selected");
+  });
+
+  test("inserting into a chosen slot keeps the slot-selected affordances (bands stay painted under the picker)", () => {
+    expect(
+      interactionState({
+        pointer: "inserting",
+        drag: "idle",
+        hasSelection: false,
+        hasSlot: true,
+      }),
+    ).toBe("slot-selected");
   });
 
   test("selected without a selection → none", () => {
