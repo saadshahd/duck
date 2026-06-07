@@ -355,7 +355,7 @@ export function Editor<UserConfig extends Config = Config>({
             <SelectionRing key={id} registry={fiberRegistry} elementId={id} />
           ))}
         {affordances.labelCluster && fiberRegistry && lastSelectedId && (
-          <SelectionCluster
+          <SelectionCluster.Root
             registry={fiberRegistry}
             elementId={lastSelectedId}
             elementType={index.get(lastSelectedId)?.component.type}
@@ -363,12 +363,19 @@ export function Editor<UserConfig extends Config = Config>({
             slotAddress={slotAddress}
             toolbarRef={toolbarRef}
             onSelectParent={selectParent}
-            showMove={operable}
-            showBoxModel={affordances.boxModel}
-            boxModelActive={boxModelVisible}
-            onMove={() => handleAction({ tag: "move" })}
-            onToggleBoxModel={() => setBoxModelVisible((v) => !v)}
-          />
+          >
+            {operable && (
+              <SelectionCluster.Move
+                onMove={() => handleAction({ tag: "move" })}
+              />
+            )}
+            {affordances.boxModel && (
+              <SelectionCluster.BoxModel
+                active={boxModelVisible}
+                onToggle={() => setBoxModelVisible((v) => !v)}
+              />
+            )}
+          </SelectionCluster.Root>
         )}
         {affordances.boxModel &&
           boxModelVisible &&

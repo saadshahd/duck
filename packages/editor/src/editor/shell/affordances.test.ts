@@ -28,6 +28,17 @@ describe("interactionState", () => {
     ).toBe("dragging");
   });
 
+  test("drag dragging wins over pointer slot-selected", () => {
+    expect(
+      interactionState({
+        ...base,
+        pointer: "slot-selected",
+        hasSlot: true,
+        drag: "dragging",
+      }),
+    ).toBe("dragging");
+  });
+
   test("slot-selected with a slot, drag idle", () => {
     expect(
       interactionState({

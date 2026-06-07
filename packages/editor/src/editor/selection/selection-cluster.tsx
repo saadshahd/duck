@@ -1,13 +1,14 @@
-import { type RefObject } from "react";
+import { type RefObject, type ReactNode } from "react";
 import { SelectionLabel } from "./selection-label.js";
 import type { FiberRegistry } from "../fiber/index.js";
 
 /** The consolidated selection label cluster: element type + slot address + climb
- *  arrow (via SelectionLabel) plus the trailing Move chip and box-model toggle.
- *  One composite element — the trailing affordances are state-gated by the shell
- *  through `showMove` / `showBoxModel`, never rendered as standalone overlay
- *  elements. */
-export function SelectionCluster({
+ *  arrow (via SelectionLabel) plus trailing affordances. One composite element —
+ *  the trailing affordances (Move chip, box-model toggle) are passed as children
+ *  by the shell, never rendered as standalone overlay elements. The shell decides
+ *  which trailing roles a state owns by composing the sub-components below; the
+ *  cluster itself carries no visibility booleans. */
+function Root({
   registry,
   elementId,
   elementType,
@@ -15,11 +16,7 @@ export function SelectionCluster({
   slotAddress,
   toolbarRef,
   onSelectParent,
-  showMove,
-  showBoxModel,
-  boxModelActive,
-  onMove,
-  onToggleBoxModel,
+  children,
 }: {
   registry: FiberRegistry;
   elementId: string;
@@ -28,11 +25,7 @@ export function SelectionCluster({
   slotAddress?: string;
   toolbarRef: RefObject<HTMLElement | null>;
   onSelectParent?: () => void;
-  showMove: boolean;
-  showBoxModel: boolean;
-  boxModelActive: boolean;
-  onMove: () => void;
-  onToggleBoxModel: () => void;
+  children?: ReactNode;
 }) {
   return (
     <SelectionLabel
@@ -44,37 +37,52 @@ export function SelectionCluster({
       toolbarRef={toolbarRef}
       onSelectParent={onSelectParent}
     >
-      {showMove && (
-        <button
-          type="button"
-          data-role="move-chip"
-          className="move-chip"
-          aria-keyshortcuts="Space"
-          onClick={onMove}
-        >
-          ⤢ Move
-        </button>
-      )}
-      {showBoxModel && (
-        <button
-          type="button"
-          data-role="box-model-toggle"
-          className={`label-action-btn${boxModelActive ? " label-action-btn--active" : ""}`}
-          onClick={onToggleBoxModel}
-        >
-          <svg
-            width="10"
-            height="10"
-            viewBox="0 0 10 10"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="1.2"
-          >
-            <rect x="0.6" y="0.6" width="8.8" height="8.8" rx="0.8" />
-            <rect x="3" y="3" width="4" height="4" />
-          </svg>
-        </button>
-      )}
+      {children}
     </SelectionLabel>
   );
 }
+
+function Move({ onMove }: { onMove: () => void }) {
+  return (
+    <button
+      type="button"
+      data-role="move-chip"
+      className="move-chip"
+      aria-keyshortcuts="Space"
+      onClick={onMove}
+    >
+      ⤢ Move
+    </button>
+  );
+}
+
+function BoxModel({
+  active,
+  onToggle,
+}: {
+  active: boolean;
+  onToggle: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      data-role="box-model-toggle"
+      className={`label-action-btn${active ? " label-action-btn--active" : ""}`}
+      onClick={onToggle}
+    >
+      <svg
+        width="10"
+        height="10"
+        viewBox="0 0 10 10"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.2"
+      >
+        <rect x="0.6" y="0.6" width="8.8" height="8.8" rx="0.8" />
+        <rect x="3" y="3" width="4" height="4" />
+      </svg>
+    </button>
+  );
+}
+
+export const SelectionCluster = { Root, Move, BoxModel };
