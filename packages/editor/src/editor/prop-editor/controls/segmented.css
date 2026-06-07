@@ -1,0 +1,60 @@
+/* Segmented control — plain CSS, shadow-DOM safe (no @property, no Tailwind).
+   Self-registered via useShadowSheet in segmented.tsx. Uses :host tokens. */
+
+.segmented-root {
+  display: inline-flex;
+  align-items: center;
+  width: 100%;
+  padding: 2px;
+  background: var(--control-bg);
+  border: 1px solid var(--control-border);
+  border-radius: 6px;
+  gap: 2px;
+}
+
+/* Each item is an Ark label (wraps a hidden radio input + visible control) */
+.segmented-item {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-family: var(--font-system);
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text-field-secondary);
+  cursor: pointer;
+  user-select: none;
+  transition:
+    background 100ms ease,
+    color 100ms ease;
+  min-height: 24px;
+}
+
+.segmented-item[data-state="checked"] {
+  background: var(--accent);
+  color: #ffffff;
+}
+
+.segmented-item:not([data-state="checked"]):hover {
+  background: var(--control-bg-hover);
+  color: var(--text-field);
+}
+
+/* Focus ring — visible on keyboard nav, matches sheet control convention */
+.segmented-item:focus-within {
+  outline: 2px solid var(--control-focus);
+  outline-offset: -1px;
+}
+
+/* Read-only state — muted, pointer disabled */
+.segmented-root[data-disabled] .segmented-item {
+  cursor: not-allowed;
+  color: var(--text-field-muted);
+}
+
+.segmented-root[data-disabled] .segmented-item[data-state="checked"] {
+  background: var(--control-readonly-bg);
+  color: var(--control-readonly-text);
+}

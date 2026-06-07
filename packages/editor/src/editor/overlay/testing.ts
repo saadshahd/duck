@@ -936,6 +936,46 @@ export const getBackdropCutoutRect = (page: Page) =>
     height: string;
   } | null>;
 
+// --- Segmented control helpers ---
+
+/** Every segmented control item currently rendered inside the prop sheet, read
+ *  from the overlay shadow root by data-role. Returns `{ value, checked, focused }`
+ *  for each item. `checked` reads `data-state="checked"` (Ark SegmentGroup/zag
+ *  radio-group convention). `focused` reads `shadowRoot.activeElement`. */
+export const readSegmentedItems = (page: Page) =>
+  page.evaluate(() => {
+    for (const d of document.querySelectorAll("div")) {
+      if (!d.shadowRoot || d.style.position !== "fixed") continue;
+      const active = d.shadowRoot.activeElement;
+      return [
+        ...d.shadowRoot.querySelectorAll("[data-role='segmented-item']"),
+      ].map((el) => ({
+        value: el.getAttribute("data-value") ?? "",
+        checked: el.getAttribute("data-state") === "checked",
+        focused: el === active || el.contains(active),
+      }));
+    }
+    return null;
+  }) as Promise<{ value: string; checked: boolean; focused: boolean }[] | null>;
+
+/** Focus the first segmented-item inside the overlay shadow root.
+ *  Returns true when the focus actually landed (activeElement matches the item). */
+export const focusFirstSegmentedItem = (page: Page) =>
+  page.evaluate(() => {
+    for (const d of document.querySelectorAll("div")) {
+      if (!d.shadowRoot || d.style.position !== "fixed") continue;
+      const item = d.shadowRoot.querySelector(
+        "[data-role='segmented-item']",
+      ) as HTMLElement | null;
+      item?.focus();
+      return (
+        d.shadowRoot.activeElement === item ||
+        item?.contains(d.shadowRoot.activeElement) === true
+      );
+    }
+    return false;
+  }) as Promise<boolean>;
+
 /** Expand every collapsed disclosure group in the open sheet so its nested
  *  fields render into the DOM. Returns how many triggers were clicked. */
 export const expandSheetDisclosures = (page: Page) =>

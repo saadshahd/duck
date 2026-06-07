@@ -5,6 +5,7 @@ import { grouped } from "./grouping.js";
 import { useDisclosureState } from "./use-disclosure-state.js";
 import { controlRenderers } from "./controls/index.js";
 import { resolveRenderer } from "./controls/dispatch.js";
+import { FieldLabel, fieldClass } from "./field-shell.js";
 
 // --- Controlled field props (decoupled from form library) ---
 
@@ -21,35 +22,6 @@ export type FieldProps<F extends Field = Field, V = unknown> = {
 };
 
 // --- Shared field primitives ---
-
-const FieldLabel = ({
-  text,
-  readOnly,
-}: {
-  text: string;
-  readOnly?: boolean;
-}) => (
-  <label>
-    {text}
-    {readOnly && (
-      <span className="prop-readonly-badge" data-role="readonly-badge">
-        <svg width="9" height="11" viewBox="0 0 9 11" aria-hidden>
-          <path
-            d="M2 5V3a2.5 2.5 0 0 1 5 0v2"
-            stroke="currentColor"
-            strokeWidth="1"
-            fill="none"
-          />
-          <rect x="1" y="5" width="7" height="5" rx="1" fill="currentColor" />
-        </svg>
-        read-only
-      </span>
-    )}
-  </label>
-);
-
-const fieldClass = (readOnly?: boolean) =>
-  `prop-field${readOnly ? " prop-field--readonly" : ""}`;
 
 // --- Field renderers ---
 

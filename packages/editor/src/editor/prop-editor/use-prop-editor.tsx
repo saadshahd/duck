@@ -15,7 +15,6 @@ import { useKeyboardEdit } from "./use-keyboard-edit.js";
 import { useInlineEdit } from "./inline-input.js";
 import { ArkEnvironment } from "../overlay/index.js";
 import { PropSheet } from "./prop-sheet.js";
-import { ArkSpike } from "./ark-spike.js";
 import { useSheetAnchor } from "./use-sheet-anchor.js";
 import { useResolvedFields } from "./use-resolved-fields.js";
 import { PuckFields } from "./puck-fields.js";
@@ -174,8 +173,6 @@ function SheetView({
       <PropSheet.Tether lineRef={lineRef} />
       <PropSheet.Panel open>
         <ArkEnvironment>
-          {/* THROWAWAY T1 spike — T4 removes <ArkSpike/>; ArkEnvironment stays. */}
-          <ArkSpike />
           <PuckFields
             fields={fields}
             values={component.props as Record<string, unknown>}
