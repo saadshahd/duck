@@ -266,8 +266,8 @@ export function Editor<UserConfig extends Config = Config>({
 
   const yieldingToolbar = useToolbarYield(fiberRegistry, singleSelected);
 
-  const showActionBar =
-    affordances.actionBar && singleSelected && !yieldingToolbar;
+  const operable = Boolean(affordances.actionBar && singleSelected);
+  const showActionBar = operable && !yieldingToolbar;
 
   const { registry: patternRegistry, remintIds } = usePatterns(
     config,
@@ -363,7 +363,7 @@ export function Editor<UserConfig extends Config = Config>({
             slotAddress={slotAddress}
             toolbarRef={toolbarRef}
             onSelectParent={selectParent}
-            showMove={Boolean(affordances.actionBar && singleSelected)}
+            showMove={operable}
             showBoxModel={affordances.boxModel}
             boxModelActive={boxModelVisible}
             onMove={() => handleAction({ tag: "move" })}
@@ -397,13 +397,9 @@ export function Editor<UserConfig extends Config = Config>({
             )}
           </FloatingActionBar>
         )}
-        {affordances.actionBar &&
-          pointer === "editing" &&
-          singleSelected &&
-          popover}
-        {affordances.actionBar &&
+        {operable && pointer === "editing" && popover}
+        {operable &&
           pointer === "inserting" &&
-          singleSelected &&
           fiberRegistry &&
           lastSelectedId && (
             <CatalogPicker
@@ -414,7 +410,7 @@ export function Editor<UserConfig extends Config = Config>({
               onClose={() => send({ type: "ESCAPE" })}
             />
           )}
-        {affordances.actionBar && morph.isOpen && singleSelected && (
+        {operable && morph.isOpen && (
           <MorphPicker
             patterns={morph.patterns}
             onHover={onMorphHover}
