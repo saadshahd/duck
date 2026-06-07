@@ -13,6 +13,7 @@ import { deepEqual } from "fast-equals";
 import {
   buildIndex,
   findById,
+  getChildrenAt,
   normalizeData,
   type PatternConfig,
 } from "@duckeditor/spec";
@@ -48,7 +49,7 @@ import {
 } from "./shell/announcer-message.js";
 import { useContextMenu, ContextMenu } from "./context-menu/index.js";
 import { useClipboard } from "./clipboard/index.js";
-import { CatalogPicker, useInsert } from "./insert/index.js";
+import { CatalogPicker, useInsert, type InsertTarget } from "./insert/index.js";
 import { RenderHost } from "./duck-render/index.js";
 import {
   useMorph,
@@ -251,9 +252,29 @@ export function Editor<UserConfig extends Config = Config>({
   const highlightId = menuHighlightId ?? hoverHighlightId;
 
   const [boxModelVisible, setBoxModelVisible] = useState(false);
+  const [slotPickerOpen, setSlotPickerOpen] = useState(false);
 
   const { selectedSlot } = state.context;
   const slotAddress = useSlotAddress(currentData, lastSelectedId);
+
+  // When slot-selected state exits, close the slot picker.
+  useEffect(() => {
+    if (pointer !== "slot-selected") setSlotPickerOpen(false);
+  }, [pointer]);
+
+  const slotInsertTarget = useMemo((): InsertTarget | null => {
+    if (!selectedSlot) return null;
+    const children =
+      getChildrenAt(currentData, selectedSlot.parentId, selectedSlot.slotKey) ??
+      [];
+    return {
+      parentId: selectedSlot.parentId,
+      slotKey: selectedSlot.slotKey,
+      index: children.length,
+    };
+  }, [selectedSlot, currentData]);
+
+  const onOpenSlotInsert = useCallback(() => setSlotPickerOpen(true), []);
 
   const affordances = affordancesFor(
     interactionState({
@@ -440,8 +461,21 @@ export function Editor<UserConfig extends Config = Config>({
               slotKey={selectedSlot.slotKey}
               label={slotAddress}
               onClimb={selectParent}
+              onInsert={onOpenSlotInsert}
             />
           )}
+        {slotPickerOpen && selectedSlot && fiberRegistry && (
+          <CatalogPicker
+            registry={fiberRegistry}
+            elementId={selectedSlot.parentId}
+            config={config}
+            onInsert={(componentType) => {
+              if (slotInsertTarget) onInsert(componentType, slotInsertTarget);
+              setSlotPickerOpen(false);
+            }}
+            onClose={() => setSlotPickerOpen(false)}
+          />
+        )}
         {affordances.dropOverlay &&
           fiberRegistry &&
           (() => {

@@ -19,7 +19,7 @@ type InsertDeps = {
   commit: EditorCommit;
 };
 
-type InsertTarget = {
+export type InsertTarget = {
   parentId: string | null;
   slotKey: string | null;
   index?: number;
@@ -65,42 +65,46 @@ const resolveInsertTarget = (
 };
 
 export function useInsert(deps: InsertDeps): {
-  onInsert: (componentType: string) => void;
+  onInsert: (componentType: string, explicitTarget?: InsertTarget) => void;
 } {
   const ref = useRef(deps);
   ref.current = deps;
 
-  const onInsert = useCallback((componentType: string) => {
-    const { data, config, lastSelectedId, send, commit } = ref.current;
+  const onInsert = useCallback(
+    (componentType: string, explicitTarget?: InsertTarget) => {
+      const { data, config, lastSelectedId, send, commit } = ref.current;
 
-    const target = resolveInsertTarget(data, lastSelectedId);
-    if (!target) return;
+      const target =
+        explicitTarget ?? resolveInsertTarget(data, lastSelectedId);
+      if (!target) return;
 
-    const id = mintId(componentType, new Set(buildIndex(data).keys()));
-    const component: ComponentData = {
-      type: componentType,
-      props: { id },
-    };
+      const id = mintId(componentType, new Set(buildIndex(data).keys()));
+      const component: ComponentData = {
+        type: componentType,
+        props: { id },
+      };
 
-    add(
-      data,
-      {
-        parentId: target.parentId,
-        slotKey: target.slotKey,
-        component,
-        index: target.index,
-      },
-      config,
-    ).map((next) => {
-      commit({
-        beforeData: data,
-        afterData: next,
-        label: `Added ${componentType}`,
-        resolve: { kind: "insert", id },
+      add(
+        data,
+        {
+          parentId: target.parentId,
+          slotKey: target.slotKey,
+          component,
+          index: target.index,
+        },
+        config,
+      ).map((next) => {
+        commit({
+          beforeData: data,
+          afterData: next,
+          label: `Added ${componentType}`,
+          resolve: { kind: "insert", id },
+        });
+        send({ type: "SELECT", elementId: id });
       });
-      send({ type: "SELECT", elementId: id });
-    });
-  }, []);
+    },
+    [],
+  );
 
   return { onInsert };
 }

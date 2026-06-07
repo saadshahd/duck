@@ -31,6 +31,7 @@ test.describe("R4 — state-owned affordance sets", () => {
       boxModelToggle: true,
       actionBar: true,
       slotStop: false,
+      slotInsert: false,
       dropIndicator: false,
       liftPulse: false,
     });
@@ -53,6 +54,7 @@ test.describe("R4 — state-owned affordance sets", () => {
         boxModelToggle: false,
         actionBar: false,
         slotStop: true,
+        slotInsert: true,
         dropIndicator: false,
         liftPulse: false,
       });
@@ -81,6 +83,7 @@ test.describe("R4 — state-owned affordance sets", () => {
       boxModelToggle: false,
       actionBar: false,
       slotStop: false,
+      slotInsert: false,
       dropIndicator: true,
       liftPulse: false,
     });
@@ -107,6 +110,7 @@ test.describe("R4 — state-owned affordance sets", () => {
         boxModelToggle: false,
         actionBar: false,
         slotStop: false,
+        slotInsert: false,
         dropIndicator: true,
         liftPulse: true,
       });

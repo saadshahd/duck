@@ -294,6 +294,7 @@ export const readOverlayElements = (page: Page) =>
       boxModelToggle: has("[data-role='box-model-toggle']"),
       actionBar: has("[role='toolbar']"),
       slotStop: has("[data-role='slot-stop']"),
+      slotInsert: has("[data-role='slot-insert-btn']"),
       dropIndicator:
         has("[data-role='drop-indicator']") ||
         has("[data-role='drop-indicator-container']") ||
@@ -307,6 +308,7 @@ export const readOverlayElements = (page: Page) =>
     boxModelToggle: boolean;
     actionBar: boolean;
     slotStop: boolean;
+    slotInsert: boolean;
     dropIndicator: boolean;
     liftPulse: boolean;
   } | null>;
@@ -343,6 +345,30 @@ export const clickSlotStopLabel = (page: Page) =>
       return;
     }
   });
+
+export const clickSlotInsertBtn = (page: Page) =>
+  page.evaluate(() => {
+    for (const d of document.querySelectorAll("div")) {
+      if (!d.shadowRoot || d.style.position !== "fixed") continue;
+      const btn = d.shadowRoot.querySelector(
+        "[data-role='slot-insert-btn']",
+      ) as HTMLElement | null;
+      btn?.click();
+      return;
+    }
+  });
+
+export const isSlotInsertBtnVisible = (page: Page) =>
+  shadowQuery(
+    page,
+    (r) => r.querySelector("[data-role='slot-insert-btn']") !== null,
+  ) as Promise<boolean>;
+
+export const isCatalogPickerVisible = (page: Page) =>
+  shadowQuery(
+    page,
+    (r) => r.querySelector("[data-role='catalog-picker']") !== null,
+  ) as Promise<boolean>;
 
 export const getSlotStopRect = (page: Page) =>
   shadowQuery(page, (r) => {
