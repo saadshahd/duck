@@ -101,20 +101,20 @@ export function usePropEditor({
     onCancel: cancelInline,
   });
 
-  const popoverComponent =
-    editing?.mode === "popover" ? findById(data, editing.elementId) : null;
+  const sheetComponent =
+    editing?.mode === "sheet" ? findById(data, editing.elementId) : null;
 
   useEffect(
     function forceResolveOnOpen() {
-      if (editing?.mode !== "popover" || !popoverComponent) return;
-      if (!shouldForceResolveOnOpen(config, popoverComponent)) return;
+      if (editing?.mode !== "sheet" || !sheetComponent) return;
+      if (!shouldForceResolveOnOpen(config, sheetComponent)) return;
       forceResolve(editing.elementId);
     },
-    [editing?.mode, editing?.elementId, popoverComponent, config, forceResolve],
+    [editing?.mode, editing?.elementId, sheetComponent, config, forceResolve],
   );
 
-  const { fields: popoverFields } = useResolvedFields(
-    popoverComponent,
+  const { fields: sheetFields } = useResolvedFields(
+    sheetComponent,
     config,
     metadata,
   );
@@ -134,20 +134,15 @@ export function usePropEditor({
 
   const handleClose = useCallback(() => send({ type: "CANCEL_EDIT" }), [send]);
 
-  if (
-    !editing ||
-    editing.mode !== "popover" ||
-    !popoverComponent ||
-    !registry
-  ) {
+  if (!editing || editing.mode !== "sheet" || !sheetComponent || !registry) {
     return null;
   }
 
   return (
     <PropPopover
       registry={registry}
-      component={popoverComponent}
-      fields={popoverFields}
+      component={sheetComponent}
+      fields={sheetFields}
       onPropChange={handlePropChange}
       onClose={handleClose}
     />

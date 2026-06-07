@@ -13,12 +13,12 @@ type InlineEditBase = {
 export type InlineEditing = InlineEditBase &
   ({ trigger: "select" } | { trigger: "replace"; char: string });
 
-type PopoverEditing = {
+type SheetEditing = {
   elementId: string;
-  mode: "popover";
+  mode: "sheet";
 };
 
-type Editing = InlineEditing | PopoverEditing;
+type Editing = InlineEditing | SheetEditing;
 
 export type SelectedSlot = { parentId: string; slotKey: string };
 
@@ -46,7 +46,7 @@ export type EditorEvent =
   | { type: "DESELECT" }
   | { type: "SELECT_SLOT"; parentId: string; slotKey: string }
   | { type: "OPEN_INSERT_SLOT"; parentId: string; slotKey: string }
-  | { type: "OPEN_POPOVER" }
+  | { type: "OPEN_SHEET" }
   | ({
       type: "START_INLINE_EDIT";
       elementId: string;
@@ -95,6 +95,7 @@ export const editorMachine = setup({
     hasSlot: ({ context }) => context.selectedSlot !== null,
     slotChosenExplicitly: ({ context }) =>
       context.selectedSlot !== null && context.slotExplicit,
+    editingSheet: ({ context }) => context.editing?.mode === "sheet",
   },
 }).createMachine({
   id: "editor",
@@ -280,13 +281,13 @@ export const editorMachine = setup({
                 hoveredId: null,
               })),
             },
-            OPEN_POPOVER: {
+            OPEN_SHEET: {
               guard: "notDragging",
               target: "editing",
               actions: assign(({ context }) => ({
                 ...Selection.collapseToLast(context),
                 editing: context.lastSelectedId
-                  ? { elementId: context.lastSelectedId, mode: "popover" }
+                  ? { elementId: context.lastSelectedId, mode: "sheet" }
                   : null,
               })),
             },
@@ -334,6 +335,13 @@ export const editorMachine = setup({
             ESCAPE: {
               target: "selected",
               actions: assign({ editing: null }),
+            },
+            SELECT: {
+              guard: "editingSheet",
+              actions: assign(({ event }) => ({
+                ...Selection.of(event.elementId),
+                editing: { elementId: event.elementId, mode: "sheet" as const },
+              })),
             },
           },
         },

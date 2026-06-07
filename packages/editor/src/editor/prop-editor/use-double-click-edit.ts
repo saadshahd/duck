@@ -43,7 +43,7 @@ export function useDoubleClickEdit({
         const el = registry.get(hit.elementId);
         if (!match || !el || !hasSingleTextNode(el)) {
           e.preventDefault();
-          send({ type: "OPEN_POPOVER" });
+          send({ type: "OPEN_SHEET" });
           return;
         }
 

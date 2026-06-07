@@ -57,7 +57,7 @@ const sampleEvents = [
   { type: "DESELECT" as const },
   { type: "SELECT_SLOT" as const, parentId: "card", slotKey: "body" },
   { type: "OPEN_INSERT_SLOT" as const, parentId: "box", slotKey: "children" },
-  { type: "OPEN_POPOVER" as const },
+  { type: "OPEN_SHEET" as const },
   {
     type: "START_INLINE_EDIT" as const,
     elementId: "el-1",
@@ -127,7 +127,7 @@ describe("exclusivity guards", () => {
     const s = walk(
       { type: "HOVER", elementId: "x" },
       { type: "SELECT", elementId: "x" },
-      { type: "OPEN_POPOVER" },
+      { type: "OPEN_SHEET" },
       { type: "DRAG_START", sourceId: "x" },
     );
     expect((s.value as MachineValue).drag).toBe("idle");
@@ -138,7 +138,7 @@ describe("exclusivity guards", () => {
       { type: "HOVER", elementId: "x" },
       { type: "SELECT", elementId: "x" },
       { type: "DRAG_START", sourceId: "x" },
-      { type: "OPEN_POPOVER" },
+      { type: "OPEN_SHEET" },
     );
     expect((s.value as MachineValue).pointer).toBe("dragging");
     expect(s.context.editing).toBeNull();
@@ -214,7 +214,7 @@ describe("editing state reconciliation", () => {
   it("DESELECT while editing transitions to idle and clears editing", () => {
     const s = walk(
       { type: "SELECT", elementId: "x" },
-      { type: "OPEN_POPOVER" },
+      { type: "OPEN_SHEET" },
       { type: "DESELECT" },
     );
     expect((s.value as MachineValue).pointer).toBe("idle");
@@ -225,7 +225,7 @@ describe("editing state reconciliation", () => {
   it("REPLACE_SELECT while editing transitions to selected with new IDs", () => {
     const s = walk(
       { type: "SELECT", elementId: "x" },
-      { type: "OPEN_POPOVER" },
+      { type: "OPEN_SHEET" },
       { type: "REPLACE_SELECT", elementIds: ["y"] },
     );
     expect((s.value as MachineValue).pointer).toBe("selected");
@@ -236,7 +236,7 @@ describe("editing state reconciliation", () => {
   it("REPLACE_SELECT with empty list while editing transitions to idle", () => {
     const s = walk(
       { type: "SELECT", elementId: "x" },
-      { type: "OPEN_POPOVER" },
+      { type: "OPEN_SHEET" },
       { type: "REPLACE_SELECT", elementIds: [] },
     );
     expect((s.value as MachineValue).pointer).toBe("idle");
@@ -258,7 +258,7 @@ describe("ESCAPE behavior", () => {
   it("pointer editing → ESCAPE cancels edit", () => {
     const s = walk(
       { type: "SELECT", elementId: "x" },
-      { type: "OPEN_POPOVER" },
+      { type: "OPEN_SHEET" },
       { type: "ESCAPE" },
     );
     expect((s.value as MachineValue).pointer).toBe("selected");
@@ -330,16 +330,16 @@ describe("multi-select", () => {
     expect(s.context.lastSelectedId).toBeNull();
   });
 
-  it("OPEN_POPOVER collapses multi to singleton", () => {
+  it("OPEN_SHEET collapses multi to singleton", () => {
     const s = walk(
       { type: "SELECT", elementId: "a" },
       { type: "TOGGLE_SELECT", elementId: "b" },
-      { type: "OPEN_POPOVER" },
+      { type: "OPEN_SHEET" },
     );
     expect(s.context.selectedIds).toEqual(new Set(["b"]));
     expect(s.context.editing).toEqual({
       elementId: "b",
-      mode: "popover",
+      mode: "sheet",
     });
   });
 });
@@ -361,7 +361,7 @@ describe("carry: from drag.idle", () => {
   it("CARRY_START blocked while editing (notEditing guard)", () => {
     const s = walk(
       { type: "SELECT", elementId: "el-1" },
-      { type: "OPEN_POPOVER" },
+      { type: "OPEN_SHEET" },
       carryStart,
     );
     expect(dragOf(s)).toBe("idle");
@@ -595,7 +595,7 @@ describe("slot-selected: dropped events keep slot-selected intact", () => {
 
   const droppedEvents: EditorEvent[] = [
     { type: "TOGGLE_SELECT", elementId: "el-2" },
-    { type: "OPEN_POPOVER" },
+    { type: "OPEN_SHEET" },
     {
       type: "START_INLINE_EDIT",
       elementId: "el-1",
@@ -746,7 +746,7 @@ describe("R1: pointer yields entirely while dragging", () => {
   it("DRAG_START blocked while editing — pointer stays editing, drag idle", () => {
     const s = walk(
       { type: "SELECT", elementId: "el-1" },
-      { type: "OPEN_POPOVER" },
+      { type: "OPEN_SHEET" },
       dragStart,
     );
     expect(pointerOf(s)).toBe("editing");
@@ -756,7 +756,7 @@ describe("R1: pointer yields entirely while dragging", () => {
   it("CARRY_START blocked while editing — pointer stays editing, drag idle", () => {
     const s = walk(
       { type: "SELECT", elementId: "el-1" },
-      { type: "OPEN_POPOVER" },
+      { type: "OPEN_SHEET" },
       carryStart,
     );
     expect(pointerOf(s)).toBe("editing");
@@ -832,6 +832,50 @@ describe("R1: slot-selected yields too", () => {
   });
 });
 
+// --- editing.SELECT re-target (Task 5) ---
+//
+// While pointer is `editing` and mode is "sheet", a SELECT re-targets the sheet
+// to the newly clicked element (self-transition — pointer stays `editing`).
+// While mode is "inline" the guard blocks the event (no-op); inline never reaches
+// editing.SELECT because a canvas click blurs the input first, but the guard must
+// hold as a hard invariant.
+
+describe("editing.SELECT re-targets the sheet (sheet mode only)", () => {
+  it("SELECT while sheet-editing stays editing, moves selection + editing.elementId", () => {
+    const s = walk(
+      { type: "SELECT", elementId: "a" },
+      { type: "OPEN_SHEET" },
+      { type: "SELECT", elementId: "b" },
+    );
+    expect((s.value as MachineValue).pointer).toBe("editing");
+    expect(s.context.selectedIds).toEqual(new Set(["b"]));
+    expect(s.context.lastSelectedId).toBe("b");
+    expect(s.context.editing).toEqual({ elementId: "b", mode: "sheet" });
+  });
+
+  it("SELECT while inline-editing is dropped (guard editingSheet)", () => {
+    const s = walk(
+      { type: "SELECT", elementId: "a" },
+      {
+        type: "START_INLINE_EDIT",
+        elementId: "a",
+        propKey: "text",
+        original: "Hi",
+        trigger: "select" as const,
+      },
+      { type: "SELECT", elementId: "b" },
+    );
+    expect((s.value as MachineValue).pointer).toBe("editing");
+    expect(s.context.editing).toEqual({
+      elementId: "a",
+      mode: "inline",
+      propKey: "text",
+      original: "Hi",
+      trigger: "select",
+    });
+  });
+});
+
 // --- Exhaustive: every pointer-region state × {DRAG_START, CARRY_START} ---
 //
 // The pointer region only *yields* from `selected` and `slot-selected` (it has
@@ -894,7 +938,7 @@ describe("DRAG_START / CARRY_START across every pointer-region state", () => {
   it("editing + DRAG_START → blocked: pointer.editing, drag.idle, no source", () => {
     const s = walk(
       { type: "SELECT", elementId: "el-1" },
-      { type: "OPEN_POPOVER" },
+      { type: "OPEN_SHEET" },
       dragStart,
     );
     expect(pointerOf(s)).toBe("editing");
@@ -905,7 +949,7 @@ describe("DRAG_START / CARRY_START across every pointer-region state", () => {
   it("editing + CARRY_START → blocked: pointer.editing, drag.idle, no source", () => {
     const s = walk(
       { type: "SELECT", elementId: "el-1" },
-      { type: "OPEN_POPOVER" },
+      { type: "OPEN_SHEET" },
       carryStart,
     );
     expect(pointerOf(s)).toBe("editing");
@@ -1001,7 +1045,7 @@ describe("SELECT_SLOT across every pointer-region state", () => {
   it("editing + SELECT_SLOT → no-op, pointer.editing, no slot", () => {
     const s = walk(
       { type: "SELECT", elementId: "el-1" },
-      { type: "OPEN_POPOVER" },
+      { type: "OPEN_SHEET" },
       selectSlot,
     );
     expect(pointerOf(s)).toBe("editing");
@@ -1060,7 +1104,7 @@ describe("R1: terminating drag events are no-ops outside the dragging pointer st
 
   const enterEditing: EditorEvent[] = [
     { type: "SELECT", elementId: "el-1" },
-    { type: "OPEN_POPOVER" },
+    { type: "OPEN_SHEET" },
   ];
   const enterInserting: EditorEvent[] = [
     { type: "SELECT", elementId: "el-1" },

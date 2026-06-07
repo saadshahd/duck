@@ -41,7 +41,7 @@ export function useActionHandler({
 
       switch (action.tag) {
         case "edit":
-          send({ type: "OPEN_POPOVER" });
+          send({ type: "OPEN_SHEET" });
           break;
         case "move-up":
         case "move-down": {
