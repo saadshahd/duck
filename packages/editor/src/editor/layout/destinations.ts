@@ -4,6 +4,7 @@ import {
   collectDescendants,
   findById,
   findParent,
+  getChildrenAt,
   preOrder,
   slotKeysOf,
 } from "@duckeditor/spec";
@@ -158,13 +159,34 @@ const besideDestination = (located: Located, data: Data): Destination => {
   };
 };
 
+/** Slot appends of a container's slot-bearing siblings, document-ordered.
+ *  Keyboard reach = pointer reach (R9): these slots are nowhere near the
+ *  pointer, yet the cycle must enumerate them. Excluded elements and the
+ *  container itself contribute nothing. */
+const siblingSlotDestinations = (args: {
+  located: Located;
+  data: Data;
+  excluded: ReadonlySet<string>;
+}): Destination[] => {
+  const { located, data, excluded } = args;
+  const selfId = located.component.props.id as string;
+  const isExpandable = (sibling: ComponentData): boolean => {
+    const id = sibling.props.id as string;
+    return id !== selfId && !excluded.has(id) && slotKeysOf(sibling).length > 0;
+  };
+  return (getChildrenAt(data, located.parentId, located.slotKey) ?? [])
+    .filter(isExpandable)
+    .flatMap(slotDestinations);
+};
+
 const dedupKey = (d: Destination): string =>
   `${d.parentId}|${d.slotKey}|${d.index}`;
 
 /** Deduped drop positions for an already-resolved containment chain: each
- *  container's slots then beside-it in its parent, deepest-first. Pure derivation
- *  from the chain — no DOM access, so callers that already have the chain reuse
- *  it instead of re-running `candidateChain`.
+ *  container's slots, its slot-bearing siblings' slots, then beside-it in its
+ *  parent, deepest-first (R9: full reach — sibling slots are enumerable without
+ *  pointer movement). Pure derivation from the chain — no DOM access, so callers
+ *  that already have the chain reuse it instead of re-running `candidateChain`.
  *
  *  Two dedup passes: (1) position key (parentId|slotKey|index) removes exact
  *  duplicates; (2) consecutive identity (parentId|slotKey) collapses pairs where
@@ -172,9 +194,15 @@ const dedupKey = (d: Destination): string =>
  *  different indices — the cycle would visit the same container/slot twice in a
  *  row. Keyed on identity rather than label so same-type nested containers with
  *  identically-named slots are both preserved. */
-const stackFromChain = (chain: Located[], data: Data): Destination[] => {
+const stackFromChain = (args: {
+  chain: Located[];
+  data: Data;
+  excluded: ReadonlySet<string>;
+}): Destination[] => {
+  const { chain, data, excluded } = args;
   const all = chain.flatMap((located) => [
     ...slotDestinations(located.component),
+    ...siblingSlotDestinations({ located, data, excluded }),
     besideDestination(located, data),
   ]);
 
@@ -210,10 +238,11 @@ export const destinationStack = (args: {
 }): readonly Destination[] => {
   const { point, data, registry, excludeId } = args;
   const excluded = new Set([excludeId, ...collectDescendants(data, excludeId)]);
-  return stackFromChain(
-    candidateChain({ point, data, registry, excluded }),
+  return stackFromChain({
+    chain: candidateChain({ point, data, registry, excluded }),
     data,
-  );
+    excluded,
+  });
 };
 
 /** The slot the pointer aims at inside a container's painted tiling: a band hit
@@ -276,7 +305,7 @@ export const aimDestination = (args: {
   const { point, data, registry, excludeId } = args;
   const excluded = new Set([excludeId, ...collectDescendants(data, excludeId)]);
   const chain = candidateChain({ point, data, registry, excluded });
-  const stackHead = stackFromChain(chain, data)[0];
+  const stackHead = stackFromChain({ chain, data, excluded })[0];
   const deepest = chain[0];
   if (!deepest) return stackHead;
   return (

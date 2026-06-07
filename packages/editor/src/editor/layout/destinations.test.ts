@@ -270,6 +270,107 @@ describe("destinationStack", () => {
     expect(bodySlots[1].parentId).toBe("outer");
   });
 
+  test("sibling containers' slots are reachable without pointer movement (R9 full reach)", () => {
+    // QA-3 N1: carrying from Card 1 › header, the cycle must enumerate the
+    // sibling cards' slots — they are nowhere near the pointer.
+    const data: Data = {
+      root: { props: {} },
+      content: [
+        card("card1", { header: [text("h1")] }),
+        card("card2", { body: [] }),
+        card("card3", { main: [text("m")] }),
+      ],
+    };
+    const registry = stubRegistry({
+      card1: new DOMRect(0, 0, 200, 300),
+      card2: new DOMRect(220, 0, 200, 300),
+      card3: new DOMRect(440, 0, 200, 300),
+    });
+
+    expect(
+      destinationStack({
+        point: { x: 100, y: 150 },
+        data,
+        registry,
+        excludeId: "h1",
+      }),
+    ).toEqual([
+      {
+        parentId: "card1",
+        slotKey: "header",
+        index: 1,
+        label: "Card › header",
+      },
+      { parentId: "card2", slotKey: "body", index: 0, label: "Card › body" },
+      { parentId: "card3", slotKey: "main", index: 1, label: "Card › main" },
+      { parentId: null, slotKey: null, index: 1, label: "Root" },
+    ]);
+  });
+
+  test("an excluded sibling container contributes no slots", () => {
+    const data: Data = {
+      root: { props: {} },
+      content: [
+        card("card1", { header: [] }),
+        card("card2", { body: [text("b")] }),
+      ],
+    };
+    const registry = stubRegistry({
+      card1: new DOMRect(0, 0, 200, 300),
+      card2: new DOMRect(220, 0, 200, 300),
+    });
+
+    expect(
+      destinationStack({
+        point: { x: 100, y: 150 },
+        data,
+        registry,
+        excludeId: "card2",
+      }),
+    ).toEqual([
+      {
+        parentId: "card1",
+        slotKey: "header",
+        index: 0,
+        label: "Card › header",
+      },
+      { parentId: null, slotKey: null, index: 1, label: "Root" },
+    ]);
+  });
+
+  test("leaf siblings contribute nothing; uncles' slots surface at the ancestor level", () => {
+    // inner sits in outer.main beside a leaf; outer has a sibling container
+    // (aunt) at root. Each chain level expands its slot-bearing siblings.
+    const data: Data = {
+      root: { props: {} },
+      content: [
+        card("outer", {
+          main: [card("inner", { body: [] }), text("leaf")],
+        }),
+        card("aunt", { slot: [] }),
+      ],
+    };
+    const registry = stubRegistry({
+      outer: new DOMRect(0, 0, 400, 400),
+      inner: new DOMRect(50, 50, 100, 100),
+      aunt: new DOMRect(420, 0, 200, 200),
+    });
+
+    expect(
+      destinationStack({
+        point: { x: 100, y: 100 },
+        data,
+        registry,
+        excludeId: "nope",
+      }),
+    ).toEqual([
+      { parentId: "inner", slotKey: "body", index: 0, label: "Card › body" },
+      { parentId: "outer", slotKey: "main", index: 1, label: "Card › main" },
+      { parentId: "aunt", slotKey: "slot", index: 0, label: "Card › slot" },
+      { parentId: null, slotKey: null, index: 1, label: "Root" },
+    ]);
+  });
+
   test("overlapping non-ancestor siblings → deeper-in-tree wins, ties by document order", () => {
     const data: Data = {
       root: { props: {} },
@@ -287,13 +388,10 @@ describe("destinationStack", () => {
       excludeId: "nope",
     });
 
-    // Same depth → document order: first before second.
-    expect(stack.map((d) => d.parentId)).toEqual([
-      "first",
-      null,
-      "second",
-      null,
-    ]);
+    // Same depth → document order: first before second. Sibling expansion
+    // surfaces second's slot at first's level (position-key dedup absorbs its
+    // own chain entry), and the two adjacent root besides collapse to one.
+    expect(stack.map((d) => d.parentId)).toEqual(["first", "second", null]);
   });
 });
 

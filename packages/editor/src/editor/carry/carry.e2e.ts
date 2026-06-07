@@ -501,6 +501,82 @@ test.describe("Carry cycle chip", () => {
     await page.keyboard.press("Escape");
   });
 
+  test("Tab cycle reaches sibling cards' slots — full keyboard reach parity", async ({
+    page,
+  }) => {
+    // A card region keyed off any h3 title — mirrors the file's `card()` helper.
+    const cardByTitle = (title: string) =>
+      page.locator(`h3:has-text("${title}")`).locator("..");
+
+    type Rect = { top: number; left: number; bottom: number; right: number };
+    const intersects = (a: Rect, b: Rect) =>
+      a.left < b.right &&
+      a.right > b.left &&
+      a.top < b.bottom &&
+      a.bottom > b.top;
+
+    const toRect = (box: {
+      x: number;
+      y: number;
+      width: number;
+      height: number;
+    }): Rect => ({
+      top: box.y,
+      left: box.x,
+      bottom: box.y + box.height,
+      right: box.x + box.width,
+    });
+
+    // Select the "Zero Chrome" h3 (feature-1's header), lift, aim over its card.
+    await cardTitle(page).click();
+    await page.waitForTimeout(300);
+
+    await lift(page);
+
+    const gap = await headerGapPoint(page);
+    await page.mouse.move(gap.x, gap.y);
+    await expect.poll(() => getActiveDestinationLabel(page)).not.toBeNull();
+
+    // First Tab anchors the cycle and reveals M.
+    await page.keyboard.press("Tab");
+    await expect.poll(() => getCycleChipText(page)).toMatch(/^\d+ of \d+$/);
+    const firstChip = await getCycleChipText(page);
+    const total = Number(firstChip!.split(" of ")[1]);
+
+    // Walk the full cycle: Tab M times, recording label + painted tile rects.
+    const steps = await Array.fromAsync(
+      Array.from({ length: total }),
+      async () => {
+        await page.keyboard.press("Tab");
+        await page.waitForTimeout(60);
+        return {
+          label: await getActiveDestinationLabel(page),
+          tiles: await readTileRects(page),
+        };
+      },
+    );
+
+    const feature2 = toRect((await cardByTitle("MCP-Native").boundingBox())!);
+    const feature3 = toRect(
+      (await cardByTitle("Catalog-Agnostic").boundingBox())!,
+    );
+
+    const hits = (card: Rect) =>
+      steps.some((s) => (s.tiles ?? []).some((t) => intersects(t, card)));
+
+    // 1. M is large enough to enumerate sibling slots, not just feature-1's own.
+    expect(total).toBeGreaterThanOrEqual(6);
+
+    // 2. Geometry — labels are type-qualified ("Card › header") so sibling cards
+    //    are indistinguishable by text. Some step must paint tiles inside each
+    //    sibling card's bounding box.
+    expect(hits(feature2)).toBe(true);
+    expect(hits(feature3)).toBe(true);
+
+    // 3. Cancel the carry.
+    await page.keyboard.press("Escape");
+  });
+
   test("cycle chip disappears after Esc cancels carry", async ({ page }) => {
     const heading = page.locator("h1");
     await heading.click();
