@@ -3,10 +3,12 @@ import type { Field } from "@puckeditor/core";
 import { Disclosure } from "./disclosure.js";
 import { grouped } from "./grouping.js";
 import { useDisclosureState } from "./use-disclosure-state.js";
+import { controlRenderers } from "./controls/index.js";
+import { resolveRenderer } from "./controls/dispatch.js";
 
 // --- Controlled field props (decoupled from form library) ---
 
-type FieldProps<F extends Field = Field, V = unknown> = {
+export type FieldProps<F extends Field = Field, V = unknown> = {
   label: string;
   field: F;
   value: V;
@@ -451,11 +453,17 @@ const renderers = {
   Record<Field["type"], (props: FieldProps<never, unknown>) => ReactNode>
 >;
 
-/** Render a single Puck field with the appropriate input. */
+/** Render a single Puck field with the appropriate input.
+ *  Priority: metadata.control (if registered) → field.type renderer → FallbackField. */
 function PuckFieldInput(props: FieldProps): ReactNode {
-  const Renderer = (renderers as Record<string, unknown>)[props.field.type] as
-    | ((p: FieldProps<never, unknown>) => ReactNode)
-    | undefined;
+  const Renderer = resolveRenderer(
+    props as FieldProps<Field, unknown>,
+    controlRenderers as Record<
+      string,
+      (p: FieldProps<Field, unknown>) => ReactNode
+    >,
+    renderers as Record<string, (p: FieldProps<Field, unknown>) => ReactNode>,
+  );
   if (Renderer) return Renderer(props as FieldProps<never, unknown>);
   return <FallbackField {...props} />;
 }
