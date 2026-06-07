@@ -381,8 +381,11 @@ export const clickFirstCatalogPickerItem = (page: Page) =>
       ) as HTMLElement | null;
       if (!item) return null;
       const typeName =
-        (item.querySelector(".catalog-picker-item-type") as HTMLElement | null)
-          ?.textContent ?? null;
+        (
+          item.querySelector(
+            "[data-role='catalog-picker-item-type']",
+          ) as HTMLElement | null
+        )?.textContent ?? null;
       item.click();
       return typeName;
     }

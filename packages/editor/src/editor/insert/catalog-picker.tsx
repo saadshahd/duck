@@ -92,7 +92,12 @@ export function CatalogPicker({
               onInsert(name);
             }}
           >
-            <span className="catalog-picker-item-type">{name}</span>
+            <span
+              className="catalog-picker-item-type"
+              data-role="catalog-picker-item-type"
+            >
+              {name}
+            </span>
             {label !== name && (
               <span className="catalog-picker-item-desc">{label}</span>
             )}

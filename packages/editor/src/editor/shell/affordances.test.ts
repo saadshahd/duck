@@ -138,18 +138,20 @@ describe("affordancesFor — sets are complete and non-overlapping", () => {
       boxModel: true,
       actionBar: true,
       slotStop: false,
+      slotInsert: false,
       dropOverlay: false,
       liftPulse: false,
     });
   });
 
-  test("slot-selected owns the label cluster and slot stop only", () => {
+  test("slot-selected owns label cluster, slot stop, and slot insert", () => {
     expect(affordancesFor("slot-selected")).toEqual({
       selectionRings: false,
       labelCluster: true,
       boxModel: false,
       actionBar: false,
       slotStop: true,
+      slotInsert: true,
       dropOverlay: false,
       liftPulse: false,
     });
@@ -162,6 +164,7 @@ describe("affordancesFor — sets are complete and non-overlapping", () => {
       boxModel: false,
       actionBar: false,
       slotStop: false,
+      slotInsert: false,
       dropOverlay: true,
       liftPulse: false,
     });
@@ -174,6 +177,7 @@ describe("affordancesFor — sets are complete and non-overlapping", () => {
       boxModel: false,
       actionBar: false,
       slotStop: false,
+      slotInsert: false,
       dropOverlay: true,
       liftPulse: true,
     });

@@ -23,6 +23,8 @@ export type AffordanceSet = {
   boxModel: boolean;
   actionBar: boolean;
   slotStop: boolean;
+  /** Inline insert (+) inside the slot band. Owned exclusively by slot-selected. */
+  slotInsert: boolean;
   dropOverlay: boolean;
   liftPulse: boolean;
 };
@@ -33,6 +35,7 @@ const NONE: AffordanceSet = {
   boxModel: false,
   actionBar: false,
   slotStop: false,
+  slotInsert: false,
   dropOverlay: false,
   liftPulse: false,
 };
@@ -44,6 +47,7 @@ const AFFORDANCES: Record<InteractionState, AffordanceSet> = {
     boxModel: true,
     actionBar: true,
     slotStop: false,
+    slotInsert: false,
     dropOverlay: false,
     liftPulse: false,
   },
@@ -53,6 +57,7 @@ const AFFORDANCES: Record<InteractionState, AffordanceSet> = {
     boxModel: false,
     actionBar: false,
     slotStop: true,
+    slotInsert: true,
     dropOverlay: false,
     liftPulse: false,
   },
@@ -62,6 +67,7 @@ const AFFORDANCES: Record<InteractionState, AffordanceSet> = {
     boxModel: false,
     actionBar: false,
     slotStop: false,
+    slotInsert: false,
     dropOverlay: true,
     liftPulse: false,
   },
@@ -71,6 +77,7 @@ const AFFORDANCES: Record<InteractionState, AffordanceSet> = {
     boxModel: false,
     actionBar: false,
     slotStop: false,
+    slotInsert: false,
     dropOverlay: true,
     liftPulse: true,
   },
