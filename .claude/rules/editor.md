@@ -10,8 +10,11 @@ Use `neverthrow` for Result types in spec-ops and any fallible editor logic. Do 
 ## UI rules
 
 When adding any editor UI element:
-- It MUST be contextual: appear on interaction, disappear when done.
-- Do NOT add sidebars, toolbars, panels, or any persistent chrome. Zero means zero.
+- **No chrome when nothing is selected.** An untouched page renders pixel-identical to Puck's `<Render>` output. The only exception: legibility signals (e.g., the hover ring) that exist strictly under the pointer and vanish with it.
+- **While a selection exists, exactly ONE control surface may exist.** It is selection-scoped: it appears on edit intent, re-targets when selection moves, and disappears when selection ends. A second concurrent surface is a violation, not a feature.
+- A control surface must NEVER occlude the selected element. Anchor surfaces to the viewport edge, not to canvas elements.
+- Do NOT add sidebars, toolbars, or panels that persist independent of selection. Selection-gated is the ceiling — police creep against it.
+- Controls must be honest: never display a value that differs from stored data; render read-only state distinctly.
 
 When updating the rendered preview:
 - Preserve scroll position and selection.
@@ -102,5 +105,6 @@ Three layers, strict downward dependency:
 
 This editor is a review/feedback surface, not a creation tool.
 - The rendered page IS the editor.
-- Do NOT add modes, toolbars, or panels.
+- Chrome is selection-gated: none while nothing is selected; one non-occluding, selection-scoped control surface while something is. No modes, no persistent toolbars or panels.
+- The feedback loop is sacred: the designer must always see the element they are editing while they edit it.
 - AI agents connect via MCP. No AI chat interface in editor.
