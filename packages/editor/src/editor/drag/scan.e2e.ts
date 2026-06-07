@@ -1,10 +1,12 @@
 import { test, expect, type Page, type Locator } from "@playwright/test";
 import {
+  dragEnd,
+  dragOverAt,
+  dragStart,
   getActiveDestinationLabel,
   readResolution,
   readTileRects,
   readTiles,
-  sourceCenter,
   type Point,
 } from "../overlay/testing.js";
 
@@ -245,59 +247,6 @@ type Resolution = {
   root: string | null;
   noTarget: boolean;
 };
-
-/** Begin a real native drag from the source's center (dragstart only). */
-async function dragStart(page: Page, source: Locator) {
-  const from = await sourceCenter(source);
-  await page.evaluate((f) => {
-    const dt = new DataTransfer();
-    (window as unknown as { __dt: DataTransfer }).__dt = dt;
-    document.elementFromPoint(f.x, f.y)?.dispatchEvent(
-      new DragEvent("dragstart", {
-        bubbles: true,
-        cancelable: true,
-        composed: true,
-        clientX: f.x,
-        clientY: f.y,
-        dataTransfer: dt,
-      }),
-    );
-  }, from);
-}
-
-/** Fire dragenter/dragover at a point, target resolved by real hit-testing. */
-async function dragOverAt(page: Page, p: Point) {
-  await page.evaluate((pt) => {
-    const dt = (window as unknown as { __dt: DataTransfer }).__dt;
-    const init: DragEventInit = {
-      bubbles: true,
-      cancelable: true,
-      composed: true,
-      clientX: pt.x,
-      clientY: pt.y,
-      dataTransfer: dt,
-    };
-    const tgt = document.elementFromPoint(pt.x, pt.y);
-    tgt?.dispatchEvent(new DragEvent("dragenter", init));
-    tgt?.dispatchEvent(new DragEvent("dragover", init));
-  }, p);
-  await page.waitForTimeout(20);
-}
-
-async function dragEnd(page: Page, p: Point) {
-  await page.evaluate((pt) => {
-    const dt = (window as unknown as { __dt: DataTransfer }).__dt;
-    document.elementFromPoint(pt.x, pt.y)?.dispatchEvent(
-      new DragEvent("dragend", {
-        bubbles: true,
-        composed: true,
-        clientX: pt.x,
-        clientY: pt.y,
-        dataTransfer: dt,
-      }),
-    );
-  }, p);
-}
 
 /** Step a live drag across `points`, reading the resolution after each. */
 async function dragStepRead(

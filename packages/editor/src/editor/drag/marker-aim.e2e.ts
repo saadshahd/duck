@@ -1,9 +1,11 @@
 import { test, expect, type Page, type Locator } from "@playwright/test";
 import {
+  dragEnd,
+  dragOverAt,
+  dragStart,
   getActiveDestinationLabel,
   readResolution,
   readTileRects,
-  sourceCenter,
   type Point,
 } from "../overlay/testing.js";
 
@@ -23,6 +25,15 @@ import {
  *  - Drag: stepped `dragover` whose target comes from `document.elementFromPoint`
  *    at the marker center (real hit-testing), resolution read from the active
  *    slot tile.
+ *
+ * Second law, certified here too: a single-child (scattered) slot has no
+ * cross-sibling direction, so its before/after insert axis comes from the
+ * CHILD'S OWN rect midpoint (`rectAxis` + `slotInsertIndex`), not container axis
+ * detection. The body marker is anchored to that child's rect midpoint, so its
+ * painted center IS the flip boundary. Carrying the CTA into the scatter body
+ * slot and committing ABOVE vs BELOW the marker center flips the committed
+ * document order — the observer is the resulting child order, read from the
+ * live DOM.
  */
 
 // The Scatter Panel: four slots (head, divider, body, note), each one child,
@@ -53,59 +64,6 @@ async function markerCenters(
   }));
 }
 
-// --- Drag stepping with real hit-testing (mirrors scan.e2e.ts) ---
-
-async function dragStart(page: Page, source: Locator) {
-  const from = await sourceCenter(source);
-  await page.evaluate((f) => {
-    const dt = new DataTransfer();
-    (window as unknown as { __dt: DataTransfer }).__dt = dt;
-    document.elementFromPoint(f.x, f.y)?.dispatchEvent(
-      new DragEvent("dragstart", {
-        bubbles: true,
-        cancelable: true,
-        composed: true,
-        clientX: f.x,
-        clientY: f.y,
-        dataTransfer: dt,
-      }),
-    );
-  }, from);
-}
-
-async function dragOverAt(page: Page, p: Point) {
-  await page.evaluate((pt) => {
-    const dt = (window as unknown as { __dt: DataTransfer }).__dt;
-    const init: DragEventInit = {
-      bubbles: true,
-      cancelable: true,
-      composed: true,
-      clientX: pt.x,
-      clientY: pt.y,
-      dataTransfer: dt,
-    };
-    const tgt = document.elementFromPoint(pt.x, pt.y);
-    tgt?.dispatchEvent(new DragEvent("dragenter", init));
-    tgt?.dispatchEvent(new DragEvent("dragover", init));
-  }, p);
-  await page.waitForTimeout(20);
-}
-
-async function dragEnd(page: Page, p: Point) {
-  await page.evaluate((pt) => {
-    const dt = (window as unknown as { __dt: DataTransfer }).__dt;
-    document.elementFromPoint(pt.x, pt.y)?.dispatchEvent(
-      new DragEvent("dragend", {
-        bubbles: true,
-        composed: true,
-        clientX: pt.x,
-        clientY: pt.y,
-        dataTransfer: dt,
-      }),
-    );
-  }, p);
-}
-
 // --- Carry lift (mirrors scan.e2e.ts) ---
 
 async function liftIntoCarry(page: Page, source: Locator, at: Point) {
@@ -117,7 +75,97 @@ async function liftIntoCarry(page: Page, source: Locator, at: Point) {
   await page.waitForTimeout(40);
 }
 
+// --- Single-child midpoint flip (rectAxis insert-index law) ---
+
+/** Viewport center of the marker whose label ends in `slotKey`. */
+async function markerCenterFor(page: Page, slotKey: string): Promise<Point> {
+  const markers = await markerCenters(page);
+  const marker = markers.find((m) => m.label.endsWith(slotKey));
+  if (!marker) throw new Error(`no marker for slot "${slotKey}"`);
+  return marker.point;
+}
+
+/** Order of the moved CTA ("Get started") relative to the body child ("body")
+ *  inside the scatter container after a commit: "before" when the CTA precedes
+ *  the body Text in document order, "after" when it follows. */
+async function ctaVsBodyOrder(
+  page: Page,
+): Promise<"before" | "after" | "missing"> {
+  return page.evaluate(() => {
+    const text = (t: string) =>
+      [...document.querySelectorAll("button,p,div,h3")].find(
+        (e) => (e as HTMLElement).textContent?.trim() === t,
+      );
+    const cta = text("Get started");
+    const body = text("body");
+    if (!cta || !body) return "missing";
+    return cta.compareDocumentPosition(body) & Node.DOCUMENT_POSITION_FOLLOWING
+      ? "before"
+      : "after";
+  });
+}
+
+/** Carry the CTA into the scatter body slot, aim at a y offset from the body
+ *  marker's center, and commit with Enter. The body marker is anchored to its
+ *  single child's rect midpoint (`discreteMarkers`), so the marker's painted
+ *  center IS the rectAxis flip boundary; the offset's sign selects the insert
+ *  side. The offset stays within the 24px marker so the body slot keeps
+ *  resolving. */
+async function carryCtaToBody(page: Page, dy: number) {
+  const el = scatterContainer(page);
+  await el.scrollIntoViewIfNeeded();
+  await page.waitForTimeout(200);
+  const box = (await el.boundingBox())!;
+  const center: Point = { x: box.x + box.width / 2, y: box.y + box.height / 2 };
+
+  await liftIntoCarry(page, ctaSource(page), center);
+
+  const marker = await markerCenterFor(page, "body");
+  await page.mouse.move(marker.x, marker.y + dy, { steps: 1 });
+  await page.waitForTimeout(40);
+  expect(
+    await getActiveDestinationLabel(page),
+    `carry aim near the body marker resolves the body slot (dy=${dy})`,
+  ).toBe("Panel › body");
+
+  await page.keyboard.press("Enter");
+  await page.waitForTimeout(200);
+}
+
 // --- Specs ---
+
+test.describe("Single-child insert axis flips at the child's own midpoint", () => {
+  test.beforeEach(async ({ page }) => {
+    await page.goto("/");
+    await page.waitForTimeout(500);
+  });
+
+  // The scatter body slot holds exactly one child, so it carries no cross-sibling
+  // direction: `rectAxis` reads the child's own (taller-than-wide) rect as a
+  // vertical stack and `slotInsertIndex` flips before/after at that child's
+  // midpoint. A drop ABOVE the midpoint lands the CTA before the body child; a
+  // drop BELOW lands it after. The committed document order is the observer.
+
+  test("aiming above the body child's midpoint inserts the CTA before it", async ({
+    page,
+  }) => {
+    await carryCtaToBody(page, -6);
+    expect(
+      await ctaVsBodyOrder(page),
+      "above the child midpoint → CTA before the body child",
+    ).toBe("before");
+  });
+
+  test("aiming below the body child's midpoint inserts the CTA after it", async ({
+    page,
+  }) => {
+    await carryCtaToBody(page, 6);
+    expect(
+      await ctaVsBodyOrder(page),
+      "below the child midpoint → CTA after the body child",
+    ).toBe("after");
+  });
+});
 
 test.describe("Discrete markers are hit-targets in both modalities", () => {
   test.beforeEach(async ({ page }) => {

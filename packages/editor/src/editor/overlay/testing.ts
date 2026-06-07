@@ -669,3 +669,62 @@ export const dispatchDrag = (
       src.dispatchEvent(new DragEvent("dragend", opts(to)));
     }
   }, args);
+
+/**
+ * Native-drag stepping with real per-step hit-testing. Unlike `dispatchDrag`
+ * (one shared `DataTransfer` per call), these three step a single live drag:
+ * `dragStart` opens it from the source center and stashes the `DataTransfer` on
+ * `window.__dt`; `dragOverAt` fires dragenter/dragover at a point whose target
+ * is resolved by `document.elementFromPoint` (so resolution reflects what the
+ * pointer actually lands on, not a known element); `dragEnd` closes it. Use when
+ * a test must read the overlay's resolution at each pointer position along a path.
+ */
+export const dragStart = async (page: Page, source: Locator) => {
+  const from = await sourceCenter(source);
+  await page.evaluate((f) => {
+    const dt = new DataTransfer();
+    (window as unknown as { __dt: DataTransfer }).__dt = dt;
+    document.elementFromPoint(f.x, f.y)?.dispatchEvent(
+      new DragEvent("dragstart", {
+        bubbles: true,
+        cancelable: true,
+        composed: true,
+        clientX: f.x,
+        clientY: f.y,
+        dataTransfer: dt,
+      }),
+    );
+  }, from);
+};
+
+export const dragOverAt = async (page: Page, p: Point) => {
+  await page.evaluate((pt) => {
+    const dt = (window as unknown as { __dt: DataTransfer }).__dt;
+    const init: DragEventInit = {
+      bubbles: true,
+      cancelable: true,
+      composed: true,
+      clientX: pt.x,
+      clientY: pt.y,
+      dataTransfer: dt,
+    };
+    const tgt = document.elementFromPoint(pt.x, pt.y);
+    tgt?.dispatchEvent(new DragEvent("dragenter", init));
+    tgt?.dispatchEvent(new DragEvent("dragover", init));
+  }, p);
+  await page.waitForTimeout(20);
+};
+
+export const dragEnd = (page: Page, p: Point) =>
+  page.evaluate((pt) => {
+    const dt = (window as unknown as { __dt: DataTransfer }).__dt;
+    document.elementFromPoint(pt.x, pt.y)?.dispatchEvent(
+      new DragEvent("dragend", {
+        bubbles: true,
+        composed: true,
+        clientX: pt.x,
+        clientY: pt.y,
+        dataTransfer: dt,
+      }),
+    );
+  }, p);
