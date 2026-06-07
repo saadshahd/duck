@@ -1019,6 +1019,27 @@ export const readSwatchItems = (page: Page) =>
     })),
   ) as Promise<{ value: string; checked: boolean }[] | null>;
 
+/** Each swatch's rendered color block read from the overlay shadow root: the
+ *  hex `value` it represents, its on-screen `width`/`height`, and the computed
+ *  `background` color. Proves the color actually PAINTS (non-zero box) and is not
+ *  a collapsed wrapper — the regression a data-attribute-only read can't catch. */
+export const readSwatchPaints = (page: Page) =>
+  shadowQuery(page, (r) =>
+    [...r.querySelectorAll("[data-role='swatch-item']")].map((item) => {
+      const block = item.querySelector(".swatch-color") as HTMLElement | null;
+      const box = block?.getBoundingClientRect();
+      return {
+        value: item.getAttribute("data-value") ?? "",
+        width: box?.width ?? 0,
+        height: box?.height ?? 0,
+        background: block ? getComputedStyle(block).backgroundColor : "",
+      };
+    }),
+  ) as Promise<
+    | { value: string; width: number; height: number; background: string }[]
+    | null
+  >;
+
 /** True when the swatch sentinel chip (shown for an unset/off-palette value) is
  *  mounted in the overlay shadow root. The honest-unset signal: present when no
  *  swatch is selected, absent once a palette value is chosen. */

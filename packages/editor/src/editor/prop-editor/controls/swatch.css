@@ -43,6 +43,14 @@
   outline-offset: 1px;
 }
 
+/* Ark's ItemText wrapper (data-part="item-text") is a zero-size text span by
+   default; stretch it to fill the item so the color block inside has a box. */
+.swatch-item [data-part="item-text"] {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
 /* The color block fills the item interior */
 .swatch-color {
   width: 100%;
@@ -69,8 +77,17 @@
   user-select: none;
 }
 
-/* Read-only state */
+/* Read-only state — mute items, drop the interactive selection ring, and dim
+   the sentinel so nothing reads as actionable (matches segmented.css doctrine). */
 .swatch-root[data-disabled] .swatch-item {
   cursor: not-allowed;
+  opacity: 0.6;
+}
+
+.swatch-root[data-disabled] .swatch-item[data-state="checked"] {
+  border-color: var(--control-border);
+}
+
+.swatch-root[data-disabled] .swatch-sentinel {
   opacity: 0.6;
 }

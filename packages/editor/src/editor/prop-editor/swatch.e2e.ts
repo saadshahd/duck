@@ -3,7 +3,9 @@ import {
   clickToolbarAction,
   isSheetVisible,
   expandSheetDisclosures,
+  getSwatchRole,
   readSwatchItems,
+  readSwatchPaints,
   isSwatchSentinelVisible,
   getSwatchItemCenter,
 } from "../overlay/testing.js";
@@ -54,18 +56,34 @@ test.describe("Swatch color control — Heading.style.color (T5)", () => {
     await page.waitForTimeout(500);
   });
 
-  // O2a: swatch grid renders one item per palette option inside the shadow root.
+  // O2a: swatch grid renders one item per palette option inside the shadow root,
+  //      and its root carries role="radiogroup" (the Ark SegmentGroup contract).
   test("O2a: swatch grid renders one item per palette color option", async ({
     page,
   }) => {
     await openHeadingSheet(page);
     expect(await isSheetVisible(page)).toBe(true);
 
+    // Root is an ARIA radiogroup — single-select keyboard group reaches the DOM.
+    expect(await getSwatchRole(page)).toBe("radiogroup");
+
     const items = await readSwatchItems(page);
     expect(items).not.toBeNull();
     expect(items!.length).toBe(COLOR_PALETTE.length);
     // Values match the palette hex strings.
     expect(items!.map((i) => i.value)).toEqual(COLOR_PALETTE);
+
+    // Each swatch's color block actually PAINTS — a non-zero box with a real
+    // background. Guards the collapsed-wrapper regression that data-attribute
+    // reads alone cannot catch.
+    const paints = await readSwatchPaints(page);
+    expect(paints).not.toBeNull();
+    for (const p of paints!) {
+      expect(p.width).toBeGreaterThan(0);
+      expect(p.height).toBeGreaterThan(0);
+      expect(p.background).not.toBe("rgba(0, 0, 0, 0)");
+      expect(p.background).not.toBe("transparent");
+    }
   });
 
   // O2b: unset color → sentinel shows, NO swatch is selected.
