@@ -336,7 +336,6 @@ async function assertCarryTiled(
     containerTop: geom.containerTop,
   });
 
-  const hit = new Set<string>();
   for (const s of samples) {
     await page.mouse.move(s.point.x, s.point.y, { steps: 1 });
     await page.waitForTimeout(20);
@@ -345,7 +344,6 @@ async function assertCarryTiled(
       dest,
       `carry slot ownership at "${s.slot}" (${Math.round(s.point.y - box.y)}px) in ${container.title}`,
     ).toBe(s.slot);
-    if (dest) hit.add(dest);
   }
 
   // Vacuity: the ownership loop must have run.
@@ -356,14 +354,74 @@ async function assertCarryTiled(
 
   // Reachability: every non-yielded slot is reached by the pointer — the core
   // parity win is that body/footer (not just the first slot) resolve in carry.
-  const reachable = container.truth
-    .filter((s) => s.kind !== "yield")
-    .map((s) => s.slot);
-  for (const slot of reachable)
+  // Carry applies no tile hysteresis and resolves over a measured child to that
+  // child's slot, so the in-band probe is the child's own center (carved slots
+  // have no child — probe their carved-band center). This reaches slots whose
+  // child fills the band, where the background-only `bandSamples` emits no point.
+  const probes = bandReachProbes({
+    truth: container.truth,
+    rects: geom.rects,
+    containerHeight: geom.containerHeight,
+    cx: geom.cx,
+    containerTop: geom.containerTop,
+  });
+  for (const p of probes) {
+    await page.mouse.move(p.point.x, p.point.y, { steps: 1 });
+    await page.waitForTimeout(20);
+    const dest = await getActiveDestinationLabel(page);
     expect(
-      hit.has(slot),
-      `carry reachability of "${slot}" in ${container.title}`,
-    ).toBe(true);
+      dest,
+      `carry reachability of "${p.slot}" (${Math.round(p.point.y - box.y)}px) in ${container.title}`,
+    ).toBe(p.slot);
+  }
+}
+
+/** One in-band probe point per non-yielded slot for the carry reachability pin:
+ *  a measured slot's child center, or a carved slot's band center. Distinct from
+ *  `bandSamples`, which restricts to background-only points clear of tile
+ *  hysteresis for the drag exact-ownership assertion. */
+function bandReachProbes(args: {
+  truth: readonly SlotTruth[];
+  rects: Record<string, ChildRect | null>;
+  containerHeight: number;
+  cx: number;
+  containerTop: number;
+}): Array<{ slot: string; point: Point }> {
+  const { truth, rects, containerHeight, cx, containerTop } = args;
+  const CARVE = 24;
+  const at = (relY: number): Point => ({ x: cx, y: containerTop + relY });
+
+  const measured = truth.filter(
+    (s): s is Extract<SlotTruth, { kind: "tile" }> => s.kind === "tile",
+  );
+  const childOf = (s: SlotTruth): ChildRect | null =>
+    "child" in s ? rects[s.child] : null;
+  const bound = (i: number): number => {
+    if (i <= 0) return 0;
+    if (i >= measured.length) return containerHeight;
+    const prev = childOf(measured[i - 1])!;
+    const next = childOf(measured[i])!;
+    return (prev.bottom + next.top) / 2;
+  };
+
+  return truth.flatMap((s) => {
+    if (s.kind === "yield") return [];
+    if (s.kind === "carved") {
+      const mi = truth
+        .slice(0, truth.indexOf(s))
+        .filter((t) => t.kind === "tile").length;
+      const b = bound(mi);
+      const lo =
+        b <= 0
+          ? 0
+          : b >= containerHeight
+            ? containerHeight - CARVE
+            : b - CARVE / 2;
+      return [{ slot: s.slot, point: at(lo + CARVE / 2) }];
+    }
+    const child = childOf(s)!;
+    return [{ slot: s.slot, point: at((child.top + child.bottom) / 2) }];
+  });
 }
 
 /** Discrete container: no measured bands, but its labelled markers are
