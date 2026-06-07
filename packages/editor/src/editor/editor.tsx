@@ -267,7 +267,8 @@ export function Editor<UserConfig extends Config = Config>({
   const yieldingToolbar = useToolbarYield(fiberRegistry, singleSelected);
 
   const operable = Boolean(affordances.actionBar && singleSelected);
-  const showActionBar = operable && !yieldingToolbar;
+  const pickerOverlayOpen = pointer === "editing" || pointer === "inserting";
+  const showActionBar = operable && !yieldingToolbar && !pickerOverlayOpen;
 
   const { registry: patternRegistry, remintIds } = usePatterns(
     config,
