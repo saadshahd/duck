@@ -52,14 +52,27 @@ export const detectAxis = (a: DOMRect, b: DOMRect): Axis => {
 /** Before/after axis for a lone child: a single rect carries no cross-sibling
  *  direction, so the child's own shape decides — taller-than-wide reads as a
  *  vertical stack (split top/bottom at its midpoint), wider-than-tall as a row
- *  (split left/right). Ties go vertical, the block-flow default. */
+ *  (split left/right). Ties go vertical, the block-flow default. The fallback
+ *  only: the container's CSS flow direction is the stronger signal and is
+ *  preferred whenever it resolves. */
 export const rectAxis = (r: DOMRect): Axis =>
   r.height >= r.width ? "vertical" : "horizontal";
 
+/** Container flow axis when the element is a real DOM node, else undefined. The
+ *  unit-test stub registry yields plain `getBoundingClientRect` shims, not
+ *  Elements — `getComputedStyle` would throw on them, so guard with a real
+ *  Element check and let callers fall back to geometry. */
+const containerCssAxis = (el: HTMLElement | undefined): Axis | null => {
+  if (!el || !(el instanceof Element)) return null;
+  return cssAxis(el);
+};
+
 /** Resolve axis for a slot by measuring its children. Two-or-more children
  *  measure the first adjacent pair; a single child has no cross-sibling
- *  direction, so its before/after axis comes from its own rect midpoint
- *  (`rectAxis`). `parentId === null && slotKey === null` measures the
+ *  direction, so its before/after axis follows the container's CSS flow when
+ *  that resolves (a block-flow paragraph splits top/bottom even when wider than
+ *  tall), falling back to the child's own rect midpoint (`rectAxis`) when the
+ *  flow is indeterminate. `parentId === null && slotKey === null` measures the
  *  top-level (`data.content`). */
 export const resolveSlotAxis = (
   data: Data,
@@ -71,7 +84,11 @@ export const resolveSlotAxis = (
   if (!children || !children.length) return null;
   if (children.length === 1) {
     const only = registry.get(children[0].props.id as string);
-    return only ? rectAxis(only.getBoundingClientRect()) : null;
+    if (!only) return null;
+    const container = parentId ? registry.get(parentId) : undefined;
+    return (
+      containerCssAxis(container) ?? rectAxis(only.getBoundingClientRect())
+    );
   }
   const a = registry.get(children[0].props.id as string);
   const b = registry.get(children[1].props.id as string);
