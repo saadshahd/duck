@@ -30,4 +30,9 @@ export {
   NO_TARGET_LABEL,
   stepCycleBack,
 } from "./destinations.js";
-export { Cycle, type CycleState, type CycleStatus } from "./cycle.js";
+export {
+  Cycle,
+  type CycleState,
+  type CycleStatus,
+  sameStatus,
+} from "./cycle.js";

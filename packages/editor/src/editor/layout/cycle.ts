@@ -18,6 +18,13 @@ export type CycleState = { active: boolean; index: number; anchorId: string };
  *  Shared by drag and carry — lives in infra so neither domain re-declares it. */
 export type CycleStatus = { step: number; total: number };
 
+/** Stable equality for CycleStatus: avoids re-renders when step/total
+ *  haven't changed. Both domains share this predicate — single source of truth. */
+export const sameStatus = (
+  a: CycleStatus | null,
+  b: CycleStatus | null,
+): boolean => a?.step === b?.step && a?.total === b?.total;
+
 const IDLE: CycleState = { active: false, index: 0, anchorId: "" };
 
 /** The deepest container under the pointer for the current stack: the parent of

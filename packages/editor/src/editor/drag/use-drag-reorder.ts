@@ -22,6 +22,7 @@ import { EDGES, resolveSlotAxis, tagTransitionNames } from "./helpers.js";
 import {
   destinationStack,
   Cycle,
+  sameStatus,
   type CycleState,
   type CycleStatus,
 } from "../layout/index.js";
@@ -75,9 +76,6 @@ const renderDragPreviewPill = (container: HTMLElement, typeName: string) => {
   });
   container.appendChild(pill);
 };
-
-const sameStatus = (a: CycleStatus | null, b: CycleStatus | null): boolean =>
-  a?.step === b?.step && a?.total === b?.total;
 
 // --- Hook ---
 

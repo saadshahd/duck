@@ -8,14 +8,12 @@ import {
   aimDestination,
   stackIndexOf,
   Cycle,
+  sameStatus,
   type CycleState,
   type CycleStatus,
   type Destination,
   type DropTarget,
 } from "../layout/index.js";
-
-const sameStatus = (a: CycleStatus | null, b: CycleStatus | null): boolean =>
-  a?.step === b?.step && a?.total === b?.total;
 import { animatedUpdate } from "../animated-update.js";
 import { move } from "../spec-ops/index.js";
 import type { EditorCommit } from "../types.js";
