@@ -29,6 +29,20 @@ describe("Selection.clear", () => {
   });
 });
 
+describe("Selection.clearKeepLast", () => {
+  it("empties the set but keeps lastSelectedId", () => {
+    const s = Selection.clearKeepLast(state(["a", "b"], "b"));
+    expect(s.selectedIds.size).toBe(0);
+    expect(s.lastSelectedId).toBe("b");
+  });
+
+  it("keeps null lastSelectedId when there was none", () => {
+    const s = Selection.clearKeepLast(state([], null));
+    expect(s.selectedIds.size).toBe(0);
+    expect(s.lastSelectedId).toBeNull();
+  });
+});
+
 describe("Selection.toggle", () => {
   it("adds element to set", () => {
     const s = Selection.toggle(state(["a"]), "b");

@@ -709,6 +709,14 @@ describe("R1: drop and cancel restore the pointer to selected", () => {
     expect(dragOf(s)).toBe("idle");
     expect(s.context.selectedIds).toEqual(new Set(["el-1"]));
   });
+
+  it("ESCAPE while dragging → both regions reset, dragSourceId cleared", () => {
+    const s = walk(...enterDrag, { type: "ESCAPE" });
+    expect(pointerOf(s)).toBe("selected");
+    expect(dragOf(s)).toBe("idle");
+    expect(s.context.dragSourceId).toBeNull();
+    expect(s.context.selectedIds).toEqual(new Set(["el-1"]));
+  });
 });
 
 describe("R1: slot-selected yields too", () => {
@@ -934,6 +942,14 @@ describe("SELECT_SLOT across every pointer-region state", () => {
   });
 });
 
+// --- Exhaustive: every non-dragging pointer-region state × every drag-ender ---
+//
+// Drop/cancel/commit are owned exclusively by the `dragging` pointer state. From
+// every other pointer state they are inert no-ops — the pointer must not move and
+// its selection chrome (ring, slot, edit, hover) must survive untouched. This
+// block crosses each non-dragging pointer state with all four terminators so the
+// terminating-event matrix is complete.
+
 describe("R1: terminating drag events are no-ops outside the dragging pointer state", () => {
   const dragEnders: EditorEvent[] = [
     drop,
@@ -942,16 +958,52 @@ describe("R1: terminating drag events are no-ops outside the dragging pointer st
     { type: "CARRY_CANCEL" },
   ];
 
+  const enterEditing: EditorEvent[] = [
+    { type: "SELECT", elementId: "el-1" },
+    { type: "OPEN_POPOVER" },
+  ];
+  const enterInserting: EditorEvent[] = [
+    { type: "SELECT", elementId: "el-1" },
+    { type: "OPEN_INSERT" },
+  ];
+
   for (const event of dragEnders) {
+    it(`${event.type} from pointer.idle leaves pointer.idle intact`, () => {
+      const s = walk(event);
+      expect(pointerOf(s)).toBe("idle");
+      expect(s.context.selectedIds.size).toBe(0);
+    });
+
+    it(`${event.type} from pointer.hovering leaves pointer.hovering intact`, () => {
+      const s = walk({ type: "HOVER", elementId: "el-1" }, event);
+      expect(pointerOf(s)).toBe("hovering");
+      expect(s.context.hoveredId).toBe("el-1");
+    });
+
     it(`${event.type} from pointer.selected leaves pointer.selected intact`, () => {
       const s = walk({ type: "SELECT", elementId: "el-1" }, event);
       expect(pointerOf(s)).toBe("selected");
       expect(s.context.selectedIds).toEqual(new Set(["el-1"]));
     });
 
-    it(`${event.type} from pointer.idle leaves pointer.idle intact`, () => {
-      const s = walk(event);
-      expect(pointerOf(s)).toBe("idle");
+    it(`${event.type} from pointer.editing leaves pointer.editing intact`, () => {
+      const s = walk(...enterEditing, event);
+      expect(pointerOf(s)).toBe("editing");
+      expect(s.context.editing).not.toBeNull();
+    });
+
+    it(`${event.type} from pointer.inserting leaves pointer.inserting intact`, () => {
+      const s = walk(...enterInserting, event);
+      expect(pointerOf(s)).toBe("inserting");
+    });
+
+    it(`${event.type} from pointer.slot-selected leaves slot-selected intact`, () => {
+      const s = walk(...enterSlotSelected, event);
+      expect(pointerOf(s)).toBe("slot-selected");
+      expect(s.context.selectedSlot).toEqual({
+        parentId: "card",
+        slotKey: "body",
+      });
     });
   }
 });

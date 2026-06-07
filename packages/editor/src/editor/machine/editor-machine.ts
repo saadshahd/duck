@@ -205,8 +205,7 @@ export const editorMachine = setup({
             SELECT_SLOT: {
               target: "slot-selected",
               actions: assign(({ context, event }) => ({
-                selectedIds: new Set<string>(),
-                lastSelectedId: context.lastSelectedId,
+                ...Selection.clearKeepLast(context),
                 selectedSlot: {
                   parentId: event.parentId,
                   slotKey: event.slotKey,
@@ -413,6 +412,10 @@ export const editorMachine = setup({
               actions: assign({ dragSourceId: null }),
             },
             DRAG_CANCEL: {
+              target: "idle",
+              actions: assign({ dragSourceId: null }),
+            },
+            ESCAPE: {
               target: "idle",
               actions: assign({ dragSourceId: null }),
             },

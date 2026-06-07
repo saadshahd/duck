@@ -16,6 +16,11 @@ export const Selection = {
 
   clear: (): SelectionState => EMPTY,
 
+  clearKeepLast: (state: SelectionState): SelectionState => ({
+    selectedIds: new Set<string>(),
+    lastSelectedId: state.lastSelectedId,
+  }),
+
   toggle: (state: SelectionState, elementId: string): SelectionState => {
     const next = new Set(state.selectedIds);
     if (next.has(elementId)) {
