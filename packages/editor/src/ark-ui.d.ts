@@ -9,11 +9,7 @@
 // `dist/src` dir. Remove once Ark fixes its published types layout.
 
 declare module "@ark-ui/react/toggle-group" {
-  export {
-    ToggleGroup,
-    ToggleGroupItem,
-    ToggleGroupRoot,
-  } from "../../../node_modules/@ark-ui/react/dist/src/components/toggle-group/index.d.ts";
+  export { ToggleGroup } from "../../../node_modules/@ark-ui/react/dist/src/components/toggle-group/index.d.ts";
 }
 
 declare module "@ark-ui/react/environment" {
