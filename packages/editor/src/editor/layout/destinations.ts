@@ -11,7 +11,7 @@ import type { FiberRegistry } from "../fiber/index.js";
 import { resolveSlotAxis, type Axis } from "./axis.js";
 import { containsPoint } from "./rect.js";
 import { slotInsertIndex } from "./slot-regions.js";
-import { aimedTile, type Tiling } from "./tiles.js";
+import { aimedMarker, aimedTile, type Tile, type Tiling } from "./tiles.js";
 import { buildTiling } from "./tiling.js";
 
 export const NO_TARGET_LABEL = "No target here";
@@ -167,9 +167,11 @@ const dedupKey = (d: Destination): string =>
  *  it instead of re-running `candidateChain`.
  *
  *  Two dedup passes: (1) position key (parentId|slotKey|index) removes exact
- *  duplicates; (2) consecutive identical labels collapse — when a beside-target
- *  and an ancestor slot-append share the same `Component › slot` label the cycle
- *  would announce the same destination twice in a row. */
+ *  duplicates; (2) consecutive identity (parentId|slotKey) collapses pairs where
+ *  a beside-target and an ancestor slot-append point to the same slot but at
+ *  different indices — the cycle would visit the same container/slot twice in a
+ *  row. Keyed on identity rather than label so same-type nested containers with
+ *  identically-named slots are both preserved. */
 const stackFromChain = (chain: Located[], data: Data): Destination[] => {
   const all = chain.flatMap((located) => [
     ...slotDestinations(located.component),
@@ -184,11 +186,17 @@ const stackFromChain = (chain: Located[], data: Data): Destination[] => {
     return true;
   });
 
-  // Remove consecutive entries that share the same label. A beside-target and
-  // the immediately following ancestor slot-append can produce the same qualified
-  // label (e.g., "Card › body" beside-card then "Card › body" slot-append), which
-  // would announce the same slot twice when cycling.
-  return deduped.filter((d, i) => i === 0 || d.label !== deduped[i - 1].label);
+  // Remove consecutive entries that share the same identity (parentId + slotKey).
+  // A beside-target and the immediately following ancestor slot-append can
+  // refer to the same slot with different indices but the same identity — the
+  // cycle would step into the same container/slot twice in a row. Keying on
+  // identity (not label) preserves same-type nested containers whose slots
+  // happen to share a label (e.g., two nested Cards each with a "body" slot).
+  const identityKey = (d: Destination): string =>
+    `${d.parentId ?? "root"}|${d.slotKey ?? ""}`;
+  return deduped.filter(
+    (d, i) => i === 0 || identityKey(d) !== identityKey(deduped[i - 1]),
+  );
 };
 
 /** The cycle of discrete drop positions under the pointer: deepest container's
@@ -208,10 +216,24 @@ export const destinationStack = (args: {
   );
 };
 
-/** The pointer-aimed slot for a real container: hit-test its painted tiling with
- *  the same `aimedTile` path as drag, then resolve the precise insert index from
- *  the slot's measured children. Null when the container is discrete (no aimable
- *  bands) or the pointer hits no band — the caller falls back to the stack head. */
+/** The slot the pointer aims at inside a container's painted tiling: a band hit
+ *  for a tiled container, a labelled-marker hit for a discrete (scattered) one.
+ *  Markers are first-class targets — both modalities hit-test the same painted
+ *  geometry. Undefined when the pointer lands on no band and no marker. */
+const aimedSlotTile = (
+  tiling: Tiling,
+  containerRect: DOMRect,
+  point: { x: number; y: number },
+): Tile | undefined =>
+  tiling.kind === "tiled"
+    ? aimedTile(tiling, point)
+    : aimedMarker(tiling, containerRect, point);
+
+/** The pointer-aimed slot destination for a real container: hit-test its painted
+ *  tiling (band or marker) with the same geometry as drag, then resolve the
+ *  precise insert index from the slot's measured children. Null when the
+ *  container is unmounted or the pointer hits neither a band nor a marker — the
+ *  caller falls back to the stack head. */
 const aimedSlotDestination = (args: {
   container: Located;
   point: { x: number; y: number };
@@ -220,9 +242,10 @@ const aimedSlotDestination = (args: {
 }): Destination | null => {
   const { container, point, data, registry } = args;
   const containerId = container.component.props.id as string;
+  const containerRect = registry.get(containerId)?.getBoundingClientRect();
+  if (!containerRect) return null;
   const { tiling, regions } = buildTiling({ data, containerId, registry });
-  if (tiling.kind !== "tiled") return null;
-  const tile = aimedTile(tiling, point);
+  const tile = aimedSlotTile(tiling, containerRect, point);
   if (!tile) return null;
 
   const measured = regions.find((r) => r.slotKey === tile.slotKey);

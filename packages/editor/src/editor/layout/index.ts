@@ -11,6 +11,7 @@ export {
   type Tiling,
   leaderRect,
   aimedTile,
+  aimedMarker,
   discreteMarkers,
   TILE_HYSTERESIS,
 } from "./tiles.js";
@@ -29,4 +30,4 @@ export {
   NO_TARGET_LABEL,
   stepCycleBack,
 } from "./destinations.js";
-export { Cycle, type CycleState } from "./cycle.js";
+export { Cycle, type CycleState, type CycleStatus } from "./cycle.js";

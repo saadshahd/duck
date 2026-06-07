@@ -202,13 +202,12 @@ describe("destinationStack", () => {
     ]);
   });
 
-  test("consecutive-label dedup removes beside-then-slot-append with identical label", () => {
+  test("consecutive-identity dedup removes beside-then-slot-append with same parentId+slotKey", () => {
     // inner is at index 0 in outer.body, and outer has a second child at index 1.
     // beside-inner = { parentId: "outer", slotKey: "body", index: 1, label: "Card › body" }
     // outer.body slot-append = { parentId: "outer", slotKey: "body", index: 2, label: "Card › body" }
-    // These differ in position key (index 1 vs 2) but share the same label —
-    // the consecutive-label dedup removes the second, preventing a duplicate
-    // "Card › body" announcement in the cycle.
+    // Both point to the same (parentId, slotKey) — the cycle would step into the
+    // same container slot twice in a row. Identity dedup removes the second.
     const data: Data = {
       root: { props: {} },
       content: [
@@ -229,15 +228,46 @@ describe("destinationStack", () => {
       excludeId: "nope",
     });
 
-    // Verify no two consecutive entries share the same label.
-    const consecutiveDupes = result.filter(
-      (d, i) => i > 0 && d.label === result[i - 1].label,
+    // No two consecutive entries share the same (parentId, slotKey).
+    const consecutiveIdentityDupes = result.filter(
+      (d, i) =>
+        i > 0 &&
+        d.parentId === result[i - 1].parentId &&
+        d.slotKey === result[i - 1].slotKey,
     );
-    expect(consecutiveDupes).toEqual([]);
-    // The label "Card › body" must appear at most once.
-    expect(
-      result.filter((d) => d.label === "Card › body").length,
-    ).toBeLessThanOrEqual(1);
+    expect(consecutiveIdentityDupes).toEqual([]);
+  });
+
+  test("same-type nested containers with the same slot name are not deduplicated", () => {
+    // outer (Card) and inner (Card) both have a 'body' slot. Their qualified
+    // labels are both "Card › body", but they are distinct destinations with
+    // different parentIds. The old label-based dedup incorrectly dropped one.
+    const data: Data = {
+      root: { props: {} },
+      content: [
+        card("outer", {
+          body: [card("inner", { body: [] })],
+        }),
+      ],
+    };
+    const registry = stubRegistry({
+      outer: new DOMRect(0, 0, 400, 400),
+      inner: new DOMRect(10, 10, 150, 150),
+    });
+
+    const result = destinationStack({
+      point: { x: 50, y: 50 },
+      data,
+      registry,
+      excludeId: "nope",
+    });
+
+    // "Card › body" for inner and "Card › body" for outer are both reachable.
+    const bodySlots = result.filter((d) => d.label === "Card › body");
+    expect(bodySlots.length).toBe(2);
+    // They must target different parentIds.
+    expect(bodySlots[0].parentId).toBe("inner");
+    expect(bodySlots[1].parentId).toBe("outer");
   });
 
   test("overlapping non-ancestor siblings → deeper-in-tree wins, ties by document order", () => {

@@ -19,7 +19,12 @@ import type { EditorEvent, EditorSnapshot } from "../machine/index.js";
 import type { DropTarget } from "../layout/index.js";
 import type { DragData } from "./helpers.js";
 import { EDGES, resolveSlotAxis, tagTransitionNames } from "./helpers.js";
-import { destinationStack, Cycle, type CycleState } from "../layout/index.js";
+import {
+  destinationStack,
+  Cycle,
+  type CycleState,
+  type CycleStatus,
+} from "../layout/index.js";
 import { animatedUpdate } from "../animated-update.js";
 import type { EditorCommit } from "../types.js";
 import { resolveIndicator } from "./resolve-indicator.js";
@@ -38,8 +43,6 @@ type Props = {
 
 const stateOf = (s: EditorSnapshot) =>
   s.value as { pointer: string; drag: string };
-
-type CycleStatus = { step: number; total: number };
 
 /** Mount a fixed-size pill into the drag preview container.
  *  The container lives in document.body (light DOM), so inline styles are used

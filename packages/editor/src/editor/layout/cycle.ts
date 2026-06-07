@@ -14,6 +14,10 @@ import {
  *  Empty `anchorId` means inactive (no container anchored). */
 export type CycleState = { active: boolean; index: number; anchorId: string };
 
+/** N-of-M counter for the cycle chip: 1-based step and total destinations.
+ *  Shared by drag and carry — lives in infra so neither domain re-declares it. */
+export type CycleStatus = { step: number; total: number };
+
 const IDLE: CycleState = { active: false, index: 0, anchorId: "" };
 
 /** The deepest container under the pointer for the current stack: the parent of

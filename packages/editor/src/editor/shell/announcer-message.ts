@@ -1,9 +1,11 @@
 import type { Data } from "@puckeditor/core";
 import { findById } from "@duckeditor/spec";
-import { NO_TARGET_LABEL, type DropTarget } from "../layout/index.js";
+import {
+  NO_TARGET_LABEL,
+  type CycleStatus,
+  type DropTarget,
+} from "../layout/index.js";
 import { announcementFor } from "../drag/index.js";
-
-type CycleStatus = { step: number; total: number };
 
 type Args = {
   data: Data;

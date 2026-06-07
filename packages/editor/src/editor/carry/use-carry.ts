@@ -9,11 +9,10 @@ import {
   stackIndexOf,
   Cycle,
   type CycleState,
+  type CycleStatus,
   type Destination,
   type DropTarget,
 } from "../layout/index.js";
-
-type CycleStatus = { step: number; total: number };
 
 const sameStatus = (a: CycleStatus | null, b: CycleStatus | null): boolean =>
   a?.step === b?.step && a?.total === b?.total;
@@ -134,23 +133,24 @@ export function useCarry({ registry, data, state, send, commit }: Props): {
       });
     };
 
-    /** Resolve the anchor index from the hovered tile, then step forward. */
+    /** Anchor index from the hovered tile: the stack position the pointer aims
+     *  at, so a fresh cycle starts from the current slot rather than slot 0. */
+    const anchorFrom = (stack: readonly Destination[]): number => {
+      const aimed = aimAt();
+      return aimed ? Math.max(0, stackIndexOf(stack, aimed)) : 0;
+    };
+
+    /** Step forward through the destination cycle. Tab or any arrow key. */
     const stepForward = () => {
       const stack = stackAt();
-      // Anchor a fresh cycle at the hovered slot so stepping continues from the
-      // pointer's position rather than jumping to the first declaration slot.
-      const aimed = aimAt();
-      const from = aimed ? Math.max(0, stackIndexOf(stack, aimed)) : 0;
-      cycle = Cycle.step(cycle, stack, from);
+      cycle = Cycle.step(cycle, stack, anchorFrom(stack));
       render(stack);
     };
 
-    /** Reverse step using (i−1+N)%N. Same anchor semantics as forward. */
+    /** Reverse step using (i−1+N)%N. Shift+Tab. */
     const stepReverse = () => {
       const stack = stackAt();
-      const aimed = aimAt();
-      const from = aimed ? Math.max(0, stackIndexOf(stack, aimed)) : 0;
-      cycle = Cycle.stepBack(cycle, stack, from);
+      cycle = Cycle.stepBack(cycle, stack, anchorFrom(stack));
       render(stack);
     };
 
