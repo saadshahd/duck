@@ -2,9 +2,12 @@ import { describe, test, expect } from "bun:test";
 import type { ComponentData, Data } from "@puckeditor/core";
 import {
   destinationStack,
+  aimDestination,
+  stackIndexOf,
   resolveContainerId,
   resolveLabel,
   stepCycle,
+  type Destination,
   type DropTarget,
 } from "./destinations.js";
 import { stubRegistry } from "../fiber/testing.js";
@@ -222,6 +225,143 @@ describe("destinationStack", () => {
       "second",
       null,
     ]);
+  });
+});
+
+describe("aimDestination", () => {
+  // A measured Card: header (top), body (two children), footer (empty/carved).
+  // The parity case — drag hit-tests these bands, carry must too.
+  const measuredCard = (): {
+    data: Data;
+    registry: ReturnType<typeof stubRegistry>;
+  } => ({
+    data: {
+      root: { props: {} },
+      content: [
+        card("card", {
+          header: [text("h1")],
+          body: [text("b1"), text("b2")],
+          footer: [],
+        }),
+      ],
+    },
+    registry: stubRegistry({
+      card: new DOMRect(0, 0, 200, 300),
+      h1: new DOMRect(10, 10, 180, 40),
+      b1: new DOMRect(10, 60, 180, 100),
+      b2: new DOMRect(10, 170, 180, 60),
+    }),
+  });
+
+  const aimAt = (y: number): Destination | undefined => {
+    const { data, registry } = measuredCard();
+    return aimDestination({
+      point: { x: 100, y },
+      data,
+      registry,
+      excludeId: "nope",
+    });
+  };
+
+  test("pointer over the header band → header (not always stack[0], but stack[0] here)", () => {
+    expect(aimAt(30)?.slotKey).toBe("header");
+  });
+
+  test("pointer over the body band → body — the slot the pointer is actually over", () => {
+    // Pre-R5 carry resolved stack[0] (header) here. Body must be reachable.
+    expect(aimAt(110)?.slotKey).toBe("body");
+  });
+
+  test("pointer over the carved footer band → footer — deepest slot still reachable", () => {
+    expect(aimAt(290)?.slotKey).toBe("footer");
+  });
+
+  test("body insert index is resolved from child geometry, not a blind append", () => {
+    const above = aimAt(70); // near top of b1
+    const below = aimAt(225); // below b2
+    expect(above?.slotKey).toBe("body");
+    expect(below?.slotKey).toBe("body");
+    expect(below!.index).toBeGreaterThan(above!.index);
+  });
+
+  test("discrete container → falls back to the stack head (no aimable bands)", () => {
+    // No measured children → discrete tiling → aim falls back to stack[0].
+    const data: Data = {
+      root: { props: {} },
+      content: [card("card", { header: [], body: [] })],
+    };
+    const registry = stubRegistry({ card: new DOMRect(0, 0, 200, 300) });
+    const stack = destinationStack({
+      point: { x: 100, y: 150 },
+      data,
+      registry,
+      excludeId: "nope",
+    });
+    expect(
+      aimDestination({
+        point: { x: 100, y: 150 },
+        data,
+        registry,
+        excludeId: "nope",
+      }),
+    ).toEqual(stack[0]);
+  });
+
+  test("pointer over nothing → undefined (a dead zone names no destination)", () => {
+    const data: Data = {
+      root: { props: {} },
+      content: [card("card", { body: [text("b")] })],
+    };
+    const registry = stubRegistry({ card: new DOMRect(0, 0, 100, 100) });
+    expect(
+      aimDestination({
+        point: { x: 500, y: 500 },
+        data,
+        registry,
+        excludeId: "b",
+      }),
+    ).toBeUndefined();
+  });
+});
+
+describe("stackIndexOf", () => {
+  const stack: Destination[] = [
+    { parentId: "card", slotKey: "header", index: 1, label: "Card › header" },
+    { parentId: "card", slotKey: "body", index: 0, label: "Card › body" },
+    { parentId: null, slotKey: null, index: 2, label: "Root" },
+  ];
+
+  test("matches on parent/slot, ignoring the precise index", () => {
+    expect(
+      stackIndexOf(stack, {
+        parentId: "card",
+        slotKey: "body",
+        index: 99,
+        label: "x",
+      }),
+    ).toBe(1);
+  });
+
+  test("matches the root destination (both null)", () => {
+    expect(
+      stackIndexOf(stack, {
+        parentId: null,
+        slotKey: null,
+        index: 0,
+        label: "Root",
+      }),
+    ).toBe(2);
+  });
+
+  test("no matching slot → -1", () => {
+    expect(
+      stackIndexOf(stack, {
+        parentId: "other",
+        slotKey: "x",
+        index: 0,
+        label: "y",
+      }),
+    ).toBe(-1);
   });
 });
 

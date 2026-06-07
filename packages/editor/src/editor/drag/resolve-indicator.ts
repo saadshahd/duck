@@ -3,15 +3,13 @@ import { extractClosestEdge } from "@atlaskit/pragmatic-drag-and-drop-hitbox/clo
 import { findById, slotKeysOf } from "@duckeditor/spec";
 import type { FiberRegistry } from "../fiber/index.js";
 import {
+  aimedTile,
   buildTiling,
-  containsPoint,
-  expandRect,
   geometricEdge,
   qualifiedLabel,
   slotInsertIndex,
   type DropTarget,
   type MeasuredRegion,
-  type Tile,
   type Tiling,
 } from "../layout/index.js";
 import {
@@ -24,13 +22,6 @@ import {
 
 type TargetBag = { data: Record<string | symbol, unknown> };
 type Point = { x: number; y: number };
-
-const TILE_HYSTERESIS = {
-  top: 8,
-  right: 8,
-  bottom: 8,
-  left: 8,
-};
 
 /** Post-removal insert index when the source already lives in the target slot.
  *  Null when the move would be a no-op. */
@@ -68,19 +59,6 @@ const indexInSlot = ({
   const measured = regions.find((r) => r.slotKey === slotKey);
   if (measured) return slotInsertIndex({ point, axis, region: measured });
   return (component.props[slotKey] as ComponentData[]).length;
-};
-
-/** Active tile under the pointer: the current tile holds while the point stays
- *  within its 8px-expanded rect (sticky), else the tile that contains the point. */
-const aimedTile = (
-  tiling: Extract<Tiling, { kind: "tiled" }>,
-  point: Point,
-  current?: string,
-): Tile | undefined => {
-  const cur = tiling.tiles.find((t) => t.slotKey === current);
-  if (cur && containsPoint(expandRect(cur.rect, TILE_HYSTERESIS), point))
-    return cur;
-  return tiling.tiles.find((t) => containsPoint(t.rect, point));
 };
 
 const containerTarget = ({

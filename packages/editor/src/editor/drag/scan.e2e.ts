@@ -316,8 +316,31 @@ async function dragStepRead(
   return out;
 }
 
-// --- Carry scan: fully real pointer (unchanged — reviewer verified) ---
+// --- Carry parity scan: fully real pointer, same ground truth as drag ---
 
+/** Lift `container.source` into carry mode (Space) and move the pointer over the
+ *  container so a destination resolves. Returns once carrying. */
+async function liftIntoCarry(page: Page, container: Container, at: Point) {
+  await container.source(page).click();
+  await page.waitForTimeout(300);
+  await page.keyboard.press("Space");
+  await page.waitForTimeout(200);
+  await page.mouse.move(at.x, at.y, { steps: 1 });
+  await page.waitForTimeout(40);
+}
+
+/**
+ * R5 parity: pointer-over-tile in CARRY must resolve the SAME slot the DRAG scan
+ * certifies at that point. Carry hit-tests the deepest container's tile through
+ * the shared `aimedTile`, so its per-slot ownership is identical to drag's — the
+ * pre-R5 "everything resolves to the first slot" bug is gone, and the demo Card's
+ * body/footer are pointer-reachable in carry.
+ *
+ * For a tiled container we assert exact slot ownership at the SAME band-sample
+ * points drag uses (computed from measured child rects). For a discrete container
+ * (no aimable bands) carry has nothing to hit-test, so it legitimately falls back
+ * to the first slot everywhere — asserted separately.
+ */
 async function carryScan(page: Page, container: Container) {
   const el = container.container(page);
   await el.scrollIntoViewIfNeeded();
@@ -328,28 +351,89 @@ async function carryScan(page: Page, container: Container) {
   for (let y = box.y + EDGE; y <= box.y + box.height - EDGE; y += STEP)
     points.push({ x: cx, y });
 
-  await container.source(page).click();
-  await page.waitForTimeout(300);
-  await page.keyboard.press("Space");
-  await page.waitForTimeout(200);
+  await liftIntoCarry(page, container, { x: cx, y: box.y + box.height / 2 });
 
+  // (1) Zero dead zones along the center-line: every point inside the container
+  // names exactly one destination (carry hit-tests the container background
+  // directly, so no point is left without an outcome).
   let dead = 0;
-  const mismatched: Array<{ at: Point; dest: string | null }> = [];
   for (const p of points) {
     await page.mouse.move(p.x, p.y, { steps: 1 });
     await page.waitForTimeout(20);
     const dest = await getActiveDestinationLabel(page);
     if (!dest) dead++;
-    else if (dest !== container.firstSlot) mismatched.push({ at: p, dest });
   }
+  expect(dead, `carry dead zones in ${container.title}`).toBe(0);
+
+  if (container.tiled) await assertCarryTiled(page, container, box);
+  else await assertCarryDiscrete(page, container);
+
   await page.keyboard.press("Escape");
   await page.waitForTimeout(100);
+}
 
-  expect(dead, `carry dead zones in ${container.title}`).toBe(0);
+/** Tiled container: exact slot ownership at the drag-derived band samples, plus a
+ *  vacuity guard and a reachability pin that every non-yielded slot is hit. */
+async function assertCarryTiled(
+  page: Page,
+  container: Container,
+  box: { x: number; y: number; width: number; height: number },
+) {
+  const childTexts = container.truth.flatMap((s) =>
+    "child" in s ? [s.child] : [],
+  );
+  const geom = await childRects(container.container(page), childTexts);
+  const samples = bandSamples({
+    truth: container.truth,
+    rects: geom.rects,
+    containerHeight: geom.containerHeight,
+    cx: geom.cx,
+    containerTop: geom.containerTop,
+  });
+
+  const hit = new Set<string>();
+  for (const s of samples) {
+    await page.mouse.move(s.point.x, s.point.y, { steps: 1 });
+    await page.waitForTimeout(20);
+    const dest = await getActiveDestinationLabel(page);
+    expect(
+      dest,
+      `carry slot ownership at "${s.slot}" (${Math.round(s.point.y - box.y)}px) in ${container.title}`,
+    ).toBe(s.slot);
+    if (dest) hit.add(dest);
+  }
+
+  // Vacuity: the ownership loop must have run.
   expect(
-    mismatched.length,
-    `carry slot mismatches in ${container.title}: ${JSON.stringify(mismatched.slice(0, 4))}`,
-  ).toBeLessThanOrEqual(2);
+    samples.length,
+    `vacuity: no band samples computed for ${container.title}`,
+  ).toBeGreaterThan(0);
+
+  // Reachability: every non-yielded slot is reached by the pointer — the core
+  // parity win is that body/footer (not just the first slot) resolve in carry.
+  const reachable = container.truth
+    .filter((s) => s.kind !== "yield")
+    .map((s) => s.slot);
+  for (const slot of reachable)
+    expect(
+      hit.has(slot),
+      `carry reachability of "${slot}" in ${container.title}`,
+    ).toBe(true);
+}
+
+/** Discrete container: no aimable bands, so carry resolves the first slot at the
+ *  container center — the documented fallback (the cycle reaches the rest). */
+async function assertCarryDiscrete(page: Page, container: Container) {
+  const el = container.container(page);
+  const box = (await el.boundingBox())!;
+  await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2, {
+    steps: 1,
+  });
+  await page.waitForTimeout(40);
+  expect(
+    await getActiveDestinationLabel(page),
+    `carry discrete fallback in ${container.title}`,
+  ).toBe(container.firstSlot);
 }
 
 // --- Drag scan: stepped dragover with real hit-testing ---

@@ -24,3 +24,25 @@ export function NoTargetFlash({ point }: { point: Point }) {
     </div>
   );
 }
+
+/** Continuous "no target here" marker tracking the pointer whenever a carry hover
+ *  lands in a dead zone (outside every container). One named outcome per pointer
+ *  position: a destination, or this. */
+export function NoTargetHover({ point }: { point: Point }) {
+  useShadowSheet(css);
+
+  return (
+    <div
+      data-role="carry-no-target-hover"
+      className="carry-no-target-flash"
+      style={{
+        position: "absolute",
+        top: point.y + 8,
+        left: point.x + 8,
+        zIndex: 1,
+      }}
+    >
+      {NO_TARGET_LABEL}
+    </div>
+  );
+}

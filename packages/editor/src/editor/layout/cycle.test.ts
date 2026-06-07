@@ -65,13 +65,67 @@ describe("step", () => {
     ]);
   });
 
-  test("anchor change restarts at index 0 with the new anchor", () => {
+  test("anchor change restarts at the new anchor", () => {
     const active = { active: true, index: 2, anchorId: "card" };
     expect(Cycle.step(active, otherStack())).toEqual({
       active: true,
       index: 0,
       anchorId: "box",
     });
+  });
+
+  // --- anchor-at-hover: a fresh activation starts at the pointer's slot ---
+
+  test("from idle with a hovered index → anchors AT that index, not the head", () => {
+    expect(Cycle.step(Cycle.idle, stack(), 1)).toEqual({
+      active: true,
+      index: 1,
+      anchorId: "card",
+    });
+  });
+
+  test("anchor change with a hovered index → restarts at that index", () => {
+    const active = { active: true, index: 2, anchorId: "card" };
+    expect(Cycle.step(active, otherStack(), 1)).toEqual({
+      active: true,
+      index: 1,
+      anchorId: "box",
+    });
+  });
+
+  test("hovered index is honored only on the FIRST press; repeats advance from it", () => {
+    const first = Cycle.step(Cycle.idle, stack(), 1);
+    const second = Cycle.step(first, stack(), 1);
+    const third = Cycle.step(second, stack(), 1);
+    expect([first.index, second.index, third.index]).toEqual([1, 2, 0]);
+  });
+
+  test("from already not stack[0]: hovering body then stepping stays on body", () => {
+    // The R5 law: stepping anchors at the hovered tile, never resets to header.
+    const bodyIndex = 1;
+    const stepped = Cycle.step(Cycle.idle, stack(), bodyIndex);
+    expect(Cycle.selected(stepped, stack())).toEqual(stack()[bodyIndex]);
+  });
+});
+
+// --- reclaim ---
+
+describe("reclaim", () => {
+  test("active cycle → idle (pointer reclaims selection)", () => {
+    const active = Cycle.step(Cycle.idle, stack(), 2);
+    expect(Cycle.reclaim(active)).toEqual(Cycle.idle);
+  });
+
+  test("idle → unchanged reference", () => {
+    expect(Cycle.reclaim(Cycle.idle)).toBe(Cycle.idle);
+  });
+
+  test("step overrides, then reclaim hands control back to the pointer", () => {
+    const stepped = Cycle.step(Cycle.idle, stack(), 0);
+    expect(stepped.active).toBe(true);
+    const reclaimed = Cycle.reclaim(stepped);
+    expect(reclaimed.active).toBe(false);
+    expect(Cycle.selected(reclaimed, stack())).toBeUndefined();
   });
 });
 

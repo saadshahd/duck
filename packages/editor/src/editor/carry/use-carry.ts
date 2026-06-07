@@ -5,6 +5,8 @@ import type { FiberRegistry } from "../fiber/index.js";
 import type { EditorEvent, EditorSnapshot } from "../machine/index.js";
 import {
   destinationStack,
+  aimDestination,
+  stackIndexOf,
   Cycle,
   type CycleState,
   type Destination,
@@ -32,9 +34,11 @@ const stateOf = (s: EditorSnapshot) => s.value as { drag: string };
  *  `move` op as drag — only the input is plain pointer events, not a native drag. */
 export function useCarry({ registry, data, state, send, commit }: Props): {
   target: DropTarget | null;
+  noTargetHover: Point | null;
   noTargetFlash: Point | null;
 } {
   const [target, setTarget] = useState<DropTarget | null>(null);
+  const [noTargetHover, setNoTargetHover] = useState<Point | null>(null);
   const [noTargetFlash, setNoTargetFlash] = useState<Point | null>(null);
   const flashTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -50,7 +54,9 @@ export function useCarry({ registry, data, state, send, commit }: Props): {
   useEffect(() => {
     if (!registry || !carrying || !sourceId) return;
 
-    // Set cursor on body for the duration of carry (body is outside shadow root).
+    // Cursor lives on body for the duration of carry (body is outside the shadow
+    // root). `render` keeps it honest: "move" over a real destination,
+    // "not-allowed" over a dead zone — the cursor never lies about reachability.
     const prevCursor = document.body.style.cursor;
     document.body.style.cursor = "move";
 
@@ -82,27 +88,46 @@ export function useCarry({ registry, data, state, send, commit }: Props): {
         excludeId: sourceId,
       });
 
+    // The slot the pointer aims at — same tile hit-test as drag. Falls back to
+    // the stack head over discrete containers, root content, and band gaps.
+    const aimAt = () =>
+      aimDestination({
+        point,
+        data: dataRef.current,
+        registry,
+        excludeId: sourceId,
+      });
+
+    // Cycle override wins; otherwise the pointer-aimed slot. Mirrors drag's
+    // `updateFromLocation`: stepping overrides pointer, pointer reclaims on move.
     const render = (stack: readonly Destination[]) => {
-      const picked = Cycle.selected(cycle, stack) ?? stack[0];
+      const picked = Cycle.selected(cycle, stack) ?? aimAt();
       selected = picked ?? null;
       setTarget(
         picked ? Cycle.toTarget(picked, dataRef.current, registry) : null,
       );
+      // Every pointer position names exactly one outcome: a destination, or an
+      // explicit "no target here" over a dead zone. The cursor follows suit.
+      setNoTargetHover(picked ? null : { ...point });
+      document.body.style.cursor = picked ? "move" : "not-allowed";
     };
 
     const onPointerMove = (e: PointerEvent) => {
       point = { x: e.clientX, y: e.clientY };
       cancelAnimationFrame(raf);
       raf = requestAnimationFrame(() => {
-        const stack = stackAt();
-        cycle = Cycle.syncPointer(cycle, stack);
-        render(stack);
+        cycle = Cycle.reclaim(cycle);
+        render(stackAt());
       });
     };
 
     const step = () => {
       const stack = stackAt();
-      cycle = Cycle.step(cycle, stack);
+      // Anchor a fresh cycle at the hovered slot so stepping continues from the
+      // pointer's position rather than jumping to the first declaration slot.
+      const aimed = aimAt();
+      const from = aimed ? Math.max(0, stackIndexOf(stack, aimed)) : 0;
+      cycle = Cycle.step(cycle, stack, from);
       render(stack);
     };
 
@@ -192,6 +217,7 @@ export function useCarry({ registry, data, state, send, commit }: Props): {
       document.removeEventListener("keydown", onKeyDown, { capture: true });
       document.body.style.cursor = prevCursor;
       setTarget(null);
+      setNoTargetHover(null);
       // Clear any pending flash timer on carry exit.
       if (flashTimerRef.current) {
         clearTimeout(flashTimerRef.current);
@@ -201,5 +227,5 @@ export function useCarry({ registry, data, state, send, commit }: Props): {
     };
   }, [registry, carrying, sourceId, send]);
 
-  return { target, noTargetFlash };
+  return { target, noTargetHover, noTargetFlash };
 }

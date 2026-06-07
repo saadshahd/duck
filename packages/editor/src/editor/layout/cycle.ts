@@ -23,14 +23,21 @@ const deepestId = (stack: readonly Destination[]): string =>
 export const Cycle = {
   idle: IDLE,
 
-  /** Rising shift edge: activate the cycle and advance one step. Re-anchors and
-   *  restarts at the deepest slot when the pointer's deepest container changed
-   *  since the last step (or when starting fresh). Empty stack → stays idle. */
-  step: (cycle: CycleState, stack: readonly Destination[]): CycleState => {
+  /** Rising shift edge: activate the cycle, or advance it one step. On a fresh
+   *  activation (idle, or the pointer's deepest container changed since the last
+   *  step) the cycle anchors AT `from` — the index the pointer currently aims at,
+   *  not the stack head (default 0) — so the first press locks in the pointer's
+   *  position rather than jumping to the first slot. Repeat presses within the
+   *  same anchor advance one, wrapping at the end. Empty stack → idle. */
+  step: (
+    cycle: CycleState,
+    stack: readonly Destination[],
+    from = 0,
+  ): CycleState => {
     const anchorId = deepestId(stack);
     if (!anchorId) return IDLE;
     if (!cycle.active || cycle.anchorId !== anchorId)
-      return { active: true, index: 0, anchorId };
+      return { active: true, index: from, anchorId };
     return {
       active: true,
       index: stepCycle(stack.length, cycle.index),
@@ -38,8 +45,14 @@ export const Cycle = {
     };
   },
 
-  /** Pointer moved: deactivate the cycle when its anchored container is no longer
-   *  the deepest under the pointer. Same anchor → unchanged. */
+  /** Pointer moved: the pointer reclaims selection — any move deactivates an
+   *  active cycle so pointer resolution resumes. Idle stays idle. */
+  reclaim: (cycle: CycleState): CycleState => (cycle.active ? IDLE : cycle),
+
+  /** Pointer drifted within a drag: deactivate the cycle only when its anchored
+   *  container is no longer the deepest under the pointer; same anchor holds. The
+   *  drag monitor keeps the cycle sticky across small moves — carry instead
+   *  `reclaim`s on every move. */
   syncPointer: (
     cycle: CycleState,
     stack: readonly Destination[],

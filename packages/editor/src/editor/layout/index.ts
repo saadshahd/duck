@@ -6,13 +6,21 @@ export {
   type MeasuredRegion,
 } from "./slot-regions.js";
 export { ghostCandidateIds } from "./ghost.js";
-export { type Tile, type Tiling, leaderRect } from "./tiles.js";
+export {
+  type Tile,
+  type Tiling,
+  leaderRect,
+  aimedTile,
+  TILE_HYSTERESIS,
+} from "./tiles.js";
 export { buildTiling } from "./tiling.js";
 export { isCollapsed, ZERO_RECT } from "./rect.js";
 export {
   type DropTarget,
   type Destination,
   destinationStack,
+  aimDestination,
+  stackIndexOf,
   resolveContainerId,
   resolveLabel,
   qualifiedLabel,

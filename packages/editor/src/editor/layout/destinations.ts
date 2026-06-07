@@ -8,9 +8,11 @@ import {
   slotKeysOf,
 } from "@duckeditor/spec";
 import type { FiberRegistry } from "../fiber/index.js";
-import type { Axis } from "./axis.js";
+import { resolveSlotAxis, type Axis } from "./axis.js";
 import { containsPoint } from "./rect.js";
-import type { Tiling } from "./tiles.js";
+import { slotInsertIndex } from "./slot-regions.js";
+import { aimedTile, type Tiling } from "./tiles.js";
+import { buildTiling } from "./tiling.js";
 
 export const NO_TARGET_LABEL = "No target here";
 
@@ -185,6 +187,70 @@ export const destinationStack = (args: {
     return true;
   });
 };
+
+/** The pointer-aimed slot for a real container: hit-test its painted tiling with
+ *  the same `aimedTile` path as drag, then resolve the precise insert index from
+ *  the slot's measured children. Null when the container is discrete (no aimable
+ *  bands) or the pointer hits no band — the caller falls back to the stack head. */
+const aimedSlotDestination = (args: {
+  container: Located;
+  point: { x: number; y: number };
+  data: Data;
+  registry: FiberRegistry;
+}): Destination | null => {
+  const { container, point, data, registry } = args;
+  const containerId = container.component.props.id as string;
+  const { tiling, regions } = buildTiling({ data, containerId, registry });
+  if (tiling.kind !== "tiled") return null;
+  const tile = aimedTile(tiling, point);
+  if (!tile) return null;
+
+  const measured = regions.find((r) => r.slotKey === tile.slotKey);
+  const axis =
+    resolveSlotAxis(data, containerId, tile.slotKey, registry) ?? "vertical";
+  const index = measured
+    ? slotInsertIndex({ point, axis, region: measured })
+    : (container.component.props[tile.slotKey] as ComponentData[]).length;
+
+  return {
+    parentId: containerId,
+    slotKey: tile.slotKey,
+    index,
+    label: qualifiedLabel(container.component.type, tile.slotKey),
+  };
+};
+
+/** The single destination the pointer aims at: the slot of the deepest container
+ *  under the point whose tile band holds it (same hit-test as drag), or the head
+ *  of the destination stack when no band is aimed (discrete container, root
+ *  content, or a between-bands gap). Undefined when the pointer is over nothing. */
+export const aimDestination = (args: {
+  point: { x: number; y: number };
+  data: Data;
+  registry: FiberRegistry;
+  excludeId: string;
+}): Destination | undefined => {
+  const { point, data, registry, excludeId } = args;
+  const excluded = new Set([excludeId, ...collectDescendants(data, excludeId)]);
+  const deepest = candidateChain({ point, data, registry, excluded })[0];
+  const stack = destinationStack({ point, data, registry, excludeId });
+  if (!deepest) return stack[0];
+  return (
+    aimedSlotDestination({ container: deepest, point, data, registry }) ??
+    stack[0]
+  );
+};
+
+/** Index of a destination within a stack, matched on parent/slot (ignoring the
+ *  precise insert index). -1 when the stack has no slot for it. */
+export const stackIndexOf = (
+  stack: readonly Destination[],
+  destination: Destination,
+): number =>
+  stack.findIndex(
+    (d) =>
+      d.parentId === destination.parentId && d.slotKey === destination.slotKey,
+  );
 
 /** Wrapping forward step through a stack of length `stackLength`. 0 when empty. */
 export const stepCycle = (stackLength: number, current: number): number =>

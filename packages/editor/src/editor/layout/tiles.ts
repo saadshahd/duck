@@ -1,6 +1,12 @@
 import type { Axis } from "./axis.js";
+import { containsPoint, expandRect, type Edges } from "./rect.js";
 
 export const TILE_FLOOR = 24;
+
+/** Sticky margin around the active tile: the pointer holds the current tile while
+ *  within its expanded rect, so a tile does not flip the instant the pointer
+ *  grazes a band boundary. Shared by every pointer-driven move (drag + carry). */
+export const TILE_HYSTERESIS: Edges = { top: 8, right: 8, bottom: 8, left: 8 };
 
 /** 1px horizontal line from the container's left edge to the marker's left edge,
  *  at the marker's vertical center. Width is clamped to 0 when the marker is
@@ -19,6 +25,23 @@ export const leaderRect = (
 };
 
 export type Tile = { slotKey: string; rect: DOMRect };
+
+type Point = { x: number; y: number };
+
+/** Active tile under the pointer: the current tile holds while the point stays
+ *  within its hysteresis-expanded rect (sticky), else the tile that contains the
+ *  point. The one hit-test for which slot a pointer aims at — drag and carry both
+ *  resolve the deepest container's slot through here, so both stay in parity. */
+export const aimedTile = (
+  tiling: Extract<Tiling, { kind: "tiled" }>,
+  point: Point,
+  current?: string,
+): Tile | undefined => {
+  const cur = tiling.tiles.find((t) => t.slotKey === current);
+  if (cur && containsPoint(expandRect(cur.rect, TILE_HYSTERESIS), point))
+    return cur;
+  return tiling.tiles.find((t) => containsPoint(t.rect, point));
+};
 
 export type Tiling =
   | {
