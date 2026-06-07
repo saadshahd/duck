@@ -186,6 +186,37 @@ const resolveContainer = ({
   return containerOutcome(aimAt(tile.slotKey));
 };
 
+/** A discrete container paints its markers OVER its children's geometry, so a
+ *  pointer at a marker center lands on that child — pragmatic reports a sibling
+ *  drop, not the container. The marker law makes markers hit-targets in both
+ *  modalities, so a marker hit on the child's parent must win over the sibling
+ *  line: resolve the parent container's marker for that point. Null when the
+ *  parent is not discrete, unmounted, or no marker is hit (ordinary sibling). */
+const discreteMarkerOver = (args: {
+  parentId: string | null;
+  source: DragData;
+  point: Point;
+  previous: DropTarget | null;
+  data: Data;
+  registry: FiberRegistry;
+}): DropTarget | null => {
+  const { parentId, source, point, previous, data, registry } = args;
+  if (!parentId) return null;
+  const { tiling } = buildTiling({ data, containerId: parentId, registry });
+  if (tiling.kind !== "discrete") return null;
+  const containerRect = registry.get(parentId)?.getBoundingClientRect();
+  if (!containerRect || !aimedMarker(tiling, containerRect, point)) return null;
+  const outcome = resolveContainer({
+    elementId: parentId,
+    source,
+    point,
+    previous,
+    data,
+    registry,
+  });
+  return outcome.tag === "target" ? outcome.target : null;
+};
+
 /**
  * Pure function: given source/target drag data and the pointer position,
  * returns the indicator to render. The container indicator carries the full
@@ -263,6 +294,19 @@ export function resolveIndicator({
     if (outcome.tag === "noop") return null;
     return { kind: "none", elementId: targetData.elementId };
   }
+
+  // Marker precedence: a discrete container's marker sits over its child, so a
+  // pointer there reports a sibling. The marker is a hit-target — resolve it
+  // before falling back to the sibling line.
+  const marker = discreteMarkerOver({
+    parentId: targetData.parentId,
+    source: sourceData,
+    point,
+    previous,
+    data,
+    registry,
+  });
+  if (marker) return marker;
 
   const axis =
     resolveSlotAxis(data, targetData.parentId, targetData.slotKey, registry) ??
