@@ -938,63 +938,139 @@ export const getBackdropCutoutRect = (page: Page) =>
 
 // --- Segmented control helpers ---
 
+/** Locate a `[data-role='segmented']` root in the shadow root, optionally
+ *  scoped by the field's visible label. Mirrors the `dimensionRoot` pattern so
+ *  callers that need label-scoping can serialize this finder into `page.evaluate`.
+ *  When `label` is omitted the first segmented root is returned (legacy behaviour). */
+const segmentedRoot = (
+  root: ShadowRoot,
+  label?: string,
+): Element | undefined => {
+  const roots = [
+    ...root.querySelectorAll("[data-role='segmented']"),
+  ] as HTMLElement[];
+  if (!label) return roots[0];
+  return roots.find((r) => {
+    const field = r.closest(".prop-field");
+    return field?.querySelector("label")?.textContent?.trim() === label;
+  });
+};
+
 /** The ARIA role of the segmented control root in the overlay shadow root —
- *  "radiogroup" when the Ark SegmentGroup is mounted. Null when absent. */
-export const getSegmentedRole = (page: Page) =>
-  shadowQuery(
-    page,
-    (r) =>
-      r.querySelector("[data-role='segmented']")?.getAttribute("role") ?? null,
+ *  "radiogroup" when the Ark SegmentGroup is mounted. When `fieldLabel` is
+ *  supplied the lookup is scoped to the field whose label matches (e.g. "level"),
+ *  so tests remain correct even when multiple segmented controls are on screen. */
+export const getSegmentedRole = (page: Page, fieldLabel?: string) =>
+  page.evaluate(
+    ({ label, finder }) => {
+      for (const d of document.querySelectorAll("div")) {
+        if (!d.shadowRoot || d.style.position !== "fixed") continue;
+        const find = new Function(
+          "root",
+          "label",
+          `return (${finder})(root, label)`,
+        );
+        const root = find(d.shadowRoot, label) as Element | undefined;
+        return root?.getAttribute("role") ?? null;
+      }
+      return null;
+    },
+    { label: fieldLabel, finder: segmentedRoot.toString() },
   ) as Promise<string | null>;
 
 /** Every segmented control item currently rendered inside the prop sheet, read
  *  from the overlay shadow root by data-role. Returns `{ value, checked, focused }`
  *  for each item. `checked` reads `data-state="checked"` (Ark SegmentGroup/zag
  *  radio-group convention). `focused` reads `shadowRoot.activeElement` (a roving
- *  segment may host focus on a descendant input, so containment counts). */
-export const readSegmentedItems = (page: Page) =>
-  shadowQuery(page, (r) => {
-    const active = r.activeElement;
-    return [...r.querySelectorAll("[data-role='segmented-item']")].map(
-      (el) => ({
-        value: el.getAttribute("data-value") ?? "",
-        checked: el.getAttribute("data-state") === "checked",
-        focused: el === active || el.contains(active),
-      }),
-    );
-  }) as Promise<{ value: string; checked: boolean; focused: boolean }[] | null>;
+ *  segment may host focus on a descendant input, so containment counts).
+ *  When `fieldLabel` is supplied the lookup is scoped to the named field. */
+export const readSegmentedItems = (page: Page, fieldLabel?: string) =>
+  page.evaluate(
+    ({ label, finder }) => {
+      for (const d of document.querySelectorAll("div")) {
+        if (!d.shadowRoot || d.style.position !== "fixed") continue;
+        const find = new Function(
+          "root",
+          "label",
+          `return (${finder})(root, label)`,
+        );
+        const root = find(d.shadowRoot, label) as Element | undefined;
+        if (!root) continue;
+        const active = d.shadowRoot.activeElement;
+        return [...root.querySelectorAll("[data-role='segmented-item']")].map(
+          (el) => ({
+            value: el.getAttribute("data-value") ?? "",
+            checked: el.getAttribute("data-state") === "checked",
+            focused: el === active || el.contains(active),
+          }),
+        );
+      }
+      return null;
+    },
+    { label: fieldLabel, finder: segmentedRoot.toString() },
+  ) as Promise<{ value: string; checked: boolean; focused: boolean }[] | null>;
 
-/** Focus the first segmented-item inside the overlay shadow root.
- *  Returns true when the focus actually landed (activeElement is the item or a
- *  descendant — Ark may delegate focus to a hidden radio input). */
-export const focusFirstSegmentedItem = (page: Page) =>
-  shadowQuery(page, (r) => {
-    const item = r.querySelector(
-      "[data-role='segmented-item']",
-    ) as HTMLElement | null;
-    item?.focus();
-    return r.activeElement === item || item?.contains(r.activeElement) === true;
-  }) as Promise<boolean>;
+/** Focus the first segmented-item inside the overlay shadow root, optionally
+ *  scoped to the field identified by `fieldLabel`. Returns true when the focus
+ *  actually landed (activeElement is the item or a descendant — Ark may delegate
+ *  focus to a hidden radio input). */
+export const focusFirstSegmentedItem = (page: Page, fieldLabel?: string) =>
+  page.evaluate(
+    ({ label, finder }) => {
+      for (const d of document.querySelectorAll("div")) {
+        if (!d.shadowRoot || d.style.position !== "fixed") continue;
+        const find = new Function(
+          "root",
+          "label",
+          `return (${finder})(root, label)`,
+        );
+        const root = find(d.shadowRoot, label) as Element | undefined;
+        if (!root) continue;
+        const item = root.querySelector(
+          "[data-role='segmented-item']",
+        ) as HTMLElement | null;
+        item?.focus();
+        const active = d.shadowRoot.activeElement;
+        return active === item || item?.contains(active) === true;
+      }
+      return false;
+    },
+    { label: fieldLabel, finder: segmentedRoot.toString() },
+  ) as Promise<boolean>;
 
 /** The on-screen (viewport) center of the segmented item whose data-value matches,
- *  so a test can aim a REAL mouse click at it. Uses page.evaluate (not shadowQuery)
- *  because shadowQuery stringifies its callback and cannot carry the `value` arg —
+ *  optionally scoped to the field identified by `fieldLabel`. Uses page.evaluate
+ *  because shadowQuery stringifies its callback and cannot carry extra args —
  *  the same reason clickToolbarAction / clickMorphPickerItem are parameterized this
  *  way. Null when no such item exists. */
-export const getSegmentedItemCenter = (page: Page, value: string) =>
-  page.evaluate((wanted) => {
-    for (const d of document.querySelectorAll("div")) {
-      if (!d.shadowRoot || d.style.position !== "fixed") continue;
-      const items = [
-        ...d.shadowRoot.querySelectorAll("[data-role='segmented-item']"),
-      ] as HTMLElement[];
-      const el = items.find((i) => i.getAttribute("data-value") === wanted);
-      if (!el) return null;
-      const b = el.getBoundingClientRect();
-      return { x: b.left + b.width / 2, y: b.top + b.height / 2 };
-    }
-    return null;
-  }, value) as Promise<{ x: number; y: number } | null>;
+export const getSegmentedItemCenter = (
+  page: Page,
+  value: string,
+  fieldLabel?: string,
+) =>
+  page.evaluate(
+    ({ wanted, label, finder }) => {
+      for (const d of document.querySelectorAll("div")) {
+        if (!d.shadowRoot || d.style.position !== "fixed") continue;
+        const find = new Function(
+          "root",
+          "label",
+          `return (${finder})(root, label)`,
+        );
+        const root = find(d.shadowRoot, label) as Element | undefined;
+        if (!root) continue;
+        const items = [
+          ...root.querySelectorAll("[data-role='segmented-item']"),
+        ] as HTMLElement[];
+        const el = items.find((i) => i.getAttribute("data-value") === wanted);
+        if (!el) return null;
+        const b = el.getBoundingClientRect();
+        return { x: b.left + b.width / 2, y: b.top + b.height / 2 };
+      }
+      return null;
+    },
+    { wanted: value, label: fieldLabel, finder: segmentedRoot.toString() },
+  ) as Promise<{ x: number; y: number } | null>;
 
 // --- Swatch control helpers ---
 

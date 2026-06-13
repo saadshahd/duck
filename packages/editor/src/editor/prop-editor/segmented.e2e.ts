@@ -37,7 +37,9 @@ test.describe("Segmented control — Heading.level (T4)", () => {
     await openHeadingSheet(page);
     expect(await isSheetVisible(page)).toBe(true);
 
-    expect(await getSegmentedRole(page)).toBe("radiogroup");
+    // Scope to "level" so the T8 always-open style section's textAlign segmented
+    // control does not interfere (Heading now has two segmented controls on screen).
+    expect(await getSegmentedRole(page, "level")).toBe("radiogroup");
   });
 
   // O1b: renders one segment per option (H1/H2/H3/H4) and the stored value ("h1"
@@ -47,7 +49,9 @@ test.describe("Segmented control — Heading.level (T4)", () => {
   }) => {
     await openHeadingSheet(page);
 
-    const items = await readSegmentedItems(page);
+    // Scope to "level": after T8 the style section is always-open, so textAlign
+    // (also segmented, 4 options) is also rendered — global query would return 8 items.
+    const items = await readSegmentedItems(page, "level");
     expect(items).not.toBeNull();
     // 4 segments for H1/H2/H3/H4
     expect(items!.length).toBe(4);
@@ -65,15 +69,15 @@ test.describe("Segmented control — Heading.level (T4)", () => {
   }) => {
     await openHeadingSheet(page);
 
-    // Focus the first item inside the shadow root.
-    const focused = await focusFirstSegmentedItem(page);
+    // Focus the first item of the "level" field (not textAlign's first item).
+    const focused = await focusFirstSegmentedItem(page, "level");
     expect(focused).toBe(true);
 
     // ArrowRight moves selection and focus to the next item.
     await page.keyboard.press("ArrowRight");
     await page.waitForTimeout(100);
 
-    const afterRight = await readSegmentedItems(page);
+    const afterRight = await readSegmentedItems(page, "level");
     expect(afterRight).not.toBeNull();
     const focusedItem = afterRight!.find((i) => i.focused);
     // Focus moved to h2 (the second item).
@@ -88,7 +92,7 @@ test.describe("Segmented control — Heading.level (T4)", () => {
     // ArrowLeft wraps back to h1.
     await page.keyboard.press("ArrowLeft");
     await page.waitForTimeout(100);
-    const afterLeft = await readSegmentedItems(page);
+    const afterLeft = await readSegmentedItems(page, "level");
     const focusedLeft = afterLeft!.find((i) => i.focused);
     expect(focusedLeft?.value).toBe("h1");
   });
@@ -101,8 +105,8 @@ test.describe("Segmented control — Heading.level (T4)", () => {
 
     // Click the H3 segment with a REAL mouse click at its viewport center —
     // synthetic .click() can mask self-unmount races (project memory). This is
-    // the selection pattern T5/T6 copy.
-    const h3Center = await getSegmentedItemCenter(page, "h3");
+    // the selection pattern T5/T6 copy. Scope to "level" so we click the right group.
+    const h3Center = await getSegmentedItemCenter(page, "h3", "level");
     expect(h3Center).not.toBeNull();
     await page.mouse.click(h3Center!.x, h3Center!.y);
     await page.waitForTimeout(200);
@@ -117,7 +121,7 @@ test.describe("Segmented control — Heading.level (T4)", () => {
     await page.waitForTimeout(400);
 
     // The h3 segment must now be selected.
-    const items = await readSegmentedItems(page);
+    const items = await readSegmentedItems(page, "level");
     expect(items).not.toBeNull();
     const selected = items!.filter((i) => i.checked);
     expect(selected.length).toBe(1);

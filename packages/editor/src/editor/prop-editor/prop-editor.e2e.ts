@@ -2,7 +2,9 @@ import { test, expect } from "@playwright/test";
 import {
   hasToolbarAction,
   clickToolbarAction,
-  expandSheetDisclosures,
+  readSegmentedItems,
+  isSwatchSentinelVisible,
+  isDimensionSentinelVisible,
 } from "../overlay/testing.js";
 
 test.describe("Inline text editing", () => {
@@ -109,36 +111,34 @@ test.describe("Sheet editing", () => {
     expect(visible).toBe(true);
   });
 
-  test("unset select shows blank placeholder, not the first option", async ({
+  test("unset controls show honest unset state, not a default value", async ({
     page,
   }) => {
-    // "Zero Chrome" is an h3 whose `style` object is empty in the sample data,
-    // so its nested style selects (fontSize/textAlign/color/...) are all unset —
-    // an honest select must render them blank, never silently as option[0].
+    // "Zero Chrome" is an h3 whose `style` object is empty in the sample data.
+    // After T3, its nested style fields use specialised controls (segmented,
+    // swatch, dimension) instead of native <select>. Each must reflect the stored
+    // absence honestly: no item checked, sentinel visible, or empty input.
+    // After T8, the style section is always-open (FieldSection, not Disclosure),
+    // so no expand step is needed.
     await page.getByText("Zero Chrome").click();
     await page.waitForTimeout(300);
     await clickToolbarAction(page, "edit");
     await page.waitForTimeout(300);
-    // The `style` object is a collapsed disclosure group; expand it so its
-    // nested selects render before asserting they are blank.
-    await expandSheetDisclosures(page);
-    await page.waitForTimeout(100);
 
-    const values = await page.evaluate(() => {
-      for (const d of document.querySelectorAll("div")) {
-        if (!d.shadowRoot || d.style.position !== "fixed") continue;
-        const selects = d.shadowRoot.querySelectorAll(
-          "[data-role='prop-sheet'] select",
-        );
-        if (!selects.length) return "NO_SELECTS";
-        // First select is `level` (set to "h3"); the rest back the empty style object.
-        return [...selects].slice(1).map((s) => (s as HTMLSelectElement).value);
-      }
-      return "NO_ROOT";
-    });
+    // textAlign is segmented (left/center/right/justify). Unset → no item checked.
+    const textAlignItems = await readSegmentedItems(page, "textAlign");
+    expect(textAlignItems).not.toBeNull();
+    const checkedTextAlign = textAlignItems!.filter((i) => i.checked);
+    expect(checkedTextAlign.length).toBe(0);
 
-    expect(Array.isArray(values) && values.length).toBeTruthy();
-    expect(values).toEqual((values as string[]).map(() => ""));
+    // color is a swatch control. Unset → sentinel chip visible.
+    expect(await isSwatchSentinelVisible(page)).toBe(true);
+
+    // fontSize is a dimension control. Unset → sentinel visible.
+    expect(await isDimensionSentinelVisible(page, "fontSize")).toBe(true);
+
+    // marginBottom is a dimension control. Unset → sentinel visible.
+    expect(await isDimensionSentinelVisible(page, "marginBottom")).toBe(true);
   });
 
   test("read-only resolved field is non-editable after async resolve", async ({
