@@ -7,7 +7,9 @@ import {
   readSwatchItems,
   readSwatchPaints,
   isSwatchSentinelVisible,
+  isSwatchSentinelSelected,
   getSwatchItemCenter,
+  getSwatchSentinelCenter,
 } from "../overlay/testing.js";
 
 /**
@@ -86,9 +88,9 @@ test.describe("Swatch color control — Heading.style.color (T5)", () => {
     }
   });
 
-  // O2b: unset color → sentinel shows, NO swatch is selected.
+  // O2b: unset color → sentinel shows as selected, NO swatch is selected.
   // The hero h1 has style.color absent (unset) — asserts honest unset, not swatch[0].
-  test("O2b: unset color shows sentinel and no swatch is selected", async ({
+  test("O2b: unset color shows sentinel selected and no swatch is selected", async ({
     page,
   }) => {
     await openHeadingSheet(page);
@@ -99,12 +101,13 @@ test.describe("Swatch color control — Heading.style.color (T5)", () => {
     const selected = items!.filter((i) => i.checked);
     expect(selected.length).toBe(0);
 
-    // Sentinel indicator is visible.
+    // Sentinel is visible and in selected state (it is the current "no color" value).
     expect(await isSwatchSentinelVisible(page)).toBe(true);
+    expect(await isSwatchSentinelSelected(page)).toBe(true);
   });
 
-  // O2c: clicking a swatch selects it (real mouse click, not synthetic).
-  test("O2c: clicking a swatch selects it and sentinel disappears", async ({
+  // O2c: clicking a swatch selects it; sentinel remains visible but loses selected state.
+  test("O2c: clicking a swatch selects it and sentinel loses selected state", async ({
     page,
   }) => {
     await openHeadingSheet(page);
@@ -124,8 +127,36 @@ test.describe("Swatch color control — Heading.style.color (T5)", () => {
     expect(selected.length).toBe(1);
     expect(selected[0].value).toBe(target);
 
-    // Sentinel must be gone once a value is selected.
-    expect(await isSwatchSentinelVisible(page)).toBe(false);
+    // Sentinel stays visible (it's the "clear" affordance) but is no longer selected.
+    expect(await isSwatchSentinelVisible(page)).toBe(true);
+    expect(await isSwatchSentinelSelected(page)).toBe(false);
+  });
+
+  // O2e: clicking the sentinel clears a set color.
+  test("O2e: clicking sentinel clears the selected color", async ({ page }) => {
+    await openHeadingSheet(page);
+
+    // First select a color.
+    const target = "#111111";
+    const center = await getSwatchItemCenter(page, target);
+    expect(center).not.toBeNull();
+    await page.mouse.click(center!.x, center!.y);
+    await page.waitForTimeout(200);
+
+    // Confirm it is selected.
+    const before = await readSwatchItems(page);
+    expect(before!.filter((i) => i.checked).length).toBe(1);
+
+    // Click the sentinel to clear.
+    const sentinelCenter = await getSwatchSentinelCenter(page);
+    expect(sentinelCenter).not.toBeNull();
+    await page.mouse.click(sentinelCenter!.x, sentinelCenter!.y);
+    await page.waitForTimeout(200);
+
+    // No swatch selected; sentinel is back in selected state.
+    const after = await readSwatchItems(page);
+    expect(after!.filter((i) => i.checked).length).toBe(0);
+    expect(await isSwatchSentinelSelected(page)).toBe(true);
   });
 
   // O2d: selected swatch persists across Escape close + reopen + re-expand.

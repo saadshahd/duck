@@ -1118,14 +1118,40 @@ export const readSwatchPaints = (page: Page) =>
     | null
   >;
 
-/** True when the swatch sentinel chip (shown for an unset/off-palette value) is
- *  mounted in the overlay shadow root. The honest-unset signal: present when no
- *  swatch is selected, absent once a palette value is chosen. */
+/** True when the swatch sentinel chip is present in the overlay shadow root.
+ *  The sentinel is always rendered — use isSwatchSentinelSelected to check
+ *  whether the unset state is currently active. */
 export const isSwatchSentinelVisible = (page: Page) =>
   shadowQuery(
     page,
     (r) => r.querySelector("[data-role='swatch-sentinel']") !== null,
   ) as Promise<boolean>;
+
+/** True when the swatch sentinel carries data-selected (i.e. no color is set). */
+export const isSwatchSentinelSelected = (page: Page) =>
+  shadowQuery(
+    page,
+    (r) =>
+      r
+        .querySelector("[data-role='swatch-sentinel']")
+        ?.hasAttribute("data-selected") ?? false,
+  ) as Promise<boolean>;
+
+/** The on-screen center of the swatch sentinel for a real mouse click. */
+export const getSwatchSentinelCenter = (page: Page) =>
+  page.evaluate(() => {
+    for (const d of document.querySelectorAll("div")) {
+      if (!d.shadowRoot || (d as HTMLElement).style.position !== "fixed")
+        continue;
+      const el = d.shadowRoot.querySelector(
+        "[data-role='swatch-sentinel']",
+      ) as HTMLElement | null;
+      if (!el) return null;
+      const b = el.getBoundingClientRect();
+      return { x: b.left + b.width / 2, y: b.top + b.height / 2 };
+    }
+    return null;
+  }) as Promise<{ x: number; y: number } | null>;
 
 /** The on-screen (viewport) center of the swatch item whose data-value matches,
  *  so a test can aim a REAL mouse click at it. Uses page.evaluate (not shadowQuery)
@@ -1319,8 +1345,9 @@ export const setDimensionValue = async (
   return true;
 };
 
-/** True when the dimension sentinel chip (shown when value is absent and
- *  unparseable) is mounted within the field identified by fieldLabel. */
+/** True when the dimension sentinel is present in the field's DOM subtree.
+ *  The sentinel is always rendered — use isDimensionSentinelSelected to check
+ *  whether the unset state is currently active. */
 export const isDimensionSentinelVisible = (page: Page, fieldLabel?: string) =>
   page.evaluate(
     ({ label, finder }) => {
@@ -1339,3 +1366,49 @@ export const isDimensionSentinelVisible = (page: Page, fieldLabel?: string) =>
     },
     { label: fieldLabel, finder: dimensionRoot.toString() },
   ) as Promise<boolean>;
+
+/** True when the dimension sentinel carries data-selected (i.e. value is unset). */
+export const isDimensionSentinelSelected = (page: Page, fieldLabel?: string) =>
+  page.evaluate(
+    ({ label, finder }) => {
+      for (const d of document.querySelectorAll("div")) {
+        if (!d.shadowRoot || d.style.position !== "fixed") continue;
+        const find = new Function(
+          "root",
+          "label",
+          `return (${finder})(root, label)`,
+        );
+        const root = find(d.shadowRoot, label) as Element | undefined;
+        if (!root) continue;
+        const sentinel = root.querySelector("[data-role='dimension-sentinel']");
+        return sentinel?.hasAttribute("data-selected") ?? false;
+      }
+      return false;
+    },
+    { label: fieldLabel, finder: dimensionRoot.toString() },
+  ) as Promise<boolean>;
+
+/** The on-screen center of the dimension sentinel for a real mouse click. */
+export const getDimensionSentinelCenter = (page: Page, fieldLabel?: string) =>
+  page.evaluate(
+    ({ label, finder }) => {
+      for (const d of document.querySelectorAll("div")) {
+        if (!d.shadowRoot || d.style.position !== "fixed") continue;
+        const find = new Function(
+          "root",
+          "label",
+          `return (${finder})(root, label)`,
+        );
+        const root = find(d.shadowRoot, label) as Element | undefined;
+        if (!root) continue;
+        const el = root.querySelector(
+          "[data-role='dimension-sentinel']",
+        ) as HTMLElement | null;
+        if (!el) return null;
+        const b = el.getBoundingClientRect();
+        return { x: b.left + b.width / 2, y: b.top + b.height / 2 };
+      }
+      return null;
+    },
+    { label: fieldLabel, finder: dimensionRoot.toString() },
+  ) as Promise<{ x: number; y: number } | null>;

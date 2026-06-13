@@ -65,8 +65,9 @@
   outline-offset: -1px;
 }
 
-/* Sentinel — shows when value is absent (not an off-grid literal, just empty).
-   Hatched diagonal pattern distinguishes it from every real chip/value. */
+/* Sentinel — always rendered so the user can click to clear any set value.
+   Hatched diagonal pattern distinguishes it from every real chip/value.
+   Selected state (unset) shows a solid focus-color border. */
 .dimension-sentinel {
   display: flex;
   align-items: center;
@@ -76,7 +77,7 @@
   border-radius: 4px;
   border: 2px dashed var(--control-border);
   min-height: 22px;
-  cursor: default;
+  cursor: pointer;
   user-select: none;
   flex-shrink: 0;
   background: repeating-linear-gradient(
@@ -86,6 +87,11 @@
     transparent 1px,
     transparent 4px
   );
+}
+
+.dimension-sentinel--selected {
+  border-color: var(--control-focus);
+  border-style: solid;
 }
 
 /* NumberInput row — always visible, sits below (or beside) the chips */
@@ -172,6 +178,8 @@
 
 .dimension-chips[data-disabled] .dimension-sentinel {
   opacity: 0.6;
+  cursor: not-allowed;
+  pointer-events: none;
 }
 
 .dimension-input-control[data-disabled] {

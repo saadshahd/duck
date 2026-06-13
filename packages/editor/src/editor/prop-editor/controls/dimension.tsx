@@ -44,10 +44,9 @@ export const Dimension = (({
   // We drive it as a controlled string so re-opens reflect the stored value.
   const inputValue = leadingNum !== undefined ? String(leadingNum) : "";
 
-  // Sentinel shows only when value is absent/unparseable AND not a preset member.
-  // An off-grid literal that parses to a finite number is "set" — numeric input
-  // covers it; no sentinel needed.
-  const showSentinel = mode.mode !== "preset" && leadingNum === undefined;
+  // Sentinel is always rendered so the user can click it to clear any set value.
+  // It shows as "selected" (filled ring) only when the value is absent (unset).
+  const isSentinelSelected = mode.mode === "unset";
 
   return (
     <div className={fieldClass(readOnly)}>
@@ -66,14 +65,18 @@ export const Dimension = (({
             }
           }}
         >
-          {showSentinel && (
-            <span
-              className="dimension-sentinel"
-              data-role="dimension-sentinel"
-              aria-label="No value set"
-              title="No value set"
-            />
-          )}
+          <span
+            className={`dimension-sentinel${isSentinelSelected ? " dimension-sentinel--selected" : ""}`}
+            data-role="dimension-sentinel"
+            data-selected={isSentinelSelected ? "" : undefined}
+            aria-label={
+              isSentinelSelected ? "No value set (current)" : "Clear value"
+            }
+            title={isSentinelSelected ? "No value set" : "Clear value"}
+            onClick={() => {
+              if (!readOnly) onChange(undefined);
+            }}
+          />
           {selectField.options.map((opt) => {
             const strVal = String(opt.value);
             return (

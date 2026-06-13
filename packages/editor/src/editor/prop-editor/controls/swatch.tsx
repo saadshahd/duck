@@ -56,6 +56,9 @@ export const Swatch = (({
             isUnset ? "No color selected (current)" : "Clear color selection"
           }
           title={isUnset ? "No color set" : "Clear color"}
+          onClick={() => {
+            if (!readOnly) onChange(undefined);
+          }}
         />
         {selectField.options.map((opt) => {
           const hex = String(opt.value);

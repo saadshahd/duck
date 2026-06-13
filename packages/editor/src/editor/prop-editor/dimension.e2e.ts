@@ -8,6 +8,8 @@ import {
   getDimensionChipCenter,
   setDimensionValue,
   isDimensionSentinelVisible,
+  isDimensionSentinelSelected,
+  getDimensionSentinelCenter,
 } from "../overlay/testing.js";
 
 /**
@@ -89,8 +91,9 @@ test.describe("Dimension control — Heading.style.fontSize (T6)", () => {
     const inputVal = await getDimensionInputValue(page, FIELD);
     expect(inputVal).toBe("3");
 
-    // Sentinel must not show when a value is set.
-    expect(await isDimensionSentinelVisible(page, FIELD)).toBe(false);
+    // Sentinel is always visible (it's the "clear" affordance) but not selected.
+    expect(await isDimensionSentinelVisible(page, FIELD)).toBe(true);
+    expect(await isDimensionSentinelSelected(page, FIELD)).toBe(false);
   });
 
   // O3c: clicking a different chip selects it (real mouse click).
@@ -163,7 +166,30 @@ test.describe("Dimension control — Heading.style.fontSize (T6)", () => {
     const inputValAfter = await getDimensionInputValue(page, FIELD);
     expect(inputValAfter).toBe("1.75");
 
-    // Sentinel must NOT show — "1.75rem" is a set off-grid literal.
-    expect(await isDimensionSentinelVisible(page, FIELD)).toBe(false);
+    // Sentinel stays visible (always rendered) but not selected — "1.75rem" is a set value.
+    expect(await isDimensionSentinelVisible(page, FIELD)).toBe(true);
+    expect(await isDimensionSentinelSelected(page, FIELD)).toBe(false);
+  });
+
+  // O3e: clicking the sentinel clears the dimension value.
+  test("O3e: clicking sentinel clears the set value", async ({ page }) => {
+    await openHeadingSheet(page);
+
+    // Confirm a preset is initially selected (fontSize = "3rem").
+    const chipsBefore = await readDimensionChips(page, FIELD);
+    expect(chipsBefore!.filter((c) => c.checked).length).toBe(1);
+
+    // Click the sentinel to clear.
+    const center = await getDimensionSentinelCenter(page, FIELD);
+    expect(center).not.toBeNull();
+    await page.mouse.click(center!.x, center!.y);
+    await page.waitForTimeout(200);
+
+    // No chip selected; sentinel is now in selected state; input is empty.
+    const chipsAfter = await readDimensionChips(page, FIELD);
+    expect(chipsAfter!.filter((c) => c.checked).length).toBe(0);
+    expect(await isDimensionSentinelSelected(page, FIELD)).toBe(true);
+    const inputVal = await getDimensionInputValue(page, FIELD);
+    expect(inputVal).toBe("");
   });
 });
