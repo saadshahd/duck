@@ -32,6 +32,10 @@ import { resolveDrop } from "./resolve-drop.js";
 
 // --- Helpers ---
 
+/** Module-level flag: once the designer completes one successful carry move,
+ *  the cross-slot hint becomes unnecessary and never appears again. */
+let carrySeenRef = false;
+
 type Props = {
   registry: FiberRegistry | null;
   data: Data;
@@ -60,16 +64,43 @@ export function useDragReorder({
   cycleStatus: CycleStatus | null;
   sourceType: string | null;
   point: Point | null;
+  crossSlotHint: boolean;
+  cancelFlash: Point | null;
 } {
   const [dropTarget, setDropTarget] = useState<DropTarget | null>(null);
   const dropTargetRef = useRef<DropTarget | null>(null);
   const [cycleStatus, setCycleStatus] = useState<CycleStatus | null>(null);
   const [sourceType, setSourceType] = useState<string | null>(null);
   const [point, setPoint] = useState<Point | null>(null);
+  const [crossSlotHint, setCrossSlotHint] = useState(false);
+  const [cancelFlash, setCancelFlash] = useState<Point | null>(null);
+  const cancelFlashTimerRef = useRef<ReturnType<typeof setTimeout> | null>(
+    null,
+  );
+  const hintTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // Tracks whether pragmatic's monitor onDrop fired for the current drag.
+  const monitorDropFiredRef = useRef(false);
 
   const updateDropTarget = (target: DropTarget | null) => {
     dropTargetRef.current = target;
     setDropTarget(target);
+  };
+
+  const showCrossSlotHint = () => {
+    if (carrySeenRef) return;
+    if (hintTimerRef.current) clearTimeout(hintTimerRef.current);
+    setCrossSlotHint(true);
+    hintTimerRef.current = setTimeout(() => {
+      setCrossSlotHint(false);
+      hintTimerRef.current = null;
+    }, 3000);
+  };
+
+  const dismissHint = () => {
+    if (!hintTimerRef.current) return;
+    clearTimeout(hintTimerRef.current);
+    hintTimerRef.current = null;
+    setCrossSlotHint(false);
   };
   const dataRef = useRef(data);
   dataRef.current = data;
@@ -133,6 +164,10 @@ export function useDragReorder({
         clearNames = null;
         setSourceType(null);
         setPoint(null);
+        // If the monitor's onDrop never fired, the drag ended without pragmatic
+        // processing a drop — the classic cross-shadow-DOM slot boundary fail.
+        if (!monitorDropFiredRef.current) showCrossSlotHint();
+        monitorDropFiredRef.current = false;
       },
     });
   }, [registry, lastSelectedId, singleSelected, pointer, send]);
@@ -292,6 +327,7 @@ export function useDragReorder({
       onDropTargetChange: ({ source, location }) =>
         updateFromLocation(source, location),
       onDrop: ({ source, location }) => {
+        monitorDropFiredRef.current = true;
         detachShift?.();
         detachShift = null;
         cycleRef.current = Cycle.idle;
@@ -310,8 +346,25 @@ export function useDragReorder({
           descendantSet: descendants,
         });
         descendants = new Set();
-        if (!result) return send({ type: "DRAG_CANCEL" });
+        if (!result) {
+          // Flash the cancel confirmation at the release point, then clear.
+          const releasePoint = {
+            x: location.current.input.clientX,
+            y: location.current.input.clientY,
+          };
+          if (cancelFlashTimerRef.current)
+            clearTimeout(cancelFlashTimerRef.current);
+          setCancelFlash(releasePoint);
+          cancelFlashTimerRef.current = setTimeout(() => {
+            setCancelFlash(null);
+            cancelFlashTimerRef.current = null;
+          }, 700);
+          return send({ type: "DRAG_CANCEL" });
+        }
         result.newData.map((d) => {
+          // Successful cross-slot move: designer knows the carry gesture — hide
+          // the hint forever (module-level flag survives re-renders, not remounts).
+          carrySeenRef = true;
           animatedUpdate((next) => {
             commitRef.current({
               beforeData,
@@ -331,5 +384,36 @@ export function useDragReorder({
     };
   }, [registry, data, send]);
 
-  return { dropTarget, cycleStatus, sourceType, point };
+  // --- Effect 4: Dismiss cross-slot hint on next user action ---
+
+  useEffect(() => {
+    if (!crossSlotHint) return;
+    const handler = () => dismissHint();
+    document.addEventListener("click", handler, { capture: true });
+    document.addEventListener("keydown", handler, { capture: true });
+    return () => {
+      document.removeEventListener("click", handler, { capture: true });
+      document.removeEventListener("keydown", handler, { capture: true });
+    };
+  }, [crossSlotHint]);
+
+  // --- Cleanup timers on unmount ---
+
+  useEffect(
+    () => () => {
+      if (hintTimerRef.current) clearTimeout(hintTimerRef.current);
+      if (cancelFlashTimerRef.current)
+        clearTimeout(cancelFlashTimerRef.current);
+    },
+    [],
+  );
+
+  return {
+    dropTarget,
+    cycleStatus,
+    sourceType,
+    point,
+    crossSlotHint,
+    cancelFlash,
+  };
 }

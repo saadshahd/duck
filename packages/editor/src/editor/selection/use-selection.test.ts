@@ -15,34 +15,21 @@ describe("hoverEvent", () => {
 
 describe("selectEvent", () => {
   it("hit → SELECT", () => {
-    expect(selectEvent(hit("a"), { multi: false, sheetOpen: false })).toEqual({
+    expect(selectEvent(hit("a"), { multi: false })).toEqual({
       type: "SELECT",
       elementId: "a",
     });
   });
 
   it("hit + multi → TOGGLE_SELECT", () => {
-    expect(selectEvent(hit("a"), { multi: true, sheetOpen: false })).toEqual({
+    expect(selectEvent(hit("a"), { multi: true })).toEqual({
       type: "TOGGLE_SELECT",
       elementId: "a",
     });
   });
 
-  it("hit + sheetOpen → SELECT (re-target wins over close)", () => {
-    expect(selectEvent(hit("a"), { multi: false, sheetOpen: true })).toEqual({
-      type: "SELECT",
-      elementId: "a",
-    });
-  });
-
-  it("null + sheetOpen → CANCEL_EDIT (close, keep selection)", () => {
-    expect(selectEvent(null, { multi: false, sheetOpen: true })).toEqual({
-      type: "CANCEL_EDIT",
-    });
-  });
-
-  it("null, no sheet → DESELECT", () => {
-    expect(selectEvent(null, { multi: false, sheetOpen: false })).toEqual({
+  it("null → DESELECT (closes sheet and deselects atomically)", () => {
+    expect(selectEvent(null, { multi: false })).toEqual({
       type: "DESELECT",
     });
   });

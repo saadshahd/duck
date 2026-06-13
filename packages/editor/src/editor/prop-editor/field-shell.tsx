@@ -28,7 +28,6 @@ export const FieldLabel = ({
           />
           <rect x="1" y="5" width="7" height="5" rx="1" fill="currentColor" />
         </svg>
-        read-only
       </span>
     )}
   </label>

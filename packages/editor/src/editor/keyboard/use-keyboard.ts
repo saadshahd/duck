@@ -1,6 +1,6 @@
 import { useEffect, useRef } from "react";
 import { tinykeys } from "tinykeys";
-import { nextInTreeOrder } from "../spec-ops/index.js";
+import { nextInTreeOrder, firstInTreeOrder } from "../spec-ops/index.js";
 import type { ClipboardActions } from "../types.js";
 import { isEditable } from "../overlay/index.js";
 import { arrowToDirection } from "./navigation.js";
@@ -10,6 +10,7 @@ import {
   notEditing,
   insertable,
   isDismissible,
+  tabNavigable,
 } from "./guards.js";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -138,6 +139,39 @@ const insertBinding = (
   },
 });
 
+// Tab walks the document in tree order.
+// - No selection → select first element.
+// - Selection active → select next (Tab) or previous (Shift+Tab) element.
+// Guard: don't intercept Tab when focus is in an editable field or when an
+// overlay picker is open (editing / inserting), so the user can Tab through
+// the picker's controls normally.
+const tabBindings = (send: Send, navRef: React.RefObject<NavContext>) => ({
+  Tab: (e: KeyboardEvent) => {
+    const nav = navRef.current;
+    if (!tabNavigable(nav) || isEditable(e.target)) return;
+    e.preventDefault();
+    if (!selected(nav)) {
+      const first = firstInTreeOrder(nav.data);
+      if (first !== null) send({ type: "SELECT", elementId: first });
+      return;
+    }
+    const next = nextInTreeOrder(nav.data, nav.lastSelectedId!, "forward");
+    if (next !== null) send({ type: "SELECT", elementId: next });
+  },
+  "Shift+Tab": (e: KeyboardEvent) => {
+    const nav = navRef.current;
+    if (!tabNavigable(nav) || isEditable(e.target)) return;
+    e.preventDefault();
+    if (!selected(nav)) {
+      const first = firstInTreeOrder(nav.data);
+      if (first !== null) send({ type: "SELECT", elementId: first });
+      return;
+    }
+    const prev = nextInTreeOrder(nav.data, nav.lastSelectedId!, "backward");
+    if (prev !== null) send({ type: "SELECT", elementId: prev });
+  },
+});
+
 export function useKeyboard(targets: {
   machine: Send;
   history: Send;
@@ -170,6 +204,7 @@ export function useKeyboard(targets: {
         ...deleteBindings(navRef, deleteRef),
         ...liftBinding(targets.machine, navRef),
         ...insertBinding(navRef, insertRef),
+        ...tabBindings(targets.machine, navRef),
       }),
     [targets.machine, targets.history],
   );

@@ -136,6 +136,8 @@ export function usePropEditor({
     [editing, commitPropEdit],
   );
 
+  const cancelSheet = useCallback(() => send({ type: "CANCEL_EDIT" }), [send]);
+
   if (!editing || editing.mode !== "sheet" || !sheetComponent || !registry) {
     return null;
   }
@@ -148,6 +150,7 @@ export function usePropEditor({
       component={sheetComponent}
       fields={sheetFields}
       onPropChange={handlePropChange}
+      onClose={cancelSheet}
     />
   );
 }
@@ -158,12 +161,14 @@ function SheetView({
   component,
   fields,
   onPropChange,
+  onClose,
 }: {
   registry: FiberRegistry;
   config: Config;
   component: ComponentData;
   fields: ResolvedFields;
   onPropChange: (propKey: string, value: unknown) => void;
+  onClose: () => void;
 }): ReactNode {
   const elementId = (component.props as { id?: string }).id ?? "";
   const { cutoutRef, lineRef } = useSheetAnchor(registry, elementId);
@@ -177,7 +182,7 @@ function SheetView({
     <>
       <PropSheet.Backdrop cutoutRef={cutoutRef} open />
       <PropSheet.Tether lineRef={lineRef} />
-      <PropSheet.Panel open label={typeLabel}>
+      <PropSheet.Panel open label={typeLabel} onClose={onClose}>
         <ArkEnvironment>
           <PuckFields
             fields={fields}

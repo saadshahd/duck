@@ -1,4 +1,4 @@
-import { useState, useCallback, useRef } from "react";
+import { useState, useCallback, useRef, useEffect } from "react";
 import { useFloating, offset, shift, arrow } from "@floating-ui/react";
 import { useShadowSheet } from "../overlay/index.js";
 import { computeDotSize } from "./fisheye.js";
@@ -59,8 +59,18 @@ export function HistoryTimeline({
 }: HistoryTimelineProps) {
   useShadowSheet(css);
   const [hoveredIndex, setHoveredIndex] = useState<number | null>(null);
+  const [renamingIndex, setRenamingIndex] = useState<number | null>(null);
+  const [renameValue, setRenameValue] = useState("");
+  const renameInputRef = useRef<HTMLInputElement>(null);
   const arrowRef = useRef<HTMLDivElement>(null);
   const railRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (renamingIndex !== null) {
+      renameInputRef.current?.focus();
+      renameInputRef.current?.select();
+    }
+  }, [renamingIndex]);
 
   const hoverHandlers = useHoverTracking(railRef, onMouseEnter, onMouseLeave);
 
@@ -117,16 +127,38 @@ export function HistoryTimeline({
             onMouseLeave={handleDotLeave}
             onContextMenu={(e) => {
               e.preventDefault();
-              const name = prompt("Rename entry:", entry.name ?? entry.label);
-              if (name?.trim()) onRename(index, name.trim());
+              setRenameValue(entry.name ?? entry.label);
+              setRenamingIndex(index);
             }}
           />
         );
       })}
+      {renamingIndex !== null && (
+        <input
+          ref={renameInputRef}
+          className="timeline-rename-input"
+          value={renameValue}
+          onChange={(e) => setRenameValue(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") {
+              const trimmed = renameValue.trim();
+              if (trimmed) onRename(renamingIndex, trimmed);
+              setRenamingIndex(null);
+            } else if (e.key === "Escape") {
+              setRenamingIndex(null);
+            }
+          }}
+          onBlur={() => {
+            const trimmed = renameValue.trim();
+            if (trimmed) onRename(renamingIndex, trimmed);
+            setRenamingIndex(null);
+          }}
+        />
+      )}
       <div
         ref={refs.setFloating}
         className="timeline-tooltip"
-        data-visible={hoveredEntry ? "" : undefined}
+        data-visible={hoveredEntry && renamingIndex === null ? "" : undefined}
         style={floatingStyles}
       >
         {hoveredEntry && (hoveredEntry.name ?? hoveredEntry.label)}

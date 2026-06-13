@@ -1,14 +1,14 @@
-import { autoUpdate } from "@floating-ui/react";
 import { useEffect, useRef, useCallback } from "react";
 import type { FiberRegistry } from "../fiber/index.js";
 import { ZERO_RECT } from "../layout/index.js";
 import { tetherEndpoints } from "./sheet-geometry.js";
 
 /** Live-track the selected element's rect onto the cutout div and the tether
- *  <line>, on the same animationFrame autoUpdate cadence as use-slot-stop-rect.
- *  Writes DOM geometry only — never React state. `data-tracking` is set during
- *  the rAF loop so the cutout's retarget transition is suppressed while the
- *  element moves under scroll; the consumer clears it on retarget. */
+ *  <line> via an unconditional rAF loop. Every frame re-queries
+ *  getBoundingClientRect() on the live DOM element so the cutout and tether
+ *  stay locked regardless of scroll, layout shift, or resize.
+ *  `data-tracking` is set for the lifetime of the sheet to suppress CSS
+ *  position transitions (which would fight the per-frame DOM writes). */
 export function useSheetAnchor(
   registry: FiberRegistry,
   elementId: string,
@@ -47,13 +47,17 @@ export function useSheetAnchor(
   useEffect(() => {
     const cutout = cutoutRef.current;
     if (!cutout) return;
+    // Suppress CSS position transitions for the lifetime of the rAF loop —
+    // they fight per-frame style writes and cause the cutout to lag behind.
     cutout.setAttribute("data-tracking", "");
-    const vRef = {
-      getBoundingClientRect: () =>
-        registry.get(elementId)?.getBoundingClientRect() ?? ZERO_RECT,
-    };
-    return autoUpdate(vRef, cutout, sync, { animationFrame: true });
-  }, [registry, elementId, sync]);
+    let frameId: number;
+    function loop() {
+      sync();
+      frameId = requestAnimationFrame(loop);
+    }
+    frameId = requestAnimationFrame(loop);
+    return () => cancelAnimationFrame(frameId);
+  }, [sync]);
 
   return { cutoutRef, lineRef };
 }

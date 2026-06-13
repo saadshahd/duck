@@ -44,14 +44,17 @@ function Tether({ lineRef }: { lineRef: RefObject<SVGLineElement | null> }) {
 /** Slide-in panel anchored to the viewport's right edge (position: fixed; right: 0).
  *  Never overlaps the canvas element — the canvas reserves width via padding-right
  *  (see occlusion reserve in editor.tsx, Task 7). Children are the field renderers.
- *  `label` is the component type label derived from Puck config — catalog-agnostic. */
+ *  `label` is the component type label derived from Puck config — catalog-agnostic.
+ *  `onClose` fires when the × button is pressed. */
 function Panel({
   open,
   label,
+  onClose,
   children,
 }: {
   open: boolean;
   label: string;
+  onClose: () => void;
   children: ReactNode;
 }) {
   useShadowSheet(css);
@@ -65,6 +68,14 @@ function Panel({
     >
       <header className="prop-sheet-header" data-role="prop-sheet-header">
         <span className="prop-sheet-header-label">{label}</span>
+        <button
+          className="prop-sheet-close"
+          aria-label="Close"
+          data-role="prop-sheet-close"
+          onClick={onClose}
+        >
+          ×
+        </button>
       </header>
       <div className="prop-sheet-viewport" ref={viewportRef}>
         {children}

@@ -27,3 +27,9 @@ export const isDismissible = (nav: NavContext): boolean =>
   nav.pointer === "inserting" ||
   nav.pointer === "slot-selected" ||
   selected(nav);
+
+/** Tab/Shift+Tab should be intercepted when the editor is in an idle or
+ *  hovering state and focus is not inside an editable field. Tab in those
+ *  states selects the first or next/previous element in tree order. */
+export const tabNavigable = (nav: NavContext): boolean =>
+  nav.pointer !== "editing" && nav.pointer !== "inserting";

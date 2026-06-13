@@ -1,4 +1,4 @@
-import { type ReactNode, useState, useEffect } from "react";
+import { type ReactNode, useState, useEffect, useRef } from "react";
 import type { Field } from "@puckeditor/core";
 import { Disclosure } from "./disclosure.js";
 import { grouped } from "./grouping.js";
@@ -12,6 +12,17 @@ import css from "./object-section.css?inline";
 
 export type { ValueMode } from "./field-shell.js";
 export { resolveValueMode } from "./field-shell.js";
+
+// --- Label formatting ---
+
+const camelToTitle = (key: string): string =>
+  key
+    .replace(/([A-Z])/g, " $1")
+    .replace(/^./, (c) => c.toUpperCase())
+    .trim();
+
+const toDisplayLabel = (key: string, override?: string): string =>
+  override ?? camelToTitle(key);
 
 // --- Always-open section with heading ---
 
@@ -45,6 +56,64 @@ export type FieldProps<F extends Field = Field, V = unknown> = {
   toggle?: (p: string) => void;
 };
 
+// --- Debounced text hook ---
+
+const DEBOUNCE_MS = 500;
+
+function useDebouncedText(
+  value: string,
+  onChange: (v: string) => void,
+): {
+  draft: string;
+  handleChange: (
+    e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>,
+  ) => void;
+  handleBlur: () => void;
+} {
+  const [draft, setDraft] = useState(value);
+  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const draftRef = useRef(draft);
+
+  // Sync incoming value when element selection changes (remount via key)
+  useEffect(() => {
+    setDraft(value);
+    draftRef.current = value;
+  }, [value]);
+
+  const flush = (text: string) => {
+    if (timerRef.current !== null) {
+      clearTimeout(timerRef.current);
+      timerRef.current = null;
+    }
+    onChange(text);
+  };
+
+  const handleChange = (
+    e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>,
+  ) => {
+    const text = e.target.value;
+    setDraft(text);
+    draftRef.current = text;
+    if (timerRef.current !== null) clearTimeout(timerRef.current);
+    timerRef.current = setTimeout(() => {
+      timerRef.current = null;
+      onChange(draftRef.current);
+    }, DEBOUNCE_MS);
+  };
+
+  const handleBlur = () => flush(draftRef.current);
+
+  // Flush on unmount so no pending timer fires against stale parent state
+  useEffect(
+    () => () => {
+      if (timerRef.current !== null) clearTimeout(timerRef.current);
+    },
+    [],
+  );
+
+  return { draft, handleChange, handleBlur };
+}
+
 // --- Field renderers ---
 
 const TextInput = ({
@@ -53,18 +122,28 @@ const TextInput = ({
   value,
   onChange,
   readOnly,
-}: FieldProps<Extract<Field, { type: "text" }>, unknown>) => (
-  <div className={fieldClass(readOnly)}>
-    <FieldLabel text={field.label ?? label} readOnly={readOnly} />
-    <input
-      type="text"
-      value={(value as string) ?? ""}
-      readOnly={readOnly}
-      placeholder={field.placeholder}
-      onChange={(e) => onChange(e.target.value)}
-    />
-  </div>
-);
+}: FieldProps<Extract<Field, { type: "text" }>, unknown>) => {
+  const { draft, handleChange, handleBlur } = useDebouncedText(
+    (value as string) ?? "",
+    onChange as (v: string) => void,
+  );
+  return (
+    <div className={fieldClass(readOnly)}>
+      <FieldLabel
+        text={toDisplayLabel(label, field.label)}
+        readOnly={readOnly}
+      />
+      <input
+        type="text"
+        value={draft}
+        readOnly={readOnly}
+        placeholder={field.placeholder}
+        onChange={handleChange}
+        onBlur={handleBlur}
+      />
+    </div>
+  );
+};
 
 const TextareaInput = ({
   label,
@@ -72,18 +151,28 @@ const TextareaInput = ({
   value,
   onChange,
   readOnly,
-}: FieldProps<Extract<Field, { type: "textarea" }>, unknown>) => (
-  <div className={fieldClass(readOnly)}>
-    <FieldLabel text={field.label ?? label} readOnly={readOnly} />
-    <textarea
-      value={(value as string) ?? ""}
-      readOnly={readOnly}
-      placeholder={field.placeholder}
-      onChange={(e) => onChange(e.target.value)}
-      rows={3}
-    />
-  </div>
-);
+}: FieldProps<Extract<Field, { type: "textarea" }>, unknown>) => {
+  const { draft, handleChange, handleBlur } = useDebouncedText(
+    (value as string) ?? "",
+    onChange as (v: string) => void,
+  );
+  return (
+    <div className={fieldClass(readOnly)}>
+      <FieldLabel
+        text={toDisplayLabel(label, field.label)}
+        readOnly={readOnly}
+      />
+      <textarea
+        value={draft}
+        readOnly={readOnly}
+        placeholder={field.placeholder}
+        onChange={handleChange}
+        onBlur={handleBlur}
+        rows={3}
+      />
+    </div>
+  );
+};
 
 const NumberInput = ({
   label,
@@ -93,7 +182,7 @@ const NumberInput = ({
   readOnly,
 }: FieldProps<Extract<Field, { type: "number" }>, unknown>) => (
   <div className={fieldClass(readOnly)}>
-    <FieldLabel text={field.label ?? label} readOnly={readOnly} />
+    <FieldLabel text={toDisplayLabel(label, field.label)} readOnly={readOnly} />
     <input
       type="number"
       value={(value as number) ?? ""}
@@ -119,7 +208,10 @@ const SelectInput = ({
   const { isUnset, display } = selectDisplay(value, field.options);
   return (
     <div className={fieldClass(readOnly)}>
-      <FieldLabel text={field.label ?? label} readOnly={readOnly} />
+      <FieldLabel
+        text={toDisplayLabel(label, field.label)}
+        readOnly={readOnly}
+      />
       <select
         value={display}
         disabled={readOnly}
@@ -151,7 +243,10 @@ const RadioInput = ({
   const groupName = `radio-${label}`;
   return (
     <div className={fieldClass(readOnly)}>
-      <FieldLabel text={field.label ?? label} readOnly={readOnly} />
+      <FieldLabel
+        text={toDisplayLabel(label, field.label)}
+        readOnly={readOnly}
+      />
       {field.options.map((opt) => (
         <label key={String(opt.value)}>
           <input
@@ -276,8 +371,10 @@ const SlotHint = ({
   field,
 }: FieldProps<Extract<Field, { type: "slot" }>, unknown>) => (
   <div className="prop-field">
-    <FieldLabel text={field.label ?? label} />
-    <p className="prop-sheet-hint">Manage children in canvas.</p>
+    <FieldLabel text={toDisplayLabel(label, field.label)} />
+    <p className="prop-sheet-hint">
+      Select a child element on the canvas, or use Insert + to add one.
+    </p>
   </div>
 );
 
@@ -325,7 +422,10 @@ const ExternalInput = ({
 
   return (
     <div className={fieldClass(readOnly)}>
-      <FieldLabel text={field.label ?? label} readOnly={readOnly} />
+      <FieldLabel
+        text={toDisplayLabel(label, field.label)}
+        readOnly={readOnly}
+      />
       <button type="button" disabled={readOnly} onClick={load}>
         {value ? summarize(value as never) : (field.placeholder ?? "Select...")}
       </button>
@@ -387,7 +487,11 @@ const FallbackField = ({
 
   return (
     <div className="prop-field">
-      <FieldLabel text={field.label ?? label} />
+      <FieldLabel text={toDisplayLabel(label, field.label)} />
+      <p className="prop-sheet-hint prop-sheet-hint--warning">
+        Unsupported field type: {field.type}. No control is registered for this
+        type.
+      </p>
       <textarea
         value={text}
         data-invalid={invalid || undefined}

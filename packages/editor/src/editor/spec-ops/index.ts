@@ -5,5 +5,5 @@ export { move } from "./move.js";
 export { replace } from "./replace.js";
 export { editProp } from "./edit-prop.js";
 export { copy, paste } from "./clipboard.js";
-export { nextInTreeOrder } from "./navigation.js";
+export { nextInTreeOrder, firstInTreeOrder } from "./navigation.js";
 export { findParent } from "@duckeditor/spec";

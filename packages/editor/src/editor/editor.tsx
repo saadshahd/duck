@@ -25,16 +25,26 @@ import {
   SelectionRing,
   SelectionCluster,
   SlotStop,
-  FloatingActionBar,
-  type EditorAction,
   useActionHandler,
   useMoveInfo,
   createSelectParent,
-  useToolbarYield,
+  EdgeArrows,
 } from "./selection/index.js";
 import { usePropEditor } from "./prop-editor/use-prop-editor.jsx";
-import { useDragReorder, DragOverlay, CycleChip } from "./drag/index.js";
-import { useCarry, LiftPulse, NoTargetMarker } from "./carry/index.js";
+import {
+  useDragReorder,
+  DragOverlay,
+  CycleChip,
+  CrossSlotHint,
+  DragCancelFlash,
+} from "./drag/index.js";
+import {
+  useCarry,
+  LiftPulse,
+  NoTargetMarker,
+  CarryCoachMark,
+  CarryDestinationLabel,
+} from "./carry/index.js";
 import {
   OverlayRoot,
   Announcer,
@@ -162,15 +172,17 @@ export function Editor<UserConfig extends Config = Config>({
   );
 
   useSelectionReconcile(state.context, elementIds, send);
-  const sheetOpenForClicks =
+  useEditorSelection(fiberRegistry, send);
+  const sheetOpen =
     (state.value as { pointer: string }).pointer === "editing" &&
     state.context.editing?.mode === "sheet";
-  useEditorSelection(fiberRegistry, send, sheetOpenForClicks);
   const {
     dropTarget,
     cycleStatus,
     sourceType: dragSourceType,
     point: dragPoint,
+    crossSlotHint,
+    cancelFlash,
   } = useDragReorder({
     registry: fiberRegistry,
     data: currentData,
@@ -186,6 +198,8 @@ export function Editor<UserConfig extends Config = Config>({
     liftRect,
     sourceType: carrySourceType,
     point: carryPoint,
+    carryCoachMark,
+    stepLabel: carryStepLabel,
   } = useCarry({
     registry: fiberRegistry,
     data: currentData,
@@ -277,15 +291,6 @@ export function Editor<UserConfig extends Config = Config>({
     commit,
   });
 
-  // Insert is routed (slot-choice vs sibling) by useInsert, not the action
-  // machine — so the action bar's (+) defers to openInsert; everything else is
-  // the plain action handler.
-  const onAction = useCallback(
-    (action: EditorAction) =>
-      action.tag === "insert" ? openInsert() : handleAction(action),
-    [openInsert, handleAction],
-  );
-
   useKeyboard({
     machine: send,
     history: historySend,
@@ -302,7 +307,6 @@ export function Editor<UserConfig extends Config = Config>({
     selectedSlot: state.context.selectedSlot,
     send,
   });
-  const toolbarRef = useRef<HTMLElement | null>(null);
   const morphButtonRef = useRef<HTMLButtonElement | null>(null);
 
   useGhostPlaceholders(currentData, fiberRegistry);
@@ -319,7 +323,20 @@ export function Editor<UserConfig extends Config = Config>({
       : null;
   const highlightId = menuHighlightId ?? hoverHighlightId;
 
+  // "Seen" flag: once the user selects any element, suppress the affordance
+  // tooltip forever for the lifetime of this page session (module-level ref is
+  // cheaper than state and avoids re-renders).
+  const hasSelectedRef = useRef(false);
+  if (lastSelectedId && !hasSelectedRef.current) {
+    hasSelectedRef.current = true;
+  }
+  const showHoverTooltip = hoverHighlightId !== null && !hasSelectedRef.current;
+
   const [boxModelVisible, setBoxModelVisible] = useState(false);
+
+  useEffect(() => {
+    setBoxModelVisible(false);
+  }, [lastSelectedId]);
 
   const { selectedSlot } = state.context;
   const slotAddress = useSlotAddress(currentData, lastSelectedId);
@@ -358,11 +375,7 @@ export function Editor<UserConfig extends Config = Config>({
     }),
   );
 
-  const yieldingToolbar = useToolbarYield(fiberRegistry, singleSelected);
-
   const operable = Boolean(affordances.actionBar && singleSelected);
-  const pickerOverlayOpen = pointer === "editing" || pointer === "inserting";
-  const showActionBar = operable && !yieldingToolbar && !pickerOverlayOpen;
 
   const { registry: patternRegistry, remintIds } = usePatterns(
     config,
@@ -417,7 +430,7 @@ export function Editor<UserConfig extends Config = Config>({
       </div>
 
       <style>{`
-        body { user-select: none; ${sheetOpenForClicks ? "padding-right: var(--sheet-width, 320px);" : ""} }
+        body { user-select: none; ${sheetOpen ? "padding-right: var(--sheet-width, 320px);" : ""} }
         ::view-transition-group(*) { animation-duration: 200ms; animation-timing-function: ease; }
       `}</style>
 
@@ -437,6 +450,7 @@ export function Editor<UserConfig extends Config = Config>({
             registry={fiberRegistry}
             elementId={highlightId}
             elementType={index.get(highlightId)?.component.type}
+            showTooltip={showHoverTooltip}
           />
         )}
         <ShimmerOverlay
@@ -449,58 +463,59 @@ export function Editor<UserConfig extends Config = Config>({
           [...selectedIds].map((id) => (
             <SelectionRing key={id} registry={fiberRegistry} elementId={id} />
           ))}
-        {affordances.labelCluster && fiberRegistry && lastSelectedId && (
-          <SelectionCluster.Root
-            registry={fiberRegistry}
-            elementId={lastSelectedId}
-            elementType={index.get(lastSelectedId)?.component.type}
-            selectionCount={selectedIds.size}
-            slotAddress={slotAddress}
-            toolbarRef={toolbarRef}
-            onSelectParent={selectParent}
-            commitTick={propCommitTick}
-          >
-            {operable && singleSelected && (
-              <SelectionCluster.Move
-                onMove={() =>
-                  send({ type: "CARRY_START", sourceId: singleSelected })
-                }
-              />
-            )}
-            {affordances.boxModel && (
-              <SelectionCluster.BoxModel
-                active={boxModelVisible}
-                onToggle={() => setBoxModelVisible((v) => !v)}
-              />
-            )}
-          </SelectionCluster.Root>
-        )}
+        {affordances.labelCluster &&
+          !sheetOpen &&
+          fiberRegistry &&
+          lastSelectedId && (
+            <SelectionCluster.Root
+              registry={fiberRegistry}
+              elementId={lastSelectedId}
+              elementType={index.get(lastSelectedId)?.component.type}
+              selectionCount={selectedIds.size}
+              slotAddress={slotAddress}
+              onSelectParent={selectParent}
+              commitTick={propCommitTick}
+            >
+              {operable && singleSelected && (
+                <>
+                  {patternRegistry && (
+                    <MorphButton
+                      count={morph.count}
+                      elementId={singleSelected}
+                      onClick={morph.openPicker}
+                      buttonRef={morphButtonRef}
+                    />
+                  )}
+                  <SelectionCluster.Edit
+                    onClick={() => handleAction({ tag: "edit" })}
+                  />
+                  <SelectionCluster.Insert onClick={openInsert} />
+                </>
+              )}
+              {affordances.boxModel && (
+                <SelectionCluster.BoxModel
+                  active={boxModelVisible}
+                  onToggle={() => setBoxModelVisible((v) => !v)}
+                />
+              )}
+            </SelectionCluster.Root>
+          )}
         {affordances.boxModel &&
           boxModelVisible &&
           fiberRegistry &&
           [...selectedIds].map((id) => (
             <BoxModelLayer key={id} registry={fiberRegistry} elementId={id} />
           ))}
-        {showActionBar && singleSelected && fiberRegistry && (
-          <FloatingActionBar
-            registry={fiberRegistry}
+        {affordances.actionBar && singleSelected && fiberRegistry && (
+          <EdgeArrows
             elementId={singleSelected}
+            registry={fiberRegistry}
             axis={moveInfo.axis}
             canMovePrev={moveInfo.canMovePrev}
             canMoveNext={moveInfo.canMoveNext}
-            canInsert
-            onAction={onAction}
-            toolbarRef={toolbarRef}
-          >
-            {patternRegistry && (
-              <MorphButton
-                count={morph.count}
-                elementId={singleSelected}
-                onClick={morph.openPicker}
-                buttonRef={morphButtonRef}
-              />
-            )}
-          </FloatingActionBar>
+            onMovePrev={() => handleAction({ tag: "move-up" })}
+            onMoveNext={() => handleAction({ tag: "move-down" })}
+          />
         )}
         {operable && pointer === "editing" && sheet}
         {pointer === "inserting" &&
@@ -596,11 +611,17 @@ export function Editor<UserConfig extends Config = Config>({
               />
             ) : null;
           })()}
+        {crossSlotHint && <CrossSlotHint />}
         {affordances.liftPulse && liftRect && <LiftPulse rect={liftRect} />}
+        {carryCoachMark && liftRect && <CarryCoachMark rect={liftRect} />}
         {moveGhost && (
           <MoveGhost content={moveGhost.content} point={moveGhost.point} />
         )}
         {noTargetFlash && <NoTargetMarker point={noTargetFlash} />}
+        {drag === "carrying" && carryStepLabel && (
+          <CarryDestinationLabel label={carryStepLabel} />
+        )}
+        {cancelFlash && <DragCancelFlash point={cancelFlash} />}
         <Announcer
           message={announcerMessage({
             data: currentData,

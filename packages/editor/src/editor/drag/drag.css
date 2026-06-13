@@ -51,6 +51,47 @@
   white-space: nowrap;
 }
 
+/* Drag handle — visible glyph stays small; pseudo-element expands the touch
+   target to ≥44×44px without affecting layout. Positioned relatively so the
+   pseudo-element can overflow without shifting siblings. */
+
+.drag-handle {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  appearance: none;
+  border: none;
+  background: var(--surface-bar);
+  color: var(--text-bar);
+  cursor: grab;
+  pointer-events: auto;
+  padding: 0 5px;
+  line-height: 1;
+  border-radius: 0;
+  opacity: 0.45;
+  transition: opacity 100ms ease;
+}
+
+.drag-handle:hover {
+  opacity: 0.8;
+}
+
+.drag-handle:active {
+  cursor: grabbing;
+  opacity: 1;
+}
+
+/* Expand the hit area to 44×44px without changing visible size */
+.drag-handle::before {
+  content: "";
+  position: absolute;
+  inset: 50% auto auto 50%;
+  transform: translate(-50%, -50%);
+  min-width: 44px;
+  min-height: 44px;
+}
+
 .no-target-marker {
   pointer-events: none;
   font-family: var(--font-system);
@@ -63,4 +104,69 @@
   background: rgba(120, 113, 108, 0.08);
   border: 1px dashed #78716c;
   white-space: nowrap;
+}
+
+/* Cancel flash — brief confirmation that a drag was rejected (no valid drop).
+   Shown at the release point for ~600ms then fades. */
+@keyframes drag-cancel-flash {
+  0% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+  60% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+  100% {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+}
+
+.drag-cancel-flash {
+  position: fixed;
+  pointer-events: none;
+  font-family: var(--font-system);
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1.4;
+  padding: 3px 8px;
+  border-radius: 4px;
+  color: var(--text-bar);
+  background: #78716c;
+  white-space: nowrap;
+  animation: drag-cancel-flash 600ms ease-out forwards;
+  z-index: 100;
+}
+
+/* Cross-slot hint — fixed to viewport bottom-center, never occludes canvas */
+.cross-slot-hint {
+  position: fixed;
+  bottom: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  pointer-events: none;
+  font-family: var(--font-system);
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 1.4;
+  padding: 6px 12px;
+  border-radius: 6px;
+  color: var(--text-bar);
+  background: var(--surface-bar);
+  box-shadow: var(--shadow-bar);
+  white-space: nowrap;
+  z-index: 100;
+  animation: cross-slot-hint-in 150ms ease both;
+}
+
+@keyframes cross-slot-hint-in {
+  from {
+    opacity: 0;
+    transform: translateX(-50%) translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+  }
 }

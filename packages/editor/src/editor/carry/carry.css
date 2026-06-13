@@ -23,6 +23,67 @@
   animation: lift-pulse 250ms ease-out forwards;
 }
 
+/* Coach mark — pill anchored below lifted ghost, viewport-fixed */
+.carry-coach-mark {
+  transform: translateX(-50%);
+  pointer-events: none;
+  font-family: var(--font-system);
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 1.4;
+  padding: 6px 12px;
+  border-radius: 6px;
+  color: var(--text-bar);
+  background: var(--surface-bar);
+  box-shadow: var(--shadow-bar);
+  white-space: nowrap;
+  z-index: 100;
+  animation: carry-coach-mark-in 150ms ease both;
+}
+
+@keyframes carry-coach-mark-in {
+  from {
+    opacity: 0;
+    transform: translateX(-50%) translateY(-4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+  }
+}
+
+/* Destination label — viewport bottom-center, shown during arrow-key stepping */
+.carry-destination-label {
+  position: fixed;
+  bottom: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  pointer-events: none;
+  font-family: var(--font-system);
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 1.4;
+  padding: 6px 12px;
+  border-radius: 6px;
+  color: var(--text-bar);
+  background: var(--surface-bar);
+  box-shadow: var(--shadow-bar);
+  white-space: nowrap;
+  z-index: 100;
+  animation: carry-destination-label-in 120ms ease both;
+}
+
+@keyframes carry-destination-label-in {
+  from {
+    opacity: 0;
+    transform: translateX(-50%) translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+  }
+}
+
 .carry-no-target-flash {
   pointer-events: none;
   font-family: var(--font-system);

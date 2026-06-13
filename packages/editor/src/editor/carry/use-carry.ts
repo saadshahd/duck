@@ -35,6 +35,24 @@ const stateOf = (s: EditorSnapshot) => s.value as { drag: string };
  *  arrow/Shift steps) select one destination from the stack under it. Click on a
  *  valid destination commits the `move`; Esc cancels. Same resolver, tiles, and
  *  `move` op as drag — only the input is plain pointer events, not a native drag. */
+const CARRY_SEEN_KEY = "duck:carry-seen";
+
+const readCarrySeen = (): boolean => {
+  try {
+    return !!localStorage.getItem(CARRY_SEEN_KEY);
+  } catch {
+    return true; // Restricted environment — never show.
+  }
+};
+
+const markCarrySeen = () => {
+  try {
+    localStorage.setItem(CARRY_SEEN_KEY, "1");
+  } catch {
+    // Restricted environment — silently skip.
+  }
+};
+
 export function useCarry({ registry, data, state, send, commit }: Props): {
   target: DropTarget | null;
   noTargetFlash: Point | null;
@@ -42,6 +60,8 @@ export function useCarry({ registry, data, state, send, commit }: Props): {
   liftRect: DOMRect | null;
   sourceType: string | null;
   point: Point | null;
+  carryCoachMark: boolean;
+  stepLabel: string | null;
 } {
   const [target, setTarget] = useState<DropTarget | null>(null);
   const [noTargetFlash, setNoTargetFlash] = useState<Point | null>(null);
@@ -49,6 +69,8 @@ export function useCarry({ registry, data, state, send, commit }: Props): {
   const [liftRect, setLiftRect] = useState<DOMRect | null>(null);
   const [sourceType, setSourceType] = useState<string | null>(null);
   const [point, setPoint] = useState<Point | null>(null);
+  const [carryCoachMark, setCarryCoachMark] = useState(false);
+  const [stepLabel, setStepLabel] = useState<string | null>(null);
   const flashTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   // The latest carry resolution closure — the same path pointermove runs. The
   // scroll subscription calls it so a scroll re-aims every affordance (tiles,
@@ -95,6 +117,16 @@ export function useCarry({ registry, data, state, send, commit }: Props): {
       armed = true;
     }, 0);
 
+    // One-time coach mark: show only if this is the first ever carry.
+    const showCoachMark = !readCarrySeen();
+    if (showCoachMark) setCarryCoachMark(true);
+
+    const dismissCoachMark = () => {
+      if (!showCoachMark) return;
+      setCarryCoachMark(false);
+      markCarrySeen();
+    };
+
     const stackAt = () =>
       destinationStack({
         point,
@@ -115,7 +147,7 @@ export function useCarry({ registry, data, state, send, commit }: Props): {
 
     // Cycle override wins; otherwise the pointer-aimed slot. Mirrors drag's
     // `updateFromLocation`: stepping overrides pointer, pointer reclaims on move.
-    const render = (stack: readonly Destination[]) => {
+    const render = (stack: readonly Destination[], fromStep = false) => {
       const picked = Cycle.selected(cycle, stack) ?? aimAt();
       selected = picked ?? null;
       setTarget(
@@ -133,11 +165,18 @@ export function useCarry({ registry, data, state, send, commit }: Props): {
       // Lift pulse rides the source's live viewport rect so a scroll re-resolves
       // it in lockstep with the tiles — never a frozen pulse over stale geometry.
       setLiftRect(registry.get(sourceId)?.getBoundingClientRect() ?? null);
+      // Destination label: show on discrete step (arrow/Tab); clear on pointer
+      // reclaim so the label never persists after the user resumes pointer movement.
+      if (fromStep) {
+        setStepLabel(picked?.label ?? null);
+      } else {
+        setStepLabel(null);
+      }
     };
 
     resolveRef.current = () => {
       cycle = Cycle.reclaim(cycle);
-      render(stackAt());
+      render(stackAt(), false);
     };
 
     const onPointerMove = (e: PointerEvent) => {
@@ -157,14 +196,14 @@ export function useCarry({ registry, data, state, send, commit }: Props): {
     const stepForward = () => {
       const stack = stackAt();
       cycle = Cycle.step(cycle, stack, anchorFrom(stack));
-      render(stack);
+      render(stack, true);
     };
 
     /** Reverse step using (i−1+N)%N. Shift+Tab. */
     const stepReverse = () => {
       const stack = stackAt();
       cycle = Cycle.stepBack(cycle, stack, anchorFrom(stack));
-      render(stack);
+      render(stack, true);
     };
 
     const flash = (p: Point) => {
@@ -187,6 +226,7 @@ export function useCarry({ registry, data, state, send, commit }: Props): {
         flash(point);
         return;
       }
+      dismissCoachMark();
       setTarget(null);
       move(beforeData, sourceId, dest.parentId, dest.slotKey, dest.index).map(
         (next) => {
@@ -207,6 +247,7 @@ export function useCarry({ registry, data, state, send, commit }: Props): {
       if (!armed) return; // The entering click — ignore it.
       e.preventDefault();
       e.stopPropagation();
+      dismissCoachMark();
       commitMove();
     };
 
@@ -219,7 +260,9 @@ export function useCarry({ registry, data, state, send, commit }: Props): {
       if (e.key === "Escape") {
         e.preventDefault();
         e.stopPropagation();
+        dismissCoachMark();
         setTarget(null);
+        setStepLabel(null);
         return send({ type: "CARRY_CANCEL" });
       }
       if (e.key === "Tab") {
@@ -264,6 +307,12 @@ export function useCarry({ registry, data, state, send, commit }: Props): {
       setPoint(null);
       setCycleStatus(null);
       setLiftRect(null);
+      setStepLabel(null);
+      // Dismiss coach mark on any carry exit (commit, cancel, or unexpected).
+      if (showCoachMark) {
+        setCarryCoachMark(false);
+        markCarrySeen();
+      }
       // Clear any pending flash timer on carry exit.
       if (flashTimerRef.current) {
         clearTimeout(flashTimerRef.current);
@@ -275,5 +324,14 @@ export function useCarry({ registry, data, state, send, commit }: Props): {
 
   useScrollResolve({ active: carrying, resolve: resolveRef });
 
-  return { target, noTargetFlash, cycleStatus, liftRect, sourceType, point };
+  return {
+    target,
+    noTargetFlash,
+    cycleStatus,
+    liftRect,
+    sourceType,
+    point,
+    carryCoachMark,
+    stepLabel,
+  };
 }

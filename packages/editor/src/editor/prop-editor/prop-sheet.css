@@ -119,6 +119,42 @@
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  flex: 1;
+}
+
+.prop-sheet-close {
+  flex-shrink: 0;
+  /* 44px wide tap target; height matches --sheet-header-height (40px) */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 44px;
+  height: 40px;
+  margin-right: -12px; /* pull flush with header padding-right */
+  padding-inline: 10px;
+  appearance: none;
+  border: none;
+  background: transparent;
+  color: var(--text-field-secondary);
+  font-size: 20px;
+  line-height: 1;
+  cursor: pointer;
+  border-radius: 6px;
+  transition: background 100ms ease, color 100ms ease;
+}
+
+.prop-sheet-close:hover {
+  background: var(--accent-hover);
+  color: var(--text-field);
+}
+
+.prop-sheet-close:active {
+  background: var(--accent-select);
+}
+
+.prop-sheet-close:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
 }
 
 /* ── Field anatomy (light sheet surface) ────────────────────────────────── */
@@ -241,14 +277,22 @@
   padding-right: 28px;
 }
 
-/* read-only */
+/* read-only — muted appearance, non-interactive (lock icon is the sole signal) */
 .prop-field--readonly input,
 .prop-field--readonly textarea,
 .prop-field--readonly select {
   background: var(--control-readonly-bg);
   color: var(--control-readonly-text);
   border-color: var(--control-border);
-  cursor: not-allowed;
+  pointer-events: none;
+  opacity: 0.55;
+}
+
+.prop-field--readonly input:focus,
+.prop-field--readonly textarea:focus,
+.prop-field--readonly select:focus {
+  border-color: var(--control-border);
+  box-shadow: none;
 }
 
 .prop-readonly-badge {
@@ -265,4 +309,9 @@
   font-size: 12px;
   color: var(--text-field-muted);
   margin: 0;
+}
+
+.prop-sheet-hint--warning {
+  color: var(--text-field-secondary);
+  font-style: italic;
 }

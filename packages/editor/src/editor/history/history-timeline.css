@@ -95,3 +95,25 @@
   background: var(--surface-bar);
   transform: rotate(45deg);
 }
+
+/* --- Rename inline input --- */
+
+.timeline-rename-input {
+  appearance: none;
+  border: none;
+  outline: none;
+  background: var(--active-on-bar);
+  color: var(--text-bar-strong);
+  font-family: var(--font-system);
+  font-size: 12px;
+  padding: 2px 6px;
+  border-radius: 3px;
+  width: 120px;
+  min-width: 0;
+  flex-shrink: 1;
+}
+
+.timeline-rename-input::selection {
+  background: var(--accent-select);
+  color: var(--text-bar-strong);
+}

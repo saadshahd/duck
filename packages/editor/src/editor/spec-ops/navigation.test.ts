@@ -1,6 +1,6 @@
 import { describe, it, expect } from "bun:test";
 import type { ComponentData, Data } from "@puckeditor/core";
-import { nextInTreeOrder } from "./navigation.js";
+import { nextInTreeOrder, firstInTreeOrder } from "./navigation.js";
 
 const text = (id: string): ComponentData => ({
   type: "Text",
@@ -83,5 +83,16 @@ describe("nextInTreeOrder — full walk", () => {
       current = next!;
     }
     expect(visited).toEqual(["outer", "head", "body", "b1", "b2", "foot"]);
+  });
+});
+
+describe("firstInTreeOrder", () => {
+  it("returns the root-level first element", () => {
+    expect(firstInTreeOrder(data)).toBe("outer");
+  });
+
+  it("returns null for an empty document", () => {
+    const empty: Data = { root: { props: {} }, content: [] };
+    expect(firstInTreeOrder(empty)).toBeNull();
   });
 });
