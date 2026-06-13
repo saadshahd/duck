@@ -7,6 +7,9 @@ import { controlRenderers } from "./controls/index.js";
 import { resolveRenderer } from "./controls/dispatch.js";
 import { FieldLabel, fieldClass, selectDisplay } from "./field-shell.js";
 
+export type { ValueMode } from "./field-shell.js";
+export { resolveValueMode } from "./field-shell.js";
+
 // --- Controlled field props (decoupled from form library) ---
 
 export type FieldProps<F extends Field = Field, V = unknown> = {

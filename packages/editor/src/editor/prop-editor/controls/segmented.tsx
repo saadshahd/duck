@@ -1,7 +1,7 @@
 import { SegmentGroup } from "@ark-ui/react/segment-group";
 import type { Field } from "@puckeditor/core";
 import { useShadowSheet } from "../../overlay/index.js";
-import { FieldLabel, fieldClass, selectDisplay } from "../field-shell.js";
+import { FieldLabel, fieldClass, resolveValueMode } from "../field-shell.js";
 import type { ControlRenderer, FieldProps } from "./index.js";
 import css from "./segmented.css?inline";
 
@@ -33,9 +33,10 @@ export const Segmented = (({
   // Dispatch (resolveRenderer) guarantees this renderer is only reached for a
   // select field, so the narrowing cast is safe.
   const selectField = field as SelectField;
-  const { isUnset, display } = selectDisplay(value, selectField.options);
+  const presets = selectField.options.map((o) => String(o.value));
+  const mode = resolveValueMode(value, presets);
   // SegmentGroup requires a string value prop; undefined = no selection (honest unset).
-  const groupValue = isUnset ? undefined : display;
+  const groupValue = mode.mode === "preset" ? mode.key : undefined;
 
   return (
     <div className={fieldClass(readOnly)}>

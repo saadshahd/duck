@@ -1,7 +1,7 @@
 import { SegmentGroup } from "@ark-ui/react/segment-group";
 import type { Field } from "@puckeditor/core";
 import { useShadowSheet } from "../../overlay/index.js";
-import { FieldLabel, fieldClass, selectDisplay } from "../field-shell.js";
+import { FieldLabel, fieldClass, resolveValueMode } from "../field-shell.js";
 import type { ControlRenderer, FieldProps } from "./index.js";
 import css from "./swatch.css?inline";
 
@@ -23,12 +23,10 @@ export const Swatch = (({
   // select field, so the narrowing cast is safe.
   const selectField = field as SelectField;
 
-  // T7 will centralize preset/literal/unset derivation across all three controls.
-  // For T5: selected = membership via selectDisplay; unset = no swatch selected
-  // + visible sentinel chip.
-  const { isUnset, display } = selectDisplay(value, selectField.options);
+  const presets = selectField.options.map((o) => String(o.value));
+  const mode = resolveValueMode(value, presets);
   // SegmentGroup requires a string value prop; undefined = no selection (honest unset).
-  const groupValue = isUnset ? undefined : display;
+  const groupValue = mode.mode === "preset" ? mode.key : undefined;
 
   return (
     <div className={fieldClass(readOnly)}>
@@ -46,7 +44,7 @@ export const Swatch = (({
           }
         }}
       >
-        {isUnset && (
+        {mode.mode !== "preset" && (
           <span
             className="swatch-sentinel"
             data-role="swatch-sentinel"

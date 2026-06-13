@@ -2,7 +2,7 @@ import { NumberInput } from "@ark-ui/react/number-input";
 import { SegmentGroup } from "@ark-ui/react/segment-group";
 import type { Field } from "@puckeditor/core";
 import { useShadowSheet } from "../../overlay/index.js";
-import { FieldLabel, fieldClass, selectDisplay } from "../field-shell.js";
+import { FieldLabel, fieldClass, resolveValueMode } from "../field-shell.js";
 import { FieldMetadata } from "../field-metadata.js";
 import { parseLeadingNumber } from "./dimension-parse.js";
 import type { ControlRenderer, FieldProps } from "./index.js";
@@ -26,15 +26,13 @@ export const Dimension = (({
   // select field, so the narrowing cast is safe.
   const selectField = field as SelectField;
 
-  // T7 will centralize preset/literal/unset derivation across all controls.
-  // For T6: selected = membership via selectDisplay; an off-grid literal is
-  // "set" (no sentinel) — the numeric input is its honest display.
-  const { isUnset } = selectDisplay(value, selectField.options);
+  const presets = selectField.options.map((o) => String(o.value));
+  const storedStr = String(value ?? "");
+  const mode = resolveValueMode(value, presets);
   // SegmentGroup value: stored string when a preset is selected; empty string
   // for off-grid or unset (Ark treats "" as "no selection" in controlled mode,
   // whereas undefined makes Ark ignore the prop and retain internal state).
-  const storedStr = String(value ?? "");
-  const chipValue = isUnset ? "" : storedStr;
+  const chipValue = mode.mode === "preset" ? mode.key : "";
 
   const unit = FieldMetadata.unit(selectField) ?? "";
 
@@ -49,7 +47,7 @@ export const Dimension = (({
   // Sentinel shows only when value is absent/unparseable AND not a preset member.
   // An off-grid literal that parses to a finite number is "set" — numeric input
   // covers it; no sentinel needed.
-  const showSentinel = isUnset && leadingNum === undefined;
+  const showSentinel = mode.mode !== "preset" && leadingNum === undefined;
 
   return (
     <div className={fieldClass(readOnly)}>

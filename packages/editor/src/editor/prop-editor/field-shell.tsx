@@ -48,3 +48,23 @@ export const selectDisplay = (
   const isUnset = !options.some((o) => String(o.value) === current);
   return { isUnset, display: isUnset ? "" : current };
 };
+
+export type ValueMode =
+  | { mode: "preset"; key: string }
+  | { mode: "literal"; value: string }
+  | { mode: "unset" };
+
+/** Classify a field value against a known preset list.
+ *  - unset: value is undefined or an empty string
+ *  - preset: non-empty string that exactly matches one of the presets
+ *  - literal: any other non-empty value (off-grid, not in preset list) */
+export const resolveValueMode = (
+  value: unknown,
+  presets: string[],
+): ValueMode => {
+  if (value === undefined || value === "") return { mode: "unset" };
+  const str = String(value);
+  if (str === "") return { mode: "unset" };
+  if (presets.includes(str)) return { mode: "preset", key: str };
+  return { mode: "literal", value: str };
+};

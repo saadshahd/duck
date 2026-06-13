@@ -1,5 +1,5 @@
 import { describe, it, expect } from "bun:test";
-import { selectDisplay } from "./field-shell.js";
+import { selectDisplay, resolveValueMode } from "./field-shell.js";
 
 const opts = [
   { value: "h1", label: "H1" },
@@ -41,6 +41,43 @@ describe("selectDisplay", () => {
     expect(selectDisplay(1, numeric)).toEqual({
       isUnset: false,
       display: "1",
+    });
+  });
+});
+
+describe("resolveValueMode", () => {
+  const presets = ["sm", "md", "lg"];
+
+  it("undefined → unset", () => {
+    expect(resolveValueMode(undefined, presets)).toEqual({ mode: "unset" });
+  });
+
+  it("empty string → unset", () => {
+    expect(resolveValueMode("", presets)).toEqual({ mode: "unset" });
+  });
+
+  it("value in presets → preset with key", () => {
+    expect(resolveValueMode("md", presets)).toEqual({
+      mode: "preset",
+      key: "md",
+    });
+  });
+
+  it("non-empty value not in presets → literal", () => {
+    expect(resolveValueMode("16px", presets)).toEqual({
+      mode: "literal",
+      value: "16px",
+    });
+  });
+
+  it("number value matching a preset string → preset", () => {
+    expect(resolveValueMode(42, ["42"])).toEqual({ mode: "preset", key: "42" });
+  });
+
+  it("number value not in presets → literal", () => {
+    expect(resolveValueMode(99, ["42"])).toEqual({
+      mode: "literal",
+      value: "99",
     });
   });
 });
