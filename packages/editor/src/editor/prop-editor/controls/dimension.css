@@ -1,0 +1,174 @@
+/* Dimension control — plain CSS, shadow-DOM safe (no @property, no Tailwind).
+   Self-registered via useShadowSheet in dimension.tsx. Uses :host tokens.
+   Layout: preset chips row (SegmentGroup) + always-on NumberInput side by side. */
+
+.dimension-root {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  width: 100%;
+}
+
+/* Chip row — wraps when many presets are present */
+.dimension-chips {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px;
+  padding: 2px;
+  background: var(--control-bg);
+  border: 1px solid var(--control-border);
+  border-radius: 6px;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+/* Each chip is an Ark SegmentGroup item (a label element wrapping a hidden radio) */
+.dimension-chip {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 3px 7px;
+  border-radius: 4px;
+  font-family: var(--font-system);
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--text-field-secondary);
+  cursor: pointer;
+  user-select: none;
+  white-space: nowrap;
+  transition:
+    background 100ms ease,
+    color 100ms ease;
+  min-height: 22px;
+}
+
+.dimension-chip[data-state="checked"] {
+  background: var(--accent);
+  color: var(--text-bar-strong);
+}
+
+.dimension-chip:not([data-state="checked"]):hover {
+  background: var(--control-bg-hover);
+  color: var(--text-field);
+}
+
+.dimension-chip:focus-within {
+  outline: 2px solid var(--control-focus);
+  outline-offset: -1px;
+}
+
+/* Sentinel — shows when value is absent (not an off-grid literal, just empty) */
+.dimension-sentinel {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 3px 7px;
+  border-radius: 4px;
+  border: 2px dashed var(--control-border);
+  color: var(--text-field-secondary);
+  font-size: 10px;
+  min-height: 22px;
+  cursor: default;
+  user-select: none;
+}
+
+/* NumberInput row — always visible, sits below (or beside) the chips */
+.dimension-input-row {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.dimension-input-control {
+  display: flex;
+  align-items: center;
+  flex: 1;
+  background: var(--control-bg);
+  border: 1px solid var(--control-border);
+  border-radius: 6px;
+  overflow: hidden;
+  height: 28px;
+}
+
+.dimension-input-control:focus-within {
+  outline: 2px solid var(--control-focus);
+  outline-offset: -1px;
+}
+
+.dimension-input-field {
+  flex: 1;
+  border: none;
+  background: transparent;
+  font-family: var(--font-system);
+  font-size: 12px;
+  color: var(--text-field);
+  padding: 0 6px;
+  height: 100%;
+  min-width: 0;
+  outline: none;
+}
+
+.dimension-input-field::placeholder {
+  color: var(--text-field-secondary);
+}
+
+.dimension-unit-badge {
+  padding: 0 6px 0 2px;
+  font-family: var(--font-system);
+  font-size: 11px;
+  color: var(--text-field-secondary);
+  user-select: none;
+  flex-shrink: 0;
+}
+
+/* Spinner triggers — compact increment/decrement buttons */
+.dimension-trigger {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 100%;
+  background: transparent;
+  border: none;
+  border-left: 1px solid var(--control-border);
+  color: var(--text-field-secondary);
+  cursor: pointer;
+  font-size: 10px;
+  padding: 0;
+  line-height: 1;
+}
+
+.dimension-trigger:hover {
+  background: var(--control-bg-hover);
+  color: var(--text-field);
+}
+
+/* Read-only state — muted chips, non-editable input */
+.dimension-chips[data-disabled] .dimension-chip {
+  cursor: not-allowed;
+  color: var(--text-field-muted);
+}
+
+.dimension-chips[data-disabled] .dimension-chip[data-state="checked"] {
+  background: var(--control-readonly-bg);
+  color: var(--control-readonly-text);
+}
+
+.dimension-chips[data-disabled] .dimension-sentinel {
+  opacity: 0.6;
+}
+
+.dimension-input-control[data-disabled] {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.dimension-input-control[data-disabled] .dimension-input-field {
+  cursor: not-allowed;
+}
+
+.dimension-input-control[data-disabled] .dimension-trigger {
+  cursor: not-allowed;
+  pointer-events: none;
+}

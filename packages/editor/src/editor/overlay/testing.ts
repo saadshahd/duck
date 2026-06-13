@@ -1083,3 +1083,181 @@ export const expandSheetDisclosures = (page: Page) =>
       .forEach((t) => t.click());
     return triggers.length;
   }) as Promise<number>;
+
+// --- Dimension control helpers ---
+
+/** Locate one dimension control's parts inside the overlay shadow root, scoping by
+ *  the field's visible label. The control has no field-id attribute (matching its
+ *  swatch/segmented siblings) — fields are distinguished by the `<label>` that
+ *  precedes the `[data-role='dimension']` root inside the shared `.prop-field`
+ *  wrapper. Runs inside `page.evaluate` so it can carry the label argument; reused
+ *  by every dimension reader below so the finder lives in exactly one place.
+ *  Returns the part requested by `sel` ("root" → the dimension root). */
+const dimensionRoot = (
+  root: ShadowRoot,
+  label?: string,
+): Element | undefined => {
+  const roots = [
+    ...root.querySelectorAll("[data-role='dimension']"),
+  ] as HTMLElement[];
+  if (!label) return roots[0];
+  return roots.find((r) => {
+    const field = r.closest(".prop-field");
+    return field?.querySelector("label")?.textContent?.trim() === label;
+  });
+};
+
+/** Every dimension chip for the given field label, read from the overlay shadow
+ *  root by data-role. Returns `{ value, checked }` per chip. `checked` reads
+ *  `data-state="checked"` (Ark SegmentGroup convention). */
+export const readDimensionChips = (page: Page, fieldLabel?: string) =>
+  page.evaluate(
+    ({ label, finder }) => {
+      for (const d of document.querySelectorAll("div")) {
+        if (!d.shadowRoot || d.style.position !== "fixed") continue;
+        const find = new Function(
+          "root",
+          "label",
+          `return (${finder})(root, label)`,
+        );
+        const root = find(d.shadowRoot, label) as Element | undefined;
+        if (!root) continue;
+        return [...root.querySelectorAll("[data-role='dimension-chip']")].map(
+          (el) => ({
+            value: el.getAttribute("data-value") ?? "",
+            checked: el.getAttribute("data-state") === "checked",
+          }),
+        );
+      }
+      return null;
+    },
+    { label: fieldLabel, finder: dimensionRoot.toString() },
+  ) as Promise<{ value: string; checked: boolean }[] | null>;
+
+/** The current value of the dimension NumberInput field for the given label.
+ *  Reads the `<input>` element's value. Null when absent. */
+export const getDimensionInputValue = (page: Page, fieldLabel?: string) =>
+  page.evaluate(
+    ({ label, finder }) => {
+      for (const d of document.querySelectorAll("div")) {
+        if (!d.shadowRoot || d.style.position !== "fixed") continue;
+        const find = new Function(
+          "root",
+          "label",
+          `return (${finder})(root, label)`,
+        );
+        const root = find(d.shadowRoot, label) as Element | undefined;
+        if (!root) continue;
+        const input = root.querySelector(
+          "[data-role='dimension-input'] input",
+        ) as HTMLInputElement | null;
+        return input ? input.value : null;
+      }
+      return null;
+    },
+    { label: fieldLabel, finder: dimensionRoot.toString() },
+  ) as Promise<string | null>;
+
+/** The on-screen (viewport) center of the dimension chip whose data-value
+ *  matches within the field identified by fieldLabel (or first field if omitted).
+ *  Null when no such chip exists. */
+export const getDimensionChipCenter = (
+  page: Page,
+  value: string,
+  fieldLabel?: string,
+) =>
+  page.evaluate(
+    ({ wanted, label, finder }) => {
+      for (const d of document.querySelectorAll("div")) {
+        if (!d.shadowRoot || d.style.position !== "fixed") continue;
+        const find = new Function(
+          "root",
+          "label",
+          `return (${finder})(root, label)`,
+        );
+        const root = find(d.shadowRoot, label) as Element | undefined;
+        if (!root) continue;
+        const chips = [
+          ...root.querySelectorAll("[data-role='dimension-chip']"),
+        ] as HTMLElement[];
+        const el = chips.find((c) => c.getAttribute("data-value") === wanted);
+        if (!el) return null;
+        const b = el.getBoundingClientRect();
+        return { x: b.left + b.width / 2, y: b.top + b.height / 2 };
+      }
+      return null;
+    },
+    { wanted: value, label: fieldLabel, finder: dimensionRoot.toString() },
+  ) as Promise<{ x: number; y: number } | null>;
+
+/** The on-screen (viewport) bounding box of the dimension NumberInput's
+ *  `<input>` element for the given field label. Building block for
+ *  setDimensionValue — it aims the real click that focuses the input. */
+const getDimensionInputRect = (page: Page, fieldLabel?: string) =>
+  page.evaluate(
+    ({ label, finder }) => {
+      for (const d of document.querySelectorAll("div")) {
+        if (!d.shadowRoot || d.style.position !== "fixed") continue;
+        const find = new Function(
+          "root",
+          "label",
+          `return (${finder})(root, label)`,
+        );
+        const root = find(d.shadowRoot, label) as Element | undefined;
+        if (!root) continue;
+        const input = root.querySelector(
+          "[data-role='dimension-input'] input",
+        ) as HTMLInputElement | null;
+        if (!input) return null;
+        const b = input.getBoundingClientRect();
+        return { x: b.left, y: b.top, width: b.width, height: b.height };
+      }
+      return null;
+    },
+    { label: fieldLabel, finder: dimensionRoot.toString() },
+  ) as Promise<{
+    x: number;
+    y: number;
+    width: number;
+    height: number;
+  } | null>;
+
+/** Type a value into the dimension NumberInput for the given field through the
+ *  REAL keyboard: focus the input by clicking its viewport center, select-all,
+ *  then type the digits. Exercises the actual commit path (zag NumberInput's
+ *  input event → onValueChange → onChange) the way a designer's keystrokes do.
+ *  Returns false when the input cannot be located. */
+export const setDimensionValue = async (
+  page: Page,
+  value: string,
+  fieldLabel?: string,
+): Promise<boolean> => {
+  const rect = await getDimensionInputRect(page, fieldLabel);
+  if (!rect) return false;
+  await page.mouse.click(rect.x + rect.width / 2, rect.y + rect.height / 2);
+  await page.keyboard.press("ControlOrMeta+a");
+  await page.keyboard.type(value);
+  await page.keyboard.press("Tab");
+  return true;
+};
+
+/** True when the dimension sentinel chip (shown when value is absent and
+ *  unparseable) is mounted within the field identified by fieldLabel. */
+export const isDimensionSentinelVisible = (page: Page, fieldLabel?: string) =>
+  page.evaluate(
+    ({ label, finder }) => {
+      for (const d of document.querySelectorAll("div")) {
+        if (!d.shadowRoot || d.style.position !== "fixed") continue;
+        const find = new Function(
+          "root",
+          "label",
+          `return (${finder})(root, label)`,
+        );
+        const root = find(d.shadowRoot, label) as Element | undefined;
+        if (!root) continue;
+        return root.querySelector("[data-role='dimension-sentinel']") !== null;
+      }
+      return false;
+    },
+    { label: fieldLabel, finder: dimensionRoot.toString() },
+  ) as Promise<boolean>;
