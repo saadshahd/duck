@@ -72,6 +72,25 @@ test.describe("Focus sheet shell", () => {
     }, typed);
     await page.waitForTimeout(200);
 
+    // Blur the focused text input before closing so the debounce flushes
+    // immediately. The 500ms debounce in puck-fields.tsx clears WITHOUT flushing
+    // on unmount, so we must trigger handleBlur before the sheet closes.
+    // React 19's onBlur maps to the native `focusout` event (which bubbles),
+    // not `blur` (which does not bubble). Dispatch focusout so React's root
+    // listener inside the shadow DOM fires the onBlur handler.
+    await page.evaluate(() => {
+      for (const d of document.querySelectorAll("div")) {
+        if (!d.shadowRoot || d.style.position !== "fixed") continue;
+        const input = d.shadowRoot.querySelector(
+          "[data-role='prop-sheet'] input[type='text']",
+        ) as HTMLInputElement | null;
+        if (!input) return;
+        input.dispatchEvent(
+          new FocusEvent("focusout", { bubbles: true, composed: true }),
+        );
+      }
+    });
+
     // Close via Escape: the machine's editing.ESCAPE handler transitions to
     // "selected" and clears editing context (same CANCEL_EDIT semantics — keeps
     // selection, committed value already stored).  A coordinate click would also
