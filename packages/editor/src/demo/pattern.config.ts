@@ -20,6 +20,7 @@ const btn = (id: string, label: string): ComponentData =>
 export const patternConfig: PatternConfig = {
   componentRoles: {
     Stack: "container",
+    Card: "container",
     Heading: "heading",
     Text: "body",
     Button: "action",
@@ -47,11 +48,9 @@ export const patternConfig: PatternConfig = {
         props: {
           id: "tmpl-card",
           style: { padding: "2rem" },
-          children: [
-            h("tmpl-h", "Card title"),
-            t("tmpl-t", "Description goes here."),
-            btn("tmpl-btn", "Get started"),
-          ],
+          header: [h("tmpl-h", "Card title")],
+          body: [t("tmpl-t", "Description goes here.")],
+          footer: [btn("tmpl-btn", "Get started")],
         },
       } as unknown as ComponentData,
     },
