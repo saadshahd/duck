@@ -144,6 +144,7 @@ export function usePropEditor({
     <SheetView
       key={editing.elementId}
       registry={registry}
+      config={config}
       component={sheetComponent}
       fields={sheetFields}
       onPropChange={handlePropChange}
@@ -153,11 +154,13 @@ export function usePropEditor({
 
 function SheetView({
   registry,
+  config,
   component,
   fields,
   onPropChange,
 }: {
   registry: FiberRegistry;
+  config: Config;
   component: ComponentData;
   fields: ResolvedFields;
   onPropChange: (propKey: string, value: unknown) => void;
@@ -167,11 +170,14 @@ function SheetView({
   const readOnlyFields = component.readOnly as
     | Partial<Record<string, boolean>>
     | undefined;
+  const typeLabel =
+    (config.components[component.type] as { label?: string } | undefined)
+      ?.label ?? component.type;
   return (
     <>
       <PropSheet.Backdrop cutoutRef={cutoutRef} open />
       <PropSheet.Tether lineRef={lineRef} />
-      <PropSheet.Panel open>
+      <PropSheet.Panel open label={typeLabel}>
         <ArkEnvironment>
           <PuckFields
             fields={fields}

@@ -1,6 +1,7 @@
 import type { ReactNode, RefObject } from "react";
 import { useShadowSheet } from "../overlay/index.js";
 import css from "./prop-sheet.css?inline";
+import propEditorCss from "./prop-editor.css?inline";
 import { useScrollFade } from "./use-scroll-fade.js";
 
 /** Single-div dim layer. The div is positioned over the selected element (via
@@ -42,9 +43,19 @@ function Tether({ lineRef }: { lineRef: RefObject<SVGLineElement | null> }) {
 
 /** Slide-in panel anchored to the viewport's right edge (position: fixed; right: 0).
  *  Never overlaps the canvas element — the canvas reserves width via padding-right
- *  (see occlusion reserve in editor.tsx, Task 7). Children are the field renderers. */
-function Panel({ open, children }: { open: boolean; children: ReactNode }) {
+ *  (see occlusion reserve in editor.tsx, Task 7). Children are the field renderers.
+ *  `label` is the component type label derived from Puck config — catalog-agnostic. */
+function Panel({
+  open,
+  label,
+  children,
+}: {
+  open: boolean;
+  label: string;
+  children: ReactNode;
+}) {
   useShadowSheet(css);
+  useShadowSheet(propEditorCss);
   const { viewportRef, sentinelRef, fadeRef } = useScrollFade();
   return (
     <div
@@ -52,6 +63,9 @@ function Panel({ open, children }: { open: boolean; children: ReactNode }) {
       data-role="prop-sheet"
       data-open={open || undefined}
     >
+      <header className="prop-sheet-header" data-role="prop-sheet-header">
+        <span className="prop-sheet-header-label">{label}</span>
+      </header>
       <div className="prop-sheet-viewport" ref={viewportRef}>
         {children}
         <div className="prop-sheet-sentinel" ref={sentinelRef} aria-hidden />

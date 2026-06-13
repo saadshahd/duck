@@ -3,13 +3,13 @@
 .field-section {
   display: flex;
   flex-direction: column;
-  gap: 12px;
-  margin-bottom: 16px;
+  gap: 10px;
+  margin-bottom: 12px;
 }
 
 .field-section + .field-section {
   border-top: 1px solid var(--border-subtle);
-  padding-top: 16px;
+  padding-top: 12px;
   margin-top: 0;
 }
 
@@ -20,5 +20,5 @@
   text-transform: uppercase;
   color: var(--text-field-tertiary);
   user-select: none;
-  margin: 0 0 4px;
+  margin: 0 0 2px;
 }
