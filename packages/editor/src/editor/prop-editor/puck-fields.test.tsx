@@ -1,7 +1,11 @@
 import { describe, it, expect } from "bun:test";
 import { renderToStaticMarkup } from "react-dom/server";
-import type { Field } from "@puckeditor/core";
+import type { Config, Data, Field } from "@puckeditor/core";
 import { PuckFields } from "./puck-fields.js";
+
+const emptyData: Data = { content: [], root: { props: {} } };
+const emptyConfig: Config = { components: {} };
+const noopCommit = () => ({ status: "unchanged" as const });
 
 const objectField = (
   label: string,
@@ -20,6 +24,9 @@ const render = (fields: Record<string, Field>) =>
       values={{}}
       onChange={() => {}}
       elementId="test"
+      data={emptyData}
+      config={emptyConfig}
+      commit={noopCommit}
     />,
   );
 

@@ -1,5 +1,5 @@
 import { type ReactNode, useState, useEffect, useRef } from "react";
-import type { Field } from "@puckeditor/core";
+import type { Config, Data, Field } from "@puckeditor/core";
 import { useFloating, flip, shift } from "@floating-ui/react";
 import { Disclosure } from "./disclosure.js";
 import { grouped } from "./grouping.js";
@@ -10,6 +10,9 @@ import { FieldLabel, fieldClass, selectDisplay } from "./field-shell.js";
 import { FieldMetadata } from "./field-metadata.js";
 import { useShadowSheet, useOnClickOutside } from "../overlay/index.js";
 import css from "./object-section.css?inline";
+import { SlotCtx, type CrossSlotDrag } from "./slot-context.js";
+import { SlotOutline } from "./slot-outline.js";
+import type { EditorCommit } from "../types.js";
 
 const EXTERNAL_MIDDLEWARE = [flip(), shift({ padding: 8 })];
 
@@ -544,7 +547,7 @@ const renderers = {
   radio: RadioInput,
   object: ObjectInput,
   array: ArrayInput,
-  slot: SlotHint,
+  slot: SlotOutline,
   external: ExternalInput,
   custom: CustomRender,
 } as const satisfies Partial<
@@ -602,16 +605,32 @@ export function PuckFields({
   readOnlyFields,
   onChange,
   elementId,
+  data,
+  config,
+  commit,
 }: {
   fields: Record<string, Field>;
   values: Record<string, unknown>;
   readOnlyFields?: Partial<Record<string, boolean>>;
   onChange: (key: string, value: unknown) => void;
   elementId: string;
+  data: Data;
+  config: Config;
+  commit: EditorCommit;
 }): ReactNode {
   const { isOpen, toggle } = useDisclosureState(elementId);
+  const [crossDrag, setCrossDrag] = useState<CrossSlotDrag>(undefined);
   return (
-    <>
+    <SlotCtx.Provider
+      value={{
+        data,
+        config,
+        commit,
+        parentId: elementId,
+        crossDrag,
+        setCrossDrag,
+      }}
+    >
       {toRenderItems(fields).map((item) => {
         if (item.kind === "field") {
           return (
@@ -648,6 +667,6 @@ export function PuckFields({
           </FieldSection>
         );
       })}
-    </>
+    </SlotCtx.Provider>
   );
 }

@@ -1,0 +1,100 @@
+.slot-insert-sheet {
+  position: fixed;
+  inset: 0 0 0 auto;
+  width: var(--sheet-width);
+  height: 100vh;
+  background: var(--surface-sheet);
+  backdrop-filter: blur(16px);
+  border-left: 1px solid var(--border-subtle);
+  color: var(--text-sheet);
+  font-family: var(--font-system);
+  display: flex;
+  flex-direction: column;
+  z-index: 10;
+}
+.slot-insert-sheet-header {
+  flex-shrink: 0;
+  height: var(--sheet-header-height);
+  display: flex;
+  align-items: center;
+  padding: 0 16px;
+  border-bottom: 1px solid var(--border-subtle);
+}
+.slot-insert-sheet-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-field-secondary);
+  letter-spacing: 0.01em;
+  flex: 1;
+}
+.slot-insert-sheet-close {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 44px;
+  height: 40px;
+  margin-right: -12px;
+  padding-inline: 10px;
+  appearance: none;
+  border: none;
+  background: transparent;
+  color: var(--text-field-secondary);
+  font-size: 20px;
+  line-height: 1;
+  cursor: pointer;
+  border-radius: 6px;
+  transition: background 100ms ease, color 100ms ease;
+}
+.slot-insert-sheet-close:hover {
+  background: var(--accent-hover);
+  color: var(--text-field);
+}
+.slot-insert-filter {
+  flex-shrink: 0;
+  margin: 12px 16px 8px;
+  height: 32px;
+  padding: 0 8px;
+  font-family: var(--font-system);
+  font-size: 13px;
+  color: var(--text-field);
+  background: var(--control-bg);
+  border: 1px solid var(--control-border);
+  border-radius: 6px;
+  outline: none;
+}
+.slot-insert-filter:focus {
+  border-color: var(--control-focus);
+  box-shadow: 0 0 0 1px var(--control-focus);
+}
+.slot-insert-list {
+  flex: 1;
+  overflow-y: auto;
+  list-style: none;
+  margin: 0;
+  padding: 4px 8px;
+}
+.slot-insert-item {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  height: 36px;
+  padding: 0 8px;
+  appearance: none;
+  border: none;
+  background: transparent;
+  color: var(--text-field);
+  font-family: var(--font-system);
+  font-size: 13px;
+  text-align: left;
+  cursor: pointer;
+  border-radius: 6px;
+}
+.slot-insert-item:hover {
+  background: var(--control-bg-hover);
+}
+.slot-insert-empty {
+  font-size: 12px;
+  color: var(--text-field-muted);
+  padding: 8px 24px;
+  margin: 0;
+}

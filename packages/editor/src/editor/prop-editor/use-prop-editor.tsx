@@ -204,6 +204,8 @@ export function usePropEditor({
       closing={closing}
       onPropChange={handlePropChange}
       onClose={cancelSheet}
+      data={data}
+      commit={commit}
     />
   );
 }
@@ -217,6 +219,8 @@ function SheetView({
   closing,
   onPropChange,
   onClose,
+  data,
+  commit,
 }: {
   registry: FiberRegistry;
   config: Config;
@@ -226,6 +230,8 @@ function SheetView({
   closing: boolean;
   onPropChange: (propKey: string, value: unknown) => void;
   onClose: () => void;
+  data: Data;
+  commit: EditorCommit;
 }): ReactNode {
   const elementId = (component.props as { id?: string }).id ?? "";
   const { cutoutRef, lineRef } = useSheetAnchor(registry, elementId);
@@ -252,6 +258,9 @@ function SheetView({
             readOnlyFields={readOnlyFields}
             onChange={onPropChange}
             elementId={elementId}
+            data={data}
+            config={config}
+            commit={commit}
           />
         </ArkEnvironment>
       </PropSheet.Panel>
