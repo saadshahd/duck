@@ -72,9 +72,7 @@ export const Dimension = (({
               data-role="dimension-sentinel"
               aria-label="No value set"
               title="No value set"
-            >
-              —
-            </span>
+            />
           )}
           {selectField.options.map((opt) => {
             const strVal = String(opt.value);
@@ -96,9 +94,8 @@ export const Dimension = (({
         </SegmentGroup.Root>
 
         {/* Always-on numeric input — reflects and commits the leading number.
-            Known limitation: compound values ("0 auto") lose their trailing part
-            on numeric edit (only the leading token round-trips); chip selection
-            remains the round-trip path for compound forms. Accepted for T6. */}
+            For compound values ("0 auto"), only the leading segment is replaced;
+            the remaining segments are preserved (e.g. "10 auto" not just "10"). */}
         <NumberInput.Root
           className="dimension-input-row"
           data-role="dimension-input"
@@ -113,7 +110,17 @@ export const Dimension = (({
             // an empty string means the user cleared the input — leave the stored
             // value unchanged rather than persisting a bare unit string.
             if (typeof e.value === "string" && e.value !== "") {
-              onChange(`${e.value}${unit}`);
+              const newLeading = `${e.value}${unit}`;
+              // Reconstruct compound values: split stored string into whitespace
+              // tokens, replace the leading token (which contained the number we
+              // are editing), and rejoin. This prevents "0 auto" → "10" dropping
+              // the "auto" token. Only the first token is replaced.
+              const tokens = storedStr.trim().split(/\s+/);
+              const rebuilt =
+                tokens.length > 1
+                  ? [newLeading, ...tokens.slice(1)].join(" ")
+                  : newLeading;
+              onChange(rebuilt);
             }
           }}
         >

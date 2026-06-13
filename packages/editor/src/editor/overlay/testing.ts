@@ -396,11 +396,13 @@ export const countSelectionRings = (page: Page) =>
     (r) => r.querySelectorAll("[data-role='selection-ring']").length,
   ) as Promise<number>;
 
-/** True when the selection label cluster (chip + trailing actions) is mounted. */
+/** True when the unified action bar (edit + move buttons) is mounted.
+ *  Previously checked for [data-role='selection-label'] — that breadcrumb strip
+ *  was removed in favour of a single floating action bar. */
 export const isSelectionLabelVisible = (page: Page) =>
   shadowQuery(
     page,
-    (r) => r.querySelector("[data-role='selection-label']") !== null,
+    (r) => r.querySelector("[data-role='action-edit']") !== null,
   ) as Promise<boolean>;
 
 /** Count of box-model band overlays painted in the overlay. */
@@ -419,8 +421,8 @@ export const readOverlayElements = (page: Page) =>
     const count = (sel: string) => r.querySelectorAll(sel).length;
     return {
       selectionRings: count("[data-role='selection-ring']"),
-      labelCluster: has("[data-role='selection-label']"),
-      moveChip: has("[data-role='move-chip']"),
+      labelCluster: has("[data-role='action-edit']"),
+      moveChip: false,
       boxModelToggle: has("[data-role='box-model-toggle']"),
       actionBar: has("[role='toolbar']"),
       slotStop: has("[data-role='slot-stop']"),

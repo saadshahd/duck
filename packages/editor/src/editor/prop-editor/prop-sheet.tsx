@@ -48,11 +48,13 @@ function Tether({ lineRef }: { lineRef: RefObject<SVGLineElement | null> }) {
  *  `onClose` fires when the × button is pressed. */
 function Panel({
   open,
+  closing,
   label,
   onClose,
   children,
 }: {
   open: boolean;
+  closing?: boolean;
   label: string;
   onClose: () => void;
   children: ReactNode;
@@ -65,6 +67,7 @@ function Panel({
       className="prop-sheet"
       data-role="prop-sheet"
       data-open={open || undefined}
+      data-closing={closing || undefined}
     >
       <header className="prop-sheet-header" data-role="prop-sheet-header">
         <span className="prop-sheet-header-label">{label}</span>

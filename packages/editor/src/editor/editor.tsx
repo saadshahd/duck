@@ -23,12 +23,14 @@ import {
   useEditorSelection,
   HoverHighlight,
   SelectionRing,
-  SelectionCluster,
   SlotStop,
   useActionHandler,
   useMoveInfo,
   createSelectParent,
   EdgeArrows,
+  ActionEdit,
+  ActionInsert,
+  ActionBoxModel,
 } from "./selection/index.js";
 import { usePropEditor } from "./prop-editor/use-prop-editor.jsx";
 import {
@@ -79,7 +81,6 @@ import { useResolution } from "./resolve/use-resolution.js";
 import { ShimmerOverlay } from "./resolve/shimmer-overlay.js";
 import { useEditorCommit } from "./commit.js";
 import type { EditorCommit } from "./types.js";
-import { commitTick as deriveCommitTick } from "./selection/commit-tick.js";
 
 export type EditorProps<UserConfig extends Config = Config> = {
   data: Partial<Data>;
@@ -220,8 +221,6 @@ export function Editor<UserConfig extends Config = Config>({
 
   const { selectedIds, lastSelectedId } = state.context;
   const singleSelected = selectedIds.size === 1 ? lastSelectedId : null;
-  const propCommitTick = deriveCommitTick(entries, lastSelectedId);
-
   const moveInfo = useMoveInfo(currentData, singleSelected, fiberRegistry);
   const handleAction = useActionHandler({
     data: currentData,
@@ -461,45 +460,13 @@ export function Editor<UserConfig extends Config = Config>({
         {affordances.selectionRings &&
           fiberRegistry &&
           [...selectedIds].map((id) => (
-            <SelectionRing key={id} registry={fiberRegistry} elementId={id} />
-          ))}
-        {affordances.labelCluster &&
-          !sheetOpen &&
-          fiberRegistry &&
-          lastSelectedId && (
-            <SelectionCluster.Root
+            <SelectionRing
+              key={id}
               registry={fiberRegistry}
-              elementId={lastSelectedId}
-              elementType={index.get(lastSelectedId)?.component.type}
-              selectionCount={selectedIds.size}
-              slotAddress={slotAddress}
-              onSelectParent={selectParent}
-              commitTick={propCommitTick}
-            >
-              {operable && singleSelected && (
-                <>
-                  {patternRegistry && (
-                    <MorphButton
-                      count={morph.count}
-                      elementId={singleSelected}
-                      onClick={morph.openPicker}
-                      buttonRef={morphButtonRef}
-                    />
-                  )}
-                  <SelectionCluster.Edit
-                    onClick={() => handleAction({ tag: "edit" })}
-                  />
-                  <SelectionCluster.Insert onClick={openInsert} />
-                </>
-              )}
-              {affordances.boxModel && (
-                <SelectionCluster.BoxModel
-                  active={boxModelVisible}
-                  onToggle={() => setBoxModelVisible((v) => !v)}
-                />
-              )}
-            </SelectionCluster.Root>
-          )}
+              elementId={id}
+              editing={sheetOpen}
+            />
+          ))}
         {affordances.boxModel &&
           boxModelVisible &&
           fiberRegistry &&
@@ -515,7 +482,29 @@ export function Editor<UserConfig extends Config = Config>({
             canMoveNext={moveInfo.canMoveNext}
             onMovePrev={() => handleAction({ tag: "move-up" })}
             onMoveNext={() => handleAction({ tag: "move-down" })}
-          />
+            elementType={index.get(singleSelected)?.component.type}
+          >
+            {operable && (
+              <>
+                {patternRegistry && (
+                  <MorphButton
+                    count={morph.count}
+                    elementId={singleSelected}
+                    onClick={morph.openPicker}
+                    buttonRef={morphButtonRef}
+                  />
+                )}
+                <ActionEdit onClick={() => handleAction({ tag: "edit" })} />
+                <ActionInsert onClick={openInsert} />
+              </>
+            )}
+            {affordances.boxModel && (
+              <ActionBoxModel
+                active={boxModelVisible}
+                onToggle={() => setBoxModelVisible((v) => !v)}
+              />
+            )}
+          </EdgeArrows>
         )}
         {operable && pointer === "editing" && sheet}
         {pointer === "inserting" &&

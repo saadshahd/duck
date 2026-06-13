@@ -1,5 +1,6 @@
 import { type ReactNode, useState, useEffect, useRef } from "react";
 import type { Field } from "@puckeditor/core";
+import { useFloating, flip, shift } from "@floating-ui/react";
 import { Disclosure } from "./disclosure.js";
 import { grouped } from "./grouping.js";
 import { useDisclosureState } from "./use-disclosure-state.js";
@@ -7,8 +8,10 @@ import { controlRenderers } from "./controls/index.js";
 import { resolveRenderer } from "./controls/dispatch.js";
 import { FieldLabel, fieldClass, selectDisplay } from "./field-shell.js";
 import { FieldMetadata } from "./field-metadata.js";
-import { useShadowSheet } from "../overlay/index.js";
+import { useShadowSheet, useOnClickOutside } from "../overlay/index.js";
 import css from "./object-section.css?inline";
+
+const EXTERNAL_MIDDLEWARE = [flip(), shift({ padding: 8 })];
 
 export type { ValueMode } from "./field-shell.js";
 export { resolveValueMode } from "./field-shell.js";
@@ -410,6 +413,17 @@ const ExternalInput = ({
   const [items, setItems] = useState<unknown[] | null>(null);
   const [open, setOpen] = useState(false);
 
+  const { refs, floatingStyles } = useFloating({
+    placement: "bottom-start",
+    middleware: EXTERNAL_MIDDLEWARE,
+  });
+
+  const close = () => setOpen(false);
+  useOnClickOutside(
+    refs.floating as React.RefObject<HTMLElement | null>,
+    close,
+  );
+
   const load = () => {
     setOpen(true);
     fetchExternal(field)
@@ -426,11 +440,20 @@ const ExternalInput = ({
         text={toDisplayLabel(label, field.label)}
         readOnly={readOnly}
       />
-      <button type="button" disabled={readOnly} onClick={load}>
+      <button
+        ref={refs.setReference}
+        type="button"
+        disabled={readOnly}
+        onClick={load}
+      >
         {value ? summarize(value as never) : (field.placeholder ?? "Select...")}
       </button>
       {open && items && (
-        <ul className="prop-field-nested">
+        <ul
+          ref={refs.setFloating}
+          className="prop-field-dropdown"
+          style={floatingStyles}
+        >
           {items.map((item, i) => (
             <li key={i}>
               <button

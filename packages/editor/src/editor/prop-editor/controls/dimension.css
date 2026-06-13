@@ -9,10 +9,10 @@
   width: 100%;
 }
 
-/* Chip row — wraps when many presets are present */
+/* Chip row — no wrap; scrolls horizontally if presets exceed panel width */
 .dimension-chips {
   display: flex;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
   align-items: center;
   gap: 4px;
   padding: 2px;
@@ -21,6 +21,13 @@
   border-radius: 6px;
   width: 100%;
   box-sizing: border-box;
+  overflow-x: auto;
+  /* Hide scrollbar chrome while keeping scrollability */
+  scrollbar-width: none;
+}
+
+.dimension-chips::-webkit-scrollbar {
+  display: none;
 }
 
 /* Each chip is an Ark SegmentGroup item (a label element wrapping a hidden radio) */
@@ -58,19 +65,27 @@
   outline-offset: -1px;
 }
 
-/* Sentinel — shows when value is absent (not an off-grid literal, just empty) */
+/* Sentinel — shows when value is absent (not an off-grid literal, just empty).
+   Hatched diagonal pattern distinguishes it from every real chip/value. */
 .dimension-sentinel {
   display: flex;
   align-items: center;
   justify-content: center;
   padding: 3px 7px;
+  width: 24px;
   border-radius: 4px;
   border: 2px dashed var(--control-border);
-  color: var(--text-field-secondary);
-  font-size: 10px;
   min-height: 22px;
   cursor: default;
   user-select: none;
+  flex-shrink: 0;
+  background: repeating-linear-gradient(
+    45deg,
+    var(--control-border) 0px,
+    var(--control-border) 1px,
+    transparent 1px,
+    transparent 4px
+  );
 }
 
 /* NumberInput row — always visible, sits below (or beside) the chips */

@@ -1,4 +1,10 @@
-import { useCallback, useEffect, type ReactNode } from "react";
+import {
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+  type ReactNode,
+} from "react";
 import type { ComponentData, Config, Data, Metadata } from "@puckeditor/core";
 import { findById } from "@duckeditor/spec";
 import type { FiberRegistry } from "../fiber/index.js";
@@ -19,6 +25,9 @@ import { useSheetAnchor } from "./use-sheet-anchor.js";
 import { useResolvedFields } from "./use-resolved-fields.js";
 import { PuckFields } from "./puck-fields.js";
 import type { ResolvedFields } from "./find-editable-prop.js";
+
+/** Exit animation duration in ms — must match prop-sheet.css `[data-closing]` transition-duration. */
+const EXIT_MS = 150;
 
 /** True when opening the editor for this node should kick a force-resolve so the
  *  node's read-only / resolved props enter committed data before first render. */
@@ -105,16 +114,18 @@ export function usePropEditor({
     onCancel: cancelInline,
   });
 
-  const sheetComponent =
-    editing?.mode === "sheet" ? findById(data, editing.elementId) : null;
+  const sheetEditing = editing?.mode === "sheet" ? editing : null;
+  const sheetComponent = sheetEditing
+    ? findById(data, sheetEditing.elementId)
+    : null;
 
   useEffect(
     function forceResolveOnOpen() {
-      if (editing?.mode !== "sheet" || !sheetComponent) return;
+      if (!sheetEditing || !sheetComponent) return;
       if (!shouldForceResolveOnOpen(config, sheetComponent)) return;
-      forceResolve(editing.elementId);
+      forceResolve(sheetEditing.elementId);
     },
-    [editing?.mode, editing?.elementId, sheetComponent, config, forceResolve],
+    [sheetEditing, sheetComponent, config, forceResolve],
   );
 
   const { fields: sheetFields } = useResolvedFields(
@@ -138,17 +149,59 @@ export function usePropEditor({
 
   const cancelSheet = useCallback(() => send({ type: "CANCEL_EDIT" }), [send]);
 
-  if (!editing || editing.mode !== "sheet" || !sheetComponent || !registry) {
-    return null;
+  // Keep the last valid sheet snapshot alive during exit animation. When the
+  // sheet editing ends the snapshot freezes at its last value; a "closing" flag
+  // drives the CSS exit transition, and after EXIT_MS the component unmounts.
+  const snapshotRef = useRef<{
+    registry: FiberRegistry;
+    config: Config;
+    component: ComponentData;
+    fields: ResolvedFields;
+    elementId: string;
+  } | null>(null);
+  const [closing, setClosing] = useState(false);
+
+  const isSheetOpen = !!(sheetEditing && sheetComponent && registry);
+
+  if (isSheetOpen) {
+    snapshotRef.current = {
+      registry,
+      config,
+      component: sheetComponent,
+      fields: sheetFields,
+      elementId: sheetEditing.elementId,
+    };
   }
+
+  useEffect(
+    function manageClosingState() {
+      if (isSheetOpen) {
+        setClosing(false);
+        return;
+      }
+      if (!snapshotRef.current) return;
+      setClosing(true);
+      const id = setTimeout(() => {
+        snapshotRef.current = null;
+        setClosing(false);
+      }, EXIT_MS);
+      return () => clearTimeout(id);
+    },
+    [isSheetOpen],
+  );
+
+  const snap = snapshotRef.current;
+  if (!snap) return null;
 
   return (
     <SheetView
-      key={editing.elementId}
-      registry={registry}
-      config={config}
-      component={sheetComponent}
-      fields={sheetFields}
+      key={snap.elementId}
+      registry={snap.registry}
+      config={snap.config}
+      component={snap.component}
+      fields={snap.fields}
+      open={isSheetOpen}
+      closing={closing}
       onPropChange={handlePropChange}
       onClose={cancelSheet}
     />
@@ -160,6 +213,8 @@ function SheetView({
   config,
   component,
   fields,
+  open,
+  closing,
   onPropChange,
   onClose,
 }: {
@@ -167,6 +222,8 @@ function SheetView({
   config: Config;
   component: ComponentData;
   fields: ResolvedFields;
+  open: boolean;
+  closing: boolean;
   onPropChange: (propKey: string, value: unknown) => void;
   onClose: () => void;
 }): ReactNode {
@@ -180,9 +237,14 @@ function SheetView({
       ?.label ?? component.type;
   return (
     <>
-      <PropSheet.Backdrop cutoutRef={cutoutRef} open />
+      <PropSheet.Backdrop cutoutRef={cutoutRef} open={open} />
       <PropSheet.Tether lineRef={lineRef} />
-      <PropSheet.Panel open label={typeLabel} onClose={onClose}>
+      <PropSheet.Panel
+        open={open}
+        closing={closing}
+        label={typeLabel}
+        onClose={onClose}
+      >
         <ArkEnvironment>
           <PuckFields
             fields={fields}

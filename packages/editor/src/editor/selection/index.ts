@@ -8,4 +8,10 @@ export { useActionHandler } from "./use-action-handler.js";
 export { useMoveInfo } from "./use-move-info.js";
 export { createSelectParent } from "./use-select-parent.js";
 export { useToolbarYield } from "./use-toolbar-yield.js";
-export { EdgeArrows } from "./edge-arrows.js";
+export {
+  EdgeArrows,
+  ActionEdit,
+  ActionInsert,
+  ActionDelete,
+  ActionBoxModel,
+} from "./edge-arrows.js";

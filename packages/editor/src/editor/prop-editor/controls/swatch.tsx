@@ -27,6 +27,7 @@ export const Swatch = (({
   const mode = resolveValueMode(value, presets);
   // SegmentGroup requires a string value prop; undefined = no selection (honest unset).
   const groupValue = mode.mode === "preset" ? mode.key : undefined;
+  const isUnset = mode.mode !== "preset";
 
   return (
     <div className={fieldClass(readOnly)}>
@@ -44,16 +45,18 @@ export const Swatch = (({
           }
         }}
       >
-        {mode.mode !== "preset" && (
-          <span
-            className="swatch-sentinel"
-            data-role="swatch-sentinel"
-            aria-label="No color selected"
-            title="No color set"
-          >
-            —
-          </span>
-        )}
+        {/* Unset sentinel — always rendered so the user can click to clear a
+            selection. Shows a hatched diagonal pattern (never looks like any
+            real color). Selected-state ring applied when current value is unset. */}
+        <span
+          className={`swatch-sentinel${isUnset ? " swatch-sentinel--selected" : ""}`}
+          data-role="swatch-sentinel"
+          data-selected={isUnset ? "" : undefined}
+          aria-label={
+            isUnset ? "No color selected (current)" : "Clear color selection"
+          }
+          title={isUnset ? "No color set" : "Clear color"}
+        />
         {selectField.options.map((opt) => {
           const hex = String(opt.value);
           return (

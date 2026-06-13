@@ -44,13 +44,22 @@ export function HoverHighlight({
 export function SelectionRing({
   registry,
   elementId,
+  editing,
 }: {
   registry: FiberRegistry;
   elementId: string;
+  /** When true, the ring renders in editing-mode style (bolder, accent colour)
+   *  to distinguish "sheet open" from plain selection. */
+  editing?: boolean;
 }) {
   useShadowSheet(css);
   const ref = useHighlightRef(registry, elementId);
   return (
-    <div ref={ref} data-role="selection-ring" className="selection-ring" />
+    <div
+      ref={ref}
+      data-role="selection-ring"
+      className="selection-ring"
+      data-editing={editing || undefined}
+    />
   );
 }

@@ -27,7 +27,7 @@ test.describe("R4 — state-owned affordance sets", () => {
     expect(await readOverlayElements(page)).toEqual({
       selectionRings: 1,
       labelCluster: true,
-      moveChip: true,
+      moveChip: false,
       boxModelToggle: true,
       actionBar: true,
       slotStop: false,
