@@ -6,9 +6,30 @@ import { useDisclosureState } from "./use-disclosure-state.js";
 import { controlRenderers } from "./controls/index.js";
 import { resolveRenderer } from "./controls/dispatch.js";
 import { FieldLabel, fieldClass, selectDisplay } from "./field-shell.js";
+import { FieldMetadata } from "./field-metadata.js";
+import { useShadowSheet } from "../overlay/index.js";
+import css from "./object-section.css?inline";
 
 export type { ValueMode } from "./field-shell.js";
 export { resolveValueMode } from "./field-shell.js";
+
+// --- Always-open section with heading ---
+
+function FieldSection({
+  heading,
+  children,
+}: {
+  heading: string;
+  children: ReactNode;
+}): ReactNode {
+  useShadowSheet(css);
+  return (
+    <section className="field-section">
+      <h3 className="field-section-heading">{heading}</h3>
+      {children}
+    </section>
+  );
+}
 
 // --- Controlled field props (decoupled from form library) ---
 
@@ -160,35 +181,24 @@ const ObjectInput = ({
   toggle,
 }: FieldProps<Extract<Field, { type: "object" }>, unknown>) => {
   const obj = (value ?? {}) as Record<string, unknown>;
-  const open = isOpen?.(path) ?? false;
-  const entries = Object.entries(field.objectFields);
+  const heading = FieldMetadata.group(field) ?? field.label ?? label;
   return (
-    <Disclosure.Root>
-      <Disclosure.Trigger
-        label={field.label ?? label}
-        count={entries.length}
-        open={open}
-        onToggle={() => toggle?.(path)}
-      />
-      {open && (
-        <Disclosure.Panel depth={depth + 1}>
-          {entries.map(([key, childField]) => (
-            <PuckFieldInput
-              key={key}
-              label={key}
-              field={childField as Field}
-              value={obj[key]}
-              onChange={(v) => onChange({ ...obj, [key]: v })}
-              readOnly={readOnly}
-              path={`${path}.${key}`}
-              depth={depth + 1}
-              isOpen={isOpen}
-              toggle={toggle}
-            />
-          ))}
-        </Disclosure.Panel>
-      )}
-    </Disclosure.Root>
+    <FieldSection heading={heading}>
+      {Object.entries(field.objectFields).map(([key, childField]) => (
+        <PuckFieldInput
+          key={key}
+          label={key}
+          field={childField as Field}
+          value={obj[key]}
+          onChange={(v) => onChange({ ...obj, [key]: v })}
+          readOnly={readOnly}
+          path={`${path}.${key}`}
+          depth={depth + 1}
+          isOpen={isOpen}
+          toggle={toggle}
+        />
+      ))}
+    </FieldSection>
   );
 };
 
@@ -426,7 +436,39 @@ function PuckFieldInput(props: FieldProps): ReactNode {
   return <FallbackField {...props} />;
 }
 
-/** Render all top-level fields for a component, grouped primary → disclosed → slot. */
+type RenderItem =
+  | { kind: "field"; key: string; field: Field }
+  | { kind: "group"; label: string; entries: [string, Field][] };
+
+/** Collapse same-group top-level fields into shared section items.
+ *  Fields without a group metadata value remain as standalone items.
+ *  Ordering follows the bin order from `grouped()` (primary → disclosed → slot). */
+const toRenderItems = (fields: Record<string, Field>): RenderItem[] => {
+  const seen = new Map<string, RenderItem & { kind: "group" }>();
+  return grouped(fields).reduce<RenderItem[]>((acc, [key, field]) => {
+    const grp = FieldMetadata.group(field);
+    if (!grp) {
+      acc.push({ kind: "field", key, field });
+      return acc;
+    }
+    const existing = seen.get(grp);
+    if (existing) {
+      existing.entries.push([key, field]);
+      return acc;
+    }
+    const item: RenderItem & { kind: "group" } = {
+      kind: "group",
+      label: grp,
+      entries: [[key, field]],
+    };
+    seen.set(grp, item);
+    acc.push(item);
+    return acc;
+  }, []);
+};
+
+/** Render all top-level fields for a component, grouped primary → disclosed → slot.
+ *  Fields sharing the same metadata.group are clustered under a shared section heading. */
 export function PuckFields({
   fields,
   values,
@@ -443,20 +485,42 @@ export function PuckFields({
   const { isOpen, toggle } = useDisclosureState(elementId);
   return (
     <>
-      {grouped(fields).map(([key, field]) => (
-        <PuckFieldInput
-          key={key}
-          label={key}
-          field={field}
-          value={values[key]}
-          readOnly={readOnlyFields?.[key]}
-          onChange={(v) => onChange(key, v)}
-          path={key}
-          depth={0}
-          isOpen={isOpen}
-          toggle={toggle}
-        />
-      ))}
+      {toRenderItems(fields).map((item) => {
+        if (item.kind === "field") {
+          return (
+            <PuckFieldInput
+              key={item.key}
+              label={item.key}
+              field={item.field}
+              value={values[item.key]}
+              readOnly={readOnlyFields?.[item.key]}
+              onChange={(v) => onChange(item.key, v)}
+              path={item.key}
+              depth={0}
+              isOpen={isOpen}
+              toggle={toggle}
+            />
+          );
+        }
+        return (
+          <FieldSection key={item.label} heading={item.label}>
+            {item.entries.map(([key, field]) => (
+              <PuckFieldInput
+                key={key}
+                label={key}
+                field={field}
+                value={values[key]}
+                readOnly={readOnlyFields?.[key]}
+                onChange={(v) => onChange(key, v)}
+                path={key}
+                depth={0}
+                isOpen={isOpen}
+                toggle={toggle}
+              />
+            ))}
+          </FieldSection>
+        );
+      })}
     </>
   );
 }
