@@ -1,0 +1,23 @@
+[coast]
+name = "duck"
+runtime = "dind"
+worktree_dir = [".worktrees", ".claude/worktrees"]
+default_worktree_dir = ".worktrees"
+primary_port = "editor"
+
+[coast.setup]
+packages = ["bash", "curl", "unzip", "git", "libstdc++", "libgcc", "gcompat"]
+run = [
+    "curl -fsSL https://bun.sh/install | bash",
+    "ln -sf /root/.bun/bin/bun /usr/local/bin/bun",
+    "ln -sf /root/.bun/bin/bunx /usr/local/bin/bunx",
+]
+
+[services.editor]
+install = "bun install"
+command = "bun run --cwd packages/editor dev --host 0.0.0.0"
+port = 5173
+restart = "on-failure"
+
+[ports]
+editor = 5173
