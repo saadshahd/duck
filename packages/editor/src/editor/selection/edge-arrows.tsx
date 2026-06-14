@@ -1,11 +1,5 @@
 import { useEffect, useRef, useCallback, type ReactNode } from "react";
-import {
-  useFloating,
-  offset,
-  flip,
-  shift,
-  autoUpdate,
-} from "@floating-ui/react";
+import { useFloating, offset, shift, autoUpdate } from "@floating-ui/react";
 import { useShadowSheet, useRegistryAnchor } from "../overlay/index.js";
 import type { FiberRegistry } from "../fiber/index.js";
 import type { Axis } from "../layout/index.js";
@@ -126,16 +120,23 @@ export function ActionBoxModel({
 }
 
 /** Computes fixed-position styles for an arrow anchored to an element edge.
+ *  - top:    centered horizontally, just inside the element top edge
  *  - bottom: centered horizontally, just below the element
  *  - left:   centered vertically, just left of the element
  *  - right:  centered vertically, just right of the element */
 function edgeStyle(
   rect: DOMRect,
-  edge: "bottom" | "left" | "right",
+  edge: "top" | "bottom" | "left" | "right",
   arrowSize: number,
   gap: number,
 ): React.CSSProperties {
   const half = arrowSize / 2;
+  if (edge === "top") {
+    return {
+      top: rect.top + gap,
+      left: rect.left + rect.width / 2 - half,
+    };
+  }
   if (edge === "bottom") {
     return {
       top: rect.bottom + gap,
@@ -165,7 +166,7 @@ const EDGE_GAP = 6;
 function useEdgeArrow(
   registry: FiberRegistry,
   elementId: string,
-  edge: "bottom" | "left" | "right",
+  edge: "top" | "bottom" | "left" | "right",
 ) {
   const cleanupRef = useRef<(() => void) | null>(null);
 
@@ -219,7 +220,7 @@ function useEdgeArrow(
   return ref;
 }
 
-const MIDDLEWARE = [offset(8), flip(), shift({ padding: 8 })];
+const MIDDLEWARE = [offset(8), shift({ padding: 8 })];
 
 const ARIA_LABELS: Record<Axis, { prev: string; next: string }> = {
   horizontal: { prev: "Move left", next: "Move right" },
@@ -284,42 +285,22 @@ export function EdgeArrows({
   const labels = ARIA_LABELS[axis];
   const glyphs = ARROW_GLYPHS[axis];
 
-  // Edge arrows — horizontal: left+right; vertical: bottom only
+  // Edge arrows — horizontal: left+right; vertical: top+bottom
   const nextEdge = NEXT_EDGE[axis];
-  const prevEdge: "left" | null = axis === "horizontal" ? "left" : null;
+  const prevEdge: "left" | "top" = axis === "horizontal" ? "left" : "top";
 
   const nextRef = useEdgeArrow(registry, elementId, nextEdge);
-  // For horizontal axis, prev also moves to edge (left side)
-  const prevEdgeRef = useEdgeArrow(
-    registry,
-    elementId,
-    prevEdge ?? "bottom", // fallback irrelevant — not rendered for vertical
-  );
+  const prevEdgeRef = useEdgeArrow(registry, elementId, prevEdge);
 
   return (
     <>
-      {/* Floating action bar — anchored above the element */}
+      {/* Floating action bar — anchored above the element, shifts inside when near viewport top */}
       <div ref={refs.setFloating} style={{ ...floatingStyles, zIndex: 1 }}>
         <div className="action-bar" role="toolbar" aria-label="Element actions">
           {elementType && (
             <span className="action-bar-type-label">{elementType}</span>
           )}
           {children}
-          {/* ↑ stays in the bar for vertical axis; horizontal puts both at edges */}
-          {axis === "vertical" && (
-            <button
-              type="button"
-              aria-label={labels.prev}
-              data-role="edge-arrow-prev"
-              disabled={!canMovePrev}
-              onClick={onMovePrev}
-            >
-              {glyphs.prev}
-              <span className="action-bar-tooltip" role="tooltip">
-                {labels.prev}
-              </span>
-            </button>
-          )}
         </div>
       </div>
 
@@ -338,8 +319,8 @@ export function EdgeArrows({
         </button>
       )}
 
-      {/* Edge arrow: left (←) for horizontal axis only */}
-      {axis === "horizontal" && canMovePrev && (
+      {/* Edge arrow: top (↑) for vertical, left (←) for horizontal */}
+      {canMovePrev && (
         <button
           ref={prevEdgeRef}
           type="button"
