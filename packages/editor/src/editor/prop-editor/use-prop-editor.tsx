@@ -195,7 +195,6 @@ export function usePropEditor({
 
   return (
     <SheetView
-      key={snap.elementId}
       registry={snap.registry}
       config={snap.config}
       component={snap.component}
@@ -234,6 +233,12 @@ function SheetView({
   commit: EditorCommit;
 }): ReactNode {
   const elementId = (component.props as { id?: string }).id ?? "";
+  const viewportRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    if (viewportRef.current) viewportRef.current.scrollTop = 0;
+  }, [elementId]);
+
   const { cutoutRef, lineRef } = useSheetAnchor(registry, elementId);
   const readOnlyFields = component.readOnly as
     | Partial<Record<string, boolean>>
@@ -250,6 +255,9 @@ function SheetView({
         closing={closing}
         label={typeLabel}
         onClose={onClose}
+        onViewport={(el) => {
+          viewportRef.current = el;
+        }}
       >
         <ArkEnvironment>
           <PuckFields

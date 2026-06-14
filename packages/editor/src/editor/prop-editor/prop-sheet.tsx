@@ -51,12 +51,14 @@ function Panel({
   closing,
   label,
   onClose,
+  onViewport,
   children,
 }: {
   open: boolean;
   closing?: boolean;
   label: string;
   onClose: () => void;
+  onViewport?: (el: HTMLDivElement | null) => void;
   children: ReactNode;
 }) {
   useShadowSheet(css);
@@ -80,7 +82,15 @@ function Panel({
           ×
         </button>
       </header>
-      <div className="prop-sheet-viewport" ref={viewportRef}>
+      <div
+        className="prop-sheet-viewport"
+        ref={(el) => {
+          (
+            viewportRef as React.MutableRefObject<HTMLDivElement | null>
+          ).current = el;
+          onViewport?.(el);
+        }}
+      >
         {children}
         <div className="prop-sheet-sentinel" ref={sentinelRef} aria-hidden />
       </div>
