@@ -6,7 +6,10 @@ import css from "./drag.css?inline";
 type Props = {
   registry: FiberRegistry;
   target: Extract<DropTarget, { kind: "line" } | { kind: "container" }>;
+  altHeld?: boolean;
 };
+
+type Blockable = { blocked?: boolean };
 
 const INSET = -2;
 const EXPAND = 4;
@@ -22,9 +25,11 @@ const activeTileRect = (
 function ContainerHighlight({
   registry,
   target,
+  altHeld,
 }: {
   registry: FiberRegistry;
-  target: DropTarget & { kind: "container" };
+  target: DropTarget & { kind: "container" } & Blockable;
+  altHeld?: boolean;
 }) {
   const r =
     activeTileRect(target) ??
@@ -34,22 +39,27 @@ function ContainerHighlight({
     <div
       data-role="drop-indicator-container"
       className="drop-indicator-container"
+      data-blocked={target.blocked && !altHeld ? "true" : undefined}
       style={{
         top: r.top + INSET,
         left: r.left + INSET,
         width: r.width + EXPAND,
         height: r.height + EXPAND,
       }}
-    />
+    >
+      <span className="drop-blocked-hint">⌥ place anyway</span>
+    </div>
   );
 }
 
 function LineIndicator({
   registry,
   target,
+  altHeld,
 }: {
   registry: FiberRegistry;
-  target: DropTarget & { kind: "line" };
+  target: DropTarget & { kind: "line" } & Blockable;
+  altHeld?: boolean;
 }) {
   const el = registry.get(target.elementId);
   if (!el) return null;
@@ -76,14 +86,25 @@ function LineIndicator({
       data-role="drop-indicator"
       className="drop-indicator-line"
       data-axis={target.axis}
+      data-blocked={target.blocked && !altHeld ? "true" : undefined}
       style={style}
-    />
+    >
+      <span className="drop-blocked-hint">⌥ place anyway</span>
+    </div>
   );
 }
 
-export function DropIndicator({ registry, target }: Props) {
+export function DropIndicator({ registry, target, altHeld }: Props) {
   useShadowSheet(css);
   if (target.kind === "container")
-    return <ContainerHighlight registry={registry} target={target} />;
-  return <LineIndicator registry={registry} target={target} />;
+    return (
+      <ContainerHighlight
+        registry={registry}
+        target={target}
+        altHeld={altHeld}
+      />
+    );
+  return (
+    <LineIndicator registry={registry} target={target} altHeld={altHeld} />
+  );
 }

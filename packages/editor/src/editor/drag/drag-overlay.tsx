@@ -9,6 +9,7 @@ type Props = {
   registry: FiberRegistry;
   data: Data;
   target: DropTarget;
+  altHeld?: boolean;
 };
 
 /** The spatial drag affordance for the active drop target: a slot insert paints
@@ -17,9 +18,11 @@ type Props = {
  *  and validity live in the pointer-anchored MoveGhost, not here — these are the
  *  where, the ghost is the what. Root content has no container to paint, so it is
  *  named by the ghost alone. */
-export function DragOverlay({ registry, data, target }: Props) {
+export function DragOverlay({ registry, data, target, altHeld }: Props) {
   if (target.kind === "line")
-    return <DropIndicator registry={registry} target={target} />;
+    return (
+      <DropIndicator registry={registry} target={target} altHeld={altHeld} />
+    );
 
   if (target.kind === "none")
     return <NoTargetMarker registry={registry} elementId={target.elementId} />;
@@ -31,7 +34,7 @@ export function DragOverlay({ registry, data, target }: Props) {
 
   return (
     <>
-      <DropIndicator registry={registry} target={target} />
+      <DropIndicator registry={registry} target={target} altHeld={altHeld} />
       <Tiles
         tiling={target.tiling}
         containerRect={containerRect}

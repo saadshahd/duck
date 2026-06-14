@@ -282,10 +282,10 @@ export const selectParentElement = (page: Page) =>
   page.evaluate(() => {
     for (const d of document.querySelectorAll("div")) {
       if (!d.shadowRoot || d.style.position !== "fixed") continue;
-      const chip = d.shadowRoot.querySelector(
-        ".element-label--interactive",
+      const btn = d.shadowRoot.querySelector(
+        "[data-role='select-parent-btn']",
       ) as HTMLElement | null;
-      chip?.click();
+      btn?.click();
       return;
     }
   });
@@ -1412,3 +1412,180 @@ export const getDimensionSentinelCenter = (page: Page, fieldLabel?: string) =>
     },
     { label: fieldLabel, finder: dimensionRoot.toString() },
   ) as Promise<{ x: number; y: number } | null>;
+
+// --- Slot constraint helpers ---
+
+/** True when the catalog picker has an "incompatible" collapsed section. */
+export const hasCatalogPickerIncompatibleSection = (page: Page) =>
+  shadowQuery(
+    page,
+    (r) =>
+      r.querySelector("[data-role='catalog-picker-incompatible']") !== null,
+  ) as Promise<boolean>;
+
+/** Type names of items inside the incompatible section of the catalog picker. */
+export const getIncompatiblePickerItemTypes = (page: Page) =>
+  shadowQuery(page, (r) => {
+    const section = r.querySelector(
+      "[data-role='catalog-picker-incompatible']",
+    );
+    if (!section) return [];
+    return [
+      ...section.querySelectorAll("[data-role='catalog-picker-item-type']"),
+    ].map((el) => el.textContent ?? "");
+  }) as Promise<string[]>;
+
+/** Type names of items visible outside the incompatible section (valid items). */
+export const getValidPickerItemTypes = (page: Page) =>
+  shadowQuery(page, (r) => {
+    const picker = r.querySelector("[data-role='catalog-picker']");
+    if (!picker) return [];
+    const all = [
+      ...picker.querySelectorAll("[data-role='catalog-picker-item-type']"),
+    ];
+    const incompatible = r.querySelector(
+      "[data-role='catalog-picker-incompatible']",
+    );
+    return all
+      .filter((el) => !incompatible?.contains(el))
+      .map((el) => el.textContent ?? "");
+  }) as Promise<string[]>;
+
+/** True when a blocked drop indicator (line or container) is currently rendered. */
+export const hasBlockedDropIndicator = (page: Page) =>
+  shadowQuery(
+    page,
+    (r) =>
+      r.querySelector("[data-role='drop-indicator'][data-blocked='true']") !==
+        null ||
+      r.querySelector(
+        "[data-role='drop-indicator-container'][data-blocked='true']",
+      ) !== null,
+  ) as Promise<boolean>;
+
+/** Dispatch a full drag-and-drop with shiftKey held at release. */
+export const dispatchDragWithShift = (
+  page: Page,
+  args: { from: Point; to: Point },
+) =>
+  page.evaluate(({ from, to }) => {
+    const dt = new DataTransfer();
+    const opts = (
+      p: { x: number; y: number },
+      shift = false,
+    ): DragEventInit => ({
+      bubbles: true,
+      cancelable: true,
+      composed: true,
+      clientX: p.x,
+      clientY: p.y,
+      shiftKey: shift,
+      dataTransfer: dt,
+    });
+    const src = document.elementFromPoint(from.x, from.y)!;
+    const tgt = document.elementFromPoint(to.x, to.y)!;
+    src.dispatchEvent(new DragEvent("dragstart", opts(from)));
+    tgt.dispatchEvent(new DragEvent("dragenter", opts(to)));
+    tgt.dispatchEvent(new DragEvent("dragover", opts(to)));
+    tgt.dispatchEvent(new DragEvent("drop", opts(to, true)));
+    src.dispatchEvent(new DragEvent("dragend", opts(to, true)));
+  }, args);
+
+/** Dispatch a full drag-and-drop with altKey held at release — forces a drop
+ *  through a slot-constraint-blocked target (consistent with carry's alt-force). */
+export const dispatchDragWithAlt = (
+  page: Page,
+  args: { from: Point; to: Point },
+) =>
+  page.evaluate(({ from, to }) => {
+    const dt = new DataTransfer();
+    const base = (p: { x: number; y: number }): DragEventInit => ({
+      bubbles: true,
+      cancelable: true,
+      composed: true,
+      clientX: p.x,
+      clientY: p.y,
+      dataTransfer: dt,
+    });
+    const src = document.elementFromPoint(from.x, from.y)!;
+    const tgt = document.elementFromPoint(to.x, to.y)!;
+    src.dispatchEvent(new DragEvent("dragstart", base(from)));
+    tgt.dispatchEvent(new DragEvent("dragenter", base(to)));
+    tgt.dispatchEvent(new DragEvent("dragover", base(to)));
+    tgt.dispatchEvent(new DragEvent("drop", { ...base(to), altKey: true }));
+    src.dispatchEvent(new DragEvent("dragend", { ...base(to), altKey: true }));
+  }, args);
+
+/** Dispatch a full drag-and-drop with altKey held through the WHOLE gesture —
+ *  dragover AND drop both carry altKey:true. This matches a real user holding
+ *  Alt for the entire drag, unlike dispatchDragWithAlt (Alt only at release).
+ *
+ *  `leaveBeforeDrop` inserts a `dragleave` between the final `dragover` and the
+ *  `drop`. pragmatic-dnd resets its tracked drop targets to `[]` on `dragleave`
+ *  (lifecycle-manager), reproducing a real OS drag whose last native event before
+ *  release retargets off every registered drop target — so `onDrop` fires with an
+ *  empty `location.current.dropTargets` while the held indicator still shows. */
+export const dispatchDragAltHeld = (
+  page: Page,
+  args: { from: Point; to: Point; leaveBeforeDrop?: boolean },
+) =>
+  page.evaluate(({ from, to, leaveBeforeDrop }) => {
+    const dt = new DataTransfer();
+    const alt = (p: { x: number; y: number }): DragEventInit => ({
+      bubbles: true,
+      cancelable: true,
+      composed: true,
+      clientX: p.x,
+      clientY: p.y,
+      altKey: true,
+      dataTransfer: dt,
+    });
+    const src = document.elementFromPoint(from.x, from.y)!;
+    const tgt = document.elementFromPoint(to.x, to.y)!;
+    src.dispatchEvent(new DragEvent("dragstart", alt(from)));
+    tgt.dispatchEvent(new DragEvent("dragenter", alt(to)));
+    tgt.dispatchEvent(new DragEvent("dragover", alt(to)));
+    if (leaveBeforeDrop) tgt.dispatchEvent(new DragEvent("dragleave", alt(to)));
+    tgt.dispatchEvent(new DragEvent("drop", alt(to)));
+    src.dispatchEvent(new DragEvent("dragend", alt(to)));
+  }, args);
+
+/** Case-B: Alt held the WHOLE gesture, hover a slot (`over`), then genuinely
+ *  move out to a non-target point (`to`) and release there. Unlike
+ *  `dispatchDragAltHeld({ leaveBeforeDrop })` — whose clearing `dragleave` fires
+ *  at the SAME point still inside the zone (transient window-leave) — here the
+ *  pointer truly leaves the slot: the `dragleave` carries `relatedTarget` set to
+ *  the void element, and the final `dragover`/`drop` land on that void element.
+ *  pragmatic clears its drop targets, but the drop point is no longer inside the
+ *  last-hovered slot, so the held indicator must NOT commit. */
+export const dispatchDragAltViaVoid = (
+  page: Page,
+  args: { from: Point; over: Point; to: Point },
+) =>
+  page.evaluate(({ from, over, to }) => {
+    const dt = new DataTransfer();
+    const alt = (
+      p: { x: number; y: number },
+      relatedTarget?: EventTarget | null,
+    ): DragEventInit => ({
+      bubbles: true,
+      cancelable: true,
+      composed: true,
+      clientX: p.x,
+      clientY: p.y,
+      altKey: true,
+      relatedTarget,
+      dataTransfer: dt,
+    });
+    const src = document.elementFromPoint(from.x, from.y)!;
+    const slot = document.elementFromPoint(over.x, over.y)!;
+    const voidEl = document.elementFromPoint(to.x, to.y)!;
+    src.dispatchEvent(new DragEvent("dragstart", alt(from)));
+    slot.dispatchEvent(new DragEvent("dragenter", alt(over)));
+    slot.dispatchEvent(new DragEvent("dragover", alt(over)));
+    slot.dispatchEvent(new DragEvent("dragleave", alt(over, voidEl)));
+    voidEl.dispatchEvent(new DragEvent("dragenter", alt(to)));
+    voidEl.dispatchEvent(new DragEvent("dragover", alt(to)));
+    voidEl.dispatchEvent(new DragEvent("drop", alt(to)));
+    src.dispatchEvent(new DragEvent("dragend", alt(to)));
+  }, args);

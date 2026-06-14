@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import type { Data } from "@puckeditor/core";
+import type { Config, Data } from "@puckeditor/core";
 import {
   draggable,
   dropTargetForElements,
@@ -8,6 +8,7 @@ import {
 import { disableNativeDragPreview } from "@atlaskit/pragmatic-drag-and-drop/element/disable-native-drag-preview";
 import { attachClosestEdge } from "@atlaskit/pragmatic-drag-and-drop-hitbox/closest-edge";
 import {
+  allowedTypes,
   buildIndex,
   collectDescendants,
   findParent,
@@ -43,6 +44,7 @@ type Props = {
   state: EditorSnapshot;
   send: (event: EditorEvent) => void;
   commit: EditorCommit;
+  config: Config;
 };
 
 const stateOf = (s: EditorSnapshot) =>
@@ -59,6 +61,7 @@ export function useDragReorder({
   state,
   send,
   commit,
+  config,
 }: Props): {
   dropTarget: DropTarget | null;
   cycleStatus: CycleStatus | null;
@@ -66,6 +69,7 @@ export function useDragReorder({
   point: Point | null;
   crossSlotHint: boolean;
   cancelFlash: Point | null;
+  altHeld: boolean;
 } {
   const [dropTarget, setDropTarget] = useState<DropTarget | null>(null);
   const dropTargetRef = useRef<DropTarget | null>(null);
@@ -74,6 +78,7 @@ export function useDragReorder({
   const [point, setPoint] = useState<Point | null>(null);
   const [crossSlotHint, setCrossSlotHint] = useState(false);
   const [cancelFlash, setCancelFlash] = useState<Point | null>(null);
+  const [altHeld, setAltHeld] = useState(false);
   const cancelFlashTimerRef = useRef<ReturnType<typeof setTimeout> | null>(
     null,
   );
@@ -108,6 +113,9 @@ export function useDragReorder({
   indexRef.current = index;
   const commitRef = useRef(commit);
   commitRef.current = commit;
+  const configRef = useRef(config);
+  configRef.current = config;
+  const sourceTypeRef = useRef<string | null>(null);
 
   // Transient drag state — refs, never deps, so handlers stay attached mid-drag.
   const cycleRef = useRef<CycleState>(Cycle.idle);
@@ -164,6 +172,7 @@ export function useDragReorder({
         clearNames = null;
         setSourceType(null);
         setPoint(null);
+        setAltHeld(false);
         // If the monitor's onDrop never fired, the drag ended without pragmatic
         // processing a drop — the classic cross-shadow-DOM slot boundary fail.
         if (!monitorDropFiredRef.current) showCrossSlotHint();
@@ -239,7 +248,12 @@ export function useDragReorder({
     type Location = {
       current: {
         dropTargets: readonly { data: Record<string | symbol, unknown> }[];
-        input: { clientX: number; clientY: number; shiftKey: boolean };
+        input: {
+          clientX: number;
+          clientY: number;
+          shiftKey: boolean;
+          altKey: boolean;
+        };
       };
     };
 
@@ -272,6 +286,25 @@ export function useDragReorder({
       return picked;
     };
 
+    const withBlocked = (
+      target: DropTarget,
+      sType: string | null,
+    ): DropTarget => {
+      if (!sType || !configRef.current) return target;
+      if (target.kind === "container") {
+        const parentType = indexRef.current.get(target.elementId)?.component
+          .type;
+        if (!parentType) return target;
+        const blocked = !allowedTypes(
+          configRef.current,
+          parentType,
+          target.slotKey,
+        ).has(sType);
+        return blocked ? { ...target, blocked } : target;
+      }
+      return target;
+    };
+
     // Pragmatic path: cycle override wins, else pointer resolution.
     const updateFromLocation = (source: Source, location: Location) => {
       const point = {
@@ -282,7 +315,10 @@ export function useDragReorder({
       const picked = driveCycle(source, point, location.current.input.shiftKey);
       if (picked)
         return updateDropTarget(
-          Cycle.toTarget(picked, dataRef.current, registry),
+          withBlocked(
+            Cycle.toTarget(picked, dataRef.current, registry),
+            sourceTypeRef.current,
+          ),
         );
       updateDropTarget(
         resolveIndicator({
@@ -293,6 +329,8 @@ export function useDragReorder({
           data: dataRef.current,
           registry,
           descendantSet: descendants,
+          config: configRef.current,
+          sourceType: sourceTypeRef.current,
         }),
       );
     };
@@ -302,6 +340,9 @@ export function useDragReorder({
         descendants = new Set(
           collectDescendants(dataRef.current, source.data.elementId as string),
         );
+        sourceTypeRef.current =
+          indexRef.current.get(source.data.elementId as string)?.component
+            .type ?? null;
         cycleRef.current = Cycle.idle;
         prevShiftRef.current = false;
         // Entry disclosure: the chip shows "⇧ to cycle" from the first frame,
@@ -317,15 +358,36 @@ export function useDragReorder({
             e.shiftKey,
           );
           if (picked)
-            updateDropTarget(Cycle.toTarget(picked, dataRef.current, registry));
+            updateDropTarget(
+              withBlocked(
+                Cycle.toTarget(picked, dataRef.current, registry),
+                sourceTypeRef.current,
+              ),
+            );
         };
         document.addEventListener("dragover", onDragOver);
         detachShift = () =>
           document.removeEventListener("dragover", onDragOver);
       },
-      onDrag: ({ source, location }) => updateFromLocation(source, location),
-      onDropTargetChange: ({ source, location }) =>
-        updateFromLocation(source, location),
+      onDrag: ({ source, location }) => {
+        setAltHeld(location.current.input.altKey);
+        updateFromLocation(source, location);
+      },
+      onDropTargetChange: ({ source, location }) => {
+        // Pragmatic fires onDropTargetChange with an empty dropTargets array
+        // just before onDrop on the actual release. If we're currently showing
+        // a blocked indicator, updating state here would flash "No target here"
+        // for one frame before onDrop fires. Hold the blocked indicator — onDrop
+        // clears it correctly whether the drop cancels or commits.
+        const isAboutToDrop = location.current.dropTargets.length === 0;
+        const currentIsBlocked =
+          dropTargetRef.current !== null &&
+          (dropTargetRef.current.kind === "container" ||
+            dropTargetRef.current.kind === "line") &&
+          dropTargetRef.current.blocked;
+        if (isAboutToDrop && currentIsBlocked) return;
+        updateFromLocation(source, location);
+      },
       onDrop: ({ source, location }) => {
         monitorDropFiredRef.current = true;
         detachShift?.();
@@ -333,18 +395,30 @@ export function useDragReorder({
         cycleRef.current = Cycle.idle;
         prevShiftRef.current = false;
         setCycleStatus(null);
+        setAltHeld(false);
         setSourceType(null);
+        sourceTypeRef.current = null;
         setPoint(null);
         const lastIndicator = dropTargetRef.current;
+        const altKey = location.current.input.altKey;
         updateDropTarget(null);
         const beforeData = dataRef.current;
-        const result = resolveDrop({
-          source,
-          target: location.current.dropTargets[0],
-          indicator: lastIndicator,
-          data: beforeData,
-          descendantSet: descendants,
-        });
+        // Blocked target without Alt → cancel without committing.
+        const isBlockedDrop =
+          lastIndicator &&
+          (lastIndicator.kind === "container" ||
+            lastIndicator.kind === "line") &&
+          lastIndicator.blocked &&
+          !altKey;
+        const result = isBlockedDrop
+          ? null
+          : resolveDrop({
+              source,
+              target: location.current.dropTargets[0],
+              indicator: lastIndicator,
+              data: beforeData,
+              descendantSet: descendants,
+            });
         descendants = new Set();
         if (!result) {
           // Flash the cancel confirmation at the release point, then clear.
@@ -415,5 +489,6 @@ export function useDragReorder({
     point,
     crossSlotHint,
     cancelFlash,
+    altHeld,
   };
 }

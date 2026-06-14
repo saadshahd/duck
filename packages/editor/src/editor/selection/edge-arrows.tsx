@@ -258,6 +258,7 @@ export function EdgeArrows({
   canMoveNext,
   onMovePrev,
   onMoveNext,
+  onSelectParent,
   elementType,
   children,
 }: {
@@ -268,6 +269,7 @@ export function EdgeArrows({
   canMoveNext: boolean;
   onMovePrev: () => void;
   onMoveNext: () => void;
+  onSelectParent?: () => void;
   elementType?: string;
   children?: ReactNode;
 }) {
@@ -297,6 +299,19 @@ export function EdgeArrows({
       {/* Floating action bar — anchored above the element, shifts inside when near viewport top */}
       <div ref={refs.setFloating} style={{ ...floatingStyles, zIndex: 1 }}>
         <div className="action-bar" role="toolbar" aria-label="Element actions">
+          {onSelectParent && (
+            <button
+              type="button"
+              data-role="select-parent-btn"
+              aria-label="Select parent element"
+              onClick={(e) => {
+                e.stopPropagation();
+                onSelectParent();
+              }}
+            >
+              ↑
+            </button>
+          )}
           {elementType && (
             <span className="action-bar-type-label">{elementType}</span>
           )}

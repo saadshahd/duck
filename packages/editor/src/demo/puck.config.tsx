@@ -480,7 +480,7 @@ export const config: Config = {
 
     Card: {
       fields: {
-        header: { type: "slot" },
+        header: { type: "slot", allow: ["Heading", "Text"] },
         body: { type: "slot" },
         footer: { type: "slot" },
         style: {

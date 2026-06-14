@@ -18,7 +18,16 @@ type DropResult = {
  * Pure function: computes the data mutation and machine event for a drop.
  * Container drops commit the last indicator's `(elementId, slotKey, index)`
  * verbatim — never recomputed. A missing or stale indicator cancels the drop.
- * Returns null when the drop should be cancelled (no target, self-drop, descendant).
+ *
+ * `target` is the live `dropTargets[0]` at release; it can be absent because a
+ * real OS drag fires a `dragleave` (relatedTarget=null) right before `drop`,
+ * which pragmatic reads as leaving the window and clears its tracked targets.
+ * The held `indicator` carries the full drop spec (elementId/slotKey/index) and
+ * was built with the same self-drop/descendant guards, so the drop resolves from
+ * it alone. `target`, when present, only re-checks self-drop/descendant.
+ *
+ * Returns null when the drop should be cancelled (no intent at all, self-drop,
+ * descendant, no/none indicator).
  */
 export function resolveDrop({
   source,
@@ -33,16 +42,18 @@ export function resolveDrop({
   data: Data;
   descendantSet: ReadonlySet<string>;
 }): DropResult | null {
-  if (!target) return null;
+  if (!target && !indicator) return null;
 
   const sourceData = readData(source.data);
-  const targetData = readData(target.data);
 
-  if (
-    targetData.elementId === sourceData.elementId ||
-    descendantSet.has(targetData.elementId)
-  )
-    return null;
+  if (target) {
+    const targetData = readData(target.data);
+    if (
+      targetData.elementId === sourceData.elementId ||
+      descendantSet.has(targetData.elementId)
+    )
+      return null;
+  }
 
   // No indicator, or an explicit no-target → cancel.
   if (!indicator || indicator.kind === "none") return null;

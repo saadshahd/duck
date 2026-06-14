@@ -25,6 +25,7 @@ type CatalogPickerProps = {
   config: Config;
   onInsert: (componentType: string) => void;
   onClose: () => void;
+  slotAllowedTypes?: ReadonlySet<string>;
 };
 
 type Entry = { name: string; label: string };
@@ -35,12 +36,41 @@ const entriesOf = (config: Config): Entry[] =>
     label: (component as { label?: string })?.label ?? name,
   }));
 
+function PickerItem({
+  name,
+  label,
+  onInsert,
+}: Entry & { onInsert: (name: string) => void }) {
+  return (
+    <button
+      type="button"
+      className="catalog-picker-item"
+      data-role="catalog-picker-item"
+      onClick={(e) => {
+        e.stopPropagation();
+        onInsert(name);
+      }}
+    >
+      <span
+        className="catalog-picker-item-type"
+        data-role="catalog-picker-item-type"
+      >
+        {name}
+      </span>
+      {label !== name && (
+        <span className="catalog-picker-item-desc">{label}</span>
+      )}
+    </button>
+  );
+}
+
 export function CatalogPicker({
   registry,
   anchor,
   config,
   onInsert,
   onClose,
+  slotAllowedTypes,
 }: CatalogPickerProps) {
   useShadowSheet(css);
   const [filter, setFilter] = useState("");
@@ -58,11 +88,18 @@ export function CatalogPicker({
   useOnClickOutside(refs.floating, onClose);
 
   const needle = filter.toLowerCase();
-  const entries = entriesOf(config).filter(
+  const all = entriesOf(config).filter(
     ({ name, label }) =>
       name.toLowerCase().includes(needle) ||
       label.toLowerCase().includes(needle),
   );
+
+  const { valid, incompatible } = slotAllowedTypes
+    ? {
+        valid: all.filter(({ name }) => slotAllowedTypes.has(name)),
+        incompatible: all.filter(({ name }) => !slotAllowedTypes.has(name)),
+      }
+    : { valid: all, incompatible: [] };
 
   return (
     <div
@@ -80,31 +117,25 @@ export function CatalogPicker({
         onChange={(e) => setFilter(e.target.value)}
       />
       <div className="catalog-picker-list">
-        {entries.length === 0 && (
+        {valid.length === 0 && incompatible.length === 0 && (
           <div className="catalog-picker-empty">No matches</div>
         )}
-        {entries.map(({ name, label }) => (
-          <button
-            key={name}
-            type="button"
-            className="catalog-picker-item"
-            data-role="catalog-picker-item"
-            onClick={(e) => {
-              e.stopPropagation();
-              onInsert(name);
-            }}
-          >
-            <span
-              className="catalog-picker-item-type"
-              data-role="catalog-picker-item-type"
-            >
-              {name}
-            </span>
-            {label !== name && (
-              <span className="catalog-picker-item-desc">{label}</span>
-            )}
-          </button>
+        {valid.map((e) => (
+          <PickerItem key={e.name} {...e} onInsert={onInsert} />
         ))}
+        {incompatible.length > 0 && (
+          <details
+            className="catalog-picker-incompatible"
+            data-role="catalog-picker-incompatible"
+          >
+            <summary className="catalog-picker-incompatible-summary">
+              Incompatible ({incompatible.length})
+            </summary>
+            {incompatible.map((e) => (
+              <PickerItem key={e.name} {...e} onInsert={onInsert} />
+            ))}
+          </details>
+        )}
       </div>
     </div>
   );

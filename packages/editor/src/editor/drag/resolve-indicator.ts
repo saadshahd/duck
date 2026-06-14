@@ -1,6 +1,11 @@
-import type { ComponentData, Data } from "@puckeditor/core";
+import type { ComponentData, Config, Data } from "@puckeditor/core";
 import { extractClosestEdge } from "@atlaskit/pragmatic-drag-and-drop-hitbox/closest-edge";
-import { findById, slotKeysOf } from "@duckeditor/spec";
+import {
+  allowedTypes,
+  findById,
+  findParent,
+  slotKeysOf,
+} from "@duckeditor/spec";
 import type { FiberRegistry } from "../fiber/index.js";
 import {
   aimedMarker,
@@ -217,6 +222,16 @@ const discreteMarkerOver = (args: {
   return outcome.tag === "target" ? outcome.target : null;
 };
 
+const isBlocked = (
+  config: Config | undefined,
+  sourceType: string | null | undefined,
+  parentType: string | undefined,
+  slotKey: string | null | undefined,
+): boolean => {
+  if (!config || !sourceType || !parentType || !slotKey) return false;
+  return !allowedTypes(config, parentType, slotKey).has(sourceType);
+};
+
 /**
  * Pure function: given source/target drag data and the pointer position,
  * returns the indicator to render. The container indicator carries the full
@@ -233,6 +248,8 @@ export function resolveIndicator({
   data,
   registry,
   descendantSet,
+  config,
+  sourceType,
 }: {
   source: TargetBag;
   target?: TargetBag;
@@ -241,6 +258,8 @@ export function resolveIndicator({
   data: Data;
   registry: FiberRegistry;
   descendantSet: ReadonlySet<string>;
+  config?: Config;
+  sourceType?: string | null;
 }): DropTarget | null {
   if (!target) return null;
 
@@ -279,7 +298,21 @@ export function resolveIndicator({
         slotKey: targetData.slotKey ?? "",
       });
       if (adjusted === null) return null;
-      return { kind: "line", elementId: targetData.elementId, edge, axis };
+      const lineParentType = targetData.parentId
+        ? findById(data, targetData.parentId)?.type
+        : undefined;
+      return {
+        kind: "line",
+        elementId: targetData.elementId,
+        edge,
+        axis,
+        blocked: isBlocked(
+          config,
+          sourceType,
+          lineParentType,
+          targetData.slotKey,
+        ),
+      };
     }
 
     const outcome = resolveContainer({
@@ -290,7 +323,15 @@ export function resolveIndicator({
       data,
       registry,
     });
-    if (outcome.tag === "target") return outcome.target;
+    if (outcome.tag === "target") {
+      const t = outcome.target;
+      if (t.kind !== "container") return t;
+      const containerType = findById(data, t.elementId)?.type;
+      return {
+        ...t,
+        blocked: isBlocked(config, sourceType, containerType, t.slotKey),
+      };
+    }
     if (outcome.tag === "noop") return null;
     return { kind: "none", elementId: targetData.elementId };
   }
@@ -306,7 +347,16 @@ export function resolveIndicator({
     data,
     registry,
   });
-  if (marker) return marker;
+  if (marker) {
+    if (marker.kind === "container") {
+      const markerType = findById(data, marker.elementId)?.type;
+      return {
+        ...marker,
+        blocked: isBlocked(config, sourceType, markerType, marker.slotKey),
+      };
+    }
+    return marker;
+  }
 
   const axis =
     resolveSlotAxis(data, targetData.parentId, targetData.slotKey, registry) ??
@@ -320,5 +370,19 @@ export function resolveIndicator({
     if (to === sourceData.index) return null;
   }
 
-  return { kind: "line", elementId: targetData.elementId, edge, axis };
+  const siblingParentType = targetData.parentId
+    ? findById(data, targetData.parentId)?.type
+    : undefined;
+  return {
+    kind: "line",
+    elementId: targetData.elementId,
+    edge,
+    axis,
+    blocked: isBlocked(
+      config,
+      sourceType,
+      siblingParentType,
+      targetData.slotKey,
+    ),
+  };
 }

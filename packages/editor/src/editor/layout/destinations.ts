@@ -21,7 +21,13 @@ export const NO_TARGET_LABEL = "No target here";
  *  insert (container), a between-siblings line, or an explicit no-target marker
  *  over the container the pointer is inside. */
 export type DropTarget =
-  | { kind: "line"; elementId: string; edge: Edge; axis: Axis }
+  | {
+      kind: "line";
+      elementId: string;
+      edge: Edge;
+      axis: Axis;
+      blocked?: boolean;
+    }
   | {
       kind: "container";
       elementId: string;
@@ -30,6 +36,7 @@ export type DropTarget =
       /** Painted destinations over the container; the active slot is `slotKey`. */
       tiling: Tiling;
       activeLabel: string;
+      blocked?: boolean;
     }
   | { kind: "root"; index: number; label: string }
   | { kind: "none"; elementId: string };

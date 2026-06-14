@@ -37,6 +37,60 @@
   transition: all 150ms ease;
 }
 
+/* --- Blocked drop state --- */
+
+.drop-indicator-container[data-blocked="true"] {
+  border-color: #d97706;
+  background: rgba(217, 119, 6, 0.07);
+  opacity: 1;
+}
+
+.drop-indicator-container[data-blocked="true"] .drop-blocked-hint {
+  display: flex;
+}
+
+.drop-indicator-line[data-blocked="true"]::before {
+  background: #d97706;
+  opacity: 1;
+}
+
+/* Shift hint chip alongside the blocked line */
+.drop-indicator-line[data-blocked="true"] .drop-blocked-hint {
+  display: flex;
+}
+
+/* Hint chip — shown only when blocked */
+.drop-blocked-hint {
+  display: none;
+  align-items: center;
+  gap: 2px;
+  pointer-events: none;
+  font-family: var(--font-system);
+  font-size: 10px;
+  font-weight: 600;
+  line-height: 1;
+  padding: 2px 5px 2px 4px;
+  border-radius: 3px;
+  color: #92400e;
+  background: #fef3c7;
+  border: 1px solid #f59e0b;
+  white-space: nowrap;
+  position: absolute;
+}
+
+/* Container hint — centered horizontally at the top of the container */
+.drop-indicator-container .drop-blocked-hint {
+  top: 6px;
+  left: 50%;
+  transform: translateX(-50%);
+}
+
+/* Line hint — sits above the line, offset from the left */
+.drop-indicator-line .drop-blocked-hint {
+  top: -22px;
+  left: 8px;
+}
+
 .cycle-chip {
   pointer-events: none;
   font-family: var(--font-system);

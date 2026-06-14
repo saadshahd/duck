@@ -39,3 +39,4 @@ export type {
   DerivedVariation,
 } from "./pattern-types.js";
 export { normalizeData } from "./normalize-data.js";
+export { allowedTypes } from "./allowed-types.js";

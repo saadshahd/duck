@@ -53,8 +53,62 @@ const resolve = (overrides: Partial<Parameters<typeof resolveDrop>[0]>) =>
 // --- Tests ---
 
 describe("resolveDrop", () => {
-  test("returns null when target is undefined", () => {
+  test("returns null when both target and indicator are absent", () => {
     expect(resolve({})).toBeNull();
+  });
+
+  test("container indicator commits when target is absent (cleared at drop)", () => {
+    // A real OS drag clears dropTargets via a dragleave before drop; the held
+    // container indicator must still commit verbatim with no target bag.
+    const result = resolve({
+      target: undefined,
+      indicator: containerIndicator("box", "items", 0),
+    });
+
+    expect(result?.event).toEqual({
+      type: "DROP",
+      sourceParentId: null,
+      targetParentId: "box",
+      fromIndex: 0,
+      toIndex: 0,
+    });
+    expect(
+      (
+        findById(result!.newData._unsafeUnwrap(), "box")!.props.items as {
+          props: { id: string };
+        }[]
+      ).map((c) => c.props.id),
+    ).toEqual(["a", "d", "e"]);
+  });
+
+  test("line indicator commits when target is absent (cleared at drop)", () => {
+    const result = resolve({
+      target: undefined,
+      indicator: {
+        kind: "line",
+        elementId: "d",
+        edge: "top",
+        axis: "vertical",
+      },
+    });
+
+    expect(result?.event).toEqual({
+      type: "DROP",
+      sourceParentId: null,
+      targetParentId: "box",
+      fromIndex: 0,
+      toIndex: 0,
+    });
+    expect(result!.newData.isOk()).toBe(true);
+  });
+
+  test("no-target indicator with absent target → null", () => {
+    expect(
+      resolve({
+        target: undefined,
+        indicator: { kind: "none", elementId: "box" },
+      }),
+    ).toBeNull();
   });
 
   test("returns null for self-drop", () => {

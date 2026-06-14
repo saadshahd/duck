@@ -11,6 +11,7 @@ import {
 import type { Config, Data, Metadata } from "@puckeditor/core";
 import { deepEqual } from "fast-equals";
 import {
+  allowedTypes,
   buildIndex,
   findById,
   getChildrenAt,
@@ -184,6 +185,7 @@ export function Editor<UserConfig extends Config = Config>({
     point: dragPoint,
     crossSlotHint,
     cancelFlash,
+    altHeld: dragAltHeld,
   } = useDragReorder({
     registry: fiberRegistry,
     data: currentData,
@@ -191,19 +193,23 @@ export function Editor<UserConfig extends Config = Config>({
     state,
     send,
     commit,
+    config,
   });
   const {
     target: carryTarget,
     noTargetFlash,
+    cancelFlash: carryCancelFlash,
     cycleStatus: carryCycleStatus,
     liftRect,
     sourceType: carrySourceType,
     point: carryPoint,
     carryCoachMark,
     stepLabel: carryStepLabel,
+    altHeld: carryAltHeld,
   } = useCarry({
     registry: fiberRegistry,
     data: currentData,
+    config,
     state,
     send,
     commit,
@@ -352,6 +358,15 @@ export function Editor<UserConfig extends Config = Config>({
     };
   }, [selectedSlot, currentData]);
 
+  const slotPickerAllowedTypes = useMemo(():
+    | ReadonlySet<string>
+    | undefined => {
+    if (!selectedSlot) return undefined;
+    const parentType = findById(currentData, selectedSlot.parentId)?.type;
+    if (!parentType) return undefined;
+    return allowedTypes(config, parentType, selectedSlot.slotKey);
+  }, [selectedSlot, currentData, config]);
+
   // The node's slots offered for choosing, with their qualified labels. The
   // active slot owns the (+)/climb; the rest are choosable bands. Every slot is
   // named on screen — the law that no insert writes to an unnamed slot.
@@ -482,6 +497,7 @@ export function Editor<UserConfig extends Config = Config>({
             canMoveNext={moveInfo.canMoveNext}
             onMovePrev={() => handleAction({ tag: "move-up" })}
             onMoveNext={() => handleAction({ tag: "move-down" })}
+            onSelectParent={selectParent}
             elementType={index.get(singleSelected)?.component.type}
           >
             {operable && (
@@ -524,6 +540,7 @@ export function Editor<UserConfig extends Config = Config>({
                   }),
               }}
               config={config}
+              slotAllowedTypes={slotPickerAllowedTypes}
               onInsert={(componentType) => {
                 if (slotInsertTarget) onInsert(componentType, slotInsertTarget);
               }}
@@ -578,14 +595,25 @@ export function Editor<UserConfig extends Config = Config>({
         {affordances.dropOverlay &&
           fiberRegistry &&
           (() => {
-            const target = drag === "dragging" ? dropTarget : carryTarget;
-            return target ? (
+            const rawTarget = drag === "dragging" ? dropTarget : carryTarget;
+            if (!rawTarget) return null;
+            // When Alt is held during carry, suppress the blocked indicator so
+            // the overlay shows the normal allowed appearance in real time.
+            const target =
+              drag === "carrying" &&
+              carryAltHeld &&
+              (rawTarget.kind === "container" || rawTarget.kind === "line") &&
+              rawTarget.blocked
+                ? { ...rawTarget, blocked: undefined }
+                : rawTarget;
+            return (
               <DragOverlay
                 registry={fiberRegistry}
                 data={currentData}
                 target={target}
+                altHeld={dragAltHeld}
               />
-            ) : null;
+            );
           })()}
         {affordances.cycleChip &&
           fiberRegistry &&
@@ -610,7 +638,9 @@ export function Editor<UserConfig extends Config = Config>({
         {drag === "carrying" && carryStepLabel && (
           <CarryDestinationLabel label={carryStepLabel} />
         )}
-        {cancelFlash && <DragCancelFlash point={cancelFlash} />}
+        {(cancelFlash ?? carryCancelFlash) && (
+          <DragCancelFlash point={(cancelFlash ?? carryCancelFlash)!} />
+        )}
         <Announcer
           message={announcerMessage({
             data: currentData,
