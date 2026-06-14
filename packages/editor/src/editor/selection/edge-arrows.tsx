@@ -158,45 +158,63 @@ function edgeStyle(
 const ARROW_SIZE = 24;
 const EDGE_GAP = 6;
 
-/** Syncs a fixed-position button ref to an element edge via autoUpdate. */
+/** Syncs a fixed-position button to an element edge via autoUpdate.
+ *  Returns a callback ref so positioning starts the moment the button mounts,
+ *  regardless of when canMove* flips — avoiding the 0,0 flash from a stale
+ *  useEffect that won't re-run when only ref.current changes. */
 function useEdgeArrow(
   registry: FiberRegistry,
   elementId: string,
   edge: "bottom" | "left" | "right",
 ) {
-  const ref = useRef<HTMLButtonElement>(null);
+  const cleanupRef = useRef<(() => void) | null>(null);
 
-  const sync = useCallback(() => {
-    const el = registry.get(elementId);
-    const btn = ref.current;
-    if (!btn) return;
-    if (!el) {
-      btn.style.top = "";
-      btn.style.left = "";
-      return;
-    }
-    const r = el.getBoundingClientRect();
-    const s = edgeStyle(r, edge, ARROW_SIZE, EDGE_GAP);
-    btn.style.top = `${s.top}px`;
-    btn.style.left = `${s.left}px`;
-  }, [registry, elementId, edge]);
+  const ref = useCallback(
+    (btn: HTMLButtonElement | null) => {
+      cleanupRef.current?.();
+      cleanupRef.current = null;
 
-  useEffect(() => {
-    const el = registry.get(elementId);
-    const btn = ref.current;
-    if (!el || !btn) {
-      if (btn) {
+      if (!btn) return;
+
+      const sync = () => {
+        const el = registry.get(elementId);
+        if (!el) {
+          btn.style.top = "";
+          btn.style.left = "";
+          return;
+        }
+        const r = el.getBoundingClientRect();
+        const s = edgeStyle(r, edge, ARROW_SIZE, EDGE_GAP);
+        btn.style.top = `${s.top}px`;
+        btn.style.left = `${s.left}px`;
+      };
+
+      const el = registry.get(elementId);
+      if (!el) {
         btn.style.top = "";
         btn.style.left = "";
+        return;
       }
-      return;
-    }
-    const vRef = {
-      getBoundingClientRect: () =>
-        registry.get(elementId)?.getBoundingClientRect() ?? ZERO_RECT,
-    };
-    return autoUpdate(vRef, btn, sync, { animationFrame: true });
-  }, [registry, elementId, sync]);
+
+      const vRef = {
+        getBoundingClientRect: () =>
+          registry.get(elementId)?.getBoundingClientRect() ?? ZERO_RECT,
+      };
+
+      sync();
+      cleanupRef.current = autoUpdate(vRef, btn, sync, {
+        animationFrame: true,
+      });
+    },
+    [registry, elementId, edge],
+  );
+
+  useEffect(
+    () => () => {
+      cleanupRef.current?.();
+    },
+    [],
+  );
 
   return ref;
 }
