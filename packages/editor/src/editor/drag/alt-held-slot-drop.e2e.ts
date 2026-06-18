@@ -1,6 +1,7 @@
 import { test, expect, type Page } from "@playwright/test";
 import {
   dispatchDragAltHeld,
+  dispatchDragAltViaVoid,
   sourceCenter,
   edgePoint,
 } from "../overlay/testing.js";
@@ -81,5 +82,29 @@ test.describe("Alt-held drag onto slot-constrained container", () => {
     // The held indicator showed an allowed-under-Alt drop; the Alt override must
     // commit it into Card.header. With current code this FAILS (drop cancelled).
     expect(await firstCardHasButton(page)).toBe(true);
+  });
+
+  test("void path: Alt held, hover Card.header then drop in empty space → MUST cancel", async ({
+    page,
+  }) => {
+    const btn = page.locator("button").first();
+    await btn.click();
+    await page.waitForTimeout(300);
+
+    expect(await firstCardHasButton(page)).toBe(false);
+
+    // Hover the Card.header (blocked, Alt-overridden → indicator held), then move
+    // genuinely OUT to the top-left void and release there. The release no longer
+    // lands over the indicator, so the held spec must NOT commit. This guards the
+    // window-leave fix (case A) from over-committing case B.
+    const heading = page.locator("h3").first();
+    await dispatchDragAltViaVoid(page, {
+      from: await sourceCenter(btn),
+      over: await edgePoint(heading, "top"),
+      to: { x: 2, y: 2 },
+    });
+    await page.waitForTimeout(400);
+
+    expect(await firstCardHasButton(page)).toBe(false);
   });
 });

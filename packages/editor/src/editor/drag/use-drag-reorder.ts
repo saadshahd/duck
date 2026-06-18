@@ -14,7 +14,7 @@ import {
   findParent,
   slotKeysOf,
 } from "@duckeditor/spec";
-import type { FiberRegistry } from "../fiber/index.js";
+import { resolveHit, type FiberRegistry } from "../fiber/index.js";
 import type { EditorEvent, EditorSnapshot } from "../machine/index.js";
 import type { DropTarget } from "../layout/index.js";
 import type { DragData } from "./helpers.js";
@@ -51,6 +51,32 @@ const stateOf = (s: EditorSnapshot) =>
   s.value as { pointer: string; drag: string };
 
 type Point = { x: number; y: number };
+
+/** Whether the release point still lands inside the held indicator's drop region.
+ *
+ *  pragmatic clears `dropTargets` before `drop` in two distinct gestures that
+ *  both leave a preserved indicator:
+ *   - transient window-leave (`dragleave` relatedTarget=null) while the pointer
+ *     never left the slot — the release is still over the indicator (commit), and
+ *   - a genuine move out to empty space, then release in the void (cancel).
+ *  A point hit-test separates them: in the void no registered element resolves;
+ *  over the slot the indicator's container (or a descendant) does. Container
+ *  drops must land inside the container; line/root drops beside the anchor's
+ *  container. */
+const dropOverIndicator = (
+  registry: FiberRegistry,
+  data: Data,
+  indicator: DropTarget,
+  point: Point,
+): boolean => {
+  const hit = resolveHit(registry, point.x, point.y);
+  if (!hit) return false;
+  if (indicator.kind === "root") return true;
+  const { elementId } = indicator;
+  if (hit.elementId === elementId) return true;
+  if (collectDescendants(data, elementId).includes(hit.elementId)) return true;
+  return findParent(data, elementId)?.parentId === hit.elementId;
+};
 
 // --- Hook ---
 
@@ -401,31 +427,39 @@ export function useDragReorder({
         setPoint(null);
         const lastIndicator = dropTargetRef.current;
         const altKey = location.current.input.altKey;
+        const releasePoint = {
+          x: location.current.input.clientX,
+          y: location.current.input.clientY,
+        };
+        const target = location.current.dropTargets[0];
         updateDropTarget(null);
         const beforeData = dataRef.current;
+        // pragmatic clears `dropTargets` before `drop` on a transient
+        // window-leave too — fall back to the preserved indicator, but only when
+        // the release still lands over it, so a move-out-then-drop-in-void cancels.
+        const indicatorReleasedInVoid =
+          !target &&
+          !!lastIndicator &&
+          !dropOverIndicator(registry, beforeData, lastIndicator, releasePoint);
+        const indicator = indicatorReleasedInVoid ? null : lastIndicator;
         // Blocked target without Alt → cancel without committing.
         const isBlockedDrop =
-          lastIndicator &&
-          (lastIndicator.kind === "container" ||
-            lastIndicator.kind === "line") &&
-          lastIndicator.blocked &&
+          indicator &&
+          (indicator.kind === "container" || indicator.kind === "line") &&
+          indicator.blocked &&
           !altKey;
         const result = isBlockedDrop
           ? null
           : resolveDrop({
               source,
-              target: location.current.dropTargets[0],
-              indicator: lastIndicator,
+              target,
+              indicator,
               data: beforeData,
               descendantSet: descendants,
             });
         descendants = new Set();
         if (!result) {
           // Flash the cancel confirmation at the release point, then clear.
-          const releasePoint = {
-            x: location.current.input.clientX,
-            y: location.current.input.clientY,
-          };
           if (cancelFlashTimerRef.current)
             clearTimeout(cancelFlashTimerRef.current);
           setCancelFlash(releasePoint);
