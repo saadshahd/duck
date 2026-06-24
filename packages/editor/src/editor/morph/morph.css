@@ -53,40 +53,9 @@
   margin-top: 2px;
 }
 
-/* Diamond button — injected into action bar via children slot */
+/* Morph action button — rendered in the action bar as [data-role="action-morph"] */
 
-.morph-btn {
-  position: relative;
-  width: 28px;
-  height: 28px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border: none;
-  background: transparent;
-  border-radius: 6px;
-  cursor: pointer;
-  font-size: 14px;
-  color: var(--text-bar);
-  padding: 0;
-}
-
-.morph-btn:hover {
-  background: rgba(255, 255, 255, 0.1);
-}
-
-.morph-btn:disabled {
-  opacity: 0.3;
-  pointer-events: none;
-  cursor: default;
-}
-
-.morph-btn[data-has-patterns] {
-  color: var(--text-bar-strong);
-  background: var(--active-on-bar);
-}
-
-.morph-btn[data-pulse] {
+[data-role="action-morph"][data-pulse] {
   animation: morph-pulse 200ms ease forwards;
 }
 
@@ -94,18 +63,4 @@
   0%   { transform: scale(1); }
   50%  { transform: scale(1.15); }
   100% { transform: scale(1); }
-}
-
-.morph-badge {
-  position: absolute;
-  top: 2px;
-  right: 2px;
-  background: var(--text-bar-strong);
-  color: var(--text-sheet);
-  font-size: 8px;
-  font-weight: 700;
-  line-height: 1;
-  padding: 1px 3px;
-  border-radius: 4px;
-  pointer-events: none;
 }

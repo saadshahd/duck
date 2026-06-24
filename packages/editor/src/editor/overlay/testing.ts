@@ -626,12 +626,14 @@ export const getSlotStopRect = (page: Page) =>
 
 export const getMorphButtonState = (page: Page) =>
   shadowQuery(page, (r) => {
-    const btn = r.querySelector(".morph-btn") as HTMLButtonElement | null;
+    const btn = r.querySelector(
+      "[data-role='action-morph']",
+    ) as HTMLButtonElement | null;
     if (!btn) return null;
-    const badge = btn.querySelector(".morph-badge");
+    const leading = /^\d+/.exec(btn.getAttribute("aria-label") ?? "");
     return {
       disabled: btn.disabled,
-      count: badge ? parseInt(badge.textContent ?? "0", 10) : 0,
+      count: leading ? parseInt(leading[0], 10) : 0,
     };
   }) as Promise<{ disabled: boolean; count: number } | null>;
 
@@ -639,7 +641,7 @@ export const clickMorphButton = (page: Page) =>
   page.evaluate(() => {
     for (const d of document.querySelectorAll("div")) {
       if (!d.shadowRoot || d.style.position !== "fixed") continue;
-      const btn = d.shadowRoot.querySelector(".morph-btn") as
+      const btn = d.shadowRoot.querySelector("[data-role='action-morph']") as
         | HTMLElement
         | undefined;
       btn?.click();
