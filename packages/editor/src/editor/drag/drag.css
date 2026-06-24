@@ -105,47 +105,6 @@
   white-space: nowrap;
 }
 
-/* Drag handle — visible glyph stays small; pseudo-element expands the touch
-   target to ≥44×44px without affecting layout. Positioned relatively so the
-   pseudo-element can overflow without shifting siblings. */
-
-.drag-handle {
-  position: relative;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  appearance: none;
-  border: none;
-  background: var(--surface-bar);
-  color: var(--text-bar);
-  cursor: grab;
-  pointer-events: auto;
-  padding: 0 5px;
-  line-height: 1;
-  border-radius: 0;
-  opacity: 0.45;
-  transition: opacity 100ms ease;
-}
-
-.drag-handle:hover {
-  opacity: 0.8;
-}
-
-.drag-handle:active {
-  cursor: grabbing;
-  opacity: 1;
-}
-
-/* Expand the hit area to 44×44px without changing visible size */
-.drag-handle::before {
-  content: "";
-  position: absolute;
-  inset: 50% auto auto 50%;
-  transform: translate(-50%, -50%);
-  min-width: 44px;
-  min-height: 44px;
-}
-
 .no-target-marker {
   pointer-events: none;
   font-family: var(--font-system);
