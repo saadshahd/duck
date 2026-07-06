@@ -2,6 +2,7 @@ import { useEffect } from "react";
 import type { FiberRegistry } from "../fiber/index.js";
 import type { InlineEditing } from "../machine/index.js";
 import { isPrintable } from "./keyboard-predicates.js";
+import { findTextHost } from "./has-single-text-node.js";
 
 type UseInlineEditProps = {
   registry: FiberRegistry | null;
@@ -38,8 +39,12 @@ export function useInlineEdit({
   useEffect(
     function attachContentEditable() {
       if (!editing) return;
-      const el = registry?.get(editing.elementId);
-      if (!el) return;
+      const registered = registry?.get(editing.elementId);
+      if (!registered) return;
+
+      // Edit on the element that owns the text node, not the component's
+      // wrapper — the surface inherits the text's own style in place.
+      const el = findTextHost(registered);
 
       el.contentEditable = "true";
       el.focus();

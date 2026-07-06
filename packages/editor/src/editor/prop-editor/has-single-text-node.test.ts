@@ -1,5 +1,5 @@
 import { describe, it, expect } from "bun:test";
-import { hasSingleTextNode } from "./has-single-text-node.js";
+import { hasSingleTextNode, findTextHost } from "./has-single-text-node.js";
 
 const el = (html: string): HTMLElement => {
   const div = document.createElement("div");
@@ -34,5 +34,27 @@ describe("hasSingleTextNode", () => {
     expect(hasSingleTextNode(el("<div><p><span>deep</span></p></div>"))).toBe(
       true,
     );
+  });
+});
+
+describe("findTextHost", () => {
+  it("returns the element owning a nested text node", () => {
+    const root = el("<p>npm install</p>");
+    expect(findTextHost(root)).toBe(root.querySelector("p") as HTMLElement);
+  });
+
+  it("returns the deepest owner for deeply nested text", () => {
+    const root = el("<div><p><span>deep</span></p></div>");
+    expect(findTextHost(root)).toBe(root.querySelector("span") as HTMLElement);
+  });
+
+  it("returns the element itself when it owns the text node directly", () => {
+    const root = el("hello");
+    expect(findTextHost(root)).toBe(root);
+  });
+
+  it("falls back to the element when no single text node exists", () => {
+    const root = el("<span>A</span><span>B</span>");
+    expect(findTextHost(root)).toBe(root);
   });
 });
