@@ -1,11 +1,9 @@
-import { useCallback, useRef } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import type { ComponentData, Config, Data } from "@puckeditor/core";
 import { collectDescendants, findParent } from "@duckeditor/spec";
-import { copy, paste, remove } from "../spec-ops/index.js";
-import {
-  type ClipboardActions,
-  type EditorCommit,
-} from "../types.js";
+import { copy, paste, remove, type SpecOpsError } from "../spec-ops/index.js";
+import { type ClipboardActions, type EditorCommit } from "../types.js";
+import { Fragment } from "./fragment.js";
 
 type ClipboardDeps = {
   data: Data;
@@ -16,25 +14,22 @@ type ClipboardDeps = {
   onDeselect: () => void;
 };
 
-const FRAGMENT_TAG = "puck-fragment";
+const NOTICE_MS = 5000;
 
-type Fragment = { _tag: typeof FRAGMENT_TAG; component: ComponentData };
+const SYSTEM_WRITE_BLOCKED =
+  "System clipboard unavailable. Kept in editor clipboard.";
 
-const writeFragment = (component: ComponentData): void => {
-  const fragment: Fragment = { _tag: FRAGMENT_TAG, component };
-  navigator.clipboard.writeText(JSON.stringify(fragment)).catch(() => {});
-};
+const failed = (op: string, error: SpecOpsError): string =>
+  `${op} failed: ${error.tag.replaceAll("-", " ")}.`;
 
-const readFragment = async (): Promise<ComponentData | null> => {
-  try {
-    const text = await navigator.clipboard.readText();
-    const parsed = JSON.parse(text) as Partial<Fragment>;
-    if (parsed?._tag !== FRAGMENT_TAG || !parsed.component) return null;
-    return parsed.component;
-  } catch {
-    return null;
-  }
-};
+type SystemRead =
+  { status: "read"; component?: ComponentData } | { status: "blocked" };
+
+const readSystem = (): Promise<SystemRead> =>
+  navigator.clipboard.readText().then(
+    (text): SystemRead => ({ status: "read", component: Fragment.parse(text) }),
+    (): SystemRead => ({ status: "blocked" }),
+  );
 
 /** Where to paste relative to the current selection.
  *  Paste as next sibling of selected; appends to top-level if no selection. */
@@ -54,15 +49,45 @@ const pastePosition = (
   return { ...parent, index: parent.index + 1 };
 };
 
-export function useClipboard(deps: ClipboardDeps): ClipboardActions {
+/** Copy/cut/paste over an in-editor fragment store, with the system clipboard
+ *  as best-effort interop on top. The store is the write target that cannot
+ *  fail; system clipboard failures surface through `notice` (aria-live). */
+export function useClipboard(
+  deps: ClipboardDeps,
+): ClipboardActions & { notice: string } {
   const ref = useRef(deps);
   ref.current = deps;
+
+  const storeRef = useRef<ComponentData | undefined>(undefined);
+
+  const [notice, setNotice] = useState("");
+  const noticeTimer = useRef<ReturnType<typeof setTimeout> | undefined>(
+    undefined,
+  );
+  const announce = useCallback((message: string) => {
+    setNotice(message);
+    clearTimeout(noticeTimer.current);
+    noticeTimer.current = setTimeout(() => setNotice(""), NOTICE_MS);
+  }, []);
+  useEffect(() => () => clearTimeout(noticeTimer.current), []);
+
+  const capture = useCallback(
+    (component: ComponentData) => {
+      storeRef.current = component;
+      navigator.clipboard
+        .writeText(Fragment.serialize(component))
+        .catch(() => announce(SYSTEM_WRITE_BLOCKED));
+    },
+    [announce],
+  );
 
   const onCopy = useCallback(() => {
     const { data, lastSelectedId } = ref.current;
     if (!lastSelectedId) return;
-    copy(data, lastSelectedId).map(writeFragment);
-  }, []);
+    copy(data, lastSelectedId).match(capture, (error) =>
+      announce(failed("Copy", error)),
+    );
+  }, [capture, announce]);
 
   const onCut = useCallback(() => {
     const { data, lastSelectedId, commit, onDeselect } = ref.current;
@@ -73,27 +98,44 @@ export function useClipboard(deps: ClipboardDeps): ClipboardActions {
     ];
     copy(data, lastSelectedId)
       .andThen((component) => {
-        writeFragment(component);
+        capture(component);
         return remove(data, lastSelectedId);
       })
-      .map((next) => {
-        commit({
-          beforeData: data,
-          afterData: next,
-          label: "Cut",
-          resolve: { kind: "remove", ids: removedIds },
-        });
-        onDeselect();
-      });
-  }, []);
+      .match(
+        (next) => {
+          commit({
+            beforeData: data,
+            afterData: next,
+            label: "Cut",
+            resolve: { kind: "remove", ids: removedIds },
+          });
+          onDeselect();
+        },
+        (error) => announce(failed("Cut", error)),
+      );
+  }, [capture, announce]);
 
   const onPaste = useCallback(async () => {
-    const component = await readFragment();
-    if (!component) return;
+    const system = await readSystem();
+    const systemComponent =
+      system.status === "read" ? system.component : undefined;
+    const component = systemComponent ?? storeRef.current;
+    const isSystemBlocked = system.status === "blocked";
+    if (!component) {
+      announce(
+        isSystemBlocked
+          ? "Nothing to paste. System clipboard unavailable."
+          : "Nothing to paste.",
+      );
+      return;
+    }
 
     const { data, config, lastSelectedId, commit, onSelect } = ref.current;
     const position = pastePosition(data, lastSelectedId);
-    if (!position) return;
+    if (!position) {
+      announce("Paste failed: no destination for the current selection.");
+      return;
+    }
 
     paste(
       data,
@@ -102,20 +144,27 @@ export function useClipboard(deps: ClipboardDeps): ClipboardActions {
       component,
       config,
       position.index,
-    ).map(({ data: next, id }) => {
-      commit({
-        beforeData: data,
-        afterData: next,
-        label: "Pasted",
-        resolve: { kind: "insert", id },
-      });
-      onSelect([id]);
-    });
-  }, []);
+    ).match(
+      ({ data: next, id }) => {
+        commit({
+          beforeData: data,
+          afterData: next,
+          label: "Pasted",
+          resolve: { kind: "insert", id },
+        });
+        onSelect([id]);
+        if (isSystemBlocked) {
+          announce(
+            "Pasted from editor clipboard. System clipboard unavailable.",
+          );
+        }
+      },
+      (error) => announce(failed("Paste", error)),
+    );
+  }, [announce]);
 
   const onDuplicate = useCallback(() => {
-    const { data, config, lastSelectedId, commit, onSelect } =
-      ref.current;
+    const { data, config, lastSelectedId, commit, onSelect } = ref.current;
     if (!lastSelectedId) return;
     const parent = findParent(data, lastSelectedId);
     if (!parent) return;
@@ -141,5 +190,5 @@ export function useClipboard(deps: ClipboardDeps): ClipboardActions {
       });
   }, []);
 
-  return { onCopy, onCut, onPaste, onDuplicate };
+  return { onCopy, onCut, onPaste, onDuplicate, notice };
 }

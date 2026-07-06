@@ -17,12 +17,14 @@ type Args = {
   carryCycleStatus: CycleStatus | null;
   slotAddress: string | undefined;
   noTargetFlash: { x: number; y: number } | null;
+  clipboardNotice: string;
 };
 
 /** The single polite live-region message for the editor. Precedence: an active
  *  drag (cycle-prefixed while cycling) wins, then — during carry — an invalid-click
  *  echo over the carry destination status (cycle-prefixed while cycling), then a
- *  selected slot stop. Empty string when nothing is announceable. */
+ *  transient clipboard notice, then a selected slot stop. Empty string when
+ *  nothing is announceable. */
 export const announcerMessage = ({
   data,
   drag,
@@ -33,6 +35,7 @@ export const announcerMessage = ({
   carryCycleStatus,
   slotAddress,
   noTargetFlash,
+  clipboardNotice,
 }: Args): string => {
   if (drag === "dragging" && dropTarget) {
     const label = announcementFor(data, dropTarget);
@@ -49,6 +52,7 @@ export const announcerMessage = ({
         : label;
     }
   }
+  if (clipboardNotice) return clipboardNotice;
   if (pointer === "slot-selected" && slotAddress)
     return `Slot ${slotAddress} selected`;
   return "";

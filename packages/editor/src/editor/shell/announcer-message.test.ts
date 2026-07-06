@@ -51,6 +51,7 @@ const baseArgs = {
   carryCycleStatus: null,
   slotAddress: undefined,
   noTargetFlash: null,
+  clipboardNotice: "",
 };
 
 // --- announcerMessage (polite) ---
@@ -131,6 +132,36 @@ describe("announcerMessage", () => {
 
   test("idle with nothing announceable → empty string", () => {
     expect(announcerMessage(baseArgs)).toBe("");
+  });
+
+  test("clipboard notice while idle → notice", () => {
+    expect(
+      announcerMessage({ ...baseArgs, clipboardNotice: "Nothing to paste." }),
+    ).toBe("Nothing to paste.");
+  });
+
+  test("clipboard notice beats slot-selected message", () => {
+    expect(
+      announcerMessage({
+        ...baseArgs,
+        pointer: "slot-selected",
+        slotAddress: "Card › body",
+        clipboardNotice: "Nothing to paste.",
+      }),
+    ).toBe("Nothing to paste.");
+  });
+
+  test("active drag beats clipboard notice", () => {
+    const d = data([card("card", { header: [leaf("h")] })]);
+    expect(
+      announcerMessage({
+        ...baseArgs,
+        data: d,
+        drag: "dragging",
+        dropTarget: containerTarget("card", "header", 1),
+        clipboardNotice: "Nothing to paste.",
+      }),
+    ).toBe("Card › header");
   });
 
   test("noTargetFlash outside carry is ignored → empty string", () => {

@@ -359,8 +359,7 @@ export function Editor<UserConfig extends Config = Config>({
   }, [selectedSlot, currentData]);
 
   const slotPickerAllowedTypes = useMemo(():
-    | ReadonlySet<string>
-    | undefined => {
+    ReadonlySet<string> | undefined => {
     if (!selectedSlot) return undefined;
     const parentType = findById(currentData, selectedSlot.parentId)?.type;
     if (!parentType) return undefined;
@@ -652,6 +651,7 @@ export function Editor<UserConfig extends Config = Config>({
             carryCycleStatus,
             slotAddress,
             noTargetFlash,
+            clipboardNotice: clipboard.notice,
           })}
         />
         <Announcer
