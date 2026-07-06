@@ -1,17 +1,22 @@
 import type { ComponentData } from "@puckeditor/core";
 
+/** Transparent wrapper — drilled through, contributes no content of its own. */
 export const CONTAINER_ROLE = "container" as const;
+/** Opaque list — its items are units; never flattened, contributes no content. */
+export const COLLECTION_ROLE = "collection" as const;
 
-function isRole(role: string, target: string): boolean {
-  return role === target;
-}
+const STRUCTURAL_ROLES = new Set<string>([CONTAINER_ROLE, COLLECTION_ROLE]);
 
 export function isContainerRole(role: string): boolean {
-  return isRole(role, CONTAINER_ROLE);
+  return role === CONTAINER_ROLE;
+}
+
+export function isCollectionRole(role: string): boolean {
+  return role === COLLECTION_ROLE;
 }
 
 export function isContentRole(role: string): boolean {
-  return !isRole(role, CONTAINER_ROLE);
+  return !STRUCTURAL_ROLES.has(role);
 }
 
 export function buildRoleIndex(

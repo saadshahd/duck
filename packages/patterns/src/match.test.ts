@@ -15,6 +15,12 @@ const config: PatternConfig = {
   patterns: [],
 };
 
+// A collection (list) container — its items are opaque units, never flattened.
+const collectionConfig: PatternConfig = {
+  ...config,
+  componentRoles: { ...config.componentRoles, Grid: "collection" },
+};
+
 // A minimal pattern for testing
 const splitPattern: SectionPattern = {
   name: "Split hero",
@@ -82,6 +88,19 @@ describe("collectTopLevel", () => {
     const heading = make("Heading", "h1");
     const stack = make("Stack", "s1", { content: [heading] });
     expect(collectTopLevel(stack, config.componentRoles)).toEqual([heading]);
+  });
+
+  it("yields no content when the node itself is a collection", () => {
+    const card = make("Card", "c1", { items: [make("Heading", "h1")] });
+    const grid = make("Grid", "g1", { items: [card] });
+    expect(collectTopLevel(grid, collectionConfig.componentRoles)).toEqual([]);
+  });
+
+  it("does not harvest content from a collection child", () => {
+    const card = make("Card", "c1", { items: [make("Heading", "h1")] });
+    const grid = make("Grid", "g1", { items: [card] });
+    const stack = make("Stack", "s1", { items: [grid] });
+    expect(collectTopLevel(stack, collectionConfig.componentRoles)).toEqual([]);
   });
 });
 
@@ -169,6 +188,75 @@ describe("isApplicable", () => {
   it("returns true when selection has figure and pattern has figure slot", () => {
     const stack = make("Stack", "s1", {
       items: [make("Image", "img1"), make("Heading", "h1")],
+    });
+    expect(isApplicable(stack, splitPattern, config)).toBe(true);
+  });
+
+  it("returns false when a singular slot's role over-counts capacity", () => {
+    // splitPattern's heading slot is 'first' (capacity 1) — two headings would drop one
+    const stack = make("Stack", "s1", {
+      items: [make("Heading", "h1"), make("Heading", "h2")],
+    });
+    expect(isApplicable(stack, splitPattern, config)).toBe(false);
+  });
+
+  it("returns false for a Grid of Cards that flattens past singular capacity", () => {
+    // The motivating bug: container-transparency harvests 3 headings + 3 bodies,
+    // but splitPattern's heading/body slots are singular — applying drops 4 nodes.
+    const gridConfig: PatternConfig = {
+      ...config,
+      componentRoles: { ...config.componentRoles, Grid: "container" },
+    };
+    const card = (n: string) =>
+      make("Card", `c${n}`, {
+        items: [make("Heading", `h${n}`), make("Text", `t${n}`)],
+      });
+    const grid = make("Grid", "g1", {
+      items: [card("1"), card("2"), card("3")],
+    });
+    expect(isApplicable(grid, splitPattern, gridConfig)).toBe(false);
+  });
+
+  it("returns false for a collection holding a single content block (rejection is count-independent)", () => {
+    // The decisive case: one card with heading+body fits singular capacity (1 <= 1),
+    // yet a single-block pattern must never apply to a list. Collection is opaque.
+    const card = make("Card", "c1", {
+      items: [make("Heading", "h1"), make("Text", "t1")],
+    });
+    const grid = make("Grid", "g1", { items: [card] });
+    expect(isApplicable(grid, splitPattern, collectionConfig)).toBe(false);
+  });
+
+  it("returns false for a collection holding many content blocks", () => {
+    const card = (n: string) =>
+      make("Card", `c${n}`, {
+        items: [make("Heading", `h${n}`), make("Text", `t${n}`)],
+      });
+    const grid = make("Grid", "g1", {
+      items: [card("1"), card("2"), card("3")],
+    });
+    expect(isApplicable(grid, splitPattern, collectionConfig)).toBe(false);
+  });
+
+  it("returns false for a content block that also wraps a collection (collection blocks applicability)", () => {
+    // The motivating bug: the 'features' Stack = [Heading, Text, Grid-of-cards].
+    // The heading+text satisfy splitPattern's slots, but the Grid is a collection
+    // with no accepting slot — applying would silently drop it. Must reject.
+    const card = make("Card", "c1", {
+      items: [make("Heading", "ch1"), make("Text", "ct1")],
+    });
+    const grid = make("Grid", "g1", { items: [card] });
+    const stack = make("Stack", "s1", {
+      items: [make("Heading", "h1"), make("Text", "t1"), grid],
+    });
+    expect(isApplicable(stack, splitPattern, collectionConfig)).toBe(false);
+  });
+
+  it("returns true for a genuine wrapper holding a single content block", () => {
+    // Regression guard / contrast: a Stack (container) wrapping one heading+body
+    // is a real content block and STILL matches — only collections are opaque.
+    const stack = make("Stack", "s1", {
+      items: [make("Heading", "h1"), make("Text", "t1")],
     });
     expect(isApplicable(stack, splitPattern, config)).toBe(true);
   });

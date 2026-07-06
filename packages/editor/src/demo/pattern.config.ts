@@ -21,6 +21,7 @@ export const patternConfig: PatternConfig = {
   componentRoles: {
     Stack: "container",
     Card: "container",
+    Grid: "collection",
     Heading: "heading",
     Text: "body",
     Button: "action",

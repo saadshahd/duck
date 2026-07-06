@@ -35,11 +35,11 @@ function replacePlaceholder(
 function selectContent(
   slot: PatternSlot,
   matched: ComponentData[],
-): Result<ComponentData[] | null, MergeError> {
+): Result<ComponentData[], MergeError> {
   if (matched.length === 0) {
     return isRequired(slot.cardinality)
       ? err({ kind: "required-slot-empty", slotName: slot.name })
-      : ok(null);
+      : ok([]);
   }
   return ok(isPlural(slot.cardinality) ? matched : [matched[0]]);
 }
@@ -119,7 +119,6 @@ export function merge(
             (role) => currentPool.get(role) ?? [],
           );
           return selectContent(slot, matched).map((content) => {
-            if (!content) return { working, pool: currentPool };
             const next = replacePlaceholder(
               working,
               slot.accepts,

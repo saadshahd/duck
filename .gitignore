@@ -7,3 +7,5 @@ packages/editor/test-results/
 .claude/worktrees/
 .claude/plans/
 .fallow/
+# Riptide artifacts (cloud-synced)
+.humanlayer/tasks/
