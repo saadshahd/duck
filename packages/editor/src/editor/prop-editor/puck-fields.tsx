@@ -1,4 +1,4 @@
-import { type ReactNode, useState, useEffect, useRef } from "react";
+import { type ReactNode, useState, useEffect } from "react";
 import type { Config, Data, Field } from "@puckeditor/core";
 import { useFloating, flip, shift } from "@floating-ui/react";
 import { Disclosure } from "./disclosure.js";
@@ -11,6 +11,7 @@ import { FieldMetadata } from "./field-metadata.js";
 import { useShadowSheet, useOnClickOutside } from "../overlay/index.js";
 import css from "./object-section.css?inline";
 import { SlotCtx, type CrossSlotDrag } from "./slot-context.js";
+import { useDebouncedText } from "./use-debounced-text.js";
 import { SlotOutline } from "./slot-outline.js";
 import type { EditorCommit } from "../types.js";
 
@@ -61,64 +62,6 @@ export type FieldProps<F extends Field = Field, V = unknown> = {
   isOpen?: (p: string) => boolean;
   toggle?: (p: string) => void;
 };
-
-// --- Debounced text hook ---
-
-const DEBOUNCE_MS = 500;
-
-function useDebouncedText(
-  value: string,
-  onChange: (v: string) => void,
-): {
-  draft: string;
-  handleChange: (
-    e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>,
-  ) => void;
-  handleBlur: () => void;
-} {
-  const [draft, setDraft] = useState(value);
-  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const draftRef = useRef(draft);
-
-  // Sync incoming value when element selection changes (remount via key)
-  useEffect(() => {
-    setDraft(value);
-    draftRef.current = value;
-  }, [value]);
-
-  const flush = (text: string) => {
-    if (timerRef.current !== null) {
-      clearTimeout(timerRef.current);
-      timerRef.current = null;
-    }
-    onChange(text);
-  };
-
-  const handleChange = (
-    e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>,
-  ) => {
-    const text = e.target.value;
-    setDraft(text);
-    draftRef.current = text;
-    if (timerRef.current !== null) clearTimeout(timerRef.current);
-    timerRef.current = setTimeout(() => {
-      timerRef.current = null;
-      onChange(draftRef.current);
-    }, DEBOUNCE_MS);
-  };
-
-  const handleBlur = () => flush(draftRef.current);
-
-  // Flush on unmount so no pending timer fires against stale parent state
-  useEffect(
-    () => () => {
-      if (timerRef.current !== null) clearTimeout(timerRef.current);
-    },
-    [],
-  );
-
-  return { draft, handleChange, handleBlur };
-}
 
 // --- Field renderers ---
 
@@ -507,9 +450,11 @@ const FallbackField = ({
   const [invalid, setInvalid] = useState(false);
 
   useEffect(() => {
+    // While invalid, the textarea holds the designer's uncommitted draft —
+    // syncing here would discard their in-progress JSON on external updates.
+    if (invalid) return;
     setText(serialize(value));
-    setInvalid(false);
-  }, [value]);
+  }, [value, invalid]);
 
   return (
     <div className="prop-field">
