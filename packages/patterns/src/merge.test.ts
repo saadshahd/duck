@@ -208,6 +208,154 @@ describe("merge — root container exception", () => {
   });
 });
 
+describe("merge — collection role", () => {
+  // A collection (list) container — its items are opaque units, moved
+  // wholesale into an accepting slot, never flattened into the pool.
+  const collectionConfig: PatternConfig = {
+    ...config,
+    componentRoles: { ...config.componentRoles, Grid: "collection" },
+  };
+
+  const collectionPattern: SectionPattern = {
+    name: "Heading + collection",
+    description: "test",
+    slots: [
+      { name: "heading", accepts: ["heading"], cardinality: { kind: "first" } },
+      {
+        name: "list",
+        accepts: ["collection"],
+        cardinality: { kind: "optional" },
+      },
+    ],
+    data: make("Stack", "tmpl-root", {
+      items: [
+        make("Heading", "tmpl-h", { text: "Default" }),
+        make("Grid", "tmpl-grid", { items: [] }),
+      ],
+    }),
+  };
+
+  it("places the collection as an opaque unit in the accepting slot", () => {
+    const card = make("Card", "card1", { items: [make("Heading", "ih1")] });
+    const grid = make("Grid", "g1", { items: [card] });
+    const selection = make("Stack", "s1", {
+      items: [make("Heading", "h1"), grid],
+    });
+    const result = merge(selection, collectionPattern, collectionConfig);
+    expect(result.isOk()).toBe(true);
+    const items = result._unsafeUnwrap().data.props.items as ComponentData[];
+    expect(items.find((c) => c.props.id === "g1")).toEqual(grid);
+  });
+
+  it("preserves every id inside the collection subtree, not just its root", () => {
+    const innerHeading = make("Heading", "inner-h");
+    const card = make("Card", "card1", { items: [innerHeading] });
+    const grid = make("Grid", "g1", { items: [card] });
+    const selection = make("Stack", "s1", {
+      items: [make("Heading", "h1"), grid],
+    });
+    const result = merge(selection, collectionPattern, collectionConfig);
+    expect(result.isOk()).toBe(true);
+    const preserved = result._unsafeUnwrap().preservedIds;
+    expect(["g1", "card1", "inner-h"].every((id) => preserved.has(id))).toBe(
+      true,
+    );
+  });
+
+  it("omits an optional collection slot when the selection has no collection", () => {
+    const selection = make("Stack", "s1", {
+      items: [make("Heading", "h1")],
+    });
+    const result = merge(selection, collectionPattern, collectionConfig);
+    expect(result.isOk()).toBe(true);
+    const items = result._unsafeUnwrap().data.props.items as ComponentData[];
+    expect(items.some((c) => c.type === "Grid")).toBe(false);
+  });
+
+  it("returns required-slot-empty when a required collection slot has no collection", () => {
+    const requiredPattern: SectionPattern = {
+      ...collectionPattern,
+      slots: [
+        {
+          name: "heading",
+          accepts: ["heading"],
+          cardinality: { kind: "first" },
+        },
+        {
+          name: "list",
+          accepts: ["collection"],
+          cardinality: { kind: "first" },
+        },
+      ],
+    };
+    const selection = make("Stack", "s1", {
+      items: [make("Heading", "h1")],
+    });
+    const result = merge(selection, requiredPattern, collectionConfig);
+    expect(result.isErr()).toBe(true);
+    expect(result._unsafeUnwrapErr()).toEqual({
+      kind: "required-slot-empty",
+      slotName: "list",
+    });
+  });
+
+  it("takes the first collection in document order for a singular slot", () => {
+    const grid1 = make("Grid", "g1", { items: [] });
+    const grid2 = make("Grid", "g2", { items: [] });
+    const selection = make("Stack", "s1", {
+      items: [make("Heading", "h1"), grid1, grid2],
+    });
+    const result = merge(selection, collectionPattern, collectionConfig);
+    expect(result.isOk()).toBe(true);
+    const items = result._unsafeUnwrap().data.props.items as ComponentData[];
+    expect(items.some((c) => c.props.id === "g1")).toBe(true);
+    expect(items.some((c) => c.props.id === "g2")).toBe(false);
+  });
+
+  it("places every collection in document order for a plural slot", () => {
+    const manyPattern: SectionPattern = {
+      ...collectionPattern,
+      slots: [
+        {
+          name: "heading",
+          accepts: ["heading"],
+          cardinality: { kind: "first" },
+        },
+        {
+          name: "lists",
+          accepts: ["collection"],
+          cardinality: { kind: "many" },
+        },
+      ],
+    };
+    const grid1 = make("Grid", "g1", { items: [] });
+    const grid2 = make("Grid", "g2", { items: [] });
+    const selection = make("Stack", "s1", {
+      items: [make("Heading", "h1"), grid1, grid2],
+    });
+    const result = merge(selection, manyPattern, collectionConfig);
+    expect(result.isOk()).toBe(true);
+    const items = result._unsafeUnwrap().data.props.items as ComponentData[];
+    expect(items.some((c) => c.props.id === "g1")).toBe(true);
+    expect(items.some((c) => c.props.id === "g2")).toBe(true);
+  });
+
+  it("silently drops a collection when the pattern has no accepting slot (guarded upstream by isApplicable)", () => {
+    // merge() does not re-verify the lossless invariant — that is isApplicable's
+    // job. Calling merge directly with a pattern that never matched findApplicable
+    // is a caller error; merge degrades the same way it does for any other
+    // unmatched role: the content is left out of the result.
+    const grid = make("Grid", "g1", { items: [] });
+    const selection = make("Stack", "s1", {
+      items: [make("Heading", "h1"), grid],
+    });
+    const result = merge(selection, simplePattern, collectionConfig);
+    expect(result.isOk()).toBe(true);
+    const items = result._unsafeUnwrap().data.props.items as ComponentData[];
+    expect(items.some((c) => c.type === "Grid")).toBe(false);
+  });
+});
+
 describe("merge — preservedIds", () => {
   it("includes root ID in preservedIds", () => {
     const selection = make("Stack", "s1", {

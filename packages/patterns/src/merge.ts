@@ -8,9 +8,9 @@ import {
   type MergeError,
   type MergeResult,
 } from "./types.js";
-import { isContainerRole, buildRoleIndex } from "./role.js";
+import { isContainerRole, buildRoleIndex, COLLECTION_ROLE } from "./role.js";
 import { isRequired, isPlural } from "./cardinality.js";
-import { collectTopLevel } from "./match.js";
+import { collectTopLevel, collectCollections } from "./match.js";
 
 function replacePlaceholder(
   node: ComponentData,
@@ -71,6 +71,21 @@ function drainPlaced(
   );
 }
 
+/**
+ * A collection is carried into the result wholesale (never flattened), so
+ * every id inside it — not just its own — must be exempt from `remintIds`.
+ * Otherwise moving an untouched list into a new template would silently
+ * reassign identity to every item in it.
+ */
+function subtreeIds(node: ComponentData): string[] {
+  return [
+    String(node.props.id),
+    ...slotKeysOf(node).flatMap((key) =>
+      (node.props[key] as ComponentData[]).flatMap(subtreeIds),
+    ),
+  ];
+}
+
 function inheritRootProps(
   data: ComponentData,
   template: ComponentData,
@@ -90,10 +105,17 @@ export function merge(
   config: PatternConfig,
 ): Result<MergeResult, MergeError> {
   const topLevel = collectTopLevel(data, config.componentRoles);
-  const pool = buildRoleIndex(topLevel, config.componentRoles);
+  const collections = collectCollections(data, config.componentRoles);
+  const contentPool = buildRoleIndex(topLevel, config.componentRoles);
+  const pool = new Map(
+    collections.length > 0
+      ? [...contentPool, [COLLECTION_ROLE, collections] as const]
+      : contentPool,
+  );
   const preservedIds = new Set([
     String(data.props.id),
     ...topLevel.map((c) => String(c.props.id)),
+    ...collections.flatMap(subtreeIds),
   ]);
 
   const template = structuredClone(pattern.data) as ComponentData;
