@@ -22,6 +22,8 @@ import { useInlineEdit } from "./inline-input.js";
 import { ArkEnvironment } from "../overlay/index.js";
 import { PropSheet } from "./prop-sheet.js";
 import { useSheetAnchor } from "./use-sheet-anchor.js";
+import { useScrollIntoCenter } from "./use-scroll-into-center.js";
+import { useScrollLock } from "./use-scroll-lock.js";
 import { useResolvedFields } from "./use-resolved-fields.js";
 import { PuckFields } from "./puck-fields.js";
 import type { ResolvedFields } from "./find-editable-prop.js";
@@ -163,6 +165,13 @@ export function usePropEditor({
 
   const isSheetOpen = !!(sheetEditing && sheetComponent && registry);
 
+  useScrollIntoCenter({
+    registry,
+    elementId: sheetEditing?.elementId,
+    active: isSheetOpen,
+  });
+  useScrollLock({ active: isSheetOpen });
+
   if (isSheetOpen) {
     snapshotRef.current = {
       registry,
@@ -241,8 +250,7 @@ function SheetView({
 
   const { cutoutRef, lineRef } = useSheetAnchor(registry, elementId);
   const readOnlyFields = component.readOnly as
-    | Partial<Record<string, boolean>>
-    | undefined;
+    Partial<Record<string, boolean>> | undefined;
   const typeLabel =
     (config.components[component.type] as { label?: string } | undefined)
       ?.label ?? component.type;
