@@ -7,6 +7,7 @@ import { InMemoryTransport } from "@modelcontextprotocol/sdk/inMemory.js";
 import type { Config, Data } from "@puckeditor/core";
 import { createMcpServer } from "./server.js";
 import { createFileStorage } from "./file-storage.js";
+import { createCaptureStorage } from "./capture-storage.js";
 import { createBridge } from "./bridge/index.js";
 
 const testConfig = {
@@ -50,6 +51,7 @@ const setup = async () => {
       storage: createFileStorage(tmpDir),
       config: testConfig,
       bridge,
+      captureStorage: createCaptureStorage(tmpDir),
     });
     const [clientTransport, serverTransport] =
       InMemoryTransport.createLinkedPair();

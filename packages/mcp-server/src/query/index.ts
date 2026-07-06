@@ -1,7 +1,6 @@
 import { Effect } from "effect";
 import type { Data } from "@puckeditor/core";
 import type { McpContext } from "../protocol.js";
-import type { Bridge } from "../bridge/index.js";
 import { QueryError } from "../errors.js";
 import { readDataOrDraft } from "./read-spec-or-draft.js";
 import { outline } from "./outline.js";
@@ -40,10 +39,10 @@ const dataModes: Record<
 
 const bridgeModes: Record<
   string,
-  (bridge: Bridge, page: string) => Effect.Effect<unknown, QueryError>
+  (ctx: McpContext, page: string) => Effect.Effect<unknown, QueryError>
 > = {
-  selection: (bridge, page) => selection(bridge, page),
-  capture: (bridge, page) => capture(bridge, page),
+  selection: (ctx, page) => selection(ctx.bridge, page),
+  capture: (ctx, page) => capture(ctx.bridge, ctx.captureStorage, page),
 };
 
 const requireParam = (
@@ -69,7 +68,7 @@ export const dispatchQuery = (ctx: McpContext, args: QueryArgs) => {
   const bridgeHandler = bridgeModes[args.what];
   if (bridgeHandler)
     return requirePage(args.page).pipe(
-      Effect.andThen((page) => bridgeHandler(ctx.bridge, page)),
+      Effect.andThen((page) => bridgeHandler(ctx, page)),
     );
 
   return Effect.fail(

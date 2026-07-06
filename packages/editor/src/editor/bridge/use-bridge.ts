@@ -9,6 +9,7 @@ import {
 } from "@duckeditor/spec";
 import type { EditorCommit } from "../types.js";
 import { resolverIds } from "../resolve-config.js";
+import { captureImage } from "./capture-responder.js";
 
 export type BridgeStatus = "connecting" | "connected" | "disconnected";
 
@@ -23,12 +24,19 @@ type UseBridgeOptions = {
 
 type SendFn = (msg: BrowserMessage) => void;
 type SpecUpdateMessage = Extract<ServerMessage, { type: "spec-update" }>;
+type CaptureRequestMessage = Extract<
+  ServerMessage,
+  { type: "capture-request" }
+>;
 
 const MAX_RETRIES = 5;
 const BACKOFF_MS = [1000, 2000, 4000, 8000, 8000] as const;
 
 const isSpecUpdate = (msg: ServerMessage): msg is SpecUpdateMessage =>
   msg.type === "spec-update";
+
+const isCaptureRequest = (msg: ServerMessage): msg is CaptureRequestMessage =>
+  msg.type === "capture-request";
 
 export function useBridge({
   url,
@@ -81,9 +89,21 @@ export function useBridge({
         });
       }
 
+      function handleCaptureRequest(msg: CaptureRequestMessage) {
+        captureImage(msg)
+          .then((image) =>
+            send({ type: "capture-response", id: msg.id, image }),
+          )
+          .catch(() => {
+            // No response is sent on capture failure; the server-side request
+            // times out and surfaces that to the MCP caller as a QueryError.
+          });
+      }
+
       function handleMessage(event: MessageEvent) {
         const msg = JSON.parse(event.data) as ServerMessage;
         if (isSpecUpdate(msg)) handleSpecUpdate(msg);
+        if (isCaptureRequest(msg)) handleCaptureRequest(msg);
       }
 
       function connect() {

@@ -6,6 +6,7 @@ import { Effect } from "effect";
 import type { Config, Data } from "@puckeditor/core";
 import { applyOps } from "./apply.js";
 import { createFileStorage } from "./file-storage.js";
+import { createCaptureStorage } from "./capture-storage.js";
 import { createBridge } from "./bridge/index.js";
 
 const testConfig = {
@@ -41,7 +42,12 @@ const setup = async () => {
   const storage = createFileStorage(tmpDir);
   const bridge = createBridge();
   await bridge.start();
-  const ctx = { storage, config: testConfig, bridge };
+  const ctx = {
+    storage,
+    config: testConfig,
+    bridge,
+    captureStorage: createCaptureStorage(tmpDir),
+  };
   const teardown = async () => {
     bridge.stop();
     await fs.rm(tmpDir, { recursive: true, force: true });

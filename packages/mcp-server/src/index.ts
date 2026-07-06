@@ -3,6 +3,7 @@ import { Effect } from "effect";
 import type { Config } from "@puckeditor/core";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { createFileStorage } from "./file-storage.js";
+import { createCaptureStorage } from "./capture-storage.js";
 import { createBridge } from "./bridge/index.js";
 import { createMcpServer } from "./server.js";
 import { CatalogLoadError } from "./errors.js";
@@ -49,10 +50,11 @@ const formatCatalogError = (err: CatalogLoadError) =>
 const boot = Effect.gen(function* () {
   const config = yield* loadConfig;
   const storage = createFileStorage(projectDir);
+  const captureStorage = createCaptureStorage(projectDir);
   const bridge = createBridge();
   const { port } = yield* Effect.promise(() => bridge.start());
 
-  const mcp = createMcpServer({ storage, config, bridge });
+  const mcp = createMcpServer({ storage, config, bridge, captureStorage });
   yield* Effect.promise(() => mcp.connect(new StdioServerTransport()));
 
   console.error(`[duck] Bridge: http://127.0.0.1:${port}`);
