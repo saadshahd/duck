@@ -1282,6 +1282,9 @@ export const getDimensionInputValue = (page: Page, fieldLabel?: string) =>
 
 /** The on-screen (viewport) center of the dimension chip whose data-value
  *  matches within the field identified by fieldLabel (or first field if omitted).
+ *  The chip row is a no-wrap horizontal scroller (see dimension.css) — chips
+ *  past the panel width are clipped, so the chip is scrolled into view first
+ *  (instant scroll; layout settles synchronously) before its center is read.
  *  Null when no such chip exists. */
 export const getDimensionChipCenter = (
   page: Page,
@@ -1304,6 +1307,7 @@ export const getDimensionChipCenter = (
         ] as HTMLElement[];
         const el = chips.find((c) => c.getAttribute("data-value") === wanted);
         if (!el) return null;
+        el.scrollIntoView({ block: "nearest", inline: "nearest" });
         const b = el.getBoundingClientRect();
         return { x: b.left + b.width / 2, y: b.top + b.height / 2 };
       }
@@ -1406,7 +1410,9 @@ export const isDimensionSentinelSelected = (page: Page, fieldLabel?: string) =>
     { label: fieldLabel, finder: dimensionRoot.toString() },
   ) as Promise<boolean>;
 
-/** The on-screen center of the dimension sentinel for a real mouse click. */
+/** The on-screen center of the dimension sentinel for a real mouse click.
+ *  Scrolled into view first — the sentinel shares the clipped no-wrap chip
+ *  row, so a previously scrolled row could hide it. */
 export const getDimensionSentinelCenter = (page: Page, fieldLabel?: string) =>
   page.evaluate(
     ({ label, finder }) => {
@@ -1423,6 +1429,7 @@ export const getDimensionSentinelCenter = (page: Page, fieldLabel?: string) =>
           "[data-role='dimension-sentinel']",
         ) as HTMLElement | null;
         if (!el) return null;
+        el.scrollIntoView({ block: "nearest", inline: "nearest" });
         const b = el.getBoundingClientRect();
         return { x: b.left + b.width / 2, y: b.top + b.height / 2 };
       }

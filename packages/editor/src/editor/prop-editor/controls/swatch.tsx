@@ -25,8 +25,10 @@ export const Swatch = (({
 
   const presets = selectField.options.map((o) => String(o.value));
   const mode = resolveValueMode(value, presets);
-  // SegmentGroup requires a string value prop; undefined = no selection (honest unset).
-  const groupValue = mode.mode === "preset" ? mode.key : undefined;
+  // SegmentGroup value: stored string when a preset is selected; empty string
+  // for unset (Ark treats "" as "no selection" in controlled mode, whereas
+  // undefined makes Ark ignore the prop and retain internal state).
+  const groupValue = mode.mode === "preset" ? mode.key : "";
   const isUnset = mode.mode !== "preset";
 
   return (
