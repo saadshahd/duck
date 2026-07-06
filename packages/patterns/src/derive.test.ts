@@ -92,26 +92,10 @@ describe("deriveVariations", () => {
       },
     });
     expect(deriveVariations(config, "Flex")).toEqual([
-      {
-        name: "Row",
-        componentType: "Flex",
-        props: { direction: "row", align: "start" },
-      },
-      {
-        name: "Column",
-        componentType: "Flex",
-        props: { direction: "column", align: "start" },
-      },
-      {
-        name: "Start",
-        componentType: "Flex",
-        props: { direction: "row", align: "start" },
-      },
-      {
-        name: "Center",
-        componentType: "Flex",
-        props: { direction: "row", align: "center" },
-      },
+      { name: "Row", componentType: "Flex", props: { direction: "row" } },
+      { name: "Column", componentType: "Flex", props: { direction: "column" } },
+      { name: "Start", componentType: "Flex", props: { align: "start" } },
+      { name: "Center", componentType: "Flex", props: { align: "center" } },
     ]);
   });
 

@@ -3,6 +3,7 @@ export { add } from "./add.js";
 export { remove, removeMany } from "./remove.js";
 export { move } from "./move.js";
 export { replace } from "./replace.js";
+export { update } from "./update.js";
 export { editProp } from "./edit-prop.js";
 export { copy, paste } from "./clipboard.js";
 export { nextInTreeOrder, firstInTreeOrder } from "./navigation.js";

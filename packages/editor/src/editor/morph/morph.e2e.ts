@@ -3,6 +3,8 @@ import {
   getMorphButtonState,
   clickMorphButton,
   getMorphPickerItems,
+  getMorphPickerEntries,
+  hasMorphVariantsLabel,
   clickMorphPickerItem,
   hasMorphOverlay,
   climbToParent,
@@ -21,10 +23,11 @@ test.describe("Morph", () => {
     await page.waitForTimeout(500);
   });
 
-  test("morph button is disabled with count 0 for leaf element", async ({
+  test("morph button is disabled with count 0 for element without patterns or variants", async ({
     page,
   }) => {
-    await page.locator("h1").click();
+    // Text has no top-level select/radio fields and no applicable patterns
+    await page.locator("p").first().click();
     await page.waitForTimeout(300);
 
     const state = await getMorphButtonState(page);
@@ -116,7 +119,7 @@ test.describe("Morph", () => {
     expect(await page.locator("h3").first().textContent()).toBe(headingBefore);
   });
 
-  test("Grid gives no morph suggestions (opaque card children)", async ({
+  test("Grid gives no patterns, only quick variants (opaque card children)", async ({
     page,
   }) => {
     // Heading → slot-stop → Card → slot-stop → Grid
@@ -129,7 +132,47 @@ test.describe("Morph", () => {
 
     const state = await getMorphButtonState(page);
     expect(state).not.toBeNull();
-    expect(state!.disabled).toBe(true);
-    expect(state!.count).toBe(0);
+    expect(state!.disabled).toBe(false);
+
+    await clickMorphButton(page);
+    await page.waitForTimeout(200);
+
+    const entries = await getMorphPickerEntries(page);
+    expect(entries).not.toBeNull();
+    expect(entries!.length).toBeGreaterThan(0);
+    expect(entries!.every((e) => e.kind === "variant")).toBe(true);
+  });
+
+  test("quick variants appear as a labeled group and commit a prop change", async ({
+    page,
+  }) => {
+    const headingText = await page.locator("h1").textContent();
+
+    await page.locator("h1").click();
+    await page.waitForTimeout(300);
+
+    await clickMorphButton(page);
+    await page.waitForTimeout(200);
+
+    // Heading level h1 → H2/H3/H4 offered; the active option (H1) is skipped
+    expect(await hasMorphVariantsLabel(page)).toBe(true);
+    const entries = await getMorphPickerEntries(page);
+    expect(entries).not.toBeNull();
+    const variantNames = entries!
+      .filter((e) => e.kind === "variant")
+      .map((e) => e.name);
+    expect(variantNames).toEqual(["H2", "H3", "H4"]);
+
+    await clickMorphPickerItem(page, "H2");
+    await page.waitForTimeout(300);
+
+    // Prop replaced: same text now renders as h2, picker closed
+    expect(await page.locator("h2").first().textContent()).toBe(headingText);
+    expect(await getMorphPickerItems(page)).toBeNull();
+
+    // Cmd+Z reverts the variant commit
+    await page.keyboard.press("Meta+z");
+    await page.waitForTimeout(300);
+    expect(await page.locator("h1").textContent()).toBe(headingText);
   });
 });

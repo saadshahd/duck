@@ -77,6 +77,7 @@ import {
   MorphPicker,
   MorphOverlay,
   usePatterns,
+  withVariant,
 } from "./morph/index.js";
 import { useResolution } from "./resolve/use-resolution.js";
 import { ShimmerOverlay } from "./resolve/shimmer-overlay.js";
@@ -400,34 +401,39 @@ export function Editor<UserConfig extends Config = Config>({
     remintIds,
     selectedId: singleSelected,
     data: currentData,
+    config,
     commit,
   });
 
   const morphSelectedElement = useMemo(
     () =>
-      morph.isOpen && morph.activePattern && singleSelected
+      morph.isOpen && morph.activeEntry && singleSelected
         ? findById(currentData, singleSelected)
         : null,
-    [morph.isOpen, morph.activePattern, singleSelected, currentData],
+    [morph.isOpen, morph.activeEntry, singleSelected, currentData],
   );
 
   const morphOverlayData = useMemo(() => {
-    if (!morphSelectedElement || !patternRegistry || !morph.activePattern)
-      return null;
-    const result = patternRegistry.apply(
-      morphSelectedElement,
-      morph.activePattern,
-    );
+    const entry = morph.activeEntry;
+    if (!morphSelectedElement || !entry) return null;
+    if (entry.kind === "variant")
+      return withVariant(morphSelectedElement, entry.variant);
+    if (!patternRegistry) return null;
+    const result = patternRegistry.apply(morphSelectedElement, entry.pattern);
     if (result.isErr()) return null;
     return result.value.data;
-  }, [morphSelectedElement, patternRegistry, morph.activePattern]);
+  }, [morphSelectedElement, patternRegistry, morph.activeEntry]);
 
   const onMorphHover = useCallback(
-    (i: number) => morph.setActivePattern(i >= 0 ? morph.patterns[i] : null),
+    (i: number) =>
+      morph.setActiveEntry(i >= 0 ? (morph.entries[i] ?? null) : null),
     [morph],
   );
   const onMorphCommit = useCallback(
-    (i: number) => morph.commit(morph.patterns[i]),
+    (i: number) => {
+      const entry = morph.entries[i];
+      if (entry) morph.commit(entry);
+    },
     [morph],
   );
 
@@ -556,7 +562,7 @@ export function Editor<UserConfig extends Config = Config>({
           ))}
         {operable && morph.isOpen && (
           <MorphPicker
-            patterns={morph.patterns}
+            entries={morph.entries}
             onHover={onMorphHover}
             onCommit={onMorphCommit}
             onClose={morph.closePicker}

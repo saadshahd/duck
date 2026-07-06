@@ -1,19 +1,28 @@
 import { useState, useMemo, useEffect, useCallback } from "react";
-import type { Data } from "@puckeditor/core";
-import { findById, type SectionPattern } from "@duckeditor/spec";
+import type { Config, Data } from "@puckeditor/core";
+import {
+  findById,
+  type DerivedVariation,
+  type SectionPattern,
+} from "@duckeditor/spec";
 import type { PatternRegistry, RemintIds } from "@duckeditor/patterns";
-import { replace } from "../spec-ops/index.js";
+import { replace, update } from "../spec-ops/index.js";
 import type { EditorCommit } from "../types.js";
+import { quickVariants, withVariant } from "./quick-variants.js";
+
+export type MorphEntry =
+  | { kind: "pattern"; pattern: SectionPattern }
+  | { kind: "variant"; variant: DerivedVariation };
 
 type MorphState = {
   count: number;
   isOpen: boolean;
-  activePattern: SectionPattern | null;
-  patterns: SectionPattern[];
+  activeEntry: MorphEntry | null;
+  entries: MorphEntry[];
   openPicker: () => void;
   closePicker: () => void;
-  setActivePattern: (pattern: SectionPattern | null) => void;
-  commit: (pattern: SectionPattern) => void;
+  setActiveEntry: (entry: MorphEntry | null) => void;
+  commit: (entry: MorphEntry) => void;
   commitError: string | null;
 };
 
@@ -22,17 +31,18 @@ export function useMorph({
   remintIds,
   selectedId,
   data,
+  config,
   commit: commitData,
 }: {
   registry: PatternRegistry | null;
   remintIds: RemintIds | null;
   selectedId: string | null;
   data: Data;
+  config: Config;
   commit: EditorCommit;
 }): MorphState {
   const [isOpen, setIsOpen] = useState(false);
-  const [activePattern, setActivePatternState] =
-    useState<SectionPattern | null>(null);
+  const [activeEntry, setActiveEntryState] = useState<MorphEntry | null>(null);
   const [commitError, setCommitError] = useState<string | null>(null);
 
   const element = useMemo(
@@ -40,36 +50,50 @@ export function useMorph({
     [data, selectedId],
   );
 
-  const patterns = useMemo(
-    () => (registry && element ? registry.findApplicable(element) : []),
-    [registry, element],
-  );
+  const entries = useMemo<MorphEntry[]>(() => {
+    if (!registry || !element) return [];
+    return [
+      ...registry
+        .findApplicable(element)
+        .map((pattern) => ({ kind: "pattern" as const, pattern })),
+      ...quickVariants({
+        variations: registry.derive(element.type),
+        config,
+        element,
+      }).map((variant) => ({ kind: "variant" as const, variant })),
+    ];
+  }, [registry, element, config]);
 
   useEffect(
     function resetOnSelectionChange() {
       setIsOpen(false);
-      setActivePatternState(null);
+      setActiveEntryState(null);
       setCommitError(null);
     },
     [selectedId],
   );
 
   const openPicker = useCallback(() => {
-    if (patterns.length > 0) setIsOpen(true);
-  }, [patterns.length]);
+    if (entries.length > 0) setIsOpen(true);
+  }, [entries.length]);
 
   const closePicker = useCallback(() => {
     setIsOpen(false);
-    setActivePatternState(null);
+    setActiveEntryState(null);
     setCommitError(null);
   }, []);
 
-  const setActivePattern = useCallback((pattern: SectionPattern | null) => {
-    setActivePatternState(pattern);
+  const setActiveEntry = useCallback((entry: MorphEntry | null) => {
+    setActiveEntryState(entry);
     setCommitError(null);
   }, []);
 
-  const commit = useCallback(
+  const close = useCallback(() => {
+    setIsOpen(false);
+    setActiveEntryState(null);
+  }, []);
+
+  const commitPattern = useCallback(
     (pattern: SectionPattern) => {
       if (!registry || !remintIds || !element || !selectedId) return;
       const applyResult = registry.apply(element, pattern);
@@ -87,20 +111,48 @@ export function useMorph({
         label: `Morph: ${pattern.name}`,
         resolve: { kind: "morph", id: selectedId },
       });
-      setIsOpen(false);
-      setActivePatternState(null);
+      close();
     },
-    [registry, remintIds, element, selectedId, data, commitData],
+    [registry, remintIds, element, selectedId, data, commitData, close],
+  );
+
+  const commitVariant = useCallback(
+    (variant: DerivedVariation) => {
+      if (!element || !selectedId) return;
+      const updateResult = update(
+        data,
+        selectedId,
+        withVariant(element, variant).props,
+        config,
+      );
+      if (updateResult.isErr()) return;
+      commitData({
+        beforeData: data,
+        afterData: updateResult.value,
+        label: `Variant: ${variant.name}`,
+        resolve: { kind: "morph", id: selectedId },
+      });
+      close();
+    },
+    [element, selectedId, data, config, commitData, close],
+  );
+
+  const commit = useCallback(
+    (entry: MorphEntry) =>
+      entry.kind === "pattern"
+        ? commitPattern(entry.pattern)
+        : commitVariant(entry.variant),
+    [commitPattern, commitVariant],
   );
 
   return {
-    count: patterns.length,
+    count: entries.length,
     isOpen,
-    activePattern,
-    patterns,
+    activeEntry,
+    entries,
     openPicker,
     closePicker,
-    setActivePattern,
+    setActiveEntry,
     commit,
     commitError,
   };

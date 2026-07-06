@@ -642,8 +642,7 @@ export const clickMorphButton = (page: Page) =>
     for (const d of document.querySelectorAll("div")) {
       if (!d.shadowRoot || d.style.position !== "fixed") continue;
       const btn = d.shadowRoot.querySelector("[data-role='action-morph']") as
-        | HTMLElement
-        | undefined;
+        HTMLElement | undefined;
       btn?.click();
       return;
     }
@@ -657,6 +656,23 @@ export const getMorphPickerItems = (page: Page) =>
       (el) => el.querySelector(".morph-picker-name")?.textContent ?? "",
     );
   }) as Promise<string[] | null>;
+
+export const getMorphPickerEntries = (page: Page) =>
+  shadowQuery(page, (r) => {
+    const picker = r.querySelector("[data-role='morph-picker']");
+    if (!picker) return null;
+    return [...picker.querySelectorAll(".morph-picker-item")].map((el) => ({
+      name: el.querySelector(".morph-picker-name")?.textContent ?? "",
+      kind: el.getAttribute("data-kind") ?? "",
+    }));
+  }) as Promise<{ name: string; kind: string }[] | null>;
+
+export const hasMorphVariantsLabel = (page: Page) =>
+  shadowQuery(
+    page,
+    (r) =>
+      r.querySelector("[data-role='morph-picker-variants-label']") !== null,
+  ) as Promise<boolean>;
 
 export const clickMorphPickerItem = (page: Page, name: string) =>
   page.evaluate((itemName) => {

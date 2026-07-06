@@ -1,15 +1,21 @@
-import { useEffect, useRef, useState } from "react";
+import { Fragment, useEffect, useRef, useState } from "react";
 import type { RefObject } from "react";
 import { useFloating, offset, flip, shift } from "@floating-ui/react";
 import { useShadowSheet, useOnClickOutside } from "../overlay/index.js";
-import type { SectionPattern } from "@duckeditor/spec";
+import type { MorphEntry } from "./use-morph.js";
 import css from "./morph.css?inline";
 
 const MIDDLEWARE = [offset(8), flip(), shift({ padding: 8 })];
 const HANDLED = new Set(["Escape", "ArrowDown", "ArrowUp", "Enter"]);
 
+const nameOf = (entry: MorphEntry) =>
+  entry.kind === "pattern" ? entry.pattern.name : entry.variant.name;
+
+const isFirstVariant = (entries: MorphEntry[], i: number) =>
+  entries[i]?.kind === "variant" && entries[i - 1]?.kind !== "variant";
+
 type Props = {
-  patterns: SectionPattern[];
+  entries: MorphEntry[];
   onHover: (index: number) => void;
   onCommit: (index: number) => void;
   onClose: () => void;
@@ -18,7 +24,7 @@ type Props = {
 };
 
 export function MorphPicker({
-  patterns,
+  entries,
   onHover,
   onCommit,
   onClose,
@@ -59,7 +65,7 @@ export function MorphPicker({
 
   useEffect(
     function wireKeyboard() {
-      const count = patterns.length;
+      const count = entries.length;
       const onKeyDown = (e: KeyboardEvent) => {
         if (!HANDLED.has(e.key)) return;
         e.preventDefault();
@@ -89,7 +95,7 @@ export function MorphPicker({
       document.addEventListener("keydown", onKeyDown, true);
       return () => document.removeEventListener("keydown", onKeyDown, true);
     },
-    [patterns.length, onHover, onCommit, onClose],
+    [entries.length, onHover, onCommit, onClose],
   );
 
   return (
@@ -101,21 +107,36 @@ export function MorphPicker({
       data-role="morph-picker"
       onClick={(e) => e.stopPropagation()}
     >
-      {patterns.map((pattern, i) => (
-        <div
-          key={pattern.name}
-          className="morph-picker-item"
-          role="menuitem"
-          data-active={i === keyboardActive ? "" : undefined}
-          onMouseOver={() => onHover(i)}
-          onClick={() => onCommit(i)}
-        >
-          <span className="morph-picker-name">{pattern.name}</span>
-          <span className="morph-picker-desc">{pattern.description}</span>
-          {commitError && i === keyboardActive && (
-            <span className="morph-picker-error">{commitError}</span>
+      {entries.map((entry, i) => (
+        <Fragment key={`${entry.kind}:${nameOf(entry)}:${i}`}>
+          {isFirstVariant(entries, i) && (
+            <div
+              className="morph-picker-group-label"
+              role="presentation"
+              data-role="morph-picker-variants-label"
+            >
+              Quick variants
+            </div>
           )}
-        </div>
+          <div
+            className="morph-picker-item"
+            role="menuitem"
+            data-kind={entry.kind}
+            data-active={i === keyboardActive ? "" : undefined}
+            onMouseOver={() => onHover(i)}
+            onClick={() => onCommit(i)}
+          >
+            <span className="morph-picker-name">{nameOf(entry)}</span>
+            {entry.kind === "pattern" && (
+              <span className="morph-picker-desc">
+                {entry.pattern.description}
+              </span>
+            )}
+            {commitError && i === keyboardActive && (
+              <span className="morph-picker-error">{commitError}</span>
+            )}
+          </div>
+        </Fragment>
       ))}
     </div>
   );

@@ -46,6 +46,27 @@
   line-height: 1.3;
 }
 
+.morph-picker-group-label {
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-bar-muted);
+  padding: 7px 8px 3px;
+  margin-top: 2px;
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+  user-select: none;
+}
+
+.morph-picker-group-label:first-child {
+  border-top: none;
+  margin-top: 0;
+}
+
+.morph-picker-item[data-kind="variant"] .morph-picker-name {
+  font-weight: 400;
+}
+
 .morph-picker-error {
   font-size: 11px;
   color: #f87171;
