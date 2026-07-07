@@ -15,15 +15,26 @@ import {
   type Anchor,
 } from "../overlay/index.js";
 import type { FiberRegistry } from "../fiber/index.js";
+import type { SpecOpsError } from "../spec-ops/index.js";
+import type { InsertOutcome } from "./use-insert.js";
 import css from "./insert.css?inline";
 
 const MIDDLEWARE = [offset(8), flip(), shift({ padding: 8 })];
+
+const NOT_ALLOWED_HERE = "Not allowed in this slot";
+
+/** Human-readable rejection for a failed insert — the honest counterpart to
+ *  the disabled affordance, shown when the write itself refuses. */
+const rejected = (error: SpecOpsError): string =>
+  error.tag === "disallowed-type"
+    ? `${error.componentType} is not allowed in ${error.slotKey}.`
+    : `Insert failed: ${error.tag.replaceAll("-", " ")}.`;
 
 type CatalogPickerProps = {
   registry: FiberRegistry;
   anchor: Anchor;
   config: Config;
-  onInsert: (componentType: string) => void;
+  onInsert: (componentType: string) => InsertOutcome;
   onClose: () => void;
   slotAllowedTypes?: ReadonlySet<string>;
 };
@@ -39,13 +50,17 @@ const entriesOf = (config: Config): Entry[] =>
 function PickerItem({
   name,
   label,
+  disallowed,
   onInsert,
-}: Entry & { onInsert: (name: string) => void }) {
+}: Entry & { disallowed?: boolean; onInsert: (name: string) => void }) {
   return (
     <button
       type="button"
       className="catalog-picker-item"
       data-role="catalog-picker-item"
+      disabled={disallowed}
+      title={disallowed ? NOT_ALLOWED_HERE : undefined}
+      aria-label={disallowed ? `${name} — ${NOT_ALLOWED_HERE}` : undefined}
       onClick={(e) => {
         e.stopPropagation();
         onInsert(name);
@@ -74,6 +89,7 @@ export function CatalogPicker({
 }: CatalogPickerProps) {
   useShadowSheet(css);
   const [filter, setFilter] = useState("");
+  const [notice, setNotice] = useState("");
   const filterRef = useAutoFocus<HTMLInputElement>();
 
   const { refs, floatingStyles } = useFloating({
@@ -86,6 +102,11 @@ export function CatalogPicker({
   useAnchor(refs, registry, anchor);
 
   useOnClickOutside(refs.floating, onClose);
+
+  const insert = (name: string) => {
+    const outcome = onInsert(name);
+    if (outcome && outcome.isErr()) setNotice(rejected(outcome.error));
+  };
 
   const needle = filter.toLowerCase();
   const all = entriesOf(config).filter(
@@ -121,7 +142,7 @@ export function CatalogPicker({
           <div className="catalog-picker-empty">No matches</div>
         )}
         {valid.map((e) => (
-          <PickerItem key={e.name} {...e} onInsert={onInsert} />
+          <PickerItem key={e.name} {...e} onInsert={insert} />
         ))}
         {incompatible.length > 0 && (
           <details
@@ -132,11 +153,20 @@ export function CatalogPicker({
               Incompatible ({incompatible.length})
             </summary>
             {incompatible.map((e) => (
-              <PickerItem key={e.name} {...e} onInsert={onInsert} />
+              <PickerItem key={e.name} {...e} disallowed onInsert={insert} />
             ))}
           </details>
         )}
       </div>
+      {notice && (
+        <div
+          role="alert"
+          className="catalog-picker-notice"
+          data-role="catalog-picker-notice"
+        >
+          {notice}
+        </div>
+      )}
     </div>
   );
 }

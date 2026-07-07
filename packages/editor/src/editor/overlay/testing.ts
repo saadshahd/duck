@@ -1461,6 +1461,72 @@ export const getValidPickerItemTypes = (page: Page) =>
       .map((el) => el.textContent ?? "");
   }) as Promise<string[]>;
 
+/** Expand the picker's collapsed "Incompatible" section by clicking its summary. */
+export const openIncompatiblePickerSection = (page: Page) =>
+  page.evaluate(() => {
+    for (const d of document.querySelectorAll("div")) {
+      if (!d.shadowRoot || d.style.position !== "fixed") continue;
+      const summary = d.shadowRoot.querySelector(
+        "[data-role='catalog-picker-incompatible'] summary",
+      ) as HTMLElement | null;
+      summary?.click();
+      return;
+    }
+  });
+
+/** The inert-affordance state of an incompatible picker item by type name:
+ *  `disabled` (cannot be activated) and `title` (the visible reason). Null when
+ *  no such item is rendered. */
+export const getIncompatiblePickerItemState = (page: Page, type: string) =>
+  page.evaluate((t) => {
+    for (const d of document.querySelectorAll("div")) {
+      if (!d.shadowRoot || d.style.position !== "fixed") continue;
+      const section = d.shadowRoot.querySelector(
+        "[data-role='catalog-picker-incompatible']",
+      );
+      if (!section) return null;
+      const item = [
+        ...section.querySelectorAll("[data-role='catalog-picker-item']"),
+      ].find(
+        (el) =>
+          el.querySelector("[data-role='catalog-picker-item-type']")
+            ?.textContent === t,
+      ) as HTMLButtonElement | undefined;
+      return item ? { disabled: item.disabled, title: item.title } : null;
+    }
+    return null;
+  }, type) as Promise<{ disabled: boolean; title: string } | null>;
+
+/** Dispatch a click on an incompatible picker item by type name — the attack a
+ *  user could mount against the inert affordance. A disabled button must
+ *  swallow it. */
+export const clickIncompatiblePickerItem = (page: Page, type: string) =>
+  page.evaluate((t) => {
+    for (const d of document.querySelectorAll("div")) {
+      if (!d.shadowRoot || d.style.position !== "fixed") continue;
+      const item = [
+        ...d.shadowRoot.querySelectorAll(
+          "[data-role='catalog-picker-incompatible'] [data-role='catalog-picker-item']",
+        ),
+      ].find(
+        (el) =>
+          el.querySelector("[data-role='catalog-picker-item-type']")
+            ?.textContent === t,
+      ) as HTMLElement | undefined;
+      item?.dispatchEvent(
+        new MouseEvent("click", { bubbles: true, composed: true }),
+      );
+      return;
+    }
+  }, type);
+
+/** True when the picker's rejection notice (role=alert) is rendered. */
+export const isCatalogPickerNoticeVisible = (page: Page) =>
+  shadowQuery(
+    page,
+    (r) => r.querySelector("[data-role='catalog-picker-notice']") !== null,
+  ) as Promise<boolean>;
+
 /** True when a blocked drop indicator (line or container) is currently rendered. */
 export const hasBlockedDropIndicator = (page: Page) =>
   shadowQuery(

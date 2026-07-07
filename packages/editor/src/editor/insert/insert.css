@@ -54,8 +54,12 @@
   font-family: var(--font-system);
 }
 
-.catalog-picker-item:hover {
+.catalog-picker-item:enabled:hover {
   background: rgba(255, 255, 255, 0.08);
+}
+
+.catalog-picker-item:disabled {
+  cursor: not-allowed;
 }
 
 .catalog-picker-item-type {
@@ -105,4 +109,15 @@ details[open] .catalog-picker-incompatible-summary::before {
 
 .catalog-picker-incompatible .catalog-picker-item {
   opacity: 0.5;
+}
+
+/* Rejection notice — blocked amber, same signal language as the drag domain's
+   blocked drop indicator (properties repeated, not shared). */
+.catalog-picker-notice {
+  padding: 6px 10px;
+  font-size: 11px;
+  font-family: var(--font-system);
+  color: #fcd34d;
+  background: rgba(217, 119, 6, 0.15);
+  border-top: 1px solid rgba(217, 119, 6, 0.4);
 }

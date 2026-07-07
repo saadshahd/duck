@@ -1,7 +1,8 @@
 import { useCallback, useRef } from "react";
 import type { ComponentData, Config, Data } from "@puckeditor/core";
 import { buildIndex } from "@duckeditor/spec";
-import { add } from "../spec-ops/index.js";
+import type { Result } from "neverthrow";
+import { add, type SpecOpsError } from "../spec-ops/index.js";
 import type { EditorEvent } from "../machine/index.js";
 import type { EditorCommit } from "../types.js";
 import { routeInsert, directTarget } from "./route.js";
@@ -79,9 +80,17 @@ export const openInsertEvent = (args: {
       };
 };
 
+/** Void when no write was attempted (the wiring defect is surfaced upstream);
+ *  otherwise the outcome of the add — an Err MUST reach the caller so the
+ *  picker can show the rejection instead of silently doing nothing. */
+export type InsertOutcome = Result<void, SpecOpsError> | void;
+
 export function useInsert(deps: InsertDeps): {
   openInsert: () => void;
-  onInsert: (componentType: string, explicitTarget?: InsertTarget) => void;
+  onInsert: (
+    componentType: string,
+    explicitTarget?: InsertTarget,
+  ) => InsertOutcome;
 } {
   const ref = useRef(deps);
   ref.current = deps;
@@ -92,7 +101,7 @@ export function useInsert(deps: InsertDeps): {
   }, []);
 
   const onInsert = useCallback(
-    (componentType: string, explicitTarget?: InsertTarget) => {
+    (componentType: string, explicitTarget?: InsertTarget): InsertOutcome => {
       const { data, config, lastSelectedId, send, commit } = ref.current;
 
       const target =
@@ -105,7 +114,7 @@ export function useInsert(deps: InsertDeps): {
         props: { id },
       };
 
-      add(
+      return add(
         data,
         {
           parentId: target.parentId,
@@ -114,15 +123,17 @@ export function useInsert(deps: InsertDeps): {
           index: target.index,
         },
         config,
-      ).map((next) => {
-        commit({
-          beforeData: data,
-          afterData: next,
-          label: `Added ${componentType}`,
-          resolve: { kind: "insert", id },
-        });
-        send({ type: "SELECT", elementId: id });
-      });
+      )
+        .map((next) => {
+          commit({
+            beforeData: data,
+            afterData: next,
+            label: `Added ${componentType}`,
+            resolve: { kind: "insert", id },
+          });
+          send({ type: "SELECT", elementId: id });
+        })
+        .orTee((error) => console.error("useInsert: insert rejected", error));
     },
     [],
   );

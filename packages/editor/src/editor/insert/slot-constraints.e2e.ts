@@ -1,4 +1,4 @@
-import { test, expect } from "@playwright/test";
+import { test, expect, type Page } from "@playwright/test";
 import {
   climbToParent,
   enterSlotChoice,
@@ -7,6 +7,9 @@ import {
   hasCatalogPickerIncompatibleSection,
   getIncompatiblePickerItemTypes,
   getValidPickerItemTypes,
+  openIncompatiblePickerSection,
+  getIncompatiblePickerItemState,
+  clickIncompatiblePickerItem,
   hasBlockedDropIndicator,
   hasDropIndicator,
   dispatchDrag,
@@ -70,6 +73,62 @@ test.describe("Slot constraints — insert picker partitioning", () => {
 
     // No incompatible section for an unconstrained slot.
     expect(await hasCatalogPickerIncompatibleSection(page)).toBe(false);
+  });
+});
+
+test.describe("Slot constraints — direct/sibling route", () => {
+  test.beforeEach(async ({ page }) => {
+    await page.goto("/");
+    await page.waitForTimeout(500);
+  });
+
+  // Select the Heading INSIDE a Card header (no climb) and open insert — the
+  // leaf routes to the sibling picker targeting the constrained header slot.
+  const openSiblingPickerInCardHeader = async (page: Page) => {
+    await page.locator("h3").first().click();
+    await page.waitForTimeout(300);
+    await page.keyboard.press("/");
+    await page.waitForTimeout(300);
+  };
+
+  test("B: sibling picker inside Card.header partitions valid vs incompatible", async ({
+    page,
+  }) => {
+    await openSiblingPickerInCardHeader(page);
+
+    expect(await isCatalogPickerVisible(page)).toBe(true);
+
+    // Same allow/disallow predicate as the slot-choice route: Heading and Text
+    // valid, Button relegated to the incompatible section.
+    const valid = await getValidPickerItemTypes(page);
+    expect(valid).toContain("Heading");
+    expect(valid).toContain("Text");
+    expect(valid).not.toContain("Button");
+
+    expect(await hasCatalogPickerIncompatibleSection(page)).toBe(true);
+    expect(await getIncompatiblePickerItemTypes(page)).toContain("Button");
+  });
+
+  test("B: incompatible item is inert — disabled with reason, click writes nothing", async ({
+    page,
+  }) => {
+    await openSiblingPickerInCardHeader(page);
+    await openIncompatiblePickerSection(page);
+
+    // The honest affordance: visibly non-insertable, reason on the control.
+    const state = await getIncompatiblePickerItemState(page, "Button");
+    expect(state).toEqual({
+      disabled: true,
+      title: "Not allowed in this slot",
+    });
+
+    // Clicking it anyway must not write: document unchanged, picker still open.
+    const censusBefore = await pageContentCensus(page);
+    await clickIncompatiblePickerItem(page, "Button");
+    await page.waitForTimeout(300);
+
+    expect(await pageContentCensus(page)).toEqual(censusBefore);
+    expect(await isCatalogPickerVisible(page)).toBe(true);
   });
 });
 
