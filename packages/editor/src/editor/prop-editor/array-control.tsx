@@ -137,7 +137,7 @@ function Row(props: RowProps) {
               onClick={props.onToggle}
             >
               <span className="array-row-chevron" aria-hidden>
-                {props.open ? "▾" : "▸"}
+                ▸
               </span>
               <span className="array-row-title">{props.summary}</span>
             </button>

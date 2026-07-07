@@ -15,7 +15,7 @@ export const FieldLabel = ({
   text: string;
   readOnly?: boolean;
 }) => (
-  <label>
+  <label className="field-label">
     {text}
     {readOnly && (
       <span className="prop-readonly-badge" data-role="readonly-badge">

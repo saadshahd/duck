@@ -7,7 +7,7 @@
   flex-direction: column;
   background: var(--control-bg);
   border: 1px solid var(--control-border);
-  border-radius: 6px; /* matches inputs / action-bar buttons */
+  border-radius: var(--radius-control); /* matches inputs / action-bar buttons */
   overflow: hidden; /* clip the toolbar's top corners to the box radius */
   transition:
     border-color 120ms ease,
@@ -38,7 +38,7 @@
   padding: 0 6px;
   appearance: none;
   border: none;
-  border-radius: 4px;
+  border-radius: var(--radius-inner);
   background: transparent;
   color: var(--text-field-secondary);
   font-family: var(--font-system);

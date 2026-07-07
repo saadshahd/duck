@@ -19,7 +19,9 @@ function Trigger({
       aria-expanded={open}
       onClick={onToggle}
     >
-      <span className="disclosure-chevron">{open ? "▾" : "▸"}</span>
+      <span className="disclosure-chevron" aria-hidden>
+        ▸
+      </span>
       <span className="disclosure-label">{label}</span>
       {count !== undefined && <span className="disclosure-count">{count}</span>}
     </button>

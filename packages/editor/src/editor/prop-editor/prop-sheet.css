@@ -64,33 +64,67 @@
   }
 }
 
+/* Openable group header (Tags, Features …). The label sits at the sheet's one
+   content edge; the caret hangs in the left gutter so it never displaces text.
+   Same size as a field label — the louder weight, strong ink, count and hover
+   are what say "this opens" (uppercase would make it read as a static section). */
 .disclosure-trigger {
+  position: relative; /* the caret hangs against this box */
   display: flex;
   align-items: center;
   gap: 6px;
   width: 100%;
   appearance: none;
   border: none;
+  border-radius: var(--radius-control);
   background: transparent;
-  color: var(--text-field);
+  color: var(--text-field-strong);
   font-family: var(--font-system);
-  font-size: 13px;
+  font-size: var(--label-size);
   font-weight: 600;
   cursor: pointer;
-  padding: 8px 16px; /* matches History entry padding (amendment §6) */
+  padding: 8px 0; /* no left inset — the label aligns to the content edge */
   text-align: left;
+  transition: color 100ms ease;
 }
 
+.disclosure-trigger:hover {
+  color: var(--text-field); /* honest: it is a button — darken, not a grey slab */
+}
+
+.disclosure-trigger:focus-visible {
+  outline: 2px solid var(--control-focus);
+  outline-offset: -2px; /* keyboard only — never a box on a mouse click */
+}
+
+/* Hangs in the [0, --gutter] rail, optically centered, ≥4px off the sheet edge.
+   One glyph that rotates on open — a glyph swap is the generic tell. */
 .disclosure-chevron {
-  font-size: 12px; /* 12px legibility floor */
-  opacity: 0.6;
+  position: absolute;
+  left: calc(-1 * var(--gutter));
+  top: 0;
+  bottom: 0;
+  width: var(--gutter);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 10px;
+  color: var(--text-field-tertiary);
+  transition: transform 120ms cubic-bezier(0.23, 1, 0.32, 1);
+}
+
+.disclosure-trigger[aria-expanded="true"] .disclosure-chevron {
+  transform: rotate(90deg);
 }
 
 .disclosure-count {
   margin-left: auto;
+  min-width: 1.25em; /* a 9 → 10 count never nudges the row */
   font-size: 12px; /* 12px floor */
   font-weight: 400;
   color: var(--text-field-tertiary);
+  text-align: right;
+  font-variant-numeric: tabular-nums;
 }
 
 /* ── Sheet header ───────────────────────────────────────────────────────── */
@@ -133,7 +167,7 @@
   font-size: 20px;
   line-height: 1;
   cursor: pointer;
-  border-radius: 6px;
+  border-radius: var(--radius-control);
   transition: background 100ms ease, color 100ms ease;
 }
 
@@ -156,7 +190,11 @@
 .prop-sheet-viewport {
   flex: 1;
   overflow-y: auto;
-  padding: 12px 16px 16px;
+  /* left padding = the caret gutter; right reserves the scrollbar so a growing
+     array never shifts the controls' right edge (this is the viewport's own
+     scroll — not the document scroll-lock, which stays untouched). */
+  padding: 14px var(--gutter) 16px;
+  scrollbar-gutter: stable;
   position: relative;
 }
 
@@ -193,13 +231,16 @@
 .prop-field {
   display: flex;
   flex-direction: column;
-  gap: 4px; /* label→control gap, 4px grid */
-  margin-bottom: 12px;
+  gap: var(--label-gap);
+  margin-bottom: var(--field-gap);
 }
 
-.prop-field label {
-  font-size: 12px;
-  font-weight: 600;
+/* The one label style — every field, control, and slot header uses FieldLabel,
+   so this single rule holds them all to one size. The quiet tier: weight and
+   ink sit below the openable group headers and the uppercase section landmarks. */
+.field-label {
+  font-size: var(--label-size);
+  font-weight: var(--label-weight);
   color: var(--text-field-secondary);
   user-select: none;
 }
@@ -215,7 +256,7 @@
   color: var(--text-field);
   background: var(--control-bg); /* inset: darker than the sheet */
   border: 1px solid var(--control-border);
-  border-radius: 6px; /* matches action-bar buttons */
+  border-radius: var(--radius-control); /* matches action-bar buttons */
   outline: none;
   transition:
     border-color 120ms ease,

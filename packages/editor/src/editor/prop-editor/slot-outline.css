@@ -1,8 +1,8 @@
 .slot-outline {
   display: flex;
   flex-direction: column;
-  gap: 4px;
-  margin-bottom: 12px;
+  gap: var(--label-gap);
+  margin-bottom: var(--field-gap);
 }
 .slot-outline-header {
   display: flex;
@@ -20,7 +20,7 @@
   cursor: pointer;
   width: 28px;
   height: 28px;
-  border-radius: 6px;
+  border-radius: var(--radius-control);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -29,6 +29,10 @@
 .slot-outline-add:hover {
   background: var(--accent-hover);
   color: var(--text-field);
+}
+.slot-outline-add:focus-visible {
+  outline: 2px solid var(--control-focus);
+  outline-offset: -2px;
 }
 .slot-outline-list {
   list-style: none;
@@ -44,7 +48,7 @@
   gap: 8px;
   height: 32px;
   padding: 0 8px;
-  border-radius: 6px;
+  border-radius: var(--radius-control);
   background: var(--control-bg);
   border: 1px solid var(--control-border);
   cursor: grab;
@@ -80,7 +84,7 @@
 }
 .slot-outline-sentinel {
   height: 8px;
-  border-radius: 6px;
+  border-radius: var(--radius-control);
   transition: background 80ms ease;
 }
 .slot-outline-sentinel[data-drop-above] {
@@ -105,7 +109,7 @@
   align-items: center;
   justify-content: center;
   min-height: 40px;
-  border-radius: 6px;
+  border-radius: var(--radius-control);
   border: 1px dashed var(--control-border);
   padding: 8px 12px;
   transition: background 80ms ease, border-color 80ms ease;

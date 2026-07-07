@@ -1,18 +1,23 @@
 /* Object-structure grouping — always-open section with heading */
 
+/* Always-open section: the uppercase heading + a large top margin is the break.
+   No indent — fields align to the sheet's single content edge; the heading, not
+   whitespace-plus-a-line, does the grouping. Rhythm comes from field margins
+   (one system), never a flex gap stacked on top of them. */
 .field-section {
   display: flex;
   flex-direction: column;
-  gap: 10px;
-  margin-bottom: 12px;
+  margin: var(--section-gap) 0 var(--field-gap);
 }
 
-.field-section + .field-section {
-  border-top: 1px solid var(--border-subtle);
-  padding-top: 12px;
-  margin-top: 0;
+/* The section's own margin spaces it from the next block — its last field
+   must not add a second gap on top. */
+.field-section > :last-child {
+  margin-bottom: 0;
 }
 
+/* Static landmark — uppercase carries it; 600 sets it apart from the quiet
+   field labels (500) without changing size. */
 .field-section-heading {
   font-size: 11px;
   font-weight: 600;
@@ -20,5 +25,10 @@
   text-transform: uppercase;
   color: var(--text-field-tertiary);
   user-select: none;
-  margin: 0 0 2px;
+  margin: 0 0 8px; /* small bottom — the heading hugs its fields */
+}
+
+/* No dead air at the sheet's top when a section leads (rare, but honest). */
+.field-section:first-child {
+  margin-top: 0;
 }

@@ -42,12 +42,16 @@
   font-size: 20px;
   line-height: 1;
   cursor: pointer;
-  border-radius: 6px;
+  border-radius: var(--radius-control);
   transition: background 100ms ease, color 100ms ease;
 }
 .slot-insert-sheet-close:hover {
   background: var(--accent-hover);
   color: var(--text-field);
+}
+.slot-insert-sheet-close:focus-visible {
+  outline: 2px solid var(--control-focus);
+  outline-offset: -2px;
 }
 .slot-insert-filter {
   flex-shrink: 0;
@@ -59,7 +63,7 @@
   color: var(--text-field);
   background: var(--control-bg);
   border: 1px solid var(--control-border);
-  border-radius: 6px;
+  border-radius: var(--radius-control);
   outline: none;
 }
 .slot-insert-filter:focus {
@@ -87,10 +91,14 @@
   font-size: 13px;
   text-align: left;
   cursor: pointer;
-  border-radius: 6px;
+  border-radius: var(--radius-control);
 }
 .slot-insert-item:hover {
   background: var(--control-bg-hover);
+}
+.slot-insert-item:focus-visible {
+  outline: 2px solid var(--control-focus);
+  outline-offset: -2px;
 }
 .slot-insert-empty {
   font-size: 12px;
