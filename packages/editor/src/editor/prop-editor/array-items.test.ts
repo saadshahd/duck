@@ -159,3 +159,59 @@ describe("ArrayItems.defaults", () => {
     expect(ArrayItems.defaults(field, 4)).toEqual({ label: "item-4" });
   });
 });
+
+describe("ArrayItems.describe", () => {
+  it("names the item by its summary per op", () => {
+    expect(ArrayItems.describe({ kind: "add" }, "Alpha")).toBe("Add 'Alpha'");
+    expect(ArrayItems.describe({ kind: "remove" }, "Alpha")).toBe(
+      "Remove 'Alpha'",
+    );
+    expect(
+      ArrayItems.describe({ kind: "move", direction: "up" }, "Alpha"),
+    ).toBe("Move 'Alpha' up");
+    expect(
+      ArrayItems.describe({ kind: "move", direction: "down" }, "Alpha"),
+    ).toBe("Move 'Alpha' down");
+  });
+
+  it("falls back to the bare op when no summary", () => {
+    expect(ArrayItems.describe({ kind: "add" })).toBe("Add item");
+    expect(ArrayItems.describe({ kind: "remove" })).toBe("Remove item");
+    expect(ArrayItems.describe({ kind: "move", direction: "up" })).toBe(
+      "Move item up",
+    );
+  });
+
+  it("truncates a long summary to 24 chars + ellipsis", () => {
+    expect(
+      ArrayItems.describe({ kind: "remove" }, "This is a very long tag label"),
+    ).toBe("Remove 'This is a very long tag…'");
+  });
+
+  it("keeps a 24-char summary intact", () => {
+    const exact = "123456789012345678901234";
+    expect(ArrayItems.describe({ kind: "remove" }, exact)).toBe(
+      `Remove '${exact}'`,
+    );
+  });
+});
+
+describe("ArrayItems.isInlineRow", () => {
+  const fields = (n: number) =>
+    Object.fromEntries(
+      Array.from({ length: n }, (_, i) => [`f${i}`, { type: "text" }]),
+    ) as Record<string, Field>;
+
+  it("is inline for exactly one field", () => {
+    expect(ArrayItems.isInlineRow(fields(1))).toBe(true);
+  });
+
+  it("is a disclosure for two or more fields", () => {
+    expect(ArrayItems.isInlineRow(fields(2))).toBe(false);
+    expect(ArrayItems.isInlineRow(fields(3))).toBe(false);
+  });
+
+  it("is a disclosure for zero fields", () => {
+    expect(ArrayItems.isInlineRow(fields(0))).toBe(false);
+  });
+});
