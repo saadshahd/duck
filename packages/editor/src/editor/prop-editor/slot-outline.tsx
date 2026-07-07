@@ -4,6 +4,7 @@ import { buildIndex, slotKeysOf, findById } from "@duckeditor/spec";
 import { add } from "../spec-ops/add.js";
 import { move } from "../spec-ops/move.js";
 import { FieldLabel } from "./field-shell.js";
+import { toDisplayLabel } from "./field-label.js";
 import { useSlotCtx } from "./slot-context.js";
 import { SlotInsertSheet } from "./slot-insert-sheet.js";
 import { useShadowSheet } from "../overlay/index.js";
@@ -118,7 +119,7 @@ export function SlotOutline({
     setInsertOpen(false);
   };
 
-  const displayLabel = field.label ?? label;
+  const displayLabel = toDisplayLabel(label, field.label);
 
   return (
     <div className="slot-outline">

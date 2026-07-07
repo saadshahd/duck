@@ -7,6 +7,7 @@ import { useDisclosureState } from "./use-disclosure-state.js";
 import { controlRenderers } from "./controls/index.js";
 import { resolveRenderer } from "./controls/dispatch.js";
 import { FieldLabel, fieldClass, selectDisplay } from "./field-shell.js";
+import { toDisplayLabel } from "./field-label.js";
 import { FieldMetadata } from "./field-metadata.js";
 import { useShadowSheet, useOnClickOutside } from "../overlay/index.js";
 import css from "./object-section.css?inline";
@@ -28,17 +29,6 @@ const EXTERNAL_MIDDLEWARE = [flip(), shift({ padding: 8 })];
 
 export type { ValueMode } from "./field-shell.js";
 export { resolveValueMode } from "./field-shell.js";
-
-// --- Label formatting ---
-
-const camelToTitle = (key: string): string =>
-  key
-    .replace(/([A-Z])/g, " $1")
-    .replace(/^./, (c) => c.toUpperCase())
-    .trim();
-
-const toDisplayLabel = (key: string, override?: string): string =>
-  override ?? camelToTitle(key);
 
 // --- Always-open section with heading ---
 
@@ -249,7 +239,8 @@ const ObjectInput = ({
   toggle,
 }: FieldProps<Extract<Field, { type: "object" }>, unknown>) => {
   const obj = (value ?? {}) as Record<string, unknown>;
-  const heading = FieldMetadata.group(field) ?? field.label ?? label;
+  const heading =
+    FieldMetadata.group(field) ?? toDisplayLabel(label, field.label);
   return (
     <FieldSection heading={heading}>
       {Object.entries(field.objectFields).map(([key, childField]) => (
@@ -289,7 +280,7 @@ const ArrayInput = ({
   return (
     <Disclosure.Root>
       <Disclosure.Trigger
-        label={field.label ?? label}
+        label={toDisplayLabel(label, field.label)}
         count={items.length}
         open={open}
         onToggle={() => toggle?.(path)}

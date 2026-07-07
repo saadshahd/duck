@@ -2,6 +2,7 @@ import { SegmentGroup } from "@ark-ui/react/segment-group";
 import type { Field } from "@puckeditor/core";
 import { useShadowSheet } from "../../overlay/index.js";
 import { FieldLabel, fieldClass, resolveValueMode } from "../field-shell.js";
+import { toDisplayLabel } from "../field-label.js";
 import type { ControlRenderer, FieldProps } from "./index.js";
 import css from "./segmented.css?inline";
 
@@ -40,7 +41,10 @@ export const Segmented = (({
 
   return (
     <div className={fieldClass(readOnly)}>
-      <FieldLabel text={selectField.label ?? label} readOnly={readOnly} />
+      <FieldLabel
+        text={toDisplayLabel(label, selectField.label)}
+        readOnly={readOnly}
+      />
       <SegmentGroup.Root
         className="segmented-root"
         data-role="segmented"

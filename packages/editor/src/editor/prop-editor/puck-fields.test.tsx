@@ -59,9 +59,9 @@ describe("PuckFields — object field grouping", () => {
     expect(heading?.textContent).toBe("Appearance");
   });
 
-  it("falls back to the field key when label is absent", () => {
+  it("falls back to a humanized field key when label is absent", () => {
     const fields: Record<string, Field> = {
-      style: {
+      backgroundColor: {
         type: "object",
         objectFields: { color: textField("Color") },
       } as unknown as Field,
@@ -70,7 +70,23 @@ describe("PuckFields — object field grouping", () => {
     const host = document.createElement("div");
     host.innerHTML = markup;
     const heading = host.querySelector(".field-section-heading");
-    expect(heading?.textContent).toBe("style");
+    expect(heading?.textContent).toBe("Background color");
+  });
+
+  it("humanizes nested object sub-field labels when no explicit label is set", () => {
+    const fields: Record<string, Field> = {
+      style: objectField("Styling", {
+        marginBottom: { type: "text" } as unknown as Field,
+      }),
+    };
+    const markup = render(fields);
+    const host = document.createElement("div");
+    host.innerHTML = markup;
+    const section = host.querySelector(".field-section");
+    const labels = [...section!.querySelectorAll("label")].map(
+      (el) => el.textContent,
+    );
+    expect(labels).toEqual(["Margin bottom"]);
   });
 
   it("renders sub-fields inside the section", () => {
