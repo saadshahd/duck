@@ -2,9 +2,12 @@ import { Effect } from "effect";
 import type { Data } from "@puckeditor/core";
 import { outlineTree, preOrder } from "@duckeditor/spec";
 import type { McpContext } from "./protocol.js";
-import type { InvalidPageName, NotFound, StorageError } from "./errors.js";
+import {
+  DraftLocked,
+  type InvalidPageName,
+  type StorageError,
+} from "./errors.js";
 import { applyOp, type Op, type OpError } from "./ops.js";
-import { readDataOrDraft } from "./query/read-spec-or-draft.js";
 
 type ApplyArgs = {
   readonly page: string;
@@ -40,12 +43,31 @@ type ApplyResult =
 
 const emptyData: Data = { root: { props: {} }, content: [] };
 
-const readOrCreate = (ctx: McpContext, page: string) =>
-  readDataOrDraft(ctx.storage, page).pipe(
-    Effect.catchTag("NotFound", () =>
-      ctx.storage.writeData(page, emptyData).pipe(Effect.map(() => emptyData)),
-    ),
-  );
+const readCommittedOrCreate = (ctx: McpContext, page: string) =>
+  ctx.storage
+    .readData(page)
+    .pipe(
+      Effect.catchTag("NotFound", () =>
+        ctx.storage
+          .writeData(page, emptyData)
+          .pipe(Effect.map(() => emptyData)),
+      ),
+    );
+
+const acquireDraft = (
+  ctx: McpContext,
+  page: string,
+): Effect.Effect<Data, DraftLocked | StorageError | InvalidPageName> =>
+  Effect.gen(function* () {
+    const draft = yield* ctx.storage.readDraft(page);
+    if (draft) {
+      if (!ctx.drafts.owns(page)) return yield* new DraftLocked({ page });
+      return draft;
+    }
+    const base = yield* readCommittedOrCreate(ctx, page);
+    ctx.drafts.claim(page);
+    return base;
+  });
 
 const summarize = (data: Data) => {
   const types: Record<string, number> = {};
@@ -61,9 +83,9 @@ export const applyOps = (
   ctx: McpContext,
   args: ApplyArgs,
   notifyProgress: (n: ProgressNotice) => void,
-): Effect.Effect<ApplyResult, NotFound | StorageError | InvalidPageName> =>
+): Effect.Effect<ApplyResult, DraftLocked | StorageError | InvalidPageName> =>
   Effect.gen(function* () {
-    const base = yield* readOrCreate(ctx, args.page);
+    const base = yield* acquireDraft(ctx, args.page);
     let current: Data = base;
     const total = args.ops.length;
 

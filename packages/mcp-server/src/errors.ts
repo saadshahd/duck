@@ -35,6 +35,20 @@ export class InvalidPageName extends Data.TaggedError("InvalidPageName")<{
   }
 }
 
+export class DraftLocked extends Data.TaggedError("DraftLocked")<{
+  readonly page: string;
+}> {
+  // fallow-ignore-next-line unused-class-member
+  get hint() {
+    return (
+      `Page '${this.page}' already has a draft owned by another session. ` +
+      `Ask the owning agent to editor_commit or editor_discard it. ` +
+      `If the owning session is gone (orphaned draft), resolve it explicitly: ` +
+      `editor_discard drops it, editor_commit promotes it — then re-apply.`
+    );
+  }
+}
+
 export class QueryError extends Data.TaggedError("QueryError")<{
   readonly message: string;
   readonly context?: Record<string, unknown>;

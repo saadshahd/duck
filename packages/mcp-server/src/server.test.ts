@@ -6,6 +6,7 @@ import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { InMemoryTransport } from "@modelcontextprotocol/sdk/inMemory.js";
 import type { Config, Data } from "@puckeditor/core";
 import { createMcpServer } from "./server.js";
+import { createDraftRegistry } from "./draft-registry.js";
 import { createFileStorage } from "./file-storage.js";
 import { createCaptureStorage } from "./capture-storage.js";
 import { createBridge } from "./bridge/index.js";
@@ -52,6 +53,7 @@ const setup = async () => {
       config: testConfig,
       bridge,
       captureStorage: createCaptureStorage(tmpDir),
+      drafts: createDraftRegistry(),
     });
     const [clientTransport, serverTransport] =
       InMemoryTransport.createLinkedPair();
@@ -130,6 +132,7 @@ describe("editor_status", () => {
       expect(isError).toBeUndefined();
       expect(data).toEqual({
         pages: [],
+        drafts: [],
         bridge: { port: bridge.port, viewers: {} },
       });
     } finally {
@@ -168,6 +171,43 @@ describe("editor_status", () => {
       expect(data.pages).toEqual([
         { name: "landing", componentCount: 2, hasDraft: true },
       ]);
+    } finally {
+      await teardown();
+    }
+  });
+
+  it("flags a pre-existing draft as orphaned (owner unknown) with resolution guidance", async () => {
+    const { tmpDir, connectClient, teardown } = await setup();
+    try {
+      await writePage(tmpDir, "landing", makeData(2), makeData(4));
+
+      const { data } = await callTool(await connectClient(), "editor_status");
+
+      expect(data.drafts).toEqual([
+        {
+          page: "landing",
+          owner: "unknown",
+          guidance: expect.stringContaining("editor_discard"),
+        },
+      ]);
+    } finally {
+      await teardown();
+    }
+  });
+
+  it("reports this-session ownership for a draft forked by this session", async () => {
+    const { tmpDir, connectClient, teardown } = await setup();
+    try {
+      await writePage(tmpDir, "landing", makeData(2));
+      const client = await connectClient();
+
+      await callTool(client, "editor_apply", {
+        page: "landing",
+        ops: [{ op: "update", id: "el-0", props: { text: "Mine" } }],
+      });
+      const { data } = await callTool(client, "editor_status");
+
+      expect(data.drafts).toEqual([{ page: "landing", owner: "this-session" }]);
     } finally {
       await teardown();
     }
@@ -336,6 +376,75 @@ describe("editor_apply", () => {
       expect(data.ok).toBe(false);
       expect(data.failedOpIndex).toBe(0);
       expect(data.error.tag).toBe("element-not-found");
+    } finally {
+      await teardown();
+    }
+  });
+
+  it("rejects a second session's apply with DraftLocked", async () => {
+    const { tmpDir, connectClient, teardown } = await setup();
+    try {
+      await writePage(tmpDir, "landing", makeData(2));
+      const first = await connectClient();
+      const second = await connectClient();
+      const op = (text: string) => ({
+        page: "landing",
+        ops: [{ op: "update", id: "el-0", props: { text } }],
+      });
+
+      const mine = await callTool(first, "editor_apply", op("Mine"));
+      expect(mine.data.ok).toBe(true);
+
+      const theirs = await callTool(second, "editor_apply", op("Theirs"));
+      expect(theirs.isError).toBe(true);
+      expect(theirs.data.error).toBe("DraftLocked");
+      expect(theirs.data.page).toBe("landing");
+      expect(theirs.data.hint).toContain("editor_discard");
+    } finally {
+      await teardown();
+    }
+  });
+
+  it("allows a second session to apply after resolving the orphan via editor_discard", async () => {
+    const { tmpDir, connectClient, teardown } = await setup();
+    try {
+      await writePage(tmpDir, "landing", makeData(2), makeData(4));
+      const client = await connectClient();
+      const op = {
+        page: "landing",
+        ops: [{ op: "update", id: "el-0", props: { text: "Taken over" } }],
+      };
+
+      const locked = await callTool(client, "editor_apply", op);
+      expect(locked.data.error).toBe("DraftLocked");
+
+      await callTool(client, "editor_discard", { page: "landing" });
+
+      const applied = await callTool(client, "editor_apply", op);
+      expect(applied.isError).toBeUndefined();
+      expect(applied.data.ok).toBe(true);
+    } finally {
+      await teardown();
+    }
+  });
+
+  it("releases ownership on commit so the next session can fork", async () => {
+    const { tmpDir, connectClient, teardown } = await setup();
+    try {
+      await writePage(tmpDir, "landing", makeData(2));
+      const first = await connectClient();
+      const second = await connectClient();
+      const op = (text: string) => ({
+        page: "landing",
+        ops: [{ op: "update", id: "el-0", props: { text } }],
+      });
+
+      await callTool(first, "editor_apply", op("Mine"));
+      await callTool(first, "editor_commit", { page: "landing" });
+
+      const theirs = await callTool(second, "editor_apply", op("Theirs"));
+      expect(theirs.isError).toBeUndefined();
+      expect(theirs.data.ok).toBe(true);
     } finally {
       await teardown();
     }

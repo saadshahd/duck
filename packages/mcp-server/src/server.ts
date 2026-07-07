@@ -8,6 +8,7 @@ import type {
   StorageError,
   InvalidPageName,
   QueryError,
+  DraftLocked,
 } from "./errors.js";
 import { preOrder } from "@duckeditor/spec";
 import type { Data } from "@puckeditor/core";
@@ -17,7 +18,8 @@ import { applyOps, type ProgressNotice } from "./apply.js";
 
 // ── Error union for tool handlers ──────────────────────────────────
 
-type ToolError = NotFound | StorageError | InvalidPageName | QueryError;
+type ToolError =
+  NotFound | StorageError | InvalidPageName | QueryError | DraftLocked;
 
 // ── Effect → MCP boundary ──────────────────────────────────────────
 
@@ -81,6 +83,10 @@ export const createMcpServer = (ctx: McpContext) => {
 
 const readOnly = { readOnlyHint: true, destructiveHint: false } as const;
 
+const orphanGuidance =
+  "Draft owner is not this session — another live agent, or an orphaned draft from a dead session. " +
+  "Coordinate with the owner, or resolve explicitly: editor_discard drops it, editor_commit promotes it.";
+
 const opSchema = z.discriminatedUnion("op", [
   z.object({
     op: z.literal("add"),
@@ -122,6 +128,17 @@ function registerTools(mcp: McpServer, ctx: McpContext) {
           const pages = yield* ctx.storage.listPages();
           return {
             pages,
+            drafts: pages
+              .filter((p) => p.hasDraft)
+              .map((p) =>
+                ctx.drafts.owns(p.name)
+                  ? { page: p.name, owner: "this-session" as const }
+                  : {
+                      page: p.name,
+                      owner: "unknown" as const,
+                      guidance: orphanGuidance,
+                    },
+              ),
             bridge: { port: ctx.bridge.port, viewers: ctx.bridge.viewers() },
           };
         }),
@@ -196,6 +213,7 @@ function registerTools(mcp: McpServer, ctx: McpContext) {
     (args) =>
       runTool(
         ctx.storage.commitDraft(args.page).pipe(
+          Effect.tap(() => Effect.sync(() => ctx.drafts.release(args.page))),
           Effect.flatMap(() => ctx.storage.readData(args.page)),
           Effect.tap((data) =>
             Effect.sync(() => ctx.bridge.broadcast(args.page, data)),
@@ -217,9 +235,10 @@ function registerTools(mcp: McpServer, ctx: McpContext) {
     },
     (args) =>
       runTool(
-        ctx.storage
-          .discardDraft(args.page)
-          .pipe(Effect.map(() => ({ discarded: true, page: args.page }))),
+        ctx.storage.discardDraft(args.page).pipe(
+          Effect.tap(() => Effect.sync(() => ctx.drafts.release(args.page))),
+          Effect.map(() => ({ discarded: true, page: args.page })),
+        ),
       ),
   );
 

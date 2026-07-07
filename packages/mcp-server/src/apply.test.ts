@@ -5,6 +5,7 @@ import * as os from "node:os";
 import { Effect } from "effect";
 import type { Config, Data } from "@puckeditor/core";
 import { applyOps } from "./apply.js";
+import { createDraftRegistry } from "./draft-registry.js";
 import { createFileStorage } from "./file-storage.js";
 import { createCaptureStorage } from "./capture-storage.js";
 import { createBridge } from "./bridge/index.js";
@@ -47,6 +48,7 @@ const setup = async () => {
     config: testConfig,
     bridge,
     captureStorage: createCaptureStorage(tmpDir),
+    drafts: createDraftRegistry(),
   };
   const teardown = async () => {
     bridge.stop();
@@ -60,6 +62,15 @@ const writePage = async (tmpDir: string, name: string, data: Data) => {
   await fs.mkdir(dir, { recursive: true });
   await fs.writeFile(path.join(dir, "data.json"), JSON.stringify(data));
 };
+
+const writeDraftFile = async (tmpDir: string, name: string, data: Data) => {
+  const dir = path.join(tmpDir, "pages", name);
+  await fs.mkdir(dir, { recursive: true });
+  await fs.writeFile(path.join(dir, "data.draft.json"), JSON.stringify(data));
+};
+
+const updateHeading = (text: string) =>
+  ({ op: "update", id: "heading", props: { text } }) as const;
 
 const readDraft = async (tmpDir: string, name: string): Promise<Data> => {
   const raw = await fs.readFile(
@@ -336,6 +347,132 @@ describe("applyOps", () => {
       );
       expect(result.ok).toBe(false);
       if (!result.ok) expect(result.error.tag).toBe("circular-move");
+    } finally {
+      await teardown();
+    }
+  });
+});
+
+describe("applyOps draft locking", () => {
+  it("first apply claims the draft for this session", async () => {
+    const { tmpDir, ctx, teardown } = await setup();
+    try {
+      await writePage(tmpDir, "landing", initialData);
+
+      const result = await Effect.runPromise(
+        applyOps(ctx, { page: "landing", ops: [updateHeading("A")] }, () => {}),
+      );
+
+      expect(result.ok).toBe(true);
+      expect(ctx.drafts.owns("landing")).toBe(true);
+    } finally {
+      await teardown();
+    }
+  });
+
+  it("same session re-applies onto its own draft", async () => {
+    const { tmpDir, ctx, teardown } = await setup();
+    try {
+      await writePage(tmpDir, "landing", initialData);
+
+      const apply = (text: string) =>
+        Effect.runPromise(
+          applyOps(
+            ctx,
+            { page: "landing", ops: [updateHeading(text)] },
+            () => {},
+          ),
+        );
+
+      expect((await apply("First")).ok).toBe(true);
+      expect((await apply("Second")).ok).toBe(true);
+
+      const draft = await readDraft(tmpDir, "landing");
+      const heading = (
+        draft.content[0]!.props as {
+          children: Array<{ props: { text: string } }>;
+        }
+      ).children[0]!.props.text;
+      expect(heading).toBe("Second");
+    } finally {
+      await teardown();
+    }
+  });
+
+  it("fails with DraftLocked when a draft exists that this session did not fork", async () => {
+    const { tmpDir, ctx, teardown } = await setup();
+    try {
+      await writePage(tmpDir, "landing", initialData);
+      await writeDraftFile(tmpDir, "landing", initialData);
+
+      const error = await Effect.runPromise(
+        Effect.flip(
+          applyOps(
+            ctx,
+            { page: "landing", ops: [updateHeading("Steal")] },
+            () => {},
+          ),
+        ),
+      );
+
+      expect(error._tag).toBe("DraftLocked");
+      if (error._tag === "DraftLocked") {
+        expect(error.page).toBe("landing");
+        expect(error.hint).toContain("editor_discard");
+      }
+    } finally {
+      await teardown();
+    }
+  });
+
+  it("fails with DraftLocked when a second session applies onto another session's draft", async () => {
+    const { tmpDir, ctx, teardown } = await setup();
+    try {
+      await writePage(tmpDir, "landing", initialData);
+
+      const first = await Effect.runPromise(
+        applyOps(
+          ctx,
+          { page: "landing", ops: [updateHeading("Mine")] },
+          () => {},
+        ),
+      );
+      expect(first.ok).toBe(true);
+
+      const secondSession = { ...ctx, drafts: createDraftRegistry() };
+      const error = await Effect.runPromise(
+        Effect.flip(
+          applyOps(
+            secondSession,
+            { page: "landing", ops: [updateHeading("Theirs")] },
+            () => {},
+          ),
+        ),
+      );
+
+      expect(error._tag).toBe("DraftLocked");
+    } finally {
+      await teardown();
+    }
+  });
+
+  it("re-forks after the draft is gone (post commit/discard)", async () => {
+    const { tmpDir, ctx, teardown } = await setup();
+    try {
+      await writePage(tmpDir, "landing", initialData);
+      await writeDraftFile(tmpDir, "landing", initialData);
+      await fs.unlink(path.join(tmpDir, "pages", "landing", "data.draft.json"));
+
+      const result = await Effect.runPromise(
+        applyOps(
+          ctx,
+          { page: "landing", ops: [updateHeading("Fresh")] },
+          () => {},
+        ),
+      );
+
+      expect(result.ok).toBe(true);
+      expect(ctx.drafts.owns("landing")).toBe(true);
     } finally {
       await teardown();
     }
