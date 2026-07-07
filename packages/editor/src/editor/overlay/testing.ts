@@ -308,35 +308,23 @@ export const enterSlotChoice = async (page: Page) => {
   await page.waitForTimeout(300);
 };
 
-export const getSlotAddressText = (page: Page) =>
-  shadowQuery(
-    page,
-    (r) =>
-      (
-        r.querySelector(
-          "[data-role='selection-slot-address']",
-        ) as HTMLElement | null
-      )?.textContent ?? null,
-  ) as Promise<string | null>;
-
 export const isSlotStopVisible = (page: Page) =>
   shadowQuery(
     page,
     (r) => r.querySelector("[data-role='slot-stop']") !== null,
   ) as Promise<boolean>;
 
-/** Count of overlay elements that name the SELECTED slot — the chip's slot
- *  address line plus the active slot-stop label. Sibling (choosable) slot-stop
- *  labels name other, candidate slots and are excluded. R12's one-painter
- *  observer: exactly one may name the selected slot per state (the chip in
- *  resting-selected, the active slot-stop in slot-selected), never both. */
+/** Count of overlay elements that name the SELECTED slot — the active slot-stop
+ *  label. Sibling (choosable) slot-stop labels name other, candidate slots and
+ *  are excluded. R12's one-painter observer: at most one element may name the
+ *  selected slot per state (the active slot-stop in slot-selected, none in
+ *  resting-selected — the chip slot-address line was retired with the selection
+ *  cluster), never two. */
 export const countSelectedSlotNamers = (page: Page) =>
   shadowQuery(
     page,
     (r) =>
-      r.querySelectorAll(
-        "[data-role='selection-slot-address'], [data-role='slot-stop-label'][data-active]",
-      ).length,
+      r.querySelectorAll("[data-role='slot-stop-label'][data-active]").length,
   ) as Promise<number>;
 
 /** A stable census of the rendered page's light-DOM elements by tag. The editor
@@ -422,7 +410,6 @@ export const readOverlayElements = (page: Page) =>
     return {
       selectionRings: count("[data-role='selection-ring']"),
       labelCluster: has("[data-role='action-edit']"),
-      moveChip: false,
       boxModelToggle: has("[data-role='box-model-toggle']"),
       actionBar: has("[role='toolbar']"),
       slotStop: has("[data-role='slot-stop']"),
@@ -436,7 +423,6 @@ export const readOverlayElements = (page: Page) =>
   }) as Promise<{
     selectionRings: number;
     labelCluster: boolean;
-    moveChip: boolean;
     boxModelToggle: boolean;
     actionBar: boolean;
     slotStop: boolean;
@@ -698,32 +684,6 @@ export const hasMorphOverlay = (page: Page) =>
 
 // --- Carry helpers ---
 
-export const getMoveChipText = (page: Page) =>
-  shadowQuery(
-    page,
-    (r) =>
-      (r.querySelector("[data-role='move-chip']") as HTMLElement | null)
-        ?.textContent ?? null,
-  ) as Promise<string | null>;
-
-export const isMoveChipVisible = (page: Page) =>
-  shadowQuery(
-    page,
-    (r) => r.querySelector("[data-role='move-chip']") !== null,
-  ) as Promise<boolean>;
-
-export const clickMoveChip = (page: Page) =>
-  page.evaluate(() => {
-    for (const d of document.querySelectorAll("div")) {
-      if (!d.shadowRoot || d.style.position !== "fixed") continue;
-      const btn = d.shadowRoot.querySelector(
-        "[data-role='move-chip']",
-      ) as HTMLElement | null;
-      btn?.click();
-      return;
-    }
-  });
-
 export const isLiftPulseVisible = (page: Page) =>
   shadowQuery(
     page,
@@ -799,6 +759,30 @@ export const sourceCenter = async (source: Locator): Promise<Point> => {
   return { x: box.x + box.width / 2, y: box.y + box.height / 2 };
 };
 
+/** A press point inside `source` that a REAL hit-test confirms lands on the
+ *  source (or a descendant). Selection chrome — the edge arrows sit just inside
+ *  a selected element's top edge — can cover a small element's center, so a
+ *  blind center press would land on the overlay and never start a drag. Scans
+ *  center-out candidate fractions of the source box and returns the first point
+ *  `document.elementFromPoint` resolves into the source. Throws when every
+ *  candidate is occluded (fail loud: the element is unreachable to a pointer). */
+export const draggablePressPoint = async (source: Locator): Promise<Point> => {
+  const point = await source.evaluate((el) => {
+    const b = el.getBoundingClientRect();
+    const fracs = [0.5, 0.3, 0.7, 0.15, 0.85];
+    for (const fy of fracs)
+      for (const fx of fracs) {
+        const p = { x: b.left + b.width * fx, y: b.top + b.height * fy };
+        const hit = document.elementFromPoint(p.x, p.y);
+        if (hit && (hit === el || el.contains(hit))) return p;
+      }
+    return null;
+  });
+  if (!point)
+    throw new Error("Source fully occluded — no press point reaches it");
+  return point;
+};
+
 export const edgePoint = async (
   target: Locator,
   edge: "top" | "bottom",
@@ -852,14 +836,15 @@ export const dispatchDrag = (
 /**
  * Native-drag stepping with real per-step hit-testing. Unlike `dispatchDrag`
  * (one shared `DataTransfer` per call), these three step a single live drag:
- * `dragStart` opens it from the source center and stashes the `DataTransfer` on
+ * `dragStart` opens it from a hit-verified press point on the source (see
+ * `draggablePressPoint`) and stashes the `DataTransfer` on
  * `window.__dt`; `dragOverAt` fires dragenter/dragover at a point whose target
  * is resolved by `document.elementFromPoint` (so resolution reflects what the
  * pointer actually lands on, not a known element); `dragEnd` closes it. Use when
  * a test must read the overlay's resolution at each pointer position along a path.
  */
 export const dragStart = async (page: Page, source: Locator) => {
-  const from = await sourceCenter(source);
+  const from = await draggablePressPoint(source);
   await page.evaluate((f) => {
     const dt = new DataTransfer();
     (window as unknown as { __dt: DataTransfer }).__dt = dt;

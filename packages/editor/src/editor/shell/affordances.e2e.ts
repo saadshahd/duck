@@ -2,7 +2,6 @@ import { test, expect, type Page } from "@playwright/test";
 import {
   readOverlayElements,
   enterSlotChoice,
-  clickMoveChip,
   sourceCenter,
   edgePoint,
   dispatchDrag,
@@ -18,7 +17,7 @@ test.describe("R4 — state-owned affordance sets", () => {
     await page.waitForTimeout(500);
   });
 
-  test("resting-selected owns rings + label cluster (move + box-model) + action bar; no slot stop, no drop overlay, no lift pulse", async ({
+  test("resting-selected owns rings + label cluster + action bar; no slot stop, no drop overlay, no lift pulse", async ({
     page,
   }) => {
     await page.locator("h1").click();
@@ -27,7 +26,6 @@ test.describe("R4 — state-owned affordance sets", () => {
     expect(await readOverlayElements(page)).toEqual({
       selectionRings: 1,
       labelCluster: true,
-      moveChip: false,
       boxModelToggle: true,
       actionBar: true,
       slotStop: false,
@@ -37,7 +35,7 @@ test.describe("R4 — state-owned affordance sets", () => {
     });
   });
 
-  test("slot-selected owns the slot stop only; node label cluster yields (R12), no rings, no move chip, no box-model, no action bar, no drop overlay", async ({
+  test("slot-selected owns the slot stop only; node label cluster yields (R12), no rings, no box-model, no action bar, no drop overlay", async ({
     page,
   }) => {
     await page.locator("h3").first().click();
@@ -52,7 +50,6 @@ test.describe("R4 — state-owned affordance sets", () => {
       .toEqual({
         selectionRings: 0,
         labelCluster: false,
-        moveChip: false,
         boxModelToggle: false,
         actionBar: false,
         slotStop: true,
@@ -81,7 +78,6 @@ test.describe("R4 — state-owned affordance sets", () => {
     expect(await readOverlayElements(page)).toEqual({
       selectionRings: 0,
       labelCluster: false,
-      moveChip: false,
       boxModelToggle: false,
       actionBar: false,
       slotStop: false,
@@ -100,7 +96,8 @@ test.describe("R4 — state-owned affordance sets", () => {
     await heading.click();
     await page.waitForTimeout(300);
 
-    await clickMoveChip(page);
+    // Lift into carry via Space — the keyboard lift is carry's entry point.
+    await page.keyboard.press("Space");
     await page.waitForTimeout(150);
 
     await expect
@@ -108,7 +105,6 @@ test.describe("R4 — state-owned affordance sets", () => {
       .toEqual({
         selectionRings: 0,
         labelCluster: false,
-        moveChip: false,
         boxModelToggle: false,
         actionBar: false,
         slotStop: false,

@@ -1,5 +1,10 @@
-import type { Data } from "@puckeditor/core";
-import { findById, findParent, slotKeysOf } from "@duckeditor/spec";
+import type { Config, Data } from "@puckeditor/core";
+import {
+  allowedTypes,
+  findById,
+  findParent,
+  slotKeysOf,
+} from "@duckeditor/spec";
 import type { InsertTarget } from "./use-insert.js";
 
 /** Where an insert action goes, resolved purely from the selection. No silent
@@ -47,3 +52,19 @@ export const routeInsert = (
  *  is no impossible case to silently misdirect. */
 export const directTarget = (route: DirectRoute): InsertTarget =>
   route.kind === "sibling" ? route.target : { parentId: null, slotKey: null };
+
+/** The set of component types permitted at `target`, read off the Puck-native
+ *  `SlotField.allow`/`disallow` via the shared `allowedTypes` predicate.
+ *  Undefined when the target names no slot (root append) or the parent can't
+ *  be resolved — the picker then offers every catalog type unfiltered. */
+export const allowedTypesForTarget = (
+  data: Data,
+  config: Config,
+  target: InsertTarget,
+): ReadonlySet<string> | undefined => {
+  if (!target.parentId || !target.slotKey) return undefined;
+  const parentType = findById(data, target.parentId)?.type;
+  return parentType
+    ? allowedTypes(config, parentType, target.slotKey)
+    : undefined;
+};

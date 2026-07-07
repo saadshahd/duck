@@ -1,4 +1,4 @@
-import { test, expect, type Locator, type Page } from "@playwright/test";
+import { test, expect, type Page } from "@playwright/test";
 import {
   countHighlights,
   getHighlightRect,
@@ -8,9 +8,7 @@ import {
   dispatchDrag,
   sourceCenter,
   edgePoint,
-  getSlotAddressText,
   isSlotStopVisible,
-  getSlotStopLabelText,
   getSlotStopRect,
   getSlotStopLabelViewportRect,
   countSelectionRings,
@@ -18,13 +16,6 @@ import {
   enterSlotChoice,
   readSlotBands,
 } from "../overlay/testing.js";
-
-/** Press the pointer over an element without releasing — a drag could begin. */
-const pressOn = async (page: Page, target: Locator) => {
-  const { x, y } = await sourceCenter(target);
-  await page.mouse.move(x, y);
-  await page.mouse.down();
-};
 
 test.describe("Editor overlay", () => {
   test.beforeEach(async ({ page }) => {
@@ -148,21 +139,6 @@ test.describe("Editor overlay", () => {
     expect(Math.abs(actualDelta - scrollDelta)).toBeLessThan(5);
   });
 
-  test("toolbar yields on pointerdown over selected, returns on pointerup", async ({
-    page,
-  }) => {
-    const heading = page.locator("h1");
-    await heading.click();
-    await page.waitForTimeout(300);
-    expect(await isToolbarVisible(page)).toBe(true);
-
-    await pressOn(page, heading);
-    await expect.poll(() => isToolbarVisible(page)).toBe(false);
-
-    await page.mouse.up();
-    await expect.poll(() => isToolbarVisible(page)).toBe(true);
-  });
-
   test("toolbar stays hidden through a drag and returns after drop", async ({
     page,
   }) => {
@@ -187,17 +163,6 @@ test.describe("Slot address and slot-stop", () => {
   test.beforeEach(async ({ page }) => {
     await page.goto("/");
     await page.waitForTimeout(500);
-  });
-
-  test("selecting a nested element shows slot address on chip", async ({
-    page,
-  }) => {
-    // "Zero Chrome" h3 is feature-1-title inside Card feature-1's header slot
-    await page.locator("h3").first().click();
-    await page.waitForTimeout(300);
-
-    const address = await getSlotAddressText(page);
-    expect(address).toMatch(/^in .+ › .+$/);
   });
 
   test("↑ climbs node→node: selects the parent node directly, no slot stop", async ({
@@ -289,19 +254,6 @@ test.describe("Slot address and slot-stop", () => {
 
     expect(await isSlotStopVisible(page)).toBe(false);
     expect(await isToolbarVisible(page)).toBe(true);
-  });
-
-  test("root-content element has no slot address on chip", async ({ page }) => {
-    // The page Box is a root-content child (no slot parent). Its top padding
-    // band — centered, just below the very top — is the Box itself, not any
-    // nested element.
-    const box = await page.locator("h1").boundingBox();
-    if (!box) throw new Error("page not visible");
-    await page.mouse.click(box.x + box.width / 2, 8);
-    await page.waitForTimeout(300);
-
-    expect(await isToolbarVisible(page)).toBe(true);
-    expect(await getSlotAddressText(page)).toBeNull();
   });
 
   test("scroll keeps slot band attached (tracks live)", async ({ page }) => {

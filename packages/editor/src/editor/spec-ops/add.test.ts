@@ -17,7 +17,10 @@ const config: Config = {
     },
     Button: {
       defaultProps: { label: "Click", variant: "primary" },
-      fields: { label: { type: "text" }, variant: { type: "select", options: [] } },
+      fields: {
+        label: { type: "text" },
+        variant: { type: "select", options: [] },
+      },
       render: () => null as never,
     },
   },
@@ -175,6 +178,102 @@ describe("add — defaults and id generation", () => {
   });
 });
 
+describe("add — slot allow/disallow enforcement", () => {
+  const constrainedConfig: Config = {
+    components: {
+      Card: {
+        defaultProps: { header: [], body: [] },
+        fields: {
+          header: { type: "slot", allow: ["Heading", "Text"] },
+          body: { type: "slot" },
+        },
+        render: () => null as never,
+      },
+      Heading: {
+        defaultProps: { text: "default" },
+        fields: { text: { type: "text" } },
+        render: () => null as never,
+      },
+      Text: {
+        defaultProps: { text: "default text" },
+        fields: { text: { type: "text" } },
+        render: () => null as never,
+      },
+      Grid: {
+        defaultProps: { children: [] },
+        fields: { children: { type: "slot" } },
+        render: () => null as never,
+      },
+    },
+    root: { render: () => null as never },
+  } as Config;
+
+  const card = (id: string): ComponentData => ({
+    type: "Card",
+    props: { id, header: [], body: [] },
+  });
+
+  const withCard = (): Data => ({ root: { props: {} }, content: [card("c1")] });
+
+  it("rejects a type not in the slot's allow list", () => {
+    const result = add(
+      withCard(),
+      {
+        parentId: "c1",
+        slotKey: "header",
+        component: { type: "Grid", props: { id: "g1" } } as ComponentData,
+      },
+      constrainedConfig,
+    );
+    expect(result.isErr()).toBe(true);
+    expect(result._unsafeUnwrapErr()).toEqual({
+      tag: "disallowed-type",
+      parentId: "c1",
+      slotKey: "header",
+      componentType: "Grid",
+    });
+  });
+
+  it("accepts a type in the slot's allow list", () => {
+    const result = add(
+      withCard(),
+      {
+        parentId: "c1",
+        slotKey: "header",
+        component: { type: "Heading", props: { id: "h1" } } as ComponentData,
+      },
+      constrainedConfig,
+    );
+    expect(result.isOk()).toBe(true);
+  });
+
+  it("allows any type into a bare slot with no allow/disallow", () => {
+    const result = add(
+      withCard(),
+      {
+        parentId: "c1",
+        slotKey: "body",
+        component: { type: "Grid", props: { id: "g1" } } as ComponentData,
+      },
+      constrainedConfig,
+    );
+    expect(result.isOk()).toBe(true);
+  });
+
+  it("does not check constraints for a top-level (root) insert", () => {
+    const result = add(
+      withCard(),
+      {
+        parentId: null,
+        slotKey: null,
+        component: { type: "Grid", props: { id: "g1" } } as ComponentData,
+      },
+      constrainedConfig,
+    );
+    expect(result.isOk()).toBe(true);
+  });
+});
+
 describe("add — errors", () => {
   it("parent-not-found when parentId missing", () => {
     const result = add(
@@ -215,7 +314,10 @@ describe("add — slot template re-minting", () => {
         },
         render: () => null as never,
       },
-      Text: { defaultProps: { text: "default text" }, render: () => null as never },
+      Text: {
+        defaultProps: { text: "default text" },
+        render: () => null as never,
+      },
     },
     root: { render: () => null as never },
   } as Config;

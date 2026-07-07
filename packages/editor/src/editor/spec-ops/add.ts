@@ -1,6 +1,7 @@
 import type { ComponentData, Config, Data } from "@puckeditor/core";
 import { err, ok, type Result } from "neverthrow";
 import {
+  allowedTypes,
   componentDef,
   getChildrenAt,
   slotKeysFromConfig,
@@ -85,6 +86,20 @@ export const add = (
       parentId: parentId ?? "",
       slotKey: slotKey ?? "",
     });
+
+  if (parentId !== null && slotKey !== null) {
+    const parentType = findById(data, parentId)?.type;
+    if (
+      parentType &&
+      !allowedTypes(config, parentType, slotKey).has(component.type)
+    )
+      return err({
+        tag: "disallowed-type",
+        parentId,
+        slotKey,
+        componentType: component.type,
+      });
+  }
 
   const insertIndex = index ?? targeted.length;
   if (insertIndex < 0 || insertIndex > targeted.length)

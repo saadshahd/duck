@@ -7,7 +7,6 @@ import {
   isCatalogPickerVisible,
   isSlotStopVisible,
   getSlotStopLabelText,
-  getSlotAddressText,
 } from "../overlay/testing.js";
 
 /** T4 observer: slot-selected state owns an inline insert (+) inside the band.
@@ -56,16 +55,21 @@ test.describe("Slot-selected inline insert", () => {
     page,
   }) => {
     // Click the first h3 (lives in a Card header slot) and enter the Card's
-    // insert slot-choice (slot-selected).
+    // insert slot-choice (slot-selected). The Card's slots render as direct
+    // children of the card div (BareSlot is a Fragment) in header/body/footer
+    // order, so the header slot occupies the leading child positions.
+    const card = page.locator("h3").first().locator("..");
+    const cardTags = () =>
+      card.evaluate((el) => [...el.children].map((c) => c.tagName));
+
     await page.locator("h3").first().click();
     await page.waitForTimeout(300);
 
     await enterSlotChoice(page);
 
-    // Capture the slot name before inserting — in slot-selected the slot-stop
-    // label is the sole namer (R12). Used to verify insert targeting.
-    const slotBefore = await getSlotStopLabelText(page);
-    expect(slotBefore).toBeTruthy();
+    // The active slot-stop label names the targeted slot — the Card header.
+    expect(await getSlotStopLabelText(page)).toMatch(/› header$/);
+    const tagsBefore = await cardTags();
 
     await clickSlotInsertBtn(page);
     await page.waitForTimeout(300);
@@ -79,11 +83,12 @@ test.describe("Slot-selected inline insert", () => {
     // Picker closes after insert.
     expect(await isCatalogPickerVisible(page)).toBe(false);
 
-    // The new element is now selected (resting-selected); its chip slot address
-    // must name the same slot we targeted — confirming insertion landed there,
-    // not elsewhere. The chip prefixes the slot with "in ".
-    const slotAddressAfter = await getSlotAddressText(page);
-    expect(slotAddressAfter).toBe(`in ${slotBefore}`);
+    // Insertion landed in the header slot, not elsewhere: exactly one new child,
+    // added among the leading (header) positions — the body's former children
+    // are all pushed down by one and otherwise unchanged.
+    const tagsAfter = await cardTags();
+    expect(tagsAfter.length).toBe(tagsBefore.length + 1);
+    expect(tagsAfter.slice(2)).toEqual(tagsBefore.slice(1));
   });
 
   test("slot-stop and insert (+) are absent in resting-selected state", async ({

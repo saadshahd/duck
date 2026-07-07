@@ -16,7 +16,13 @@ export type SpecOpsError =
   | { tag: "parent-not-found"; parentId: string }
   | { tag: "slot-not-defined"; parentId: string; slotKey: string }
   | { tag: "index-out-of-bounds"; index: number; length: number }
-  | { tag: "circular-move"; id: string; toParentId: string };
+  | { tag: "circular-move"; id: string; toParentId: string }
+  | {
+      tag: "disallowed-type";
+      parentId: string;
+      slotKey: string;
+      componentType: string;
+    };
 
 /** All descendant ids beneath `component` (exclusive of component). */
 export const descendantIds = (

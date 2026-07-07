@@ -11,7 +11,6 @@ import {
 import type { Config, Data, Metadata } from "@puckeditor/core";
 import { deepEqual } from "fast-equals";
 import {
-  allowedTypes,
   buildIndex,
   findById,
   getChildrenAt,
@@ -69,7 +68,14 @@ import {
 } from "./shell/announcer-message.js";
 import { useContextMenu, ContextMenu } from "./context-menu/index.js";
 import { useClipboard } from "./clipboard/index.js";
-import { CatalogPicker, useInsert, type InsertTarget } from "./insert/index.js";
+import {
+  CatalogPicker,
+  useInsert,
+  routeInsert,
+  directTarget,
+  allowedTypesForTarget,
+  type InsertTarget,
+} from "./insert/index.js";
 import { RenderHost } from "./duck-render/index.js";
 import {
   useMorph,
@@ -359,13 +365,24 @@ export function Editor<UserConfig extends Config = Config>({
     };
   }, [selectedSlot, currentData]);
 
-  const slotPickerAllowedTypes = useMemo(():
+  const slotPickerAllowedTypes = useMemo(
+    (): ReadonlySet<string> | undefined =>
+      slotInsertTarget
+        ? allowedTypesForTarget(currentData, config, slotInsertTarget)
+        : undefined,
+    [slotInsertTarget, currentData, config],
+  );
+
+  // The direct/sibling insert route (no slot to choose — "+" on a leaf
+  // element). Read the SAME allow/disallow predicate so this route offers no
+  // fewer guarantees than the slot-choice picker above.
+  const directInsertAllowedTypes = useMemo(():
     ReadonlySet<string> | undefined => {
-    if (!selectedSlot) return undefined;
-    const parentType = findById(currentData, selectedSlot.parentId)?.type;
-    if (!parentType) return undefined;
-    return allowedTypes(config, parentType, selectedSlot.slotKey);
-  }, [selectedSlot, currentData, config]);
+    if (selectedSlot) return undefined;
+    const route = routeInsert(currentData, lastSelectedId);
+    if (route.kind === "slot-choice") return undefined;
+    return allowedTypesForTarget(currentData, config, directTarget(route));
+  }, [selectedSlot, currentData, lastSelectedId, config]);
 
   // The node's slots offered for choosing, with their qualified labels. The
   // active slot owns the (+)/climb; the rest are choosable bands. Every slot is
@@ -556,6 +573,7 @@ export function Editor<UserConfig extends Config = Config>({
               registry={fiberRegistry}
               anchor={{ kind: "element", elementId: lastSelectedId }}
               config={config}
+              slotAllowedTypes={directInsertAllowedTypes}
               onInsert={onInsert}
               onClose={() => send({ type: "ESCAPE" })}
             />

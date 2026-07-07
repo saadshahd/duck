@@ -5,10 +5,6 @@ import {
   readTileRects,
   getActiveDestinationLabel,
   isToolbarVisible,
-  sourceCenter,
-  isMoveChipVisible,
-  getMoveChipText,
-  clickMoveChip,
   isLiftPulseVisible,
   getLiftPulseRect,
   isNoTargetFlashVisible,
@@ -42,7 +38,7 @@ test.describe("Carry (pointer-driven move)", () => {
     await page.waitForTimeout(500);
   });
 
-  test("toolbar Move lifts; clicking a slot band moves the element into it", async ({
+  test("Space lifts; clicking a slot band moves the element into it", async ({
     page,
   }) => {
     const heading = page.locator("h1");
@@ -50,8 +46,7 @@ test.describe("Carry (pointer-driven move)", () => {
     await page.waitForTimeout(300);
     expect(await isToolbarVisible(page)).toBe(true);
 
-    await clickMoveChip(page);
-    await page.waitForTimeout(150);
+    await lift(page);
 
     const gap = await headerGapPoint(page);
     await page.mouse.move(gap.x, gap.y);
@@ -99,8 +94,7 @@ test.describe("Carry (pointer-driven move)", () => {
     await page.waitForTimeout(300);
     expect(await countHighlights(page)).toBe(1);
 
-    await clickMoveChip(page);
-    await page.waitForTimeout(150);
+    await lift(page);
 
     const gap = await headerGapPoint(page);
     await page.mouse.move(gap.x, gap.y);
@@ -119,17 +113,6 @@ test.describe("Carry affordances", () => {
   test.beforeEach(async ({ page }) => {
     await page.goto("/");
     await page.waitForTimeout(500);
-  });
-
-  test("move chip is visible with correct text when element is selected", async ({
-    page,
-  }) => {
-    const heading = page.locator("h1");
-    await heading.click();
-    await page.waitForTimeout(300);
-
-    expect(await isMoveChipVisible(page)).toBe(true);
-    expect(await getMoveChipText(page)).toBe("⤢ Move");
   });
 
   test("action-move button no longer exists in the toolbar", async ({
@@ -154,15 +137,14 @@ test.describe("Carry affordances", () => {
     expect(hasOldButton).toBe(false);
   });
 
-  test("click move chip enters carrying mode: slot tiles visible and body cursor is move", async ({
+  test("Space lift enters carrying mode: slot tiles visible and body cursor is move", async ({
     page,
   }) => {
     const heading = page.locator("h1");
     await heading.click();
     await page.waitForTimeout(300);
 
-    await clickMoveChip(page);
-    await page.waitForTimeout(150);
+    await lift(page);
 
     // Slot tiles appear when carrying
     await expect.poll(() => getTileLabels(page)).not.toBeNull();
@@ -179,8 +161,7 @@ test.describe("Carry affordances", () => {
     await heading.click();
     await page.waitForTimeout(300);
 
-    await clickMoveChip(page);
-    await page.waitForTimeout(50);
+    await lift(page);
 
     expect(await isLiftPulseVisible(page)).toBe(true);
   });
@@ -192,8 +173,7 @@ test.describe("Carry affordances", () => {
     await heading.click();
     await page.waitForTimeout(300);
 
-    await clickMoveChip(page);
-    await page.waitForTimeout(150);
+    await lift(page);
 
     // Move pointer to a void area (top-left corner — outside all page elements).
     // Wait for the rAF callbacks to fire and settle selected=null before clicking.
@@ -224,8 +204,7 @@ test.describe("Carry affordances", () => {
     await heading.click();
     await page.waitForTimeout(300);
 
-    await clickMoveChip(page);
-    await page.waitForTimeout(150);
+    await lift(page);
 
     expect(await page.evaluate(() => document.body.style.cursor)).toBe("move");
 
@@ -235,24 +214,6 @@ test.describe("Carry affordances", () => {
     const cursor = await page.evaluate(() => document.body.style.cursor);
     expect(cursor).not.toBe("move");
     expect(await countHighlights(page)).toBe(1);
-  });
-
-  test("Space on selected element lifts (regression: Task 2)", async ({
-    page,
-  }) => {
-    const heading = page.locator("h1");
-    await heading.click();
-    await page.waitForTimeout(300);
-
-    await lift(page);
-
-    // Carrying: slot tiles should be visible
-    await expect.poll(() => getTileLabels(page)).not.toBeNull();
-    const tiles = await getTileLabels(page);
-    expect(tiles && tiles.length > 0).toBe(true);
-
-    // Cancel to restore
-    await page.keyboard.press("Escape");
   });
 
   test("lift pulse overlaps the source element after the page is scrolled", async ({
@@ -401,8 +362,7 @@ test.describe("Carry cycle chip", () => {
 
     // R12: the chip is the entire grammar disclosure — it appears at carry entry,
     // before any Tab step, naming the cycle key for this modality.
-    await clickMoveChip(page);
-    await page.waitForTimeout(150);
+    await lift(page);
 
     expect(await getCycleChipText(page)).toBe("⇥ to cycle");
 
@@ -416,8 +376,7 @@ test.describe("Carry cycle chip", () => {
     await heading.click();
     await page.waitForTimeout(300);
 
-    await clickMoveChip(page);
-    await page.waitForTimeout(150);
+    await lift(page);
 
     // Entry hint before stepping.
     expect(await getCycleChipText(page)).toBe("⇥ to cycle");
@@ -444,8 +403,7 @@ test.describe("Carry cycle chip", () => {
     await heading.click();
     await page.waitForTimeout(300);
 
-    await clickMoveChip(page);
-    await page.waitForTimeout(150);
+    await lift(page);
 
     const gap = await headerGapPoint(page);
     await page.mouse.move(gap.x, gap.y);
@@ -480,8 +438,7 @@ test.describe("Carry cycle chip", () => {
     await heading.click();
     await page.waitForTimeout(300);
 
-    await clickMoveChip(page);
-    await page.waitForTimeout(150);
+    await lift(page);
 
     const gap = await headerGapPoint(page);
     await page.mouse.move(gap.x, gap.y);
@@ -585,8 +542,7 @@ test.describe("Carry cycle chip", () => {
     await heading.click();
     await page.waitForTimeout(300);
 
-    await clickMoveChip(page);
-    await page.waitForTimeout(150);
+    await lift(page);
 
     const gap = await headerGapPoint(page);
     await page.mouse.move(gap.x, gap.y);

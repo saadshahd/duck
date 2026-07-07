@@ -4,12 +4,9 @@ import {
   isSelectionLabelVisible,
   countBoxModelBands,
   toggleBoxModel,
-  isMoveChipVisible,
-  getSlotAddressText,
   isSlotStopVisible,
   countSelectedSlotNamers,
   getSlotStopLabelText,
-  clickMoveChip,
   enterSlotChoice,
   sourceCenter,
   edgePoint,
@@ -19,8 +16,8 @@ import {
 /**
  * R1 — Selection yields entirely. While drag is not idle (dragging or carrying)
  * the pointer region leaves `selected`, so every piece of selection chrome
- * suppresses: the selection ring, the label cluster (slot address, Move chip,
- * box-model toggle), and the box-model bands. The drag overlay is the sole mark.
+ * suppresses: the selection ring, the label cluster (action bar + box-model
+ * toggle), and the box-model bands. The drag overlay is the sole mark.
  *
  * R2 (first half) — One selected thing at a time: in `slot-selected` the element
  * ring is gone and exactly one selection border remains — the slot stop band.
@@ -60,8 +57,6 @@ test.describe("Selection yields while dragging", () => {
     await expect.poll(() => countSelectionRings(page)).toBe(0);
     expect(await isSelectionLabelVisible(page)).toBe(false);
     expect(await countBoxModelBands(page)).toBe(0);
-    expect(await isMoveChipVisible(page)).toBe(false);
-    expect(await getSlotAddressText(page)).toBeNull();
 
     // Drop restores selection chrome.
     await dispatchDrag(page, { from, to, phase: "release" });
@@ -81,13 +76,13 @@ test.describe("Selection yields while dragging", () => {
     expect(await countSelectionRings(page)).toBe(1);
     expect(await countBoxModelBands(page)).toBeGreaterThan(0);
 
-    await clickMoveChip(page);
+    // Lift into carry via Space — the keyboard lift is carry's entry point.
+    await page.keyboard.press("Space");
     await page.waitForTimeout(150);
 
     await expect.poll(() => countSelectionRings(page)).toBe(0);
     expect(await isSelectionLabelVisible(page)).toBe(false);
     expect(await countBoxModelBands(page)).toBe(0);
-    expect(await isMoveChipVisible(page)).toBe(false);
 
     // Cancel restores selection chrome.
     await page.keyboard.press("Escape");
@@ -118,11 +113,12 @@ test.describe("Slot selection replaces the element ring", () => {
 });
 
 /**
- * R12 — exactly one element names a selected slot.
- * - resting-selected (element inside a slot): the chip's slot address is the
- *   sole namer; no slot-stop band exists yet.
+ * R12 — at most one element names a selected slot.
+ * - resting-selected (element inside a slot): no slot namer paints — the chip's
+ *   slot-address line was retired with the selection cluster; no slot-stop band
+ *   exists yet.
  * - slot-selected (in the insert flow): the slot-stop label is the sole namer;
- *   the node label cluster (element type + slot address) yields entirely.
+ *   the node label cluster yields entirely.
  */
 test.describe("One painter for the selected slot name (R12)", () => {
   test.beforeEach(async ({ page }) => {
@@ -130,13 +126,10 @@ test.describe("One painter for the selected slot name (R12)", () => {
     await page.waitForTimeout(500);
   });
 
-  test("resting-selected: chip slot address is the only slot namer", async ({
-    page,
-  }) => {
+  test("resting-selected: no slot namer paints", async ({ page }) => {
     await selectNested(page);
 
-    expect(await countSelectedSlotNamers(page)).toBe(1);
-    expect(await getSlotAddressText(page)).toMatch(/^in .+ › .+$/);
+    expect(await countSelectedSlotNamers(page)).toBe(0);
     expect(await isSlotStopVisible(page)).toBe(false);
   });
 
@@ -147,9 +140,8 @@ test.describe("One painter for the selected slot name (R12)", () => {
 
     await enterSlotChoice(page);
 
-    // The node label cluster (and its slot address) yields entirely.
+    // The node label cluster yields entirely.
     expect(await isSelectionLabelVisible(page)).toBe(false);
-    expect(await getSlotAddressText(page)).toBeNull();
 
     // Exactly one element names the selected slot — the active slot-stop label.
     expect(await countSelectedSlotNamers(page)).toBe(1);

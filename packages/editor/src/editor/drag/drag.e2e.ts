@@ -13,6 +13,7 @@ import {
   getCycleChipText,
   dispatchDrag,
   sourceCenter,
+  draggablePressPoint,
   edgePoint,
   type Point,
 } from "../overlay/testing.js";
@@ -140,16 +141,17 @@ test.describe("Drag-to-reorder", () => {
 
 // --- Slot-aware container drops ---
 
-/** Real-mouse drag: press on the source center, glide through waypoints with
- *  multiple steps so Chromium starts a native HTML5 drag (pragmatic-dnd's
- *  adapter), and optionally release at the final point. */
+/** Real-mouse drag: press on a hit-verified point of the source (selection
+ *  chrome can cover a small source's center — see draggablePressPoint), glide
+ *  through waypoints with multiple steps so Chromium starts a native HTML5 drag
+ *  (pragmatic-dnd's adapter), and optionally release at the final point. */
 async function mouseDrag(
   page: Page,
   source: Locator,
   waypoints: readonly Point[],
   release: boolean,
 ) {
-  const start = await sourceCenter(source);
+  const start = await draggablePressPoint(source);
   await page.mouse.move(start.x, start.y);
   await page.mouse.down();
   for (const wp of waypoints) {

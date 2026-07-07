@@ -1,5 +1,5 @@
 import { test, expect, type Page, type Locator } from "@playwright/test";
-import { dispatchDrag, readTileRects, sourceCenter } from "./testing.js";
+import { dispatchDrag, draggablePressPoint, readTileRects } from "./testing.js";
 
 /**
  * Discrete-marker presentation law (R6), acceptance-tested on the demo Scatter
@@ -78,7 +78,9 @@ test.describe("Discrete-marker presentation — Scatter panel", () => {
     const source = ctaSource(page);
     await source.click();
     await page.waitForTimeout(300);
-    const from = await sourceCenter(source);
+    // Selection chrome (edge arrows) covers the small CTA's center once it is
+    // selected — press where a real hit-test still reaches the source.
+    const from = await draggablePressPoint(source);
     await dispatchDrag(page, { from, to: center, phase: "hold" });
     await page.waitForTimeout(40);
 
