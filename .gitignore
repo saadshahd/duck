@@ -9,3 +9,4 @@ packages/editor/test-results/
 .fallow/
 # Riptide artifacts (cloud-synced)
 .humanlayer/tasks/
+scripts/demo-video/out/
