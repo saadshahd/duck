@@ -1,5 +1,11 @@
 import { useEffect, useRef, useCallback, type ReactNode } from "react";
-import { useFloating, offset, shift, autoUpdate } from "@floating-ui/react";
+import {
+  useFloating,
+  offset,
+  flip,
+  shift,
+  autoUpdate,
+} from "@floating-ui/react";
 import { useShadowSheet, useRegistryAnchor } from "../overlay/index.js";
 import type { FiberRegistry } from "../fiber/index.js";
 import type { Axis } from "../layout/index.js";
@@ -129,7 +135,7 @@ function edgeStyle(
   edge: "top" | "bottom" | "left" | "right",
   arrowSize: number,
   gap: number,
-): React.CSSProperties {
+): { top: number; left: number } {
   const half = arrowSize / 2;
   if (edge === "top") {
     return {
@@ -159,6 +165,26 @@ function edgeStyle(
 const ARROW_SIZE = 24;
 const EDGE_GAP = 6;
 
+const clampAxis = (value: number, max: number) =>
+  Math.min(Math.max(value, 0), max);
+
+/** H2 — the handle never leaves the viewport. Clamps the arrow box inside the
+ *  viewport; when the anchor edge itself is scrolled out (the clamp would
+ *  detach the arrow from its edge by more than its own size) the arrow hides
+ *  instead of floating over unrelated content (H1). */
+function viewportArrowStyle(
+  desired: { top: number; left: number },
+  arrowSize: number,
+  viewport: { width: number; height: number },
+): { top: number; left: number } | undefined {
+  const top = clampAxis(desired.top, viewport.height - arrowSize);
+  const left = clampAxis(desired.left, viewport.width - arrowSize);
+  const isDetached =
+    Math.abs(top - desired.top) > arrowSize ||
+    Math.abs(left - desired.left) > arrowSize;
+  return isDetached ? undefined : { top, left };
+}
+
 /** Syncs a fixed-position button to an element edge via autoUpdate.
  *  Returns a callback ref so positioning starts the moment the button mounts,
  *  regardless of when canMove* flips — avoiding the 0,0 flash from a stale
@@ -185,7 +211,16 @@ function useEdgeArrow(
           return;
         }
         const r = el.getBoundingClientRect();
-        const s = edgeStyle(r, edge, ARROW_SIZE, EDGE_GAP);
+        const s = viewportArrowStyle(
+          edgeStyle(r, edge, ARROW_SIZE, EDGE_GAP),
+          ARROW_SIZE,
+          { width: window.innerWidth, height: window.innerHeight },
+        );
+        if (!s) {
+          btn.style.visibility = "hidden";
+          return;
+        }
+        btn.style.visibility = "";
         btn.style.top = `${s.top}px`;
         btn.style.left = `${s.left}px`;
       };
@@ -220,7 +255,16 @@ function useEdgeArrow(
   return ref;
 }
 
-const MIDDLEWARE = [offset(8), shift({ padding: 8 })];
+/** H1 — the handle never occludes the selected element. Flip-first: when the
+ *  element is flush to the viewport top the bar FLIPS below it, never slides
+ *  over it. Shift stays on its default main axis (horizontal for top/bottom
+ *  placements) with crossAxis off — vertical shifting is what could overlap
+ *  the element, and flip already owns that axis. */
+const MIDDLEWARE = [
+  offset(8),
+  flip({ fallbackPlacements: ["bottom"] }),
+  shift({ padding: 8 }),
+];
 
 const ARIA_LABELS: Record<Axis, { prev: string; next: string }> = {
   horizontal: { prev: "Move left", next: "Move right" },

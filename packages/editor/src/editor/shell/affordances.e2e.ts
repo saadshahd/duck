@@ -5,6 +5,8 @@ import {
   sourceCenter,
   edgePoint,
   dispatchDrag,
+  clickToolbarAction,
+  isSheetVisible,
 } from "../overlay/testing.js";
 
 /** R4 observer: one assertion per interaction state pinning its complete,
@@ -33,6 +35,33 @@ test.describe("R4 — state-owned affordance sets", () => {
       dropIndicator: false,
       liftPulse: false,
     });
+  });
+
+  test("editing owns the ring only — the panel supersedes the handle (no action bar, no label cluster, no box-model)", async ({
+    page,
+  }) => {
+    await page.locator("h1").click();
+    await page.waitForTimeout(300);
+
+    await clickToolbarAction(page, "edit");
+    await expect.poll(() => isSheetVisible(page)).toBe(true);
+
+    expect(await readOverlayElements(page)).toEqual({
+      selectionRings: 1,
+      labelCluster: false,
+      boxModelToggle: false,
+      actionBar: false,
+      slotStop: false,
+      slotInsert: false,
+      dropIndicator: false,
+      liftPulse: false,
+    });
+
+    // Closing the panel restores the handle (browse intent).
+    await page.keyboard.press("Escape");
+    await expect
+      .poll(async () => (await readOverlayElements(page))?.actionBar)
+      .toBe(true);
   });
 
   test("slot-selected owns the slot stop only; node label cluster yields (R12), no rings, no box-model, no action bar, no drop overlay", async ({

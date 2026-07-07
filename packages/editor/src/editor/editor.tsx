@@ -615,7 +615,10 @@ function EditorSurface<UserConfig extends Config = Config>({
             )}
           </EdgeArrows>
         )}
-        {operable && pointer === "editing" && sheet}
+        {/* The sheet's gate is intent + a single selection — NOT the action
+            bar's affordance. In `editing` the handle is superseded
+            (actionBar:false), so tying the sheet to `operable` would kill it. */}
+        {singleSelected && pointer === "editing" && sheet}
         {pointer === "inserting" &&
           fiberRegistry &&
           lastSelectedId &&

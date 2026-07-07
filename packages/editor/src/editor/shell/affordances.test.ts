@@ -67,10 +67,33 @@ describe("interactionState", () => {
     ).toBe("resting-selected");
   });
 
-  test("editing and inserting (sibling, no slot) resolve to resting-selected", () => {
+  test("editing with a selection → editing (supersede: never resting-selected)", () => {
     expect(
       interactionState({ ...base, pointer: "editing", drag: "idle" }),
-    ).toBe("resting-selected");
+    ).toBe("editing");
+  });
+
+  test("editing without a selection → none", () => {
+    expect(
+      interactionState({
+        pointer: "editing",
+        drag: "idle",
+        hasSelection: false,
+        hasSlot: false,
+      }),
+    ).toBe("none");
+  });
+
+  test("drag wins over pointer editing", () => {
+    expect(
+      interactionState({ ...base, pointer: "editing", drag: "carrying" }),
+    ).toBe("carrying");
+    expect(
+      interactionState({ ...base, pointer: "editing", drag: "dragging" }),
+    ).toBe("dragging");
+  });
+
+  test("inserting (sibling, no slot) resolves to resting-selected", () => {
     expect(
       interactionState({ ...base, pointer: "inserting", drag: "idle" }),
     ).toBe("resting-selected");
@@ -115,6 +138,7 @@ describe("affordancesFor — sets are complete and non-overlapping", () => {
     // both at once.
     for (const state of [
       "resting-selected",
+      "editing",
       "slot-selected",
       "dragging",
       "carrying",
@@ -130,6 +154,7 @@ describe("affordancesFor — sets are complete and non-overlapping", () => {
     // is shown — the two never overlap within a state.
     for (const state of [
       "resting-selected",
+      "editing",
       "slot-selected",
       "dragging",
       "carrying",
@@ -148,6 +173,22 @@ describe("affordancesFor — sets are complete and non-overlapping", () => {
       labelCluster: true,
       boxModel: true,
       actionBar: true,
+      slotStop: false,
+      slotInsert: false,
+      dropOverlay: false,
+      liftPulse: false,
+      cycleChip: false,
+    });
+  });
+
+  test("editing owns the ring only — the handle is superseded by the panel", () => {
+    // Supersede doctrine: while the control panel (sheet) is open, the
+    // selection handle (action bar) is removed from the tree, not dimmed.
+    expect(affordancesFor("editing")).toEqual({
+      selectionRings: true,
+      labelCluster: false,
+      boxModel: false,
+      actionBar: false,
       slotStop: false,
       slotInsert: false,
       dropOverlay: false,

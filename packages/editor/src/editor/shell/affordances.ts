@@ -6,6 +6,7 @@
 
 export type InteractionState =
   | "resting-selected"
+  | "editing"
   | "slot-selected"
   | "dragging"
   | "carrying"
@@ -56,6 +57,10 @@ const AFFORDANCES: Record<InteractionState, AffordanceSet> = {
     liftPulse: false,
     cycleChip: false,
   },
+  // Supersede doctrine: while the control panel (prop sheet) is the surface,
+  // the selection handle (action bar + edge arrows) is REMOVED, not dimmed.
+  // Only the ring survives — identity, not a control surface.
+  editing: { ...NONE, selectionRings: true },
   "slot-selected": {
     selectionRings: false,
     labelCluster: false,
@@ -95,10 +100,12 @@ const AFFORDANCES: Record<InteractionState, AffordanceSet> = {
 /** Collapse the parallel machine's pointer + drag regions into one interaction
  *  discriminant. Drag wins over pointer (T1 transitions pointer out of selected
  *  on DRAG_START/CARRY_START, but reading drag first keeps the precedence
- *  explicit). `editing` and `inserting` are overlays layered on top of
- *  resting-selected — their pickers are contextual sub-affordances the shell
- *  gates separately, so they resolve to resting-selected here. `inserting` while
- *  a slot is chosen (hasSlot) keeps the slot-selected affordances so the slot
+ *  explicit). `editing` is its own state: the control panel supersedes the
+ *  selection handle (one-surface doctrine), so it must not inherit the
+ *  resting-selected action bar. `inserting` is an overlay layered on top of
+ *  resting-selected — its picker is a contextual sub-affordance the shell gates
+ *  separately, so it resolves to resting-selected here. `inserting` while a
+ *  slot is chosen (hasSlot) keeps the slot-selected affordances so the slot
  *  bands stay painted under the picker. */
 export const interactionState = ({
   pointer,
@@ -115,12 +122,8 @@ export const interactionState = ({
   if (drag === "dragging") return "dragging";
   if ((pointer === "slot-selected" || pointer === "inserting") && hasSlot)
     return "slot-selected";
-  if (
-    (pointer === "selected" ||
-      pointer === "editing" ||
-      pointer === "inserting") &&
-    hasSelection
-  )
+  if (pointer === "editing" && hasSelection) return "editing";
+  if ((pointer === "selected" || pointer === "inserting") && hasSelection)
     return "resting-selected";
   return "none";
 };
