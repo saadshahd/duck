@@ -85,6 +85,32 @@ test.describe("Carry (pointer-driven move)", () => {
     await expect.poll(() => cardTags(page)).toContain("H1");
   });
 
+  test("first ArrowDown after Space-lift moves the indicator (no pointer move in between)", async ({
+    page,
+  }) => {
+    const heading = page.locator("h1");
+    await heading.click();
+    await page.waitForTimeout(300);
+
+    await lift(page);
+
+    // No mouse movement at all between lift and the first ArrowDown — the
+    // hands-on-keyboard path the bug report describes. The preview already
+    // shows the lift-seeded destination; the very first press must move off
+    // of it, not silently re-confirm the same one.
+    const before = await getActiveDestinationLabel(page);
+    expect(before).not.toBeNull();
+
+    await page.keyboard.press("ArrowDown");
+    await page.waitForTimeout(80);
+    const after = await getActiveDestinationLabel(page);
+
+    expect(after).not.toBeNull();
+    expect(after).not.toBe(before);
+
+    await page.keyboard.press("Escape");
+  });
+
   test("Esc cancels: element unmoved and still selected", async ({ page }) => {
     const heading = page.locator("h1");
     const heroSection = heading.locator("..");

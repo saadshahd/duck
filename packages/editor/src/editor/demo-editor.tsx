@@ -3,7 +3,7 @@ import { Editor, useEditorInternals, type EditorProps } from "./editor.js";
 import { useBridge } from "./bridge/use-bridge.js";
 import { ConnectionDot } from "./bridge/connection-dot.js";
 import { ReconnectPrompt } from "./bridge/reconnect-prompt.js";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 type BridgeConfig = { url: string; page: string };
 
@@ -33,6 +33,7 @@ function BridgeConnector({
   config: Config;
 }) {
   const [url, setUrl] = useState(bridge.url);
+  const [reconnectOpen, setReconnectOpen] = useState(false);
   const { currentData, lastSelectedId, commit } = useEditorInternals();
   const { status } = useBridge({
     url,
@@ -43,10 +44,34 @@ function BridgeConnector({
     commit,
   });
 
+  // Deselecting closes any open reconnect prompt too — chrome never outlives
+  // the selection that gated it onto the page.
+  useEffect(() => {
+    if (!lastSelectedId) setReconnectOpen(false);
+  }, [lastSelectedId]);
+
+  // Zero-chrome: an untouched page (nothing selected) renders no bridge
+  // affordance at all, connected or not. The status dot is the sole ambient
+  // signal once a selection exists — it never appears on its own initiative.
+  if (!lastSelectedId) return null;
+
   return (
     <>
-      <ConnectionDot status={status} />
-      <ReconnectPrompt status={status} currentUrl={url} onReconnect={setUrl} />
+      <ConnectionDot
+        status={status}
+        onOpenReconnect={() => setReconnectOpen(true)}
+      />
+      {reconnectOpen && (
+        <ReconnectPrompt
+          status={status}
+          currentUrl={url}
+          onReconnect={(next) => {
+            setUrl(next);
+            setReconnectOpen(false);
+          }}
+          onDismiss={() => setReconnectOpen(false)}
+        />
+      )}
     </>
   );
 }

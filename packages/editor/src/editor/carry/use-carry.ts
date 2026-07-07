@@ -18,6 +18,7 @@ import { animatedUpdate } from "../animated-update.js";
 import { move } from "../spec-ops/index.js";
 import type { EditorCommit } from "../types.js";
 import { useScrollResolve } from "./use-scroll-resolve.js";
+import { resolveCycleStep } from "./step.js";
 
 type Props = {
   registry: FiberRegistry | null;
@@ -134,6 +135,13 @@ export function useCarry({
       armed = true;
     }, 0);
 
+    // True once a real pointermove has fired since this carry began. A
+    // Space-lift with hands on the keyboard never moves the pointer, so the
+    // preview stays pinned to the lift-seeded point — the first discrete step
+    // must actually move the indicator (see step.ts), not just lock onto a
+    // preview the user hasn't seen change.
+    let pointerMoved = false;
+
     // One-time coach mark: show only if this is the first ever carry.
     const showCoachMark = !readCarrySeen();
     if (showCoachMark) setCarryCoachMark(true);
@@ -212,6 +220,7 @@ export function useCarry({
     };
 
     const onPointerMove = (e: PointerEvent) => {
+      pointerMoved = true;
       point = { x: e.clientX, y: e.clientY };
       cancelAnimationFrame(raf);
       raf = requestAnimationFrame(() => resolveRef.current?.());
@@ -227,14 +236,26 @@ export function useCarry({
     /** Step forward through the destination cycle. Tab or any arrow key. */
     const stepForward = () => {
       const stack = stackAt();
-      cycle = Cycle.step(cycle, stack, anchorFrom(stack));
+      cycle = resolveCycleStep(
+        "forward",
+        pointerMoved,
+        cycle,
+        stack,
+        anchorFrom(stack),
+      );
       render(stack, true);
     };
 
     /** Reverse step using (i−1+N)%N. Shift+Tab. */
     const stepReverse = () => {
       const stack = stackAt();
-      cycle = Cycle.stepBack(cycle, stack, anchorFrom(stack));
+      cycle = resolveCycleStep(
+        "back",
+        pointerMoved,
+        cycle,
+        stack,
+        anchorFrom(stack),
+      );
       render(stack, true);
     };
 

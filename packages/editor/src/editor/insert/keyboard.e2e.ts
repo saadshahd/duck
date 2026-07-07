@@ -9,6 +9,8 @@ import {
   countSelectionRings,
   getHighlightRect,
   pageContentCensus,
+  focusIncompatiblePickerSummary,
+  isIncompatiblePickerSectionOpen,
 } from "../overlay/testing.js";
 
 /** Insert picker keyboard flow: filter focused on open, Enter confirms the
@@ -138,6 +140,39 @@ test.describe("Insert picker — keyboard flow", () => {
     expect(await getActiveCatalogPickerItemType(page)).toBe(
       valid[valid.length - 1],
     );
+  });
+
+  test("Enter on the focused 'Incompatible' summary toggles the disclosure natively, not the picker's own Enter-confirms", async ({
+    page,
+  }) => {
+    // Card.header has an incompatible section (Button) to disclose.
+    await page.locator("h3").first().click();
+    await page.waitForTimeout(300);
+    await enterSlotChoice(page);
+    await page.keyboard.press("/");
+    await page.waitForTimeout(300);
+    expect(await isCatalogPickerVisible(page)).toBe(true);
+    expect(await isIncompatiblePickerSectionOpen(page)).toBe(false);
+
+    const censusBefore = await pageContentCensus(page);
+
+    // Focus (not click) the summary, then a real, trusted Enter keypress —
+    // the picker's containment must not preventDefault this one; the browser's
+    // native disclosure toggle should fire.
+    await focusIncompatiblePickerSummary(page);
+    await page.keyboard.press("Enter");
+    await page.waitForTimeout(100);
+
+    expect(await isIncompatiblePickerSectionOpen(page)).toBe(true);
+    // Still contained: picker stays open, nothing inserted, no global leak.
+    expect(await isCatalogPickerVisible(page)).toBe(true);
+    expect(await pageContentCensus(page)).toBe(censusBefore);
+
+    // A second Enter toggles it closed again — proves it's the native
+    // disclosure round-tripping, not a one-shot side effect.
+    await page.keyboard.press("Enter");
+    await page.waitForTimeout(100);
+    expect(await isIncompatiblePickerSectionOpen(page)).toBe(false);
   });
 
   test("no keystroke leaks past the picker to a global shortcut or the canvas", async ({

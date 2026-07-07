@@ -152,8 +152,15 @@ export function CatalogPicker({
   // clipboard, arrow-key selection, "/") or the canvas beneath. Only the keys
   // the picker itself interprets get preventDefault; plain typing still
   // reaches the filter input's own onChange.
+  //
+  // Exception: the "Incompatible" disclosure's <summary> owns its own
+  // Enter/Space (native toggle). Containment still stops propagation so
+  // nothing escapes to the window, but it must not preventDefault Enter while
+  // the summary itself has focus — that would suppress the native toggle
+  // with no picker behavior to replace it.
   const onKeyDown = (e: KeyboardEvent<HTMLDivElement>) => {
     e.stopPropagation();
+    const onSummary = (e.target as HTMLElement).tagName === "SUMMARY";
     if (e.key === "ArrowDown") {
       e.preventDefault();
       moveHighlight(nextHighlight(activeIndex, valid.length));
@@ -161,6 +168,7 @@ export function CatalogPicker({
       e.preventDefault();
       moveHighlight(prevHighlight(activeIndex, valid.length));
     } else if (e.key === "Enter") {
+      if (onSummary) return; // Let the browser toggle the disclosure natively.
       e.preventDefault();
       if (activeIndex !== -1) insert(valid[activeIndex].name);
     } else if (e.key === "Escape") {
