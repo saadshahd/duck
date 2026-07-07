@@ -117,6 +117,7 @@
                         "props": {
                           "id": "feature-1",
                           "style": {},
+                          "tags": [{ "label": "Design" }],
                           "header": [
                             {
                               "type": "Heading",
@@ -148,6 +149,7 @@
                         "props": {
                           "id": "feature-2",
                           "style": {},
+                          "tags": [{ "label": "Alpha" }, { "label": "Beta" }],
                           "header": [
                             {
                               "type": "Heading",

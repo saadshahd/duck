@@ -25,7 +25,7 @@ import { useSheetAnchor } from "./use-sheet-anchor.js";
 import { useScrollIntoCenter } from "./use-scroll-into-center.js";
 import { useScrollLock } from "./use-scroll-lock.js";
 import { useResolvedFields } from "./use-resolved-fields.js";
-import { PuckFields } from "./puck-fields.js";
+import { PuckFields, type ChangeMeta } from "./puck-fields.js";
 import type { ResolvedFields } from "./find-editable-prop.js";
 
 /** Exit animation duration in ms — must match prop-sheet.css `[data-closing]` transition-duration. */
@@ -74,18 +74,20 @@ export function usePropEditor({
       propKey,
       value,
       label,
+      group,
     }: {
       elementId: string;
       propKey: string;
       value: unknown;
       label: string;
+      group?: string;
     }) =>
       editProp(data, elementId, [propKey], value, config).map((next) => {
         commit({
           beforeData: data,
           afterData: next,
           label,
-          group: `prop:${elementId}`,
+          ...(group && { group }),
           resolve: { kind: "update", id: elementId },
         });
       }),
@@ -100,6 +102,7 @@ export function usePropEditor({
           propKey: inline.propKey,
           value,
           label: `Edited text: "${String(value).slice(0, 30)}"`,
+          group: `prop:${inline.elementId}`,
         });
       }
       send({ type: "COMMIT_EDIT", newValue: value });
@@ -137,13 +140,16 @@ export function usePropEditor({
   );
 
   const handlePropChange = useCallback(
-    (propKey: string, value: unknown) => {
+    (propKey: string, value: unknown, meta?: ChangeMeta) => {
       if (!editing) return;
       commitPropEdit({
         elementId: editing.elementId,
         propKey,
         value,
-        label: `Changed ${propKey}`,
+        label: meta?.label ?? `Changed ${propKey}`,
+        ...(meta?.coalesce === false
+          ? {}
+          : { group: `prop:${editing.elementId}` }),
       });
     },
     [editing, commitPropEdit],
@@ -236,7 +242,7 @@ function SheetView({
   fields: ResolvedFields;
   open: boolean;
   closing: boolean;
-  onPropChange: (propKey: string, value: unknown) => void;
+  onPropChange: (propKey: string, value: unknown, meta?: ChangeMeta) => void;
   onClose: () => void;
   data: Data;
   commit: EditorCommit;

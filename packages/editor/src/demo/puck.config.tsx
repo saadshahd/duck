@@ -483,6 +483,15 @@ export const config: Config = {
         header: { type: "slot", allow: ["Heading", "Text"] },
         body: { type: "slot" },
         footer: { type: "slot" },
+        tags: {
+          type: "array",
+          arrayFields: { label: { type: "text" } },
+          defaultItemProps: { label: "New tag" },
+          getItemSummary: (item, i) =>
+            (item.label as string) || `Tag ${(i ?? 0) + 1}`,
+          min: 1,
+          max: 4,
+        },
         style: {
           type: "object",
           objectFields: {
@@ -519,8 +528,9 @@ export const config: Config = {
           },
         ],
         footer: [],
+        tags: [{ label: "New tag" }],
       },
-      render: ({ header: Header, body: Body, footer: Footer, style }) => (
+      render: ({ header: Header, body: Body, footer: Footer, style, tags }) => (
         <div
           style={{
             border: "1px solid #EAEAEA",
@@ -532,6 +542,32 @@ export const config: Config = {
         >
           <Header as={BareSlot} />
           <Body as={BareSlot} />
+          {Array.isArray(tags) && tags.length > 0 && (
+            <div
+              style={{
+                display: "flex",
+                flexWrap: "wrap",
+                gap: "0.375rem",
+                marginTop: "0.5rem",
+              }}
+            >
+              {tags.map((tag: { label?: string }, i: number) => (
+                <span
+                  key={i}
+                  data-tag
+                  style={{
+                    fontSize: "0.6875rem",
+                    padding: "0.125rem 0.5rem",
+                    border: "1px solid #EAEAEA",
+                    borderRadius: "9999px",
+                    color: "#555555",
+                  }}
+                >
+                  {tag.label}
+                </span>
+              ))}
+            </div>
+          )}
           <Footer as={BareSlot} />
         </div>
       ),

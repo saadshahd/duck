@@ -2009,3 +2009,111 @@ export const getTimelineTooltipText = (page: Page) =>
     if (!tooltip || !tooltip.hasAttribute("data-visible")) return null;
     return tooltip.textContent?.trim() ?? null;
   }) as Promise<string | null>;
+
+// --- Array control helpers ---
+
+type ArrayRowButton = { disabled: boolean; reason: string };
+
+/** Click the sheet disclosure trigger whose visible label matches — expands
+ *  (or collapses) exactly one named group, unlike expandSheetDisclosures which
+ *  opens everything. Returns true when a matching trigger was clicked. */
+export const toggleSheetDisclosure = (page: Page, label: string) =>
+  page.evaluate((wanted) => {
+    for (const d of document.querySelectorAll("div")) {
+      if (!d.shadowRoot || d.style.position !== "fixed") continue;
+      const triggers = [
+        ...d.shadowRoot.querySelectorAll(
+          "[data-role='prop-sheet'] [data-role='disclosure-trigger']",
+        ),
+      ] as HTMLElement[];
+      const trigger = triggers.find(
+        (t) =>
+          t.querySelector(".disclosure-label")?.textContent?.trim() === wanted,
+      );
+      if (!trigger) return false;
+      trigger.click();
+      return true;
+    }
+    return false;
+  }, label) as Promise<boolean>;
+
+/** Every array item row in the open sheet: its summary text plus each
+ *  affordance's disabled state and title reason — the honesty surface the
+ *  array control exposes per row. Null when no sheet/array is open. */
+export const readArrayRows = (page: Page) =>
+  shadowQuery(page, (r) =>
+    [...r.querySelectorAll("[data-role='array-item-row']")].map((row) => {
+      const button = (sel: string) => {
+        const el = row.querySelector(sel) as HTMLButtonElement | null;
+        return { disabled: el?.disabled ?? true, reason: el?.title ?? "" };
+      };
+      return {
+        summary:
+          row.querySelector(".disclosure-label")?.textContent?.trim() ?? "",
+        up: button("[data-role='array-item-up']"),
+        down: button("[data-role='array-item-down']"),
+        remove: button("[data-role='array-item-remove']"),
+      };
+    }),
+  ) as Promise<
+    | {
+        summary: string;
+        up: ArrayRowButton;
+        down: ArrayRowButton;
+        remove: ArrayRowButton;
+      }[]
+    | null
+  >;
+
+/** The array add button's state: disabled flag and its title reason. Null when
+ *  no add button is rendered (array disclosure collapsed or no array field). */
+export const readArrayAdd = (page: Page) =>
+  shadowQuery(page, (r) => {
+    const btn = r.querySelector(
+      "[data-role='array-add']",
+    ) as HTMLButtonElement | null;
+    if (!btn) return null;
+    return { disabled: btn.disabled, reason: btn.title };
+  }) as Promise<ArrayRowButton | null>;
+
+/** Click the array add button. Returns false when absent or disabled — the
+ *  caller must treat that as a failed precondition, not a silent no-op. */
+export const clickArrayAdd = (page: Page) =>
+  shadowQuery(page, (r) => {
+    const btn = r.querySelector(
+      "[data-role='array-add']",
+    ) as HTMLButtonElement | null;
+    if (!btn || btn.disabled) return false;
+    btn.click();
+    return true;
+  }) as Promise<boolean>;
+
+/** Click one affordance on the Nth array item row (0-indexed): "up" / "down" /
+ *  "remove" move or delete, "toggle" expands the item's fields. Returns false
+ *  when the row or button is missing or disabled. */
+export const clickArrayRowAction = (
+  page: Page,
+  index: number,
+  action: "up" | "down" | "remove" | "toggle",
+) =>
+  page.evaluate(
+    ({ i, a }) => {
+      for (const d of document.querySelectorAll("div")) {
+        if (!d.shadowRoot || d.style.position !== "fixed") continue;
+        const row = d.shadowRoot.querySelectorAll(
+          "[data-role='array-item-row']",
+        )[i];
+        if (!row) return false;
+        const sel =
+          a === "toggle"
+            ? "[data-role='disclosure-trigger']"
+            : `[data-role='array-item-${a}']`;
+        const btn = row.querySelector(sel) as HTMLButtonElement | null;
+        if (!btn || btn.disabled) return false;
+        btn.click();
+        return true;
+      }
+      return false;
+    },
+    { i: index, a: action },
+  ) as Promise<boolean>;

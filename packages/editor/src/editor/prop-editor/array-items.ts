@@ -1,0 +1,53 @@
+import type { Field } from "@puckeditor/core";
+
+type ArrayField = Extract<Field, { type: "array" }>;
+
+export type ArrayItem = Record<string, unknown>;
+
+/** Whether a structural affordance is currently permitted; carries the honest
+ *  reason when it is not, so disabled controls can surface it verbatim. */
+export type Gate = { allowed: true } | { allowed: false; reason: string };
+
+const allowed: Gate = { allowed: true };
+
+const itemsWord = (n: number): string => (n === 1 ? "item" : "items");
+
+const move = (items: ArrayItem[], from: number, to: number): ArrayItem[] => {
+  const isOutOfRange = (i: number) => i < 0 || i >= items.length;
+  if (from === to || isOutOfRange(from) || isOutOfRange(to)) return items;
+  const next = items.slice();
+  const [moved] = next.splice(from, 1);
+  next.splice(to, 0, moved);
+  return next;
+};
+
+const removeAt = (items: ArrayItem[], index: number): ArrayItem[] =>
+  index < 0 || index >= items.length
+    ? items
+    : items.filter((_, i) => i !== index);
+
+const addGate = (count: number, max?: number): Gate =>
+  max === undefined || count < max
+    ? allowed
+    : { allowed: false, reason: `Maximum ${max} ${itemsWord(max)}` };
+
+const removeGate = (count: number, min?: number): Gate =>
+  min === undefined || count > min
+    ? allowed
+    : { allowed: false, reason: `Minimum ${min} ${itemsWord(min)}` };
+
+const defaults = (field: ArrayField, index: number): ArrayItem => {
+  const source =
+    typeof field.defaultItemProps === "function"
+      ? field.defaultItemProps(index)
+      : field.defaultItemProps;
+  return source ? (structuredClone(source) as ArrayItem) : {};
+};
+
+export const ArrayItems = {
+  move,
+  removeAt,
+  addGate,
+  removeGate,
+  defaults,
+} as const;

@@ -14,6 +14,8 @@ import css from "./object-section.css?inline";
 import { SlotCtx, useSlotCtx, type CrossSlotDrag } from "./slot-context.js";
 import { useDebouncedText } from "./use-debounced-text.js";
 import { SlotOutline } from "./slot-outline.js";
+import { ArrayItems, type ArrayItem } from "./array-items.js";
+import { ArrayControl } from "./array-control.js";
 import { fieldIdentity } from "./field-identity.js";
 import {
   fetchExternal,
@@ -50,11 +52,16 @@ function FieldSection({
 
 // --- Controlled field props (decoupled from form library) ---
 
+/** Commit annotation a control may pass with a value change. Structural array
+ *  ops (add/remove/reorder) carry their own history label and opt out of the
+ *  per-element coalescing group so each op lands as one history entry. */
+export type ChangeMeta = { label: string; coalesce: false };
+
 export type FieldProps<F extends Field = Field, V = unknown> = {
   label: string;
   field: F;
   value: V;
-  onChange: (value: V) => void;
+  onChange: (value: V, meta?: ChangeMeta) => void;
   readOnly?: boolean;
   path?: string;
   depth?: number;
@@ -249,7 +256,7 @@ const ObjectInput = ({
           label={key}
           field={childField as Field}
           value={obj[key]}
-          onChange={(v) => onChange({ ...obj, [key]: v })}
+          onChange={(v, meta) => onChange({ ...obj, [key]: v }, meta)}
           readOnly={readOnly}
           path={`${path}.${key}`}
           depth={depth + 1}
@@ -272,15 +279,38 @@ const ArrayInput = ({
   isOpen,
   toggle,
 }: FieldProps<Extract<Field, { type: "array" }>, unknown>) => {
-  const items = Array.isArray(value)
-    ? (value as Record<string, unknown>[])
-    : [];
+  const items = Array.isArray(value) ? (value as ArrayItem[]) : [];
   const summarize = field.getItemSummary;
   const open = isOpen?.(path) ?? false;
+  const displayLabel = toDisplayLabel(label, field.label);
+
+  const structural = (next: ArrayItem[], opLabel: string) =>
+    onChange(next, { label: opLabel, coalesce: false });
+
+  const addItem = () => {
+    structural(
+      [...items, ArrayItems.defaults(field, items.length)],
+      `Added item to ${displayLabel}`,
+    );
+    const newItemPath = `${path}.${items.length}`;
+    if (!(isOpen?.(newItemPath) ?? false)) toggle?.(newItemPath);
+  };
+
+  const removeItem = (i: number) =>
+    structural(
+      ArrayItems.removeAt(items, i),
+      `Removed item from ${displayLabel}`,
+    );
+
+  const moveItem = (i: number, delta: -1 | 1) => {
+    const next = ArrayItems.move(items, i, i + delta);
+    if (next !== items) structural(next, `Moved item in ${displayLabel}`);
+  };
+
   return (
     <Disclosure.Root>
       <Disclosure.Trigger
-        label={toDisplayLabel(label, field.label)}
+        label={displayLabel}
         count={items.length}
         open={open}
         onToggle={() => toggle?.(path)}
@@ -292,10 +322,16 @@ const ArrayInput = ({
             const itemOpen = isOpen?.(itemPath) ?? false;
             return (
               <Disclosure.Root key={i}>
-                <Disclosure.Trigger
-                  label={summarize ? summarize(item, i) : `Item ${i + 1}`}
+                <ArrayControl.Row
+                  summary={summarize ? summarize(item, i) : `Item ${i + 1}`}
                   open={itemOpen}
                   onToggle={() => toggle?.(itemPath)}
+                  canMoveUp={i > 0}
+                  canMoveDown={i < items.length - 1}
+                  onMove={(delta) => moveItem(i, delta)}
+                  remove={ArrayItems.removeGate(items.length, field.min)}
+                  onRemove={() => removeItem(i)}
+                  readOnly={readOnly}
                 />
                 {itemOpen && (
                   <Disclosure.Panel depth={depth + 2}>
@@ -306,10 +342,10 @@ const ArrayInput = ({
                           label={key}
                           field={childField as Field}
                           value={item[key]}
-                          onChange={(v) => {
+                          onChange={(v, meta) => {
                             const next = items.slice();
                             next[i] = { ...item, [key]: v };
-                            onChange(next);
+                            onChange(next, meta);
                           }}
                           readOnly={readOnly}
                           path={`${itemPath}.${key}`}
@@ -324,6 +360,12 @@ const ArrayInput = ({
               </Disclosure.Root>
             );
           })}
+          <ArrayControl.Add
+            gate={ArrayItems.addGate(items.length, field.max)}
+            label={displayLabel}
+            onAdd={addItem}
+            readOnly={readOnly}
+          />
         </Disclosure.Panel>
       )}
     </Disclosure.Root>
@@ -485,7 +527,12 @@ const CustomRender = ({
 }: FieldProps<Extract<Field, { type: "custom" }>, unknown>) => {
   const { parentId } = useSlotCtx();
   const { name, id } = fieldIdentity({ elementId: parentId, path, label });
-  return <>{field.render({ field, value, onChange, name, id, readOnly })}</>;
+  // Puck's custom render passes a UiState as onChange's second argument —
+  // drop it so it is never mistaken for a ChangeMeta commit annotation.
+  const change = (v: unknown) => onChange(v);
+  return (
+    <>{field.render({ field, value, onChange: change, name, id, readOnly })}</>
+  );
 };
 
 const FallbackField = ({
@@ -613,7 +660,7 @@ export function PuckFields({
   fields: Record<string, Field>;
   values: Record<string, unknown>;
   readOnlyFields?: Partial<Record<string, boolean>>;
-  onChange: (key: string, value: unknown) => void;
+  onChange: (key: string, value: unknown, meta?: ChangeMeta) => void;
   elementId: string;
   data: Data;
   config: Config;
@@ -641,7 +688,7 @@ export function PuckFields({
               field={item.field}
               value={values[item.key]}
               readOnly={readOnlyFields?.[item.key]}
-              onChange={(v) => onChange(item.key, v)}
+              onChange={(v, meta) => onChange(item.key, v, meta)}
               path={item.key}
               depth={0}
               isOpen={isOpen}
@@ -658,7 +705,7 @@ export function PuckFields({
                 field={field}
                 value={values[key]}
                 readOnly={readOnlyFields?.[key]}
-                onChange={(v) => onChange(key, v)}
+                onChange={(v, meta) => onChange(key, v, meta)}
                 path={key}
                 depth={0}
                 isOpen={isOpen}
