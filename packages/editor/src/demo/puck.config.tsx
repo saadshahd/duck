@@ -492,6 +492,16 @@ export const config: Config = {
           min: 1,
           max: 4,
         },
+        features: {
+          type: "array",
+          arrayFields: {
+            title: { type: "text" },
+            detail: { type: "text" },
+          },
+          defaultItemProps: { title: "New feature", detail: "" },
+          getItemSummary: (item, i) =>
+            (item.title as string) || `Feature ${(i ?? 0) + 1}`,
+        },
         note: { type: "textarea", metadata: { control: "richtext" } },
         style: {
           type: "object",
@@ -530,6 +540,7 @@ export const config: Config = {
         ],
         footer: [],
         tags: [{ label: "New tag" }],
+        features: [],
       },
       render: ({
         header: Header,
@@ -537,6 +548,7 @@ export const config: Config = {
         footer: Footer,
         style,
         tags,
+        features,
         note,
       }) => (
         <div
@@ -554,7 +566,13 @@ export const config: Config = {
             <div
               data-note
               dangerouslySetInnerHTML={{ __html: note }}
-              style={{ marginTop: "0.5rem" }}
+              style={{
+                marginTop: "0.5rem",
+                paddingLeft: "0.75rem",
+                borderLeft: "2px solid #EAEAEA",
+                color: "#666666",
+                fontSize: "0.875rem",
+              }}
             />
           ) : null}
           {Array.isArray(tags) && tags.length > 0 && (
@@ -582,6 +600,25 @@ export const config: Config = {
                 </span>
               ))}
             </div>
+          )}
+          {Array.isArray(features) && features.length > 0 && (
+            <ul
+              data-features
+              style={{ margin: "0.5rem 0 0", paddingLeft: "1rem" }}
+            >
+              {features.map(
+                (f: { title?: string; detail?: string }, i: number) => (
+                  <li
+                    key={i}
+                    data-feature
+                    style={{ fontSize: "0.875rem", color: "#333333" }}
+                  >
+                    <strong>{f.title}</strong>
+                    {f.detail ? ` — ${f.detail}` : ""}
+                  </li>
+                ),
+              )}
+            </ul>
           )}
           <Footer as={BareSlot} />
         </div>

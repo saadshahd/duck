@@ -150,6 +150,10 @@
                           "id": "feature-2",
                           "style": {},
                           "tags": [{ "label": "Alpha" }, { "label": "Beta" }],
+                          "features": [
+                            { "title": "Fast", "detail": "Sub-second edits" },
+                            { "title": "Secure", "detail": "Sandboxed drafts" }
+                          ],
                           "header": [
                             {
                               "type": "Heading",
