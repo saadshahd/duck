@@ -492,6 +492,7 @@ export const config: Config = {
           min: 1,
           max: 4,
         },
+        note: { type: "richtext" },
         style: {
           type: "object",
           objectFields: {
@@ -530,7 +531,14 @@ export const config: Config = {
         footer: [],
         tags: [{ label: "New tag" }],
       },
-      render: ({ header: Header, body: Body, footer: Footer, style, tags }) => (
+      render: ({
+        header: Header,
+        body: Body,
+        footer: Footer,
+        style,
+        tags,
+        note,
+      }) => (
         <div
           style={{
             border: "1px solid #EAEAEA",
@@ -542,6 +550,13 @@ export const config: Config = {
         >
           <Header as={BareSlot} />
           <Body as={BareSlot} />
+          {typeof note === "string" && note ? (
+            <div
+              data-note
+              dangerouslySetInnerHTML={{ __html: note }}
+              style={{ marginTop: "0.5rem" }}
+            />
+          ) : null}
           {Array.isArray(tags) && tags.length > 0 && (
             <div
               style={{

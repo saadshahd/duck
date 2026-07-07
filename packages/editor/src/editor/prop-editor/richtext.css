@@ -1,0 +1,152 @@
+/* Richtext control — thin Tiptap in the focus sheet. Plain CSS, shadow-DOM safe
+   (no @property, no Tailwind). Self-registered via useShadowSheet in richtext.tsx.
+   Inset control box matching the sheet's input/segmented language; :host tokens. */
+
+.richtext {
+  display: flex;
+  flex-direction: column;
+  background: var(--control-bg);
+  border: 1px solid var(--control-border);
+  border-radius: 6px; /* matches inputs / action-bar buttons */
+  overflow: hidden; /* clip the toolbar's top corners to the box radius */
+  transition:
+    border-color 120ms ease,
+    box-shadow 120ms ease;
+}
+
+.richtext:focus-within {
+  border-color: var(--control-focus);
+  box-shadow: 0 0 0 1px var(--control-focus);
+}
+
+/* ── Toolbar ─────────────────────────────────────────────────────────────── */
+
+.richtext-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding: 3px;
+  border-bottom: 1px solid var(--control-border);
+}
+
+.richtext-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 26px;
+  height: 24px;
+  padding: 0 6px;
+  appearance: none;
+  border: none;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--text-field-secondary);
+  font-family: var(--font-system);
+  cursor: pointer;
+  user-select: none;
+  transition:
+    background 100ms ease,
+    color 100ms ease;
+}
+
+.richtext-btn:hover {
+  background: var(--control-bg-hover);
+  color: var(--text-field);
+}
+
+.richtext-btn[data-active] {
+  background: var(--accent);
+  color: var(--text-bar-strong);
+}
+
+.richtext-btn:focus-visible {
+  outline: 2px solid var(--control-focus);
+  outline-offset: -1px;
+}
+
+.richtext-glyph {
+  font-size: 12px; /* 12px legibility floor */
+  line-height: 1;
+}
+
+.richtext-btn[data-glyph="bold"] .richtext-glyph {
+  font-weight: 700;
+}
+
+.richtext-btn[data-glyph="italic"] .richtext-glyph {
+  font-style: italic;
+  font-family: Georgia, "Times New Roman", serif;
+}
+
+.richtext-btn[data-glyph="strike"] .richtext-glyph {
+  text-decoration: line-through;
+}
+
+.richtext-btn[data-glyph="heading"] .richtext-glyph {
+  font-weight: 700;
+}
+
+/* ── Editable content ────────────────────────────────────────────────────── */
+
+.richtext-content {
+  min-height: 72px;
+  max-height: 240px;
+  overflow-y: auto;
+  padding: 6px 8px;
+  font-family: var(--font-system);
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--text-field);
+}
+
+.richtext-content .ProseMirror {
+  outline: none;
+  min-height: 60px;
+}
+
+.richtext-content .ProseMirror > * {
+  margin: 0 0 0.5em;
+}
+
+.richtext-content .ProseMirror > *:last-child {
+  margin-bottom: 0;
+}
+
+.richtext-content .ProseMirror h2 {
+  font-size: 1.15em;
+  font-weight: 600;
+}
+
+.richtext-content .ProseMirror ul,
+.richtext-content .ProseMirror ol {
+  padding-left: 1.25em;
+}
+
+.richtext-content .ProseMirror a {
+  color: var(--accent);
+  text-decoration: underline;
+}
+
+/* ProseMirror marks an empty doc; keep the caret area comfortable. */
+.richtext-content .ProseMirror p.is-editor-empty:first-child::before {
+  content: attr(data-placeholder);
+  color: var(--text-field-muted);
+  float: left;
+  height: 0;
+  pointer-events: none;
+}
+
+/* ── Read-only ───────────────────────────────────────────────────────────── */
+
+.prop-field--readonly .richtext {
+  background: var(--control-readonly-bg);
+  color: var(--control-readonly-text);
+  border-color: var(--control-border);
+  pointer-events: none;
+  opacity: 0.55;
+}
+
+.prop-field--readonly .richtext:focus-within {
+  border-color: var(--control-border);
+  box-shadow: none;
+}

@@ -14,6 +14,7 @@ import css from "./object-section.css?inline";
 import { SlotCtx, useSlotCtx, type CrossSlotDrag } from "./slot-context.js";
 import { useDebouncedText } from "./use-debounced-text.js";
 import { SlotOutline } from "./slot-outline.js";
+import { RichTextInput } from "./richtext.js";
 import { ArrayItems, type ArrayItem } from "./array-items.js";
 import { ArrayControl } from "./array-control.js";
 import { fieldIdentity } from "./field-identity.js";
@@ -587,6 +588,7 @@ const FallbackField = ({
 const renderers = {
   text: TextInput,
   textarea: TextareaInput,
+  richtext: RichTextInput,
   number: NumberInput,
   select: SelectInput,
   radio: RadioInput,
