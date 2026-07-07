@@ -78,7 +78,7 @@ export function useBridge({
         latest.current.commit({
           beforeData: latest.current.currentData,
           afterData: incoming,
-          label: "Agent commit",
+          label: msg.label ?? "Agent commit",
           resolve: {
             kind: "force",
             ids: resolverIds({

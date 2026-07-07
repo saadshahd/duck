@@ -7,6 +7,10 @@ import {
   isCatalogPickerVisible,
   isSlotStopVisible,
   getSlotStopLabelText,
+  openIncompatiblePickerSection,
+  getIncompatiblePickerItemState,
+  clickIncompatiblePickerItem,
+  pageContentCensus,
 } from "../overlay/testing.js";
 
 /** T4 observer: slot-selected state owns an inline insert (+) inside the band.
@@ -89,6 +93,36 @@ test.describe("Slot-selected inline insert", () => {
     const tagsAfter = await cardTags();
     expect(tagsAfter.length).toBe(tagsBefore.length + 1);
     expect(tagsAfter.slice(2)).toEqual(tagsBefore.slice(1));
+  });
+
+  test("slot-choice picker names the slot in the disabled reason; clicking writes nothing", async ({
+    page,
+  }) => {
+    // The honest affordance on the slot-choice route: an incompatible item is
+    // disabled up front (never a click-then-reject), and its reason names the
+    // targeted slot — not the generic "this slot".
+    await page.locator("h3").first().click();
+    await page.waitForTimeout(300);
+
+    await enterSlotChoice(page);
+    await clickSlotInsertBtn(page);
+    await page.waitForTimeout(300);
+
+    expect(await isCatalogPickerVisible(page)).toBe(true);
+    await openIncompatiblePickerSection(page);
+
+    expect(await getIncompatiblePickerItemState(page, "Button")).toEqual({
+      disabled: true,
+      title: "Not allowed in Card › header",
+    });
+
+    // Clicking it anyway must not write: document unchanged, picker still open.
+    const censusBefore = await pageContentCensus(page);
+    await clickIncompatiblePickerItem(page, "Button");
+    await page.waitForTimeout(300);
+
+    expect(await pageContentCensus(page)).toEqual(censusBefore);
+    expect(await isCatalogPickerVisible(page)).toBe(true);
   });
 
   test("slot-stop and insert (+) are absent in resting-selected state", async ({

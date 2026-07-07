@@ -637,9 +637,12 @@ function EditorSurface<UserConfig extends Config = Config>({
               }}
               config={config}
               slotAllowedTypes={slotPickerAllowedTypes}
-              onInsert={(componentType) => {
-                if (slotInsertTarget) onInsert(componentType, slotInsertTarget);
-              }}
+              slotLabel={slotBands.find((band) => band.active)?.label}
+              onInsert={(componentType) =>
+                slotInsertTarget
+                  ? onInsert(componentType, slotInsertTarget)
+                  : undefined
+              }
               onClose={() => send({ type: "ESCAPE" })}
             />
           ) : (
