@@ -2117,3 +2117,73 @@ export const clickArrayRowAction = (
     },
     { i: index, a: action },
   ) as Promise<boolean>;
+
+// --- Richtext control helpers ---
+
+/** The viewport center of the richtext editing surface, scrolled into view.
+ *  Null when no richtext control is mounted. */
+const richTextEditorCenter = (page: Page) =>
+  shadowQuery(page, (r) => {
+    const pm = r.querySelector(
+      "[data-role='richtext-editor'] .ProseMirror",
+    ) as HTMLElement | null;
+    if (!pm) return null;
+    pm.scrollIntoView({ block: "nearest" });
+    const b = pm.getBoundingClientRect();
+    return { x: b.left + b.width / 2, y: b.top + b.height / 2 };
+  }) as Promise<{ x: number; y: number } | null>;
+
+/** Focus the richtext editor with a REAL mouse click at its center (the path a
+ *  designer's pointer takes). Returns false when the control is absent. */
+export const focusRichText = async (page: Page): Promise<boolean> => {
+  const c = await richTextEditorCenter(page);
+  if (!c) return false;
+  await page.mouse.click(c.x, c.y);
+  return true;
+};
+
+/** The formatting action ids the toolbar offers, in order — the honest set for
+ *  the field (a member the catalog disabled with `false` is absent). */
+export const readRichTextActions = (page: Page) =>
+  shadowQuery(page, (r) =>
+    [...r.querySelectorAll("[data-role^='richtext-action-']")].map((el) =>
+      (el.getAttribute("data-role") ?? "").replace("richtext-action-", ""),
+    ),
+  ) as Promise<string[]>;
+
+/** The formatting action ids currently marked active (data-active) — reflects
+ *  the marks/nodes covering the live selection. */
+export const readRichTextActiveActions = (page: Page) =>
+  shadowQuery(page, (r) =>
+    [
+      ...r.querySelectorAll("[data-role^='richtext-action-'][data-active]"),
+    ].map((el) =>
+      (el.getAttribute("data-role") ?? "").replace("richtext-action-", ""),
+    ),
+  ) as Promise<string[]>;
+
+/** Click a richtext toolbar button with a REAL mouse click. A real mousedown is
+ *  required: the button runs its command on mousedown+preventDefault to keep the
+ *  editor selection, so a synthetic `.click()` (no mousedown) would no-op. */
+export const clickRichTextAction = async (
+  page: Page,
+  action: string,
+): Promise<boolean> => {
+  const c = (await page.evaluate((a) => {
+    for (const d of document.querySelectorAll("div")) {
+      if (!d.shadowRoot || (d as HTMLElement).style.position !== "fixed")
+        continue;
+      const btn = d.shadowRoot.querySelector(
+        `[data-role='richtext-action-${a}']`,
+      ) as HTMLElement | null;
+      if (!btn) return null;
+      btn.scrollIntoView({ block: "nearest" });
+      const b = btn.getBoundingClientRect();
+      return { x: b.left + b.width / 2, y: b.top + b.height / 2 };
+    }
+    return null;
+  }, action)) as { x: number; y: number } | null;
+  if (!c) return false;
+  await page.mouse.click(c.x, c.y);
+  return true;
+};
