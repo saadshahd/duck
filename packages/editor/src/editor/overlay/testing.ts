@@ -52,6 +52,33 @@ export const isToolbarVisible = (page: Page) =>
     (r) => r.querySelector("[role='toolbar']") !== null,
   ) as Promise<boolean>;
 
+/** The action bar's (toolbar's) viewport bounding box. Null when absent. */
+export const getToolbarRect = (page: Page) =>
+  shadowQuery(page, (r) => {
+    const el = r.querySelector("[role='toolbar']") as HTMLElement | null;
+    if (!el) return null;
+    const b = el.getBoundingClientRect();
+    return { top: b.top, left: b.left, bottom: b.bottom, right: b.right };
+  }) as Promise<{
+    top: number;
+    left: number;
+    bottom: number;
+    right: number;
+  } | null>;
+
+/** Count of VISIBLE edge move-arrows (H2 hides an arrow whose anchor edge is
+ *  scrolled out by setting visibility:hidden, so hidden ones don't count). */
+export const countVisibleEdgeArrows = (page: Page) =>
+  shadowQuery(
+    page,
+    (r) =>
+      [
+        ...r.querySelectorAll(
+          "[data-role='edge-arrow-prev'], [data-role='edge-arrow-next']",
+        ),
+      ].filter((el) => getComputedStyle(el).visibility !== "hidden").length,
+  ) as Promise<number>;
+
 export const clickToolbar = (page: Page) =>
   page.evaluate(() => {
     for (const d of document.querySelectorAll("div")) {
@@ -1527,6 +1554,27 @@ export const isCatalogPickerNoticeVisible = (page: Page) =>
     (r) => r.querySelector("[data-role='catalog-picker-notice']") !== null,
   ) as Promise<boolean>;
 
+/** True when the picker's filter input holds DOM focus inside the shadow root —
+ *  the "filter always focused" law: typing must land there, never leak past it. */
+export const isCatalogPickerFilterFocused = (page: Page) =>
+  shadowQuery(page, (r) => {
+    const active = r.activeElement;
+    return active !== null && active.matches(".catalog-picker-filter");
+  }) as Promise<boolean>;
+
+/** Type name of the keyboard-highlighted picker item (`data-active`), or null
+ *  when nothing is highlighted. */
+export const getActiveCatalogPickerItemType = (page: Page) =>
+  shadowQuery(page, (r) => {
+    const active = r.querySelector(
+      "[data-role='catalog-picker-item'][data-active]",
+    );
+    return (
+      active?.querySelector("[data-role='catalog-picker-item-type']")
+        ?.textContent ?? null
+    );
+  }) as Promise<string | null>;
+
 /** True when a blocked drop indicator (line or container) is currently rendered. */
 export const hasBlockedDropIndicator = (page: Page) =>
   shadowQuery(
@@ -1665,3 +1713,211 @@ export const dispatchDragAltViaVoid = (
     voidEl.dispatchEvent(new DragEvent("drop", alt(to)));
     src.dispatchEvent(new DragEvent("dragend", alt(to)));
   }, args);
+
+// --- Context menu helpers ---
+
+/** True when the context menu (role=menu) is mounted in the overlay. */
+export const isContextMenuVisible = (page: Page) =>
+  shadowQuery(
+    page,
+    (r) => r.querySelector("[data-role='context-menu']") !== null,
+  ) as Promise<boolean>;
+
+/** The ancestry entries (component-type menuitems above the divider), in
+ *  paint order — the deepest hit element first. */
+export const getContextMenuAncestryTypes = (page: Page) =>
+  shadowQuery(page, (r) =>
+    [
+      ...r.querySelectorAll(
+        "[data-role='context-menu'] .context-menu-item-type",
+      ),
+    ].map((el) => el.textContent ?? ""),
+  ) as Promise<string[]>;
+
+/** Every clipboard action's visible label and whether it carries
+ *  aria-disabled (needsSelection with no current selection). */
+export const getContextMenuActions = (page: Page) =>
+  shadowQuery(page, (r) =>
+    [
+      ...r.querySelectorAll("[data-role='context-menu'] .context-menu-action"),
+    ].map((el) => ({
+      label: el.querySelector("span")?.textContent ?? "",
+      disabled: el.getAttribute("aria-disabled") === "true",
+    })),
+  ) as Promise<{ label: string; disabled: boolean }[]>;
+
+/** Click an ancestry item in the context menu by its component-type text
+ *  (first match, matching paint order). */
+export const clickContextMenuAncestryItem = (page: Page, type: string) =>
+  page.evaluate((t) => {
+    for (const d of document.querySelectorAll("div")) {
+      if (!d.shadowRoot || d.style.position !== "fixed") continue;
+      const items = [
+        ...d.shadowRoot.querySelectorAll(
+          "[data-role='context-menu'] .context-menu-item",
+        ),
+      ];
+      const item = items.find(
+        (el) => el.querySelector(".context-menu-item-type")?.textContent === t,
+      ) as HTMLElement | undefined;
+      item?.click();
+      return;
+    }
+  }, type);
+
+/** Click a clipboard action item in the context menu by its visible label
+ *  ("Copy" / "Cut" / "Paste" / "Duplicate"). */
+export const clickContextMenuAction = (page: Page, label: string) =>
+  page.evaluate((l) => {
+    for (const d of document.querySelectorAll("div")) {
+      if (!d.shadowRoot || d.style.position !== "fixed") continue;
+      const items = [
+        ...d.shadowRoot.querySelectorAll(
+          "[data-role='context-menu'] .context-menu-action",
+        ),
+      ];
+      const item = items.find(
+        (el) => el.querySelector("span")?.textContent === l,
+      ) as HTMLElement | undefined;
+      item?.click();
+      return;
+    }
+  }, label);
+
+/** The data-role='context-menu' item index currently carrying data-active
+ *  (arrow-key highlight), or null when none is active. */
+export const getContextMenuActiveIndex = (page: Page) =>
+  shadowQuery(page, (r) => {
+    const items = [
+      ...r.querySelectorAll("[data-role='context-menu'] .context-menu-item"),
+    ];
+    const i = items.findIndex((el) => el.hasAttribute("data-active"));
+    return i === -1 ? null : i;
+  }) as Promise<number | null>;
+
+// --- History timeline helpers ---
+
+/** Every timeline dot's position class ("past" | "current" | "future") in
+ *  rail order, plus whether it carries a custom name (data-named). */
+export const readTimelineDots = (page: Page) =>
+  shadowQuery(page, (r) =>
+    [...r.querySelectorAll("[data-role='timeline-rail'] .timeline-dot")].map(
+      (el) => ({
+        position: el.hasAttribute("data-past")
+          ? "past"
+          : el.hasAttribute("data-current")
+            ? "current"
+            : "future",
+        named: el.hasAttribute("data-named"),
+      }),
+    ),
+  ) as Promise<{ position: "past" | "current" | "future"; named: boolean }[]>;
+
+/** The timeline rail's current visibility state ("hidden" | "visible" |
+ *  "interactive" | "stale" | "fading"). Null when the rail isn't mounted. */
+export const getTimelineVisibility = (page: Page) =>
+  shadowQuery(
+    page,
+    (r) =>
+      r
+        .querySelector("[data-role='timeline-rail']")
+        ?.getAttribute("data-visibility") ?? null,
+  ) as Promise<string | null>;
+
+/** Click the Nth timeline dot (0-indexed, rail order) to restore that entry. */
+export const clickTimelineDot = (page: Page, index: number) =>
+  page.evaluate((i) => {
+    for (const d of document.querySelectorAll("div")) {
+      if (!d.shadowRoot || d.style.position !== "fixed") continue;
+      const dots = [
+        ...d.shadowRoot.querySelectorAll(
+          "[data-role='timeline-rail'] .timeline-dot",
+        ),
+      ] as HTMLElement[];
+      dots[i]?.click();
+      return;
+    }
+  }, index);
+
+/** Hover the timeline rail (keeps it in the "interactive" visibility state,
+ *  preventing auto-hide while a test drives multiple dot interactions). */
+export const hoverTimelineRail = (page: Page) =>
+  page.evaluate(() => {
+    for (const d of document.querySelectorAll("div")) {
+      if (!d.shadowRoot || d.style.position !== "fixed") continue;
+      const rail = d.shadowRoot.querySelector(
+        "[data-role='timeline-rail']",
+      ) as HTMLElement | null;
+      rail?.dispatchEvent(
+        new MouseEvent("mouseover", { bubbles: true, composed: true }),
+      );
+      return;
+    }
+  });
+
+/** Move the pointer off the timeline rail entirely (dispatches mouseout with
+ *  no relatedTarget, the shadow-DOM-safe leave signal — see
+ *  feedback_shadow_dom_mouse_events). */
+export const unhoverTimelineRail = (page: Page) =>
+  page.evaluate(() => {
+    for (const d of document.querySelectorAll("div")) {
+      if (!d.shadowRoot || d.style.position !== "fixed") continue;
+      const rail = d.shadowRoot.querySelector(
+        "[data-role='timeline-rail']",
+      ) as HTMLElement | null;
+      rail?.dispatchEvent(
+        new MouseEvent("mouseout", { bubbles: true, composed: true }),
+      );
+      return;
+    }
+  });
+
+/** The on-screen (viewport) center of the Nth timeline dot (0-indexed, rail
+ *  order) — lets a test aim a REAL mouse right-click at it (renaming is wired
+ *  to the native contextmenu event on the dot button). Null when out of range. */
+export const getTimelineDotCenter = (page: Page, index: number) =>
+  page.evaluate((i) => {
+    for (const d of document.querySelectorAll("div")) {
+      if (!d.shadowRoot || d.style.position !== "fixed") continue;
+      const dots = [
+        ...d.shadowRoot.querySelectorAll(
+          "[data-role='timeline-rail'] .timeline-dot",
+        ),
+      ] as HTMLElement[];
+      const el = dots[i];
+      if (!el) return null;
+      const b = el.getBoundingClientRect();
+      return { x: b.left + b.width / 2, y: b.top + b.height / 2 };
+    }
+    return null;
+  }, index) as Promise<{ x: number; y: number } | null>;
+
+/** The timeline rename `<input>`'s current value, or null when not rendered. */
+export const getTimelineRenameInputValue = (page: Page) =>
+  shadowQuery(
+    page,
+    (r) =>
+      (
+        r.querySelector(
+          "[data-role='timeline-rail'] .timeline-rename-input",
+        ) as HTMLInputElement | null
+      )?.value ?? null,
+  ) as Promise<string | null>;
+
+/** Type into the open timeline rename input and confirm with Enter. Requires
+ *  the input to already be mounted (opened via a right-click on a dot). */
+export const submitTimelineRename = async (page: Page, name: string) => {
+  await page.keyboard.type(name);
+  await page.keyboard.press("Enter");
+};
+
+/** The rail tooltip's visible text when hovering a dot (name if renamed,
+ *  otherwise the commit label). Null when the tooltip isn't showing. */
+export const getTimelineTooltipText = (page: Page) =>
+  shadowQuery(page, (r) => {
+    const tooltip = r.querySelector(
+      "[data-role='timeline-rail'] .timeline-tooltip",
+    );
+    if (!tooltip || !tooltip.hasAttribute("data-visible")) return null;
+    return tooltip.textContent?.trim() ?? null;
+  }) as Promise<string | null>;

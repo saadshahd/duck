@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, type KeyboardEvent } from "react";
 import {
   useFloating,
   offset,
@@ -17,6 +17,7 @@ import {
 import type { FiberRegistry } from "../fiber/index.js";
 import type { SpecOpsError } from "../spec-ops/index.js";
 import type { InsertOutcome } from "./use-insert.js";
+import { nextHighlight, prevHighlight } from "./highlight.js";
 import css from "./insert.css?inline";
 
 const MIDDLEWARE = [offset(8), flip(), shift({ padding: 8 })];
@@ -37,6 +38,9 @@ type CatalogPickerProps = {
   onInsert: (componentType: string) => InsertOutcome;
   onClose: () => void;
   slotAllowedTypes?: ReadonlySet<string>;
+  /** The targeted slot's display label (e.g. "Card › header"). Names the slot
+   *  in the disabled-item reason instead of the generic "this slot". */
+  slotLabel?: string;
 };
 
 type Entry = { name: string; label: string };
@@ -51,16 +55,25 @@ function PickerItem({
   name,
   label,
   disallowed,
+  reason = NOT_ALLOWED_HERE,
+  active,
   onInsert,
-}: Entry & { disallowed?: boolean; onInsert: (name: string) => void }) {
+}: Entry & {
+  disallowed?: boolean;
+  reason?: string;
+  active?: boolean;
+  onInsert: (name: string) => void;
+}) {
   return (
     <button
       type="button"
       className="catalog-picker-item"
       data-role="catalog-picker-item"
+      data-active={active ? "" : undefined}
       disabled={disallowed}
-      title={disallowed ? NOT_ALLOWED_HERE : undefined}
-      aria-label={disallowed ? `${name} — ${NOT_ALLOWED_HERE}` : undefined}
+      aria-selected={active}
+      title={disallowed ? reason : undefined}
+      aria-label={disallowed ? `${name} — ${reason}` : undefined}
       onClick={(e) => {
         e.stopPropagation();
         onInsert(name);
@@ -86,10 +99,12 @@ export function CatalogPicker({
   onInsert,
   onClose,
   slotAllowedTypes,
+  slotLabel,
 }: CatalogPickerProps) {
   useShadowSheet(css);
   const [filter, setFilter] = useState("");
   const [notice, setNotice] = useState("");
+  const [highlightedName, setHighlightedName] = useState<string | null>(null);
   const filterRef = useAutoFocus<HTMLInputElement>();
 
   const { refs, floatingStyles } = useFloating({
@@ -122,12 +137,45 @@ export function CatalogPicker({
       }
     : { valid: all, incompatible: [] };
 
+  // Highlight is tracked by name, not raw index — a filter keystroke reshuffles
+  // `valid`, and a name-lookup survives that reshuffle instead of pointing at
+  // whatever now sits at the old index. Falls back to the first valid item
+  // when nothing is highlighted yet or the highlighted name filtered out.
+  const lookedUp = valid.findIndex(({ name }) => name === highlightedName);
+  const activeIndex = valid.length === 0 ? -1 : lookedUp === -1 ? 0 : lookedUp;
+
+  const moveHighlight = (next: number) =>
+    setHighlightedName(next === -1 ? null : (valid[next]?.name ?? null));
+
+  // Full containment while the picker is focused: every keystroke stops here
+  // and never reaches the global tinykeys(window, …) bindings (undo, delete,
+  // clipboard, arrow-key selection, "/") or the canvas beneath. Only the keys
+  // the picker itself interprets get preventDefault; plain typing still
+  // reaches the filter input's own onChange.
+  const onKeyDown = (e: KeyboardEvent<HTMLDivElement>) => {
+    e.stopPropagation();
+    if (e.key === "ArrowDown") {
+      e.preventDefault();
+      moveHighlight(nextHighlight(activeIndex, valid.length));
+    } else if (e.key === "ArrowUp") {
+      e.preventDefault();
+      moveHighlight(prevHighlight(activeIndex, valid.length));
+    } else if (e.key === "Enter") {
+      e.preventDefault();
+      if (activeIndex !== -1) insert(valid[activeIndex].name);
+    } else if (e.key === "Escape") {
+      e.preventDefault();
+      onClose();
+    }
+  };
+
   return (
     <div
       ref={refs.setFloating}
       style={floatingStyles}
       className="catalog-picker"
       data-role="catalog-picker"
+      onKeyDown={onKeyDown}
     >
       <input
         ref={filterRef}
@@ -137,12 +185,17 @@ export function CatalogPicker({
         value={filter}
         onChange={(e) => setFilter(e.target.value)}
       />
-      <div className="catalog-picker-list">
+      <div className="catalog-picker-list" role="listbox">
         {valid.length === 0 && incompatible.length === 0 && (
           <div className="catalog-picker-empty">No matches</div>
         )}
-        {valid.map((e) => (
-          <PickerItem key={e.name} {...e} onInsert={insert} />
+        {valid.map((e, i) => (
+          <PickerItem
+            key={e.name}
+            {...e}
+            active={i === activeIndex}
+            onInsert={insert}
+          />
         ))}
         {incompatible.length > 0 && (
           <details
@@ -153,7 +206,15 @@ export function CatalogPicker({
               Incompatible ({incompatible.length})
             </summary>
             {incompatible.map((e) => (
-              <PickerItem key={e.name} {...e} disallowed onInsert={insert} />
+              <PickerItem
+                key={e.name}
+                {...e}
+                disallowed
+                reason={
+                  slotLabel ? `Not allowed in ${slotLabel}` : NOT_ALLOWED_HERE
+                }
+                onInsert={insert}
+              />
             ))}
           </details>
         )}

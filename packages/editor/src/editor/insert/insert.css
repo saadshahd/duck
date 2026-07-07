@@ -54,7 +54,8 @@
   font-family: var(--font-system);
 }
 
-.catalog-picker-item:enabled:hover {
+.catalog-picker-item:enabled:hover,
+.catalog-picker-item[data-active] {
   background: rgba(255, 255, 255, 0.08);
 }
 
