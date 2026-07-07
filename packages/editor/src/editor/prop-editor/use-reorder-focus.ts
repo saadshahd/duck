@@ -6,12 +6,12 @@ import { useLayoutEffect, useRef } from "react";
  *  being stranded on a now-disabled end button or a different row's index. */
 export function useReorderFocus() {
   const rows = useRef(new Map<string, HTMLElement>());
-  const pending = useRef<string | undefined>(undefined);
+  const pending = useRef("");
 
   useLayoutEffect(() => {
     const key = pending.current;
     if (!key) return;
-    pending.current = undefined;
+    pending.current = "";
     rows.current.get(key)?.focus();
   });
 

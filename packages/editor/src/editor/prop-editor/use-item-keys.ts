@@ -6,7 +6,7 @@ import type { ArrayItem } from "./array-items.js";
  *  follows an item through reorder and removal; `carry` hands that key to the
  *  fresh object a nested edit spreads. See item-keys.ts for the invariant. */
 export function useItemKeys() {
-  const ref = useRef<KeyStore>(undefined);
+  const ref = useRef<KeyStore | null>(null);
   if (!ref.current) ref.current = createKeyStore();
   const store = ref.current;
   return {
