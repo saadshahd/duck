@@ -1,27 +1,71 @@
-.array-item-row {
-  display: flex;
-  align-items: center;
-  gap: 2px;
+/* Array item rows. One content edge; the summary IS the presentation.
+ * Single-field items render their one control inline (no caret); multi-field
+ * items sit behind a caret and reveal their fields below when open.
+ * Reorder/remove actions overlay the row's right on hover / button focus. */
+
+:host {
+  /* Opaque so the actions scrim never bleeds text through the blurred sheet,
+     and so the scrim and the row-hover fill share one colour (no seam). */
+  --array-row-hover: #f0f0ef;
 }
-.array-item-row .disclosure-trigger {
-  flex: 1;
+
+.array-rows {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.array-row {
+  position: relative;
   min-width: 0;
-  width: auto;
-  padding: 8px;
-  font-weight: 400;
+  border-radius: 6px;
 }
-.array-item-actions {
+
+.array-row:hover,
+.array-row:has(.array-row-actions:focus-within) {
+  background: var(--array-row-hover);
+}
+
+/* Editing owns the row: while its input holds focus, actions are suppressed and
+   the hover fill is cleared so nothing occludes the value being typed. */
+.array-row--inline:has(.array-row-field :focus) {
+  background: transparent;
+}
+
+/* --- Actions (shared) --- */
+
+.array-row-actions {
+  position: absolute;
+  top: 0;
+  right: 2px;
+  bottom: 0;
   display: flex;
   align-items: center;
   gap: 2px;
-  flex-shrink: 0;
+  padding-left: 16px;
+  opacity: 0;
+  background: linear-gradient(
+    to right,
+    transparent,
+    var(--array-row-hover) 16px
+  );
 }
-.array-item-actions button {
+
+.array-row:hover .array-row-actions,
+.array-row-actions:focus-within {
+  opacity: 1;
+}
+
+.array-row--inline:has(.array-row-field :focus) .array-row-actions {
+  opacity: 0;
+}
+
+.array-row-actions button {
   appearance: none;
   border: none;
   background: transparent;
   color: var(--text-field-secondary);
-  font-size: 12px;
+  font-size: 13px;
   line-height: 1;
   cursor: pointer;
   width: 24px;
@@ -30,15 +74,127 @@
   display: flex;
   align-items: center;
   justify-content: center;
+  flex-shrink: 0;
 }
-.array-item-actions button:hover:not(:disabled) {
+
+.array-row-actions button:hover:not(:disabled) {
   background: var(--accent-hover);
   color: var(--text-field);
 }
-.array-item-actions button:disabled {
-  opacity: 0.35;
+
+.array-row-actions button:disabled {
+  opacity: 0.3;
   cursor: not-allowed;
 }
+
+/* --- Inline single-field row --- */
+
+.array-row--inline {
+  display: flex;
+  align-items: center;
+}
+
+.array-row-field {
+  flex: 1;
+  min-width: 0;
+}
+
+/* The row is the field: drop the field's own label and stacking margin. */
+.array-row-field .prop-field {
+  margin: 0;
+  gap: 0;
+}
+
+.array-row-field .prop-field > label,
+.array-row-field .prop-readonly-badge {
+  display: none;
+}
+
+/* --- Multi-field disclosure row --- */
+
+.array-row-summary {
+  position: relative;
+  display: flex;
+  align-items: center;
+  min-height: 30px;
+}
+
+.array-row-toggle {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  appearance: none;
+  border: none;
+  background: transparent;
+  color: var(--text-field);
+  font-family: var(--font-system);
+  font-size: 13px;
+  cursor: pointer;
+  padding: 6px 8px;
+  text-align: left;
+}
+
+.array-row-chevron {
+  flex-shrink: 0;
+  width: 12px;
+  font-size: 11px;
+  opacity: 0.6;
+  text-align: center;
+}
+
+.array-row-title {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.array-row-tail {
+  position: relative;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  max-width: 45%;
+  padding-right: 4px;
+}
+
+.array-row-secondary {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 11px;
+  color: var(--text-field-muted);
+}
+
+/* Expanded fields sit at the summary's content edge — no third indent column.
+   A hairline thread in the caret rail is the only containment cue. */
+.array-row-fields {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 2px 8px 8px 24px;
+}
+
+.array-row-fields::before {
+  content: "";
+  position: absolute;
+  left: 13px;
+  top: 0;
+  bottom: 10px;
+  width: 1px;
+  background: var(--control-border);
+}
+
+.array-row-fields .prop-field:last-child {
+  margin-bottom: 0;
+}
+
+/* --- Add --- */
+
 .array-add {
   appearance: none;
   border: 1px dashed var(--control-border);
@@ -49,12 +205,15 @@
   height: 28px;
   border-radius: 6px;
   cursor: pointer;
+  margin-top: 1px;
 }
+
 .array-add:hover:not(:disabled) {
   background: var(--control-bg-hover);
   border-color: var(--control-border-hover);
   color: var(--text-field);
 }
+
 .array-add:disabled {
   opacity: 0.5;
   cursor: not-allowed;

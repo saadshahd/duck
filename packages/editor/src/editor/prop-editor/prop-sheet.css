@@ -93,12 +93,6 @@
   color: var(--text-field-tertiary);
 }
 
-.disclosure-panel {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
 /* ── Sheet header ───────────────────────────────────────────────────────── */
 
 .prop-sheet-header {

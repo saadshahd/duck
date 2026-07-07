@@ -1,9 +1,5 @@
 import type { ReactNode } from "react";
 
-function Root({ children }: { children: ReactNode }) {
-  return <div className="disclosure">{children}</div>;
-}
-
 function Trigger({
   label,
   count,
@@ -30,16 +26,4 @@ function Trigger({
   );
 }
 
-function Panel({ depth, children }: { depth: number; children: ReactNode }) {
-  return (
-    <div
-      className="disclosure-panel"
-      role="group"
-      style={{ paddingLeft: `${Math.min(depth, 3) * 16}px` }}
-    >
-      {children}
-    </div>
-  );
-}
-
-export const Disclosure = { Root, Trigger, Panel } as const;
+export const Disclosure = { Trigger } as const;

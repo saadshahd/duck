@@ -14,8 +14,10 @@ import css from "./object-section.css?inline";
 import { SlotCtx, useSlotCtx, type CrossSlotDrag } from "./slot-context.js";
 import { useDebouncedText } from "./use-debounced-text.js";
 import { SlotOutline } from "./slot-outline.js";
-import { ArrayItems, type ArrayItem } from "./array-items.js";
+import { ArrayItems, type ArrayItem, type ArrayOp } from "./array-items.js";
 import { ArrayControl } from "./array-control.js";
+import { useItemKeys } from "./use-item-keys.js";
+import { useReorderFocus } from "./use-reorder-focus.js";
 import { fieldIdentity } from "./field-identity.js";
 import {
   fetchExternal,
@@ -280,35 +282,135 @@ const ArrayInput = ({
   toggle,
 }: FieldProps<Extract<Field, { type: "array" }>, unknown>) => {
   const items = Array.isArray(value) ? (value as ArrayItem[]) : [];
-  const summarize = field.getItemSummary;
-  const open = isOpen?.(path) ?? false;
   const displayLabel = toDisplayLabel(label, field.label);
+  const open = isOpen?.(path) ?? false;
+  const { keyFor, carry } = useItemKeys();
+  const { register, focusMoved } = useReorderFocus();
 
-  const structural = (next: ArrayItem[], opLabel: string) =>
-    onChange(next, { label: opLabel, coalesce: false });
+  const fieldEntries = Object.entries(field.arrayFields) as [string, Field][];
+  const inline = ArrayItems.isInlineRow(field.arrayFields);
+  const secondaryKey = fieldEntries[1]?.[0];
+
+  const summarize = field.getItemSummary;
+  const summaryOf = (item: ArrayItem, i: number): string | undefined => {
+    if (!summarize) return undefined;
+    const s = summarize(item, i);
+    return typeof s === "string" && s.trim() ? s : undefined;
+  };
+  const secondaryOf = (item: ArrayItem): string | undefined => {
+    const v = secondaryKey ? item[secondaryKey] : undefined;
+    return typeof v === "string" && v ? v : undefined;
+  };
+
+  const structural = (next: ArrayItem[], op: ArrayOp, summary?: string) =>
+    onChange(next, {
+      label: ArrayItems.describe(op, summary),
+      coalesce: false,
+    });
 
   const addItem = () => {
+    const created = ArrayItems.defaults(field, items.length);
     structural(
-      [...items, ArrayItems.defaults(field, items.length)],
-      `Added item to ${displayLabel}`,
+      [...items, created],
+      { kind: "add" },
+      summaryOf(created, items.length),
     );
-    const newItemPath = `${path}.${items.length}`;
-    if (!(isOpen?.(newItemPath) ?? false)) toggle?.(newItemPath);
+    if (!inline) {
+      const newItemPath = `${path}#${keyFor(created)}`;
+      if (!(isOpen?.(newItemPath) ?? false)) toggle?.(newItemPath);
+    }
   };
 
   const removeItem = (i: number) =>
     structural(
       ArrayItems.removeAt(items, i),
-      `Removed item from ${displayLabel}`,
+      { kind: "remove" },
+      summaryOf(items[i], i),
     );
 
   const moveItem = (i: number, delta: -1 | 1) => {
     const next = ArrayItems.move(items, i, i + delta);
-    if (next !== items) structural(next, `Moved item in ${displayLabel}`);
+    if (next === items) return;
+    const moved = items[i];
+    structural(
+      next,
+      { kind: "move", direction: delta === -1 ? "up" : "down" },
+      summaryOf(moved, i),
+    );
+    focusMoved(keyFor(moved));
+  };
+
+  const editField = (
+    item: ArrayItem,
+    i: number,
+    key: string,
+    childField: Field,
+    fieldPath: string,
+  ) => (
+    <PuckFieldInput
+      key={key}
+      label={key}
+      field={childField}
+      value={item[key]}
+      onChange={(v, meta) => {
+        const next = items.slice();
+        next[i] = carry({ ...item, [key]: v }, item);
+        onChange(next, meta);
+      }}
+      readOnly={readOnly}
+      path={fieldPath}
+      depth={depth + 1}
+      isOpen={isOpen}
+      toggle={toggle}
+    />
+  );
+
+  const renderRow = (item: ArrayItem, i: number) => {
+    const rowKey = keyFor(item);
+    const itemPath = `${path}#${rowKey}`;
+    const move = {
+      canMoveUp: i > 0,
+      canMoveDown: i < items.length - 1,
+      onMove: (delta: -1 | 1) => moveItem(i, delta),
+      remove: ArrayItems.removeGate(items.length, field.min),
+      onRemove: () => removeItem(i),
+      readOnly,
+    };
+    if (inline) {
+      const [soleKey, soleField] = fieldEntries[0];
+      return (
+        <ArrayControl.Row
+          key={rowKey}
+          mode="inline"
+          rowRef={register(rowKey)}
+          {...move}
+        >
+          {editField(item, i, soleKey, soleField, `${itemPath}.${soleKey}`)}
+        </ArrayControl.Row>
+      );
+    }
+    const itemOpen = isOpen?.(itemPath) ?? false;
+    return (
+      <ArrayControl.Row
+        key={rowKey}
+        mode="disclosure"
+        rowRef={register(rowKey)}
+        summary={summaryOf(item, i) ?? `Item ${i + 1}`}
+        secondary={secondaryOf(item)}
+        open={itemOpen}
+        onToggle={() => toggle?.(itemPath)}
+        {...move}
+      >
+        {itemOpen &&
+          fieldEntries.map(([key, childField]) =>
+            editField(item, i, key, childField, `${itemPath}.${key}`),
+          )}
+      </ArrayControl.Row>
+    );
   };
 
   return (
-    <Disclosure.Root>
+    <div className="array-field">
       <Disclosure.Trigger
         label={displayLabel}
         count={items.length}
@@ -316,59 +418,17 @@ const ArrayInput = ({
         onToggle={() => toggle?.(path)}
       />
       {open && (
-        <Disclosure.Panel depth={depth + 1}>
-          {items.map((item, i) => {
-            const itemPath = `${path}.${i}`;
-            const itemOpen = isOpen?.(itemPath) ?? false;
-            return (
-              <Disclosure.Root key={i}>
-                <ArrayControl.Row
-                  summary={summarize ? summarize(item, i) : `Item ${i + 1}`}
-                  open={itemOpen}
-                  onToggle={() => toggle?.(itemPath)}
-                  canMoveUp={i > 0}
-                  canMoveDown={i < items.length - 1}
-                  onMove={(delta) => moveItem(i, delta)}
-                  remove={ArrayItems.removeGate(items.length, field.min)}
-                  onRemove={() => removeItem(i)}
-                  readOnly={readOnly}
-                />
-                {itemOpen && (
-                  <Disclosure.Panel depth={depth + 2}>
-                    {Object.entries(field.arrayFields).map(
-                      ([key, childField]) => (
-                        <PuckFieldInput
-                          key={key}
-                          label={key}
-                          field={childField as Field}
-                          value={item[key]}
-                          onChange={(v, meta) => {
-                            const next = items.slice();
-                            next[i] = { ...item, [key]: v };
-                            onChange(next, meta);
-                          }}
-                          readOnly={readOnly}
-                          path={`${itemPath}.${key}`}
-                          depth={depth + 2}
-                          isOpen={isOpen}
-                          toggle={toggle}
-                        />
-                      ),
-                    )}
-                  </Disclosure.Panel>
-                )}
-              </Disclosure.Root>
-            );
-          })}
+        <div className="array-rows">
+          {items.map(renderRow)}
           <ArrayControl.Add
             gate={ArrayItems.addGate(items.length, field.max)}
             label={displayLabel}
             onAdd={addItem}
             readOnly={readOnly}
           />
-        </Disclosure.Panel>
+        </div>
       )}
-    </Disclosure.Root>
+    </div>
   );
 };
 
