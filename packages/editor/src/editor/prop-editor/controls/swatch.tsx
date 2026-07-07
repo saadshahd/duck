@@ -3,6 +3,8 @@ import type { Field } from "@puckeditor/core";
 import { useShadowSheet } from "../../overlay/index.js";
 import { FieldLabel, fieldClass, resolveValueMode } from "../field-shell.js";
 import { toDisplayLabel } from "../field-label.js";
+import { useDebouncedText } from "../use-debounced-text.js";
+import { isCssColor, toPickerHex } from "./color-parse.js";
 import type { ControlRenderer, FieldProps } from "./index.js";
 import css from "./swatch.css?inline";
 
@@ -25,12 +27,27 @@ export const Swatch = (({
   const selectField = field as SelectField;
 
   const presets = selectField.options.map((o) => String(o.value));
+  const storedStr = String(value ?? "");
   const mode = resolveValueMode(value, presets);
   // SegmentGroup value: stored string when a preset is selected; empty string
-  // for unset (Ark treats "" as "no selection" in controlled mode, whereas
-  // undefined makes Ark ignore the prop and retain internal state).
+  // for literal or unset (Ark treats "" as "no selection" in controlled mode,
+  // whereas undefined makes Ark ignore the prop and retain internal state).
   const groupValue = mode.mode === "preset" ? mode.key : "";
-  const isUnset = mode.mode !== "preset";
+  // Sentinel is selected ONLY when the value is truly absent — an off-palette
+  // literal is a set value and must never read as "no color" (honesty contract).
+  const isUnset = mode.mode === "unset";
+
+  // Free-form entry — the `continuous` commit path (shared 300ms debounce,
+  // Enter/blur flush). Only a parseable CSS color commits; invalid text stays
+  // an uncommitted draft and reverts to the stored value on flush. The stored
+  // literal is exactly what was typed — no normalization.
+  const commitColor = (text: string) => {
+    if (isCssColor(text)) onChange(text);
+  };
+  const { draft, handleChange, handleBlur, handleKeyDown, cancel } =
+    useDebouncedText(storedStr, commitColor);
+  const isDraftInvalid = draft !== "" && !isCssColor(draft);
+  const pickerHex = toPickerHex(draft) ?? "#000000";
 
   return (
     <div className={fieldClass(readOnly)}>
@@ -47,13 +64,14 @@ export const Swatch = (({
           // e.value is string | null (Ark type); null means deselect — ignore it
           // (swatches are single-select and always-set once chosen).
           if (e.value !== null) {
+            cancel();
             onChange(e.value);
           }
         }}
       >
         {/* Unset sentinel — always rendered so the user can click to clear a
             selection. Shows a hatched diagonal pattern (never looks like any
-            real color). Selected-state ring applied when current value is unset. */}
+            real color). Selected-state ring applied only when truly unset. */}
         <span
           className={`swatch-sentinel${isUnset ? " swatch-sentinel--selected" : ""}`}
           data-role="swatch-sentinel"
@@ -63,7 +81,10 @@ export const Swatch = (({
           }
           title={isUnset ? "No color set" : "Clear color"}
           onClick={() => {
-            if (!readOnly) onChange(undefined);
+            if (!readOnly) {
+              cancel();
+              onChange(undefined);
+            }
           }}
         />
         {selectField.options.map((opt) => {
@@ -87,7 +108,62 @@ export const Swatch = (({
             </SegmentGroup.Item>
           );
         })}
+        {/* Custom chip — rendered ONLY while the stored value is an off-palette
+            literal. It shows the actual stored color, selected, so an agent- or
+            input-set color is visible truth, never coerced to a palette chip or
+            the unset sentinel. Display-only: the current value needs no click. */}
+        {mode.mode === "literal" && (
+          <span
+            className="swatch-custom"
+            data-role="swatch-custom"
+            data-selected=""
+            style={{ background: mode.value }}
+            title={mode.value}
+            aria-label={`Custom color ${mode.value} (current)`}
+          />
+        )}
       </SegmentGroup.Root>
+      {/* Free-form row — always on (the dimension model applied to color): a
+          native picker well seeding #rrggbb literals, and a text input whose
+          typed literal is the source of truth. */}
+      <div
+        className="swatch-input-row"
+        data-disabled={readOnly ? "" : undefined}
+      >
+        <span className="swatch-well" data-role="swatch-well">
+          <input
+            type="color"
+            aria-label="Pick custom color"
+            value={pickerHex}
+            disabled={readOnly}
+            onChange={handleChange}
+          />
+          <span
+            className="swatch-well-fill"
+            style={{
+              background:
+                draft !== "" && !isDraftInvalid ? draft : "transparent",
+            }}
+            aria-hidden
+          />
+        </span>
+        <input
+          className="swatch-input"
+          data-role="swatch-input"
+          data-invalid={isDraftInvalid ? "" : undefined}
+          type="text"
+          spellCheck={false}
+          placeholder="Custom color"
+          aria-label="Custom color value"
+          aria-invalid={isDraftInvalid || undefined}
+          value={draft}
+          readOnly={readOnly}
+          disabled={readOnly}
+          onChange={handleChange}
+          onBlur={handleBlur}
+          onKeyDown={handleKeyDown}
+        />
+      </div>
     </div>
   );
 }) as ControlRenderer;

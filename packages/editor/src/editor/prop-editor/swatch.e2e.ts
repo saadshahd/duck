@@ -10,6 +10,10 @@ import {
   isSwatchSentinelSelected,
   getSwatchItemCenter,
   getSwatchSentinelCenter,
+  readSwatchCustomChip,
+  getSwatchInputValue,
+  isSwatchInputInvalid,
+  setSwatchColorText,
 } from "../overlay/testing.js";
 
 /**
@@ -187,5 +191,93 @@ test.describe("Swatch color control — Heading.style.color (T5)", () => {
     const selected = items!.filter((i) => i.checked);
     expect(selected.length).toBe(1);
     expect(selected[0].value).toBe(target);
+  });
+
+  // O2f: free-form entry commits an off-palette literal; the canvas updates and
+  // the custom chip renders the actual color (honest literal, never the unset
+  // sentinel). Picking a palette chip afterwards replaces the literal.
+  test("O2f: custom color commits, shows honest custom chip, palette pick replaces it", async ({
+    page,
+  }) => {
+    await openHeadingSheet(page);
+
+    // No custom chip while unset.
+    expect(await readSwatchCustomChip(page)).toBeNull();
+
+    // Type an off-palette color; Enter flushes the continuous commit path.
+    const typed = await setSwatchColorText(page, "#ff6b35");
+    expect(typed).toBe(true);
+    await page.waitForTimeout(300);
+
+    // Canvas is the truth: the heading now paints the literal color.
+    const h1Color = await page
+      .locator("h1")
+      .evaluate((el) => getComputedStyle(el).color);
+    expect(h1Color).toBe("rgb(255, 107, 53)");
+
+    // Custom chip shows the actual color and the verbatim literal.
+    const chip = await readSwatchCustomChip(page);
+    expect(chip).toEqual({
+      background: "rgb(255, 107, 53)",
+      title: "#ff6b35",
+    });
+
+    // Off-palette is a SET value: sentinel not selected, no palette item checked,
+    // and the input mirrors the stored literal exactly (no normalization).
+    expect(await isSwatchSentinelSelected(page)).toBe(false);
+    const items = await readSwatchItems(page);
+    expect(items!.filter((i) => i.checked).length).toBe(0);
+    expect(await getSwatchInputValue(page)).toBe("#ff6b35");
+
+    // Pick a palette chip — discrete commit replaces the literal.
+    const target = "#111111";
+    const center = await getSwatchItemCenter(page, target);
+    expect(center).not.toBeNull();
+    await page.mouse.click(center!.x, center!.y);
+    await page.waitForTimeout(300);
+
+    expect(await readSwatchCustomChip(page)).toBeNull();
+    const after = await readSwatchItems(page);
+    expect(after!.filter((i) => i.checked).map((i) => i.value)).toEqual([
+      target,
+    ]);
+    const h1After = await page
+      .locator("h1")
+      .evaluate((el) => getComputedStyle(el).color);
+    expect(h1After).toBe("rgb(17, 17, 17)");
+  });
+
+  // O2g: invalid color text never commits — the draft is marked invalid while
+  // in flight, and flushing reverts to the stored truth (canvas + chips + input).
+  test("O2g: invalid color text does not commit and reverts to stored value", async ({
+    page,
+  }) => {
+    await openHeadingSheet(page);
+
+    // Establish a stored palette value first.
+    const target = "#555555";
+    const center = await getSwatchItemCenter(page, target);
+    await page.mouse.click(center!.x, center!.y);
+    await page.waitForTimeout(200);
+
+    // Type garbage without flushing — the input honestly marks the draft invalid.
+    await setSwatchColorText(page, "not-a-color", { flush: false });
+    expect(await isSwatchInputInvalid(page)).toBe(true);
+
+    // Flush; nothing commits and the control reverts to the stored value.
+    await page.keyboard.press("Enter");
+    await page.waitForTimeout(350);
+
+    expect(await readSwatchCustomChip(page)).toBeNull();
+    const items = await readSwatchItems(page);
+    expect(items!.filter((i) => i.checked).map((i) => i.value)).toEqual([
+      target,
+    ]);
+    expect(await getSwatchInputValue(page)).toBe(target);
+    expect(await isSwatchInputInvalid(page)).toBe(false);
+    const h1Color = await page
+      .locator("h1")
+      .evaluate((el) => getComputedStyle(el).color);
+    expect(h1Color).toBe("rgb(85, 85, 85)");
   });
 });

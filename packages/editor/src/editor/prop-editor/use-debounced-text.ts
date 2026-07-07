@@ -47,6 +47,10 @@ export function useDebouncedText(
   handleKeyDown: (
     e: React.KeyboardEvent<HTMLInputElement | HTMLTextAreaElement>,
   ) => void;
+  /** Discard the in-flight draft without committing — for a sibling discrete
+   *  control (chip click) that supersedes whatever was being typed; without
+   *  this the pending timer would flush stale text over the chip's commit. */
+  cancel: () => void;
 } {
   const [draft, setDraft] = useState<TextDraft>(TextDraft.committed);
   const draftRef = useRef(draft);
@@ -69,6 +73,12 @@ export function useDebouncedText(
     draftRef.current = TextDraft.committed;
     setDraft(TextDraft.committed);
     onChangeRef.current(current.text);
+  };
+
+  const cancel = () => {
+    clearTimer();
+    draftRef.current = TextDraft.committed;
+    setDraft(TextDraft.committed);
   };
 
   const handleChange = (
@@ -101,5 +111,6 @@ export function useDebouncedText(
     handleChange,
     handleBlur: flush,
     handleKeyDown,
+    cancel,
   };
 }

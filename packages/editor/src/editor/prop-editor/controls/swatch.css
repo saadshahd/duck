@@ -89,6 +89,100 @@
   border-style: solid;
 }
 
+/* Custom chip — the honest off-palette affordance. Only rendered while the
+   stored value is a literal, so it always carries the selected ring; the dashed
+   ring (vs the palette chips' solid ring) marks it as custom, echoing the
+   sentinel's dashed vocabulary. Inner white keyline keeps the ring legible
+   over any stored color. */
+.swatch-custom {
+  display: block;
+  width: 24px;
+  height: 24px;
+  border-radius: 4px;
+  border: 2px dashed var(--control-focus);
+  box-shadow: inset 0 0 0 1px var(--control-bg);
+  flex-shrink: 0;
+  user-select: none;
+}
+
+/* Free-form row — native picker well + text input, sits below the grid */
+.swatch-input-row {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-top: 4px;
+}
+
+/* Picker well — a 24px chip wrapping the native color input. The native input
+   is stretched invisible over the well so clicking opens the OS picker; the
+   fill span paints the current draft color (transparent when unset/invalid). */
+.swatch-well {
+  position: relative;
+  width: 24px;
+  height: 24px;
+  border-radius: 4px;
+  border: 1px solid var(--control-border);
+  overflow: hidden;
+  flex-shrink: 0;
+  cursor: pointer;
+  /* Hatch underlay shows through when no valid color is drafted */
+  background: repeating-linear-gradient(
+    45deg,
+    var(--control-border) 0px,
+    var(--control-border) 1px,
+    transparent 1px,
+    transparent 4px
+  );
+}
+
+.swatch-well input[type="color"] {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  opacity: 0;
+  cursor: pointer;
+  border: none;
+  padding: 0;
+}
+
+.swatch-well-fill {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+/* Text input — mirrors the dimension input field treatment */
+.swatch-input {
+  flex: 1;
+  min-width: 0;
+  height: 28px;
+  box-sizing: border-box;
+  background: var(--control-bg);
+  border: 1px solid var(--control-border);
+  border-radius: 6px;
+  font-family: var(--font-system);
+  font-size: 12px;
+  color: var(--text-field);
+  padding: 0 6px;
+  outline: none;
+}
+
+.swatch-input:focus {
+  outline: 2px solid var(--control-focus);
+  outline-offset: -1px;
+}
+
+.swatch-input::placeholder {
+  color: var(--text-field-secondary);
+}
+
+/* Invalid draft — inert, honestly marked; nothing commits while this shows */
+.swatch-input[data-invalid] {
+  border-color: var(--danger, #d4484a);
+  outline: none;
+}
+
 /* Read-only state — mute items, drop the interactive selection ring, and dim
    the sentinel so nothing reads as actionable (matches segmented.css doctrine). */
 .swatch-root[data-disabled] .swatch-item {
@@ -102,5 +196,15 @@
 
 .swatch-root[data-disabled] .swatch-sentinel {
   opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.swatch-input-row[data-disabled] {
+  opacity: 0.6;
+}
+
+.swatch-input-row[data-disabled] .swatch-well,
+.swatch-input-row[data-disabled] .swatch-well input[type="color"],
+.swatch-input-row[data-disabled] .swatch-input {
   cursor: not-allowed;
 }

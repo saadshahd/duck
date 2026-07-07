@@ -1183,6 +1183,70 @@ export const getSwatchSentinelCenter = (page: Page) =>
     return null;
   }) as Promise<{ x: number; y: number } | null>;
 
+/** The custom off-palette chip, when rendered — `{ background, title }` read
+ *  from the live DOM (background via computed style, title = the stored literal
+ *  verbatim). Null when the value is unset or a palette preset (the chip only
+ *  exists while the stored value is an off-palette literal). */
+export const readSwatchCustomChip = (page: Page) =>
+  shadowQuery(page, (r) => {
+    const el = r.querySelector(
+      "[data-role='swatch-custom']",
+    ) as HTMLElement | null;
+    if (!el) return null;
+    return {
+      background: getComputedStyle(el).backgroundColor,
+      title: el.getAttribute("title") ?? "",
+    };
+  }) as Promise<{ background: string; title: string } | null>;
+
+/** The current text of the swatch free-form input (draft or stored literal).
+ *  Null when the input is absent. */
+export const getSwatchInputValue = (page: Page) =>
+  shadowQuery(page, (r) => {
+    const input = r.querySelector(
+      "[data-role='swatch-input']",
+    ) as HTMLInputElement | null;
+    return input ? input.value : null;
+  }) as Promise<string | null>;
+
+/** True when the swatch free-form input carries data-invalid (an uncommitted,
+ *  unparseable draft). */
+export const isSwatchInputInvalid = (page: Page) =>
+  shadowQuery(
+    page,
+    (r) =>
+      r
+        .querySelector("[data-role='swatch-input']")
+        ?.hasAttribute("data-invalid") ?? false,
+  ) as Promise<boolean>;
+
+/** Type a color literal into the swatch free-form input through the REAL
+ *  keyboard: focus by clicking the input's viewport center, select-all, type,
+ *  then Enter (the continuous commit path's flush) unless `flush: false` —
+ *  which leaves the draft in-flight so tests can observe the pre-commit state.
+ *  Returns false when the input cannot be located. */
+export const setSwatchColorText = async (
+  page: Page,
+  text: string,
+  { flush = true }: { flush?: boolean } = {},
+): Promise<boolean> => {
+  const rect = (await shadowQuery(page, (r) => {
+    const input = r.querySelector(
+      "[data-role='swatch-input']",
+    ) as HTMLInputElement | null;
+    if (!input) return null;
+    input.scrollIntoView({ block: "nearest" });
+    const b = input.getBoundingClientRect();
+    return { x: b.left + b.width / 2, y: b.top + b.height / 2 };
+  })) as { x: number; y: number } | null;
+  if (!rect) return false;
+  await page.mouse.click(rect.x, rect.y);
+  await page.keyboard.press("ControlOrMeta+a");
+  await page.keyboard.type(text);
+  if (flush) await page.keyboard.press("Enter");
+  return true;
+};
+
 /** The on-screen (viewport) center of the swatch item whose data-value matches,
  *  so a test can aim a REAL mouse click at it. Uses page.evaluate (not shadowQuery)
  *  because shadowQuery stringifies its callback and cannot carry the `value` arg —
@@ -1500,6 +1564,30 @@ export const openIncompatiblePickerSection = (page: Page) =>
       return;
     }
   });
+
+/** Focus the "Incompatible" summary via `.focus()` — no click, so it never
+ *  triggers the native toggle itself. Isolates a subsequent real keypress
+ *  (`page.keyboard.press`) as the sole cause of any resulting toggle. */
+export const focusIncompatiblePickerSummary = (page: Page) =>
+  page.evaluate(() => {
+    for (const d of document.querySelectorAll("div")) {
+      if (!d.shadowRoot || d.style.position !== "fixed") continue;
+      const summary = d.shadowRoot.querySelector(
+        "[data-role='catalog-picker-incompatible'] summary",
+      ) as HTMLElement | null;
+      summary?.focus();
+      return;
+    }
+  });
+
+/** True when the picker's "Incompatible" `<details>` is expanded (open). */
+export const isIncompatiblePickerSectionOpen = (page: Page) =>
+  shadowQuery(page, (r) => {
+    const section = r.querySelector(
+      "[data-role='catalog-picker-incompatible']",
+    ) as HTMLDetailsElement | null;
+    return section?.open ?? false;
+  }) as Promise<boolean>;
 
 /** The inert-affordance state of an incompatible picker item by type name:
  *  `disabled` (cannot be activated) and `title` (the visible reason). Null when
