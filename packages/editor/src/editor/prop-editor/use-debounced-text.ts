@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { CONTINUOUS_DEBOUNCE_MS } from "./commit-mode.js";
 
 /** A text field's edit state. `committed` renders the stored value directly,
  *  so external data updates (agent pushes, undo) show through automatically.
@@ -18,12 +19,22 @@ const display = (draft: TextDraft, stored: string): string =>
 
 export const TextDraft = { committed: COMMITTED, edit, display } as const;
 
-const DEBOUNCE_MS = 500;
+/** Enter flushes a single-line input immediately; in a textarea plain Enter
+ *  inserts a newline, so only Cmd/Ctrl+Enter flushes. */
+export const shouldFlushOnEnter = (e: {
+  key: string;
+  metaKey: boolean;
+  ctrlKey: boolean;
+  currentTarget: { tagName: string };
+}): boolean =>
+  e.key === "Enter" &&
+  (e.currentTarget.tagName !== "TEXTAREA" || e.metaKey || e.ctrlKey);
 
-/** Debounced text editing over a committed value. Keystrokes accumulate as a
- *  drafting state and flush to `onChange` after DEBOUNCE_MS or on blur; between
- *  drafts the control mirrors the stored value, so an external data change
- *  updates untouched fields but never discards an in-flight draft. */
+/** Debounced text editing over a committed value — the `continuous` CommitMode
+ *  interpreter. Keystrokes accumulate as a drafting state and flush to `onChange`
+ *  after CONTINUOUS_DEBOUNCE_MS, on blur, or on Enter (Cmd/Ctrl+Enter in a
+ *  textarea); between drafts the control mirrors the stored value, so an external
+ *  data change updates untouched fields but never discards an in-flight draft. */
 export function useDebouncedText(
   value: string,
   onChange: (v: string) => void,
@@ -33,6 +44,9 @@ export function useDebouncedText(
     e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>,
   ) => void;
   handleBlur: () => void;
+  handleKeyDown: (
+    e: React.KeyboardEvent<HTMLInputElement | HTMLTextAreaElement>,
+  ) => void;
 } {
   const [draft, setDraft] = useState<TextDraft>(TextDraft.committed);
   const draftRef = useRef(draft);
@@ -67,7 +81,13 @@ export function useDebouncedText(
     timerRef.current = setTimeout(() => {
       timerRef.current = null;
       flush();
-    }, DEBOUNCE_MS);
+    }, CONTINUOUS_DEBOUNCE_MS);
+  };
+
+  const handleKeyDown = (
+    e: React.KeyboardEvent<HTMLInputElement | HTMLTextAreaElement>,
+  ) => {
+    if (shouldFlushOnEnter(e)) flush();
   };
 
   useEffect(function clearPendingTimerOnUnmount() {
@@ -80,5 +100,6 @@ export function useDebouncedText(
     draft: TextDraft.display(draft, value),
     handleChange,
     handleBlur: flush,
+    handleKeyDown,
   };
 }

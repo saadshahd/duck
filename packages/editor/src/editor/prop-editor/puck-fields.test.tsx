@@ -90,6 +90,22 @@ describe("PuckFields — object field grouping", () => {
     expect(labels).toEqual(["Color", "Size"]);
   });
 
+  it("custom field render receives a real name and an element-scoped unique id", () => {
+    let received: { name?: string; id?: string } = {};
+    const custom = {
+      type: "custom",
+      render: (p: { name: string; id: string }) => {
+        received = { name: p.name, id: p.id };
+        return <div />;
+      },
+    } as unknown as Field;
+    render({ banner: custom });
+    expect(received).toEqual({
+      name: "banner",
+      id: "duck-field-test-banner",
+    });
+  });
+
   it("clusters top-level fields with the same metadata.group under one shared heading", () => {
     const fields: Record<string, Field> = {
       color: {

@@ -10,9 +10,18 @@ import { FieldLabel, fieldClass, selectDisplay } from "./field-shell.js";
 import { FieldMetadata } from "./field-metadata.js";
 import { useShadowSheet, useOnClickOutside } from "../overlay/index.js";
 import css from "./object-section.css?inline";
-import { SlotCtx, type CrossSlotDrag } from "./slot-context.js";
+import { SlotCtx, useSlotCtx, type CrossSlotDrag } from "./slot-context.js";
 import { useDebouncedText } from "./use-debounced-text.js";
 import { SlotOutline } from "./slot-outline.js";
+import { fieldIdentity } from "./field-identity.js";
+import {
+  fetchExternal,
+  externalMapProp,
+  initialQuery,
+  initialFilters,
+  type ExternalQuery,
+} from "./external-fetch.js";
+import type { ControlId } from "./commit-mode.js";
 import type { EditorCommit } from "../types.js";
 
 const EXTERNAL_MIDDLEWARE = [flip(), shift({ padding: 8 })];
@@ -72,7 +81,7 @@ const TextInput = ({
   onChange,
   readOnly,
 }: FieldProps<Extract<Field, { type: "text" }>, unknown>) => {
-  const { draft, handleChange, handleBlur } = useDebouncedText(
+  const { draft, handleChange, handleBlur, handleKeyDown } = useDebouncedText(
     (value as string) ?? "",
     onChange as (v: string) => void,
   );
@@ -89,6 +98,7 @@ const TextInput = ({
         placeholder={field.placeholder}
         onChange={handleChange}
         onBlur={handleBlur}
+        onKeyDown={handleKeyDown}
       />
     </div>
   );
@@ -101,7 +111,7 @@ const TextareaInput = ({
   onChange,
   readOnly,
 }: FieldProps<Extract<Field, { type: "textarea" }>, unknown>) => {
-  const { draft, handleChange, handleBlur } = useDebouncedText(
+  const { draft, handleChange, handleBlur, handleKeyDown } = useDebouncedText(
     (value as string) ?? "",
     onChange as (v: string) => void,
   );
@@ -117,6 +127,7 @@ const TextareaInput = ({
         placeholder={field.placeholder}
         onChange={handleChange}
         onBlur={handleBlur}
+        onKeyDown={handleKeyDown}
         rows={3}
       />
     </div>
@@ -129,23 +140,36 @@ const NumberInput = ({
   value,
   onChange,
   readOnly,
-}: FieldProps<Extract<Field, { type: "number" }>, unknown>) => (
-  <div className={fieldClass(readOnly)}>
-    <FieldLabel text={toDisplayLabel(label, field.label)} readOnly={readOnly} />
-    <input
-      type="number"
-      value={(value as number) ?? ""}
-      readOnly={readOnly}
-      min={field.min}
-      max={field.max}
-      step={field.step}
-      placeholder={field.placeholder}
-      onChange={(e) =>
-        onChange(e.target.value === "" ? undefined : Number(e.target.value))
-      }
-    />
-  </div>
-);
+}: FieldProps<Extract<Field, { type: "number" }>, unknown>) => {
+  const stored = value as number | undefined;
+  const { draft, handleChange, handleBlur, handleKeyDown } = useDebouncedText(
+    stored === undefined ? "" : String(stored),
+    (text) => {
+      const parsed = Number(text);
+      onChange(text === "" || Number.isNaN(parsed) ? undefined : parsed);
+    },
+  );
+  return (
+    <div className={fieldClass(readOnly)}>
+      <FieldLabel
+        text={toDisplayLabel(label, field.label)}
+        readOnly={readOnly}
+      />
+      <input
+        type="number"
+        value={draft}
+        readOnly={readOnly}
+        min={field.min}
+        max={field.max}
+        step={field.step}
+        placeholder={field.placeholder}
+        onChange={handleChange}
+        onBlur={handleBlur}
+        onKeyDown={handleKeyDown}
+      />
+    </div>
+  );
+};
 
 const SelectInput = ({
   label,
@@ -315,39 +339,9 @@ const ArrayInput = ({
   );
 };
 
-const SlotHint = ({
-  label,
-  field,
-}: FieldProps<Extract<Field, { type: "slot" }>, unknown>) => (
-  <div className="prop-field">
-    <FieldLabel text={toDisplayLabel(label, field.label)} />
-    <p className="prop-sheet-hint">
-      Select a child element on the canvas, or use Insert + to add one.
-    </p>
-  </div>
-);
-
 type ExternalUnion = Extract<Field, { type: "external" }>;
 type ExternalAdaptorField = Extract<ExternalUnion, { adaptor: unknown }>;
 type ExternalDirectField = Exclude<ExternalUnion, ExternalAdaptorField>;
-
-const fetchExternal = (field: ExternalUnion): Promise<unknown[]> => {
-  if ("adaptor" in field) {
-    const adaptor = (field as ExternalAdaptorField).adaptor;
-    return adaptor
-      .fetchList((field as ExternalAdaptorField).adaptorParams)
-      .then((rows: unknown[] | null) => rows ?? []);
-  }
-  const direct = field as ExternalDirectField;
-  return direct
-    .fetchList({ query: direct.initialQuery ?? "", filters: {} })
-    .then((rows: unknown[] | null) => rows ?? []);
-};
-
-const externalMapProp = (field: ExternalUnion): ((item: unknown) => unknown) =>
-  "adaptor" in field
-    ? ((field as ExternalAdaptorField).adaptor.mapProp ?? ((item) => item))
-    : ((field as ExternalDirectField).mapProp ?? ((item) => item));
 
 const ExternalInput = ({
   label,
@@ -355,9 +349,17 @@ const ExternalInput = ({
   value,
   onChange,
   readOnly,
+  path = "",
+  depth = 0,
+  isOpen,
+  toggle,
 }: FieldProps<ExternalUnion, unknown>) => {
   const [items, setItems] = useState<unknown[] | null>(null);
   const [open, setOpen] = useState(false);
+  const [query, setQuery] = useState(() => initialQuery(field));
+  const [filters, setFilters] = useState<Record<string, unknown>>(() =>
+    initialFilters(field),
+  );
 
   const { refs, floatingStyles } = useFloating({
     placement: "bottom-start",
@@ -370,13 +372,31 @@ const ExternalInput = ({
     close,
   );
 
-  const load = () => {
-    setOpen(true);
-    fetchExternal(field)
+  const search = (params: ExternalQuery) =>
+    fetchExternal(field, params)
       .then(setItems)
       .catch(() => setItems([]));
+
+  const load = () => {
+    setOpen(true);
+    search({ query, filters });
   };
 
+  const changeFilter = (key: string, v: unknown) => {
+    const next = { ...filters, [key]: v };
+    setFilters(next);
+    search({ query, filters: next });
+  };
+
+  const searchDraft = useDebouncedText(query, (q) => {
+    setQuery(q);
+    search({ query: q, filters });
+  });
+
+  // showSearch / filterFields / renderFooter exist only on the direct
+  // (non-adaptor) ExternalField variant.
+  const direct =
+    "adaptor" in field ? undefined : (field as ExternalDirectField);
   const summarize = field.getItemSummary ?? ((item: unknown) => String(item));
   const mapProp = externalMapProp(field);
 
@@ -394,48 +414,88 @@ const ExternalInput = ({
       >
         {value ? summarize(value as never) : (field.placeholder ?? "Select...")}
       </button>
-      {open && items && (
-        <ul
+      {open && (
+        <div
           ref={refs.setFloating}
           className="prop-field-dropdown"
+          data-role="external-dropdown"
           style={floatingStyles}
         >
-          {items.map((item, i) => (
-            <li key={i}>
-              <button
-                type="button"
-                onClick={() => {
-                  onChange(mapProp(item));
-                  setOpen(false);
-                }}
-              >
-                {summarize(item as never)}
-              </button>
-            </li>
-          ))}
-        </ul>
+          {direct?.showSearch && (
+            <input
+              type="search"
+              className="prop-field-dropdown-search"
+              data-role="external-search"
+              placeholder="Search…"
+              value={searchDraft.draft}
+              onChange={searchDraft.handleChange}
+              onBlur={searchDraft.handleBlur}
+              onKeyDown={searchDraft.handleKeyDown}
+            />
+          )}
+          {direct?.filterFields && (
+            <div
+              className="prop-field-dropdown-filters"
+              data-role="external-filters"
+            >
+              {Object.entries(direct.filterFields).map(([key, filterField]) => (
+                <PuckFieldInput
+                  key={key}
+                  label={key}
+                  field={filterField as Field}
+                  value={filters[key]}
+                  onChange={(v) => changeFilter(key, v)}
+                  path={`${path}.filters.${key}`}
+                  depth={depth + 1}
+                  isOpen={isOpen}
+                  toggle={toggle}
+                />
+              ))}
+            </div>
+          )}
+          {items && (
+            <ul className="prop-field-dropdown-list">
+              {items.map((item, i) => (
+                <li key={i}>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      onChange(mapProp(item));
+                      setOpen(false);
+                    }}
+                  >
+                    {summarize(item as never)}
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
+          {direct?.renderFooter && items && (
+            <div
+              className="prop-field-dropdown-footer"
+              data-role="external-footer"
+            >
+              {direct.renderFooter({ items })}
+            </div>
+          )}
+        </div>
       )}
     </div>
   );
 };
 
 const CustomRender = ({
+  label,
   field,
   value,
   onChange,
   readOnly,
-}: FieldProps<Extract<Field, { type: "custom" }>, unknown>) => (
-  <>
-    {field.render({
-      field,
-      value,
-      onChange,
-      name: "",
-      id: "",
-      readOnly,
-    })}
-  </>
-);
+  path,
+}: FieldProps<Extract<Field, { type: "custom" }>, unknown>) => {
+  const { parentId } = useSlotCtx();
+  const { name, id } = fieldIdentity({ elementId: parentId, path, label });
+  return <>{field.render({ field, value, onChange, name, id, readOnly })}</>;
+};
 
 const FallbackField = ({
   label,
@@ -484,6 +544,8 @@ const FallbackField = ({
 
 // --- Type → renderer dispatch ---
 
+// Keyed by Extract<Field["type"], ControlId>: adding a renderer for a field type
+// without declaring its commit timing in the COMMIT policy is a compile error.
 const renderers = {
   text: TextInput,
   textarea: TextareaInput,
@@ -496,7 +558,10 @@ const renderers = {
   external: ExternalInput,
   custom: CustomRender,
 } as const satisfies Partial<
-  Record<Field["type"], (props: FieldProps<never, unknown>) => ReactNode>
+  Record<
+    Extract<Field["type"], ControlId>,
+    (props: FieldProps<never, unknown>) => ReactNode
+  >
 >;
 
 /** Render a single Puck field with the appropriate input.
