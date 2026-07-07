@@ -85,6 +85,7 @@ import {
   usePatterns,
   withVariant,
 } from "./morph/index.js";
+import { CrashGuard, RecoveryNotice } from "./shell/crash-recovery.js";
 import { useResolution } from "./resolve/use-resolution.js";
 import { ShimmerOverlay } from "./resolve/shimmer-overlay.js";
 import { useEditorCommit } from "./commit.js";
@@ -119,7 +120,77 @@ export function useEditorInternals(): EditorInternals {
   return ctx;
 }
 
-export function Editor<UserConfig extends Config = Config>({
+type RecoverySession = {
+  epoch: number;
+  data: Partial<Data>;
+  propAtCrash: Partial<Data>;
+};
+
+/**
+ * Crash containment around the editing surface: a render error anywhere in
+ * the surface swaps to the committed document (read-only, chrome-free) plus
+ * one recovery notice, instead of unmounting the host page to blank. Resume
+ * remounts the surface with the last committed data, so no edit that reached
+ * a commit is lost.
+ */
+export function Editor<UserConfig extends Config = Config>(
+  props: EditorProps<UserConfig>,
+) {
+  const { data, config, metadata, onChange } = props;
+  const lastGoodRef = useRef(data);
+  const [recovery, setRecovery] = useState<RecoverySession | null>(null);
+
+  const keepLastGood = useCallback(
+    (next: Data) => {
+      lastGoodRef.current = next;
+      onChange?.(next);
+    },
+    [onChange],
+  );
+
+  const resume = useCallback(
+    () =>
+      setRecovery((prev) => ({
+        epoch: (prev?.epoch ?? 0) + 1,
+        data: lastGoodRef.current,
+        propAtCrash: data,
+      })),
+    [data],
+  );
+
+  // After a resume the surface remounts on the last committed data; a fresh
+  // `data` prop from the host (identity change) takes precedence again.
+  const surfaceData =
+    recovery && data === recovery.propAtCrash ? recovery.data : data;
+  const epoch = recovery?.epoch ?? 0;
+
+  return (
+    <CrashGuard
+      resetKey={epoch}
+      fallback={() => (
+        <>
+          <CrashGuard fallback={() => null}>
+            <RenderHost
+              config={config}
+              data={normalizeData(lastGoodRef.current)}
+              metadata={metadata}
+            />
+          </CrashGuard>
+          <RecoveryNotice onResume={resume} />
+        </>
+      )}
+    >
+      <EditorSurface
+        key={epoch}
+        {...props}
+        data={surfaceData}
+        onChange={keepLastGood}
+      />
+    </CrashGuard>
+  );
+}
+
+function EditorSurface<UserConfig extends Config = Config>({
   data,
   config,
   onChange,

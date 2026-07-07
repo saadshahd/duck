@@ -16,15 +16,20 @@ test.describe("Empty-container ghost path does not crash the editor", () => {
     await page.waitForTimeout(500);
   });
 
-  test("deleting all children of a container survives — no hook-order crash", async ({
-    page,
-  }) => {
+  const collectErrors = (page: import("@playwright/test").Page) => {
     const consoleErrors: string[] = [];
     page.on("console", (msg) => {
       if (msg.type() === "error") consoleErrors.push(msg.text());
     });
     const pageErrors: string[] = [];
     page.on("pageerror", (err) => pageErrors.push(err.message));
+    return { consoleErrors, pageErrors };
+  };
+
+  test("deleting all children of a container survives — no hook-order crash", async ({
+    page,
+  }) => {
+    const { consoleErrors, pageErrors } = collectErrors(page);
 
     // Insert a Box (default children: Heading "Section heading" + Text "Add
     // your content here.") as a sibling of the hero heading.
@@ -51,6 +56,42 @@ test.describe("Empty-container ghost path does not crash the editor", () => {
 
     // The editor must still be alive: the hero heading (untouched sibling) is
     // still rendered — a crash unmounts the whole tree to a blank page.
+    await expect(page.locator("h1")).toBeVisible();
+
+    const hookOrderWarning = consoleErrors.find((m) =>
+      m.includes("change in the order of Hooks"),
+    );
+    expect(hookOrderWarning).toBeUndefined();
+    expect(pageErrors).toEqual([]);
+  });
+
+  test("emptying a Box inside a Card body slot survives — original smoke-test repro", async ({
+    page,
+  }) => {
+    const { consoleErrors, pageErrors } = collectErrors(page);
+
+    // Exact smoke-test path: select a card-body Text, insert a Box as its
+    // sibling inside the Card body slot, then delete the Box's two default
+    // children — the Box collapses to a ghost candidate inside the slot.
+    await page.getByText("No panels, no toolbars.", { exact: false }).click();
+    await page.waitForTimeout(300);
+    await page.keyboard.press("/");
+    await page.waitForTimeout(300);
+    expect(await isCatalogPickerVisible(page)).toBe(true);
+    const inserted = await clickFirstCatalogPickerItem(page);
+    expect(inserted).toBe("Box");
+    await page.waitForTimeout(300);
+
+    await page.getByText("Section heading", { exact: true }).click();
+    await page.waitForTimeout(300);
+    await page.keyboard.press("Delete");
+    await page.waitForTimeout(300);
+
+    await page.getByText("Add your content here.", { exact: true }).click();
+    await page.waitForTimeout(300);
+    await page.keyboard.press("Delete");
+    await page.waitForTimeout(500);
+
     await expect(page.locator("h1")).toBeVisible();
 
     const hookOrderWarning = consoleErrors.find((m) =>
