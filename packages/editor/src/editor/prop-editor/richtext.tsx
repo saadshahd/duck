@@ -1,4 +1,4 @@
-import { type ReactNode, useEffect, useMemo } from "react";
+import { type ReactNode, useEffect, useMemo, useRef } from "react";
 import {
   useEditor,
   useEditorState,
@@ -13,8 +13,8 @@ import {
   toolbarActionsFor,
   type RichTextAction,
   type RichTextActionId,
-  type RichTextField,
 } from "./richtext-config.js";
+import type { Field } from "@puckeditor/core";
 import type { FieldProps } from "./puck-fields.js";
 import { useShadowSheet } from "../overlay/index.js";
 import css from "./richtext.css?inline";
@@ -127,22 +127,32 @@ function Toolbar({
   );
 }
 
+/** Tiptap serializes an empty document as `<p></p>`; Duck's stored contract is a
+ *  plain HTML string where empty means `""`. Canonicalize so Tiptap's on-mount
+ *  echo and a user-cleared field both read as the same empty value. */
+const canonical = (html: string): string => (html === "<p></p>" ? "" : html);
+
 /** Thin Tiptap richtext control mounted in the focus sheet. Stores a plain HTML
- *  string (Puck-native), configured from the field's `options`/`tiptap`. Commits
- *  on the continuous cadence (debounce + blur), and never overwrites an in-flight
- *  edit when external data changes. */
+ *  string, configured from the field's `metadata.tiptap`. Commits on the
+ *  continuous cadence (debounce + blur), and never overwrites an in-flight edit
+ *  when external data changes. */
 export const RichTextInput = ({
   label,
   field,
   value,
   onChange,
   readOnly,
-}: FieldProps<RichTextField, unknown>): ReactNode => {
+}: FieldProps<Field, unknown>): ReactNode => {
   useShadowSheet(css);
 
   const extensions = useMemo(() => extensionsFor(field), [field]);
   const actions = useMemo(() => toolbarActionsFor(field), [field]);
   const { state, push, flush } = useDebouncedCommit((html) => onChange(html));
+
+  // Latest stored value, read fresh in onUpdate to recognise the incoming value
+  // regardless of Tiptap's callback-closure timing.
+  const valueRef = useRef((value as string) ?? "");
+  valueRef.current = (value as string) ?? "";
 
   const editor = useEditor({
     extensions,
@@ -150,7 +160,13 @@ export const RichTextInput = ({
     editable: !readOnly,
     immediatelyRender: false,
     shouldRerenderOnTransaction: false,
-    onUpdate: ({ editor }) => push(editor.getHTML()),
+    onUpdate: ({ editor }) => {
+      const next = canonical(editor.getHTML());
+      // Skip the echo: Tiptap fires onUpdate with an empty doc on mount, and a
+      // reverted edit re-emits the stored value — neither is a new commit.
+      if (next === canonical(valueRef.current)) return;
+      push(next);
+    },
     onBlur: () => flush(),
   });
 

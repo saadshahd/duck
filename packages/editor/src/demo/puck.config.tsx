@@ -492,7 +492,7 @@ export const config: Config = {
           min: 1,
           max: 4,
         },
-        note: { type: "richtext" },
+        note: { type: "textarea", metadata: { control: "richtext" } },
         style: {
           type: "object",
           objectFields: {

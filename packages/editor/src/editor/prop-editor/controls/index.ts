@@ -5,6 +5,7 @@ import type { ControlId } from "../commit-mode.js";
 import { Dimension } from "./dimension.js";
 import { Segmented } from "./segmented.js";
 import { Swatch } from "./swatch.js";
+import { RichTextInput } from "../richtext.js";
 
 // Re-exported so control modules (T4+) and the dispatch can share one source.
 export type { FieldProps };
@@ -22,8 +23,16 @@ export type ControlRenderer<F extends Field = Field, V = unknown> = (
  *  2. Import it here and add one entry: `"<id>": MyControl`.
  *  3. Declare its commit timing in `commit-mode.ts` — omitting it breaks this
  *     `satisfies` check at compile time. */
+//
+//  `richtext` is a control id even though Puck has a native `richtext` field
+//  type: native richtext can't round-trip Duck's HTML-string contract (Puck's
+//  `<Render>` element-izes its value — see richtext.tsx), so the control is
+//  dispatched by metadata, and a native `type: "richtext"` field falls to the
+//  honest fallback instead. The constraint is therefore any `ControlId` (every
+//  entry's commit timing is declared in COMMIT), not one disjoint from field types.
 export const controlRenderers = {
   dimension: Dimension,
   segmented: Segmented,
   swatch: Swatch,
-} satisfies Partial<Record<Exclude<ControlId, Field["type"]>, ControlRenderer>>;
+  richtext: RichTextInput,
+} satisfies Partial<Record<ControlId, ControlRenderer>>;

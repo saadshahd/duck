@@ -1,15 +1,18 @@
 import { describe, it, expect } from "bun:test";
+import type { Field } from "@puckeditor/core";
 import { Extension } from "@tiptap/core";
 import {
   toolbarActionsFor,
   extensionsFor,
-  type RichTextField,
+  type RichTextMetadata,
 } from "./richtext-config.js";
 
-const field = (overrides: Record<string, unknown> = {}): RichTextField =>
-  ({ type: "richtext", ...overrides }) as RichTextField;
+/** A plain-string field wearing the richtext control, its Tiptap config on
+ *  `metadata.tiptap` — the shape the config readers now consume. */
+const field = (tiptap: RichTextMetadata = {}): Field =>
+  ({ type: "textarea", metadata: { control: "richtext", tiptap } }) as Field;
 
-const ids = (f: RichTextField) => toolbarActionsFor(f).map((a) => a.id);
+const ids = (f: Field) => toolbarActionsFor(f).map((a) => a.id);
 
 describe("toolbarActionsFor", () => {
   it("offers the full formatting set when no options constrain it", () => {
@@ -52,9 +55,9 @@ describe("extensionsFor", () => {
     expect(extensionsFor(field())).toHaveLength(1);
   });
 
-  it("appends catalog-supplied tiptap.extensions after StarterKit", () => {
+  it("appends catalog-supplied extensions after StarterKit", () => {
     const extra = Extension.create({ name: "catalogExtra" });
-    const result = extensionsFor(field({ tiptap: { extensions: [extra] } }));
+    const result = extensionsFor(field({ extensions: [extra] }));
     expect(result).toHaveLength(2);
     expect(result[1]).toBe(extra);
   });
