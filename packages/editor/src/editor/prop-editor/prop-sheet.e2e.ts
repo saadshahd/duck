@@ -73,8 +73,9 @@ test.describe("Focus sheet shell", () => {
     await page.waitForTimeout(200);
 
     // Blur the focused text input before closing so the debounce flushes
-    // immediately. The 500ms debounce in puck-fields.tsx clears WITHOUT flushing
-    // on unmount, so we must trigger handleBlur before the sheet closes.
+    // immediately. The CONTINUOUS_DEBOUNCE_MS window (commit-mode.ts) clears
+    // WITHOUT flushing on unmount, so we must trigger handleBlur before the
+    // sheet closes.
     // React 19's onBlur maps to the native `focusout` event (which bubbles),
     // not `blur` (which does not bubble). Dispatch focusout so React's root
     // listener inside the shadow DOM fires the onBlur handler.
