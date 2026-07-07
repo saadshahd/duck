@@ -1943,6 +1943,24 @@ export const hoverTimelineRail = (page: Page) =>
     }
   });
 
+/** Hover the Nth timeline dot to surface its tooltip (the entry's name or commit
+ *  label). Dispatches mouseover, the shadow-DOM-safe hover signal. */
+export const hoverTimelineDot = (page: Page, index: number) =>
+  page.evaluate((i) => {
+    for (const d of document.querySelectorAll("div")) {
+      if (!d.shadowRoot || d.style.position !== "fixed") continue;
+      const dots = [
+        ...d.shadowRoot.querySelectorAll(
+          "[data-role='timeline-rail'] .timeline-dot",
+        ),
+      ] as HTMLElement[];
+      dots[i]?.dispatchEvent(
+        new MouseEvent("mouseover", { bubbles: true, composed: true }),
+      );
+      return;
+    }
+  }, index);
+
 /** Move the pointer off the timeline rail entirely (dispatches mouseout with
  *  no relatedTarget, the shadow-DOM-safe leave signal — see
  *  feedback_shadow_dom_mouse_events). */
@@ -2037,9 +2055,11 @@ export const toggleSheetDisclosure = (page: Page, label: string) =>
     return false;
   }, label) as Promise<boolean>;
 
-/** Every array item row in the open sheet: its summary text plus each
- *  affordance's disabled state and title reason — the honesty surface the
- *  array control exposes per row. Null when no sheet/array is open. */
+/** Every array item row in the open sheet. For a multi-field row `summary` is
+ *  the title and `secondary` the trailing detail; for a single-field inline row
+ *  `summary` is the field's input value. `open` reflects whether a disclosure
+ *  row's fields are showing. Plus each affordance's disabled state and reason —
+ *  the honesty surface the control exposes per row. Null when no sheet is open. */
 export const readArrayRows = (page: Page) =>
   shadowQuery(page, (r) =>
     [...r.querySelectorAll("[data-role='array-item-row']")].map((row) => {
@@ -2047,9 +2067,15 @@ export const readArrayRows = (page: Page) =>
         const el = row.querySelector(sel) as HTMLButtonElement | null;
         return { disabled: el?.disabled ?? true, reason: el?.title ?? "" };
       };
+      const title = row.querySelector(".array-row-title")?.textContent?.trim();
+      const input = row.querySelector(
+        ".array-row-field input, .array-row-field textarea",
+      ) as HTMLInputElement | null;
       return {
-        summary:
-          row.querySelector(".disclosure-label")?.textContent?.trim() ?? "",
+        summary: title ?? input?.value ?? "",
+        secondary:
+          row.querySelector(".array-row-secondary")?.textContent?.trim() ?? "",
+        open: row.hasAttribute("data-open"),
         up: button("[data-role='array-item-up']"),
         down: button("[data-role='array-item-down']"),
         remove: button("[data-role='array-item-remove']"),
@@ -2058,12 +2084,74 @@ export const readArrayRows = (page: Page) =>
   ) as Promise<
     | {
         summary: string;
+        secondary: string;
+        open: boolean;
         up: ArrayRowButton;
         down: ArrayRowButton;
         remove: ArrayRowButton;
       }[]
     | null
   >;
+
+/** The input values inside the Nth row's expanded field block, in field order.
+ *  Empty when the row has no open fields. Lets a test prove which item an
+ *  expansion is attached to after a reorder. Null when no sheet is open. */
+export const readArrayRowFields = (page: Page, index: number) =>
+  page.evaluate((i) => {
+    for (const d of document.querySelectorAll("div")) {
+      if (!d.shadowRoot || d.style.position !== "fixed") continue;
+      const row = d.shadowRoot.querySelectorAll("[data-role='array-item-row']")[
+        i
+      ];
+      if (!row) return null;
+      return [
+        ...row.querySelectorAll(
+          ".array-row-fields input, .array-row-fields textarea",
+        ),
+      ].map((el) => (el as HTMLInputElement).value);
+    }
+    return null;
+  }, index) as Promise<string[] | null>;
+
+/** Remove the Nth row via a REAL (trusted) mouse click on its × — the path that
+ *  reproduces the self-unmount race a synthetic .click() masks. Moves the mouse
+ *  over the button first so the hover-revealed action is clickable. Returns
+ *  false when the row/button is absent or disabled. */
+export const realRemoveArrayRow = async (page: Page, index: number) => {
+  const box = await page.evaluate((i) => {
+    for (const d of document.querySelectorAll("div")) {
+      if (!d.shadowRoot || d.style.position !== "fixed") continue;
+      const row = d.shadowRoot.querySelectorAll("[data-role='array-item-row']")[
+        i
+      ];
+      if (!row) return null;
+      const btn = row.querySelector(
+        "[data-role='array-item-remove']",
+      ) as HTMLButtonElement | null;
+      if (!btn || btn.disabled) return null;
+      const b = btn.getBoundingClientRect();
+      return { x: b.left + b.width / 2, y: b.top + b.height / 2 };
+    }
+    return null;
+  }, index);
+  if (!box) return false;
+  await page.mouse.move(box.x, box.y);
+  await page.mouse.down();
+  await page.mouse.up();
+  return true;
+};
+
+/** Whether the prop sheet is currently open. */
+export const isPropSheetOpen = (page: Page) =>
+  page.evaluate(() => {
+    for (const d of document.querySelectorAll("div")) {
+      if (!d.shadowRoot || d.style.position !== "fixed") continue;
+      return !!d.shadowRoot.querySelector(
+        "[data-role='prop-sheet'][data-open]",
+      );
+    }
+    return false;
+  }) as Promise<boolean>;
 
 /** The array add button's state: disabled flag and its title reason. Null when
  *  no add button is rendered (array disclosure collapsed or no array field). */
@@ -2106,7 +2194,7 @@ export const clickArrayRowAction = (
         if (!row) return false;
         const sel =
           a === "toggle"
-            ? "[data-role='disclosure-trigger']"
+            ? "[data-role='array-item-toggle']"
             : `[data-role='array-item-${a}']`;
         const btn = row.querySelector(sel) as HTMLButtonElement | null;
         if (!btn || btn.disabled) return false;
@@ -2155,10 +2243,9 @@ export const readRichTextActions = (page: Page) =>
  *  the marks/nodes covering the live selection. */
 export const readRichTextActiveActions = (page: Page) =>
   shadowQuery(page, (r) =>
-    [
-      ...r.querySelectorAll("[data-role^='richtext-action-'][data-active]"),
-    ].map((el) =>
-      (el.getAttribute("data-role") ?? "").replace("richtext-action-", ""),
+    [...r.querySelectorAll("[data-role^='richtext-action-'][data-active]")].map(
+      (el) =>
+        (el.getAttribute("data-role") ?? "").replace("richtext-action-", ""),
     ),
   ) as Promise<string[]>;
 
