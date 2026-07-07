@@ -4,7 +4,7 @@ import { Selection } from "../machine/selection-model.js";
 import type { EditorEvent } from "../machine/index.js";
 
 export function useSelectionReconcile(
-  selection: SelectionState,
+  selection: SelectionState & { selectedSlot?: { parentId: string } | null },
   elementIds: ReadonlySet<string>,
   send: (event: EditorEvent) => void,
 ): void {

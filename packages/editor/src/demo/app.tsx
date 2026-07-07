@@ -12,8 +12,17 @@ const bridge = (() => {
   return { url, page };
 })();
 
+declare global {
+  interface Window {
+    /** E2E seam: replace the document wholesale through the public `data`
+     *  prop, the same edge a bridge/host push lands on. */
+    __duckReplaceData?: (data: Data) => void;
+  }
+}
+
 export function App() {
   const [data, setData] = useState<Data>(sampleData as Data);
+  window.__duckReplaceData = setData;
 
   return (
     <DemoEditor

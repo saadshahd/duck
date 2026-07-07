@@ -46,12 +46,17 @@ export const Selection = {
         },
 
   reconcile: (
-    state: SelectionState,
+    state: SelectionState & { selectedSlot?: { parentId: string } | null },
     validIds: ReadonlySet<string>,
   ):
     | { type: "DESELECT" }
     | { type: "REPLACE_SELECT"; elementIds: string[] }
     | null => {
+    // Slot-anchored states (slot-selected, slot inserting) hold an empty
+    // selectedIds set — the anchor is selectedSlot.parentId. A dangling slot
+    // parent is the same dead-id disease as a dangling selection.
+    if (state.selectedSlot && !validIds.has(state.selectedSlot.parentId))
+      return { type: "DESELECT" };
     if (state.selectedIds.size === 0) return null;
     const surviving = [...state.selectedIds].filter((id) => validIds.has(id));
     if (surviving.length === state.selectedIds.size) return null;

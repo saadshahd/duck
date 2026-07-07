@@ -1,4 +1,4 @@
-import { test, expect } from "@playwright/test";
+import { test, expect, type Page } from "@playwright/test";
 import {
   readTimelineDots,
   getTimelineVisibility,
@@ -10,6 +10,8 @@ import {
   submitTimelineRename,
   getTimelineTooltipText,
   isToolbarVisible,
+  countSelectionRings,
+  isCatalogPickerVisible,
 } from "../overlay/testing.js";
 
 test.describe("History: undo/redo through real edits", () => {
@@ -238,27 +240,28 @@ test.describe("History: timeline", () => {
 // is a live agent's domain). Covering it needs an integration test that spins
 // up the bridge and drives an editor_commit call, which belongs with the
 // mcp-server/bridge test suite, not here.
-test.describe("History: selection survives undo/redo", () => {
+// A selection over a missing id is not a representable steady state: on every
+// committed data change, Selection.reconcile (wired via useSelectionReconcile
+// in the shell) sends DESELECT when the selected id — or the selected slot's
+// parent — no longer resolves in the new snapshot. The FSM leaves `selected`,
+// chrome vanishes because selection ENDED (zero-chrome doctrine), and
+// selected-scoped keybindings disarm. The disarm probe is "/": it opens the
+// insert picker only while the FSM holds a live selection.
+test.describe("History: data change removing the selected element deselects", () => {
   test.beforeEach(async ({ page }) => {
     await page.goto("/");
     await page.waitForTimeout(500);
   });
 
-  // BUG (found while writing this coverage, not fixed — out of this ticket's
-  // test-only scope; editor.tsx is a live agent's file): duplicating an
-  // element selects the new (inserted) id via clipboard's onSelect. Undoing
-  // that insert removes the element from data but nothing deselects — the
-  // selection FSM is left in "selected" pointing at an id that no longer
-  // exists in currentData. EdgeArrows silently renders nothing (its
-  // fiberRegistry lookup for the vanished id comes back empty), so the
-  // action bar disappears with no explicit DESELECT ever sent. Per
-  // .claude/rules/editor.md's zero-chrome doctrine, a control surface should
-  // disappear only when "selection ends" — here the FSM still believes
-  // something is selected, so keyboard shortcuts scoped to `selected` (arrow
-  // nav, Cmd+C/X/D, "/") stay armed against a dangling id instead of the
-  // state machine deselecting cleanly. Same shape likely reproduces for
-  // Paste's inserted id and Cut's resolve.kind "remove" ids.
-  test.skip("undo after an edit keeps the action bar visible (no stray deselect)", async ({
+  const expectDeselected = async (page: Page) => {
+    expect(await isToolbarVisible(page)).toBe(false);
+    expect(await countSelectionRings(page)).toBe(0);
+    await page.keyboard.press("/");
+    await page.waitForTimeout(300);
+    expect(await isCatalogPickerVisible(page)).toBe(false);
+  };
+
+  test("undo of duplicate drops the selection and disarms selected-scoped keys", async ({
     page,
   }) => {
     await page.locator("h1").click();
@@ -269,6 +272,44 @@ test.describe("History: selection survives undo/redo", () => {
 
     await page.keyboard.press("ControlOrMeta+z");
     await page.waitForTimeout(300);
+    await expectDeselected(page);
+  });
+
+  test("undo of paste drops the selection", async ({ page }) => {
+    const h1Count = await page.locator("h1").count();
+
+    await page.locator("h1").click();
+    await page.waitForTimeout(300);
+    await page.keyboard.press("ControlOrMeta+c");
+    await page.waitForTimeout(300);
+    await page.keyboard.press("ControlOrMeta+v");
+    await page.waitForTimeout(300);
+    expect(await page.locator("h1").count()).toBe(h1Count + 1);
     expect(await isToolbarVisible(page)).toBe(true);
+
+    await page.keyboard.press("ControlOrMeta+z");
+    await page.waitForTimeout(300);
+    expect(await page.locator("h1").count()).toBe(h1Count);
+    await expectDeselected(page);
+  });
+
+  test("external data replacement removing the selected element drops the selection", async ({
+    page,
+  }) => {
+    await page.locator("h1").click();
+    await page.waitForTimeout(300);
+    expect(await isToolbarVisible(page)).toBe(true);
+
+    // A bridge-like push lands on the same edge: the public `data` prop.
+    await page.evaluate(() => {
+      const w = window as unknown as {
+        __duckReplaceData?: (data: unknown) => void;
+      };
+      w.__duckReplaceData?.({ content: [], root: { props: {} }, zones: {} });
+    });
+    await page.waitForTimeout(300);
+
+    expect(await page.locator("h1").count()).toBe(0);
+    await expectDeselected(page);
   });
 });

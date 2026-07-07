@@ -137,4 +137,31 @@ describe("Selection.reconcile", () => {
     );
     expect(result).toEqual({ type: "REPLACE_SELECT", elementIds: ["b", "c"] });
   });
+
+  it("returns DESELECT when the slot parent is removed, even with empty selectedIds", () => {
+    expect(
+      Selection.reconcile(
+        { ...state([], "a"), selectedSlot: { parentId: "a" } },
+        new Set(["b"]),
+      ),
+    ).toEqual({ type: "DESELECT" });
+  });
+
+  it("returns null when the slot parent survives and selection is empty", () => {
+    expect(
+      Selection.reconcile(
+        { ...state([], "a"), selectedSlot: { parentId: "a" } },
+        new Set(["a", "b"]),
+      ),
+    ).toBeNull();
+  });
+
+  it("slot check wins over survivor replacement when the slot parent dangles", () => {
+    expect(
+      Selection.reconcile(
+        { ...state(["a", "b"]), selectedSlot: { parentId: "x" } },
+        new Set(["a", "b"]),
+      ),
+    ).toEqual({ type: "DESELECT" });
+  });
 });
