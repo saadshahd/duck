@@ -24,6 +24,11 @@
   overflow-x: auto;
   /* Hide scrollbar chrome while keeping scrollability */
   scrollbar-width: none;
+  /* Soft right-edge fade: an overflowing preset dissolves instead of clipping
+     mid-glyph at the border (a guillotined chip reads as broken, not scrollable).
+     Only the trailing 16px fades, so a strip that fits keeps every chip crisp. */
+  -webkit-mask-image: linear-gradient(to right, #000 calc(100% - 16px), transparent);
+  mask-image: linear-gradient(to right, #000 calc(100% - 16px), transparent);
 }
 
 .dimension-chips::-webkit-scrollbar {
@@ -135,7 +140,7 @@
 }
 
 .dimension-unit-badge {
-  padding: 0 6px 0 2px;
+  padding: 0 8px 0 4px;
   font-family: var(--font-system);
   font-size: 11px;
   color: var(--text-field-secondary);

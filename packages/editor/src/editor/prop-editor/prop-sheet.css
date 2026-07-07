@@ -83,7 +83,9 @@
   font-size: var(--label-size);
   font-weight: 600;
   cursor: pointer;
-  padding: 8px 0; /* no left inset — the label aligns to the content edge */
+  /* left inset 0 so the label sits on the content edge; right inset keeps the
+     count off the focus ring (which insets 2px) instead of kissing it. */
+  padding: 8px 6px 8px 0;
   text-align: left;
   transition: color 100ms ease;
 }
