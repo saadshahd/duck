@@ -14,6 +14,8 @@ type ComponentEntry = {
   readonly fields: Record<string, unknown>;
   readonly defaultProps: Record<string, unknown>;
   readonly slots: readonly string[];
+  readonly required: readonly string[];
+  readonly optional: readonly string[];
 };
 
 const describeComponent = (
@@ -22,12 +24,18 @@ const describeComponent = (
 ): ComponentEntry | null => {
   const def = componentDef(config, name);
   if (!def) return null;
+  const { required, optional } = requiredOptional(
+    def.fields as Record<string, { type: string }> | undefined,
+    def.defaultProps,
+  );
   return {
     name,
     label: def.label,
     fields: (def.fields ?? {}) as Record<string, unknown>,
     defaultProps: def.defaultProps ?? {},
     slots: slotKeysFromConfig(config, name),
+    required,
+    optional,
   };
 };
 
@@ -47,17 +55,23 @@ const component = (config: Config, name: string) => {
   return Effect.succeed(entry);
 };
 
+/** A non-slot field is optional when the catalog supplies a default for it;
+ *  otherwise the caller must provide a value, so it's required. */
 const requiredOptional = (
   fields: Record<string, { type: string }> | undefined,
+  defaultProps: Record<string, unknown> | undefined,
 ) => {
   if (!fields) return { required: [], optional: [] };
-  const required: string[] = [];
-  const optional: string[] = [];
-  for (const [key, f] of Object.entries(fields)) {
-    if (f?.type === "slot") continue;
-    optional.push(key);
-  }
-  return { required, optional };
+  const props = defaultProps ?? {};
+  const entries = Object.entries(fields).filter(([, f]) => f?.type !== "slot");
+  return {
+    required: entries
+      .filter(([key]) => !Object.hasOwn(props, key))
+      .map(([key]) => key),
+    optional: entries
+      .filter(([key]) => Object.hasOwn(props, key))
+      .map(([key]) => key),
+  };
 };
 
 const promptText = (config: Config): string => {
@@ -80,7 +94,10 @@ const promptText = (config: Config): string => {
     const def = componentDef(config, name);
     if (!def) continue;
     const slots = slotKeysFromConfig(config, name);
-    const { required, optional } = requiredOptional(def.fields);
+    const { required, optional } = requiredOptional(
+      def.fields as Record<string, { type: string }> | undefined,
+      def.defaultProps,
+    );
     lines.push(`### ${name}${def.label ? ` — ${def.label}` : ""}`);
     if (slots.length > 0) lines.push(`Slots: ${slots.join(", ")}`);
     if (required.length > 0)

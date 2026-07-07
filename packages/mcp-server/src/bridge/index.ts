@@ -13,7 +13,7 @@ export type Bridge = {
   start(): Promise<{ port: number }>;
   stop(): void;
   readonly port: number;
-  broadcast(page: string, data: Data): void;
+  broadcast(page: string, data: Data, label?: string): void;
   lastSelection(page: string): SelectionData | null;
   capture(page: string, mode: CaptureMode): Promise<CaptureResult>;
   viewers(): Record<string, number>;
@@ -78,11 +78,15 @@ export const createBridge = (): Bridge => {
       server = null;
     },
 
-    broadcast(page: string, data: Data) {
+    broadcast(page: string, data: Data, label?: string) {
       pool.setSnapshot(page, data);
       const set = pool.forPage(page);
       if (!set) return;
-      const payload = stringify({ type: "spec-update", data });
+      const payload = stringify(
+        label
+          ? { type: "spec-update", data, label }
+          : { type: "spec-update", data },
+      );
       for (const ws of set) ws.send(payload);
     },
 

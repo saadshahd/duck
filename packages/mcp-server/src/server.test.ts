@@ -276,7 +276,36 @@ describe("editor_commit", () => {
       await callTool(client, "editor_commit", { page: "landing" });
       await Bun.sleep(50);
 
-      expect(messages).toEqual([{ type: "spec-update", data: draft }]);
+      expect(messages).toEqual([
+        { type: "spec-update", data: draft, label: "Agent commit" },
+      ]);
+
+      ws.close();
+    } finally {
+      await teardown();
+    }
+  });
+
+  it("broadcasts the caller-supplied label when provided", async () => {
+    const { tmpDir, bridge, connectClient, teardown } = await setup();
+    try {
+      const draft = makeData(3);
+      await writePage(tmpDir, "landing", makeData(2), draft);
+
+      const ws = await connectAndReady(bridge.port, "landing");
+      const messages: unknown[] = [];
+      ws.onmessage = (e) => messages.push(JSON.parse(e.data as string));
+
+      const client = await connectClient();
+      await callTool(client, "editor_commit", {
+        page: "landing",
+        label: "Add hero section",
+      });
+      await Bun.sleep(50);
+
+      expect(messages).toEqual([
+        { type: "spec-update", data: draft, label: "Add hero section" },
+      ]);
 
       ws.close();
     } finally {

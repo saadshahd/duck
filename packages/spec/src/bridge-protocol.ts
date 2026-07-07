@@ -13,7 +13,7 @@ export type CaptureMode =
 
 /** Bridge server → browser */
 export type ServerMessage =
-  | { type: "spec-update"; data: Data }
+  | { type: "spec-update"; data: Data; label?: string }
   | ({ type: "capture-request"; id: string } & CaptureMode);
 
 export type SelectionData = {

@@ -10,6 +10,7 @@ const testConfig = {
       defaultProps: { padding: "0" },
       fields: {
         padding: { type: "select", options: [{ label: "0", value: "0" }] },
+        variant: { type: "text" },
         children: { type: "slot" },
       },
       render: () => null as never,
@@ -37,8 +38,12 @@ describe("dispatchManifest", () => {
       expect(box.label).toBe("Layout container");
       expect(box.defaultProps).toEqual({ padding: "0" });
       expect(box.slots).toEqual(["children"]);
+      expect(box.required).toEqual(["variant"]);
+      expect(box.optional).toEqual(["padding"]);
       const text = result.components.find((c) => c.name === "Text")!;
       expect(text.slots).toEqual([]);
+      expect(text.required).toEqual([]);
+      expect(text.optional).toEqual(["text"]);
     });
   });
 
@@ -55,6 +60,8 @@ describe("dispatchManifest", () => {
       expect(result.label).toBe("Layout container");
       expect(result.defaultProps).toEqual({ padding: "0" });
       expect(result.slots).toEqual(["children"]);
+      expect(result.required).toEqual(["variant"]);
+      expect(result.optional).toEqual(["padding"]);
     });
 
     it("returns NotFound for unknown component", async () => {
@@ -87,6 +94,8 @@ describe("dispatchManifest", () => {
       expect(result.prompt).toContain("Box");
       expect(result.prompt).toContain("Text");
       expect(result.prompt).toContain("editor_apply");
+      expect(result.prompt).toContain("Required props: variant");
+      expect(result.prompt).toContain("Optional props: padding");
     });
   });
 

@@ -82,6 +82,42 @@ describe("bridge", () => {
     }
   });
 
+  it("includes the label on spec-update when provided", async () => {
+    const { bridge, teardown } = await setup();
+    try {
+      const ws = await connectAndReady(bridge.port, "landing");
+      const p = nextMessage(ws);
+
+      bridge.broadcast("landing", miniData, "Agent commit");
+
+      const msg = await p;
+      expect(msg).toEqual({
+        type: "spec-update",
+        data: miniData,
+        label: "Agent commit",
+      });
+      ws.close();
+    } finally {
+      teardown();
+    }
+  });
+
+  it("omits the label field on spec-update when not provided", async () => {
+    const { bridge, teardown } = await setup();
+    try {
+      const ws = await connectAndReady(bridge.port, "landing");
+      const p = nextMessage(ws);
+
+      bridge.broadcast("landing", miniData);
+
+      const msg = await p;
+      expect(msg).toEqual({ type: "spec-update", data: miniData });
+      ws.close();
+    } finally {
+      teardown();
+    }
+  });
+
   it("does not broadcast to other pages", async () => {
     const { bridge, teardown } = await setup();
     try {

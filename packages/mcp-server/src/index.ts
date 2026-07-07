@@ -1,13 +1,13 @@
 import { resolve } from "node:path";
 import { Effect } from "effect";
-import type { Config } from "@puckeditor/core";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { createFileStorage } from "./file-storage.js";
 import { createCaptureStorage } from "./capture-storage.js";
 import { createBridge } from "./bridge/index.js";
 import { createDraftRegistry } from "./draft-registry.js";
 import { createMcpServer } from "./server.js";
-import { CatalogLoadError } from "./errors.js";
+import { loadCatalogConfig } from "./catalog-loader.js";
+import type { CatalogLoadError } from "./errors.js";
 
 // ── Args ───────────────────────────────────────────────────────────
 
@@ -17,35 +17,15 @@ const projectDir = resolve(
   dirIdx >= 0 && args[dirIdx + 1] ? args[dirIdx + 1] : process.cwd(),
 );
 
-// ── Catalog loader ─────────────────────────────────────────────────
-
-const catalogPath = resolve(projectDir, "puck.config.ts");
-
-const loadConfig = Effect.tryPromise({
-  try: () => import(catalogPath),
-  catch: (err): CatalogLoadError =>
-    new CatalogLoadError({
-      path: catalogPath,
-      reason: err instanceof Error ? err.message : String(err),
-    }),
-}).pipe(
-  Effect.map((mod) => mod.config as Config | undefined),
-  Effect.filterOrFail(
-    (c): c is Config => !!c && typeof c === "object" && "components" in c,
-    () =>
-      new CatalogLoadError({
-        path: catalogPath,
-        reason: "Module does not export a valid Puck Config as { config }",
-      }),
-  ),
-);
+const loadConfig = loadCatalogConfig(projectDir);
 
 // ── Boot ───────────────────────────────────────────────────────────
 
 const formatCatalogError = (err: CatalogLoadError) =>
   `Failed to load catalog from ${err.path}\n` +
   `${err.reason}\n\n` +
-  `Expected: puck.config.ts exporting { config } (a @puckeditor/core Config)\n` +
+  `Expected: puck.config.ts exporting { config } (a @puckeditor/core Config),\n` +
+  `falling back to catalog.ts with the same shape.\n` +
   `Check --project-dir or create puck.config.ts in your project root`;
 
 const boot = Effect.gen(function* () {

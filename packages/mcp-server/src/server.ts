@@ -216,7 +216,13 @@ function registerTools(mcp: McpServer, ctx: McpContext) {
           Effect.tap(() => Effect.sync(() => ctx.drafts.release(args.page))),
           Effect.flatMap(() => ctx.storage.readData(args.page)),
           Effect.tap((data) =>
-            Effect.sync(() => ctx.bridge.broadcast(args.page, data)),
+            Effect.sync(() =>
+              ctx.bridge.broadcast(
+                args.page,
+                data,
+                args.label ?? "Agent commit",
+              ),
+            ),
           ),
           Effect.map((data) => ({
             committed: true,
