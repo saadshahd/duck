@@ -21,7 +21,7 @@ import {
  * opening asserts the "3rem" chip is selected + numeric input shows "3".
  * Then an off-grid value is typed (1.75) and persistence is checked on reopen.
  *
- * All dimension helpers accept a fieldLabel ("fontSize") to scope to one field
+ * All dimension helpers accept a fieldLabel ("Font size") to scope to one field
  * when multiple dimension controls appear simultaneously on the sheet.
  *
  * Observer O3 contract: data-role="dimension" root in shadow root; one
@@ -31,7 +31,7 @@ import {
  */
 
 // The fontSize field label in the Heading style object disclosure.
-const FIELD = "fontSize";
+const FIELD = "Font size";
 
 const FONT_SIZE_PRESETS = [
   "0.75rem",

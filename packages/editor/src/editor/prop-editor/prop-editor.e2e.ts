@@ -126,7 +126,7 @@ test.describe("Sheet editing", () => {
     await page.waitForTimeout(300);
 
     // textAlign is segmented (left/center/right/justify). Unset → no item checked.
-    const textAlignItems = await readSegmentedItems(page, "textAlign");
+    const textAlignItems = await readSegmentedItems(page, "Text align");
     expect(textAlignItems).not.toBeNull();
     const checkedTextAlign = textAlignItems!.filter((i) => i.checked);
     expect(checkedTextAlign.length).toBe(0);
@@ -135,10 +135,10 @@ test.describe("Sheet editing", () => {
     expect(await isSwatchSentinelVisible(page)).toBe(true);
 
     // fontSize is a dimension control. Unset → sentinel visible.
-    expect(await isDimensionSentinelVisible(page, "fontSize")).toBe(true);
+    expect(await isDimensionSentinelVisible(page, "Font size")).toBe(true);
 
     // marginBottom is a dimension control. Unset → sentinel visible.
-    expect(await isDimensionSentinelVisible(page, "marginBottom")).toBe(true);
+    expect(await isDimensionSentinelVisible(page, "Margin bottom")).toBe(true);
   });
 
   test("read-only resolved field is non-editable after async resolve", async ({
