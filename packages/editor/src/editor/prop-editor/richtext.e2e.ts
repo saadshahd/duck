@@ -11,6 +11,12 @@ import {
 /** Longer than CONTINUOUS_DEBOUNCE_MS (300) — waits out one continuous commit. */
 const DEBOUNCE = 450;
 
+/** ProseMirror observes DOM selection changes into its own state asynchronously,
+ *  so a keyboard selection isn't reflected in the state a toolbar command reads
+ *  until the next tick. A real designer's pointer never outruns this; an instant
+ *  E2E does, so it settles before formatting. */
+const SELECTION_SYNC = 300;
+
 /** The demo Card renders its `note` richtext prop as a [data-note] block, so
  *  this is the canvas observer for what the control has committed as stored HTML. */
 const noteHtml = (page: Page) =>
@@ -57,6 +63,7 @@ test.describe("Richtext control", () => {
 
     // Select the trailing word "world" (5 chars) and bold it.
     for (let i = 0; i < 5; i++) await page.keyboard.press("Shift+ArrowLeft");
+    await page.waitForTimeout(SELECTION_SYNC);
     expect(await clickRichTextAction(page, "bold")).toBe(true);
     await page.waitForTimeout(DEBOUNCE);
 
