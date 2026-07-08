@@ -5,6 +5,7 @@ import {
   type ReactNode,
   type CSSProperties,
   type Ref,
+  type MouseEventHandler,
 } from "react";
 import {
   useFloating,
@@ -53,16 +54,23 @@ const BoxModelIcon = () => (
   </svg>
 );
 
-/** Base for every action-bar button.
- *
- *  Always stops the click from propagating. Canvas selection lives on a
- *  document-level click listener that hit-tests the pointer position; an
- *  action that unmounts the toolbar (edit opens the sheet, delete removes the
- *  element) detaches this button mid-dispatch, so the bubbled click would fail
- *  the "from shadow DOM?" guard and re-select whatever canvas element sits
- *  beneath the button. Stopping here — synchronously, before the unmount —
- *  keeps every chrome click from ever reaching that listener. No action button
- *  may bypass this base. */
+/** Chrome-click hygiene for every overlay button. Canvas selection lives on a
+ *  document-level click listener that hit-tests the pointer; an action that
+ *  unmounts its own button mid-dispatch (edit opens the sheet, delete removes
+ *  the element, moving to the last slot unmounts the very arrow just clicked)
+ *  detaches it, so the bubbled click would fail the "from shadow DOM?" guard and
+ *  re-select whatever canvas element sits beneath the button. Stopping here —
+ *  synchronously, before the unmount — keeps every chrome click off that
+ *  listener. Both ActionButton and EdgeArrow route through this one guard so no
+ *  chrome control can diverge from it. */
+const chromeClick =
+  (onClick: () => void): MouseEventHandler<HTMLButtonElement> =>
+  (e) => {
+    e.stopPropagation();
+    onClick();
+  };
+
+/** Base for every action-bar button. */
 function ActionButton({
   role,
   label,
@@ -87,10 +95,7 @@ function ActionButton({
       aria-label={label}
       aria-pressed={pressed}
       style={style}
-      onClick={(e) => {
-        e.stopPropagation();
-        onClick();
-      }}
+      onClick={chromeClick(onClick)}
     >
       {children}
       <span className="action-bar-tooltip" role="tooltip">
@@ -175,7 +180,7 @@ function EdgeArrow({
       data-role={role}
       data-axis={axis}
       aria-label={label}
-      onClick={onClick}
+      onClick={chromeClick(onClick)}
     >
       {glyph}
     </button>
