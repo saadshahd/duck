@@ -3,6 +3,7 @@ import type { ComponentData, Field } from "@puckeditor/core";
 import { buildIndex, slotKeysOf, findById } from "@duckeditor/spec";
 import { add } from "../spec-ops/add.js";
 import { move } from "../spec-ops/move.js";
+import { mintId, takenIds } from "../spec-ops/id.js";
 import { FieldLabel } from "./field-shell.js";
 import { toDisplayLabel } from "./field-label.js";
 import { useSlotCtx } from "./slot-context.js";
@@ -10,15 +11,6 @@ import { SlotInsertSheet } from "./slot-insert-sheet.js";
 import { useShadowSheet } from "../overlay/index.js";
 import css from "./slot-outline.css?inline";
 import type { FieldProps } from "./puck-fields.js";
-
-const randomSuffix = (): string => Math.random().toString(36).slice(2, 8);
-
-const mintId = (componentType: string, taken: ReadonlySet<string>): string => {
-  const prefix = componentType.toLowerCase();
-  let id = `${prefix}-${randomSuffix()}`;
-  while (taken.has(id)) id = `${prefix}-${randomSuffix()}`;
-  return id;
-};
 
 export function SlotOutline({
   label,
@@ -103,8 +95,7 @@ export function SlotOutline({
   };
 
   const handleInsert = (componentType: string) => {
-    const taken = new Set(buildIndex(data).keys());
-    const newId = mintId(componentType, taken);
+    const newId = mintId(componentType, takenIds(data));
     const component: ComponentData = {
       type: componentType,
       props: { id: newId },

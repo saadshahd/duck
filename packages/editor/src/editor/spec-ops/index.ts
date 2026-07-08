@@ -6,5 +6,6 @@ export { replace } from "./replace.js";
 export { update } from "./update.js";
 export { editProp } from "./edit-prop.js";
 export { copy, paste } from "./clipboard.js";
+export { mintId, takenIds } from "./id.js";
 export { nextInTreeOrder, firstInTreeOrder } from "./navigation.js";
 export { findParent } from "@duckeditor/spec";

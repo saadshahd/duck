@@ -14,28 +14,7 @@ import {
   findById,
   writableChildrenAt,
 } from "./helpers.js";
-
-const randomSuffix = (): string => Math.random().toString(36).slice(2, 8);
-
-const generateId = (type: string, taken: ReadonlySet<string>): string => {
-  const prefix = type.toLowerCase();
-  let id = `${prefix}-${randomSuffix()}`;
-  while (taken.has(id)) id = `${prefix}-${randomSuffix()}`;
-  return id;
-};
-
-const collectIds = (data: Data): Set<string> => {
-  const ids = new Set<string>();
-  const visit = (node: ComponentData): void => {
-    if (typeof node.props.id === "string") ids.add(node.props.id);
-    for (const slotKey of slotKeysOf(node)) {
-      const children = node.props[slotKey] as ComponentData[];
-      for (const child of children) visit(child);
-    }
-  };
-  for (const top of data.content) visit(top);
-  return ids;
-};
+import { mintId, takenIds } from "./id.js";
 
 const remintSlots = (
   component: ComponentData,
@@ -44,7 +23,7 @@ const remintSlots = (
   const slots = new Set(slotKeysOf(component));
   if (slots.size === 0) return component;
   const remintChild = (child: ComponentData): ComponentData => {
-    const id = generateId(child.type, taken);
+    const id = mintId(child.type, taken);
     taken.add(id);
     return remintSlots({ ...child, props: { ...child.props, id } }, taken);
   };
@@ -109,11 +88,11 @@ export const add = (
       length: targeted.length,
     });
 
-  const taken = collectIds(data);
+  const taken = takenIds(data);
   const incomingId =
     typeof component.props.id === "string" && component.props.id.length > 0
       ? component.props.id
-      : generateId(component.type, taken);
+      : mintId(component.type, taken);
 
   const slotKeys = slotKeysFromConfig(config, component.type);
   const defaultProps = componentDef(config, component.type)?.defaultProps ?? {};

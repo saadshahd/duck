@@ -1,8 +1,8 @@
 import { useCallback, useRef } from "react";
 import type { ComponentData, Config, Data } from "@puckeditor/core";
-import { buildIndex, type ParentSite } from "@duckeditor/spec";
+import type { ParentSite } from "@duckeditor/spec";
 import type { Result } from "neverthrow";
-import { add, type SpecOpsError } from "../spec-ops/index.js";
+import { add, mintId, takenIds, type SpecOpsError } from "../spec-ops/index.js";
 import type { EditorEvent } from "../machine/index.js";
 import type { EditorCommit } from "../types.js";
 import { routeInsert, directTarget } from "./route.js";
@@ -17,15 +17,6 @@ type InsertDeps = {
 };
 
 export type InsertTarget = ParentSite & { index?: number };
-
-const randomSuffix = (): string => Math.random().toString(36).slice(2, 8);
-
-const mintId = (componentType: string, taken: ReadonlySet<string>): string => {
-  const prefix = componentType.toLowerCase();
-  let id = `${prefix}-${randomSuffix()}`;
-  while (taken.has(id)) id = `${prefix}-${randomSuffix()}`;
-  return id;
-};
 
 /** The write target for a direct (non-slot-choice) insert. A slot-choice route
  *  must have been resolved to an explicit target upstream (the slot picker), so
@@ -104,7 +95,7 @@ export function useInsert(deps: InsertDeps): {
         explicitTarget ?? resolveDirectTarget(data, lastSelectedId);
       if (!target) return;
 
-      const id = mintId(componentType, new Set(buildIndex(data).keys()));
+      const id = mintId(componentType, takenIds(data));
       const component: ComponentData = {
         type: componentType,
         props: { id },
