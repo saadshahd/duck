@@ -94,12 +94,12 @@
 
 /* --- Inline single-field row --- */
 
-/* Single-field row: no caret, so the rail is empty — but the field still indents
-   one step so inline items align with the summaries of disclosure items. */
+/* Single-field row: no caret, no indent — the control's BOX sits on the block
+   edge like every other input and the + Add button, keeping its own interior
+   padding (user ruling 2026-07-08: boxes align to the edge, not text-in-box). */
 .array-row--inline {
   display: flex;
   align-items: center;
-  padding-left: var(--gutter);
 }
 
 .array-row-field {
@@ -124,6 +124,7 @@
   position: relative;
   display: flex;
   align-items: center;
+  gap: var(--label-gap); /* the tail never kisses a long title */
   min-height: 30px;
 }
 
@@ -179,8 +180,16 @@
   flex-shrink: 0;
   display: flex;
   align-items: center;
-  max-width: 45%;
+  justify-content: flex-end;
+  max-width: 40%;
   padding-right: 4px;
+}
+
+/* With a secondary present, the tail is never narrower than the actions it
+   hosts (3×24px buttons + 2×2px gaps + 16px scrim + 2px inset) — the revealed
+   buttons land on the tail, never bleeding left over the title. */
+.array-row-tail:has(.array-row-secondary) {
+  min-width: 96px;
 }
 
 .array-row-secondary {
@@ -190,6 +199,14 @@
   white-space: nowrap;
   font-size: 11px;
   color: var(--text-field-muted);
+  transition: opacity 120ms ease;
+}
+
+/* While the actions are shown they own the tail: the secondary yields fully —
+   a partial word peeking past the scrim reads as a glitch, not a summary. */
+.array-row:hover .array-row-secondary,
+.array-row:has(.array-row-actions:focus-within) .array-row-secondary {
+  opacity: 0;
 }
 
 /* Expanded fields sit at the summary's content edge — no third indent column.
