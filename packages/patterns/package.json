@@ -22,7 +22,7 @@
   },
   "dependencies": {
     "@duckeditor/spec": "workspace:*",
-    "@puckeditor/core": "^0.21.2",
+    "@puckeditor/core": "^0.22.0",
     "neverthrow": "^8.2.0"
   },
   "devDependencies": {

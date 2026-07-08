@@ -46,7 +46,7 @@
   },
   "peerDependencies": {
     "@duckeditor/patterns": "workspace:*",
-    "@puckeditor/core": "^0.21.2",
+    "@puckeditor/core": "^0.22.0",
     "react": "^19.0.0",
     "react-dom": "^19.0.0"
   },

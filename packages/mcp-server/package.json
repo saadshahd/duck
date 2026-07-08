@@ -11,7 +11,7 @@
   "dependencies": {
     "@duckeditor/spec": "workspace:*",
     "@modelcontextprotocol/sdk": "^1.28.0",
-    "@puckeditor/core": "^0.21.2",
+    "@puckeditor/core": "^0.22.0",
     "effect": "^3.21.0",
     "zod": "~4.3.0"
   },

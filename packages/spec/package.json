@@ -21,7 +21,7 @@
     "test": "bun test"
   },
   "dependencies": {
-    "@puckeditor/core": "^0.21.2"
+    "@puckeditor/core": "^0.22.0"
   },
   "devDependencies": {
     "typescript": "^5.7.0"
