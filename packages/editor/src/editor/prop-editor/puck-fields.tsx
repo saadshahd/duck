@@ -14,6 +14,7 @@ import css from "./object-section.css?inline";
 import { SlotCtx, useSlotCtx, type CrossSlotDrag } from "./slot-context.js";
 import { useDebouncedText } from "./use-debounced-text.js";
 import { SlotOutline } from "./slot-outline.js";
+import { RadioInput } from "./radio.js";
 import { ArrayItems, type ArrayItem, type ArrayOp } from "./array-items.js";
 import { ArrayControl } from "./array-control.js";
 import { useItemKeys } from "./use-item-keys.js";
@@ -200,38 +201,6 @@ const SelectInput = ({
           </option>
         ))}
       </select>
-    </div>
-  );
-};
-
-const RadioInput = ({
-  label,
-  field,
-  value,
-  onChange,
-  readOnly,
-}: FieldProps<Extract<Field, { type: "radio" }>, unknown>) => {
-  const disabled = readOnly;
-  const groupName = `radio-${label}`;
-  return (
-    <div className={fieldClass(readOnly)}>
-      <FieldLabel
-        text={toDisplayLabel(label, field.label)}
-        readOnly={readOnly}
-      />
-      {field.options.map((opt) => (
-        <label key={String(opt.value)}>
-          <input
-            type="radio"
-            name={groupName}
-            value={String(opt.value)}
-            checked={value === opt.value}
-            disabled={disabled}
-            onChange={() => onChange(opt.value)}
-          />
-          {opt.label}
-        </label>
-      ))}
     </div>
   );
 };

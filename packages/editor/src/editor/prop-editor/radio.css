@@ -1,0 +1,139 @@
+/* Radio field — native <input type="radio"> restyled, shadow-DOM safe (no Tailwind,
+   no @property). Self-registered via useShadowSheet in radio.tsx. Two layouts off
+   one markup: a segmented row (few short options) and a stacked group (many/long).
+   The inputs stay native so arrow-key nav, focus, and checked state are the
+   platform's — CSS only dresses them. */
+
+.radio-group {
+  display: flex;
+  width: 100%;
+}
+
+/* The real input carries keyboard + a11y; it is visually replaced by the chip
+   fill (segmented) or the drawn dot (stacked), never shown raw. Kept in-flow and
+   focusable (not display:none) so roving arrow-key focus still works. */
+.radio-option input[type="radio"] {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+  margin: 0;
+  pointer-events: none;
+}
+
+/* ── Segmented: one compact row, chips share the segmented control language ── */
+
+.radio-group[data-layout="segmented"] {
+  align-items: center;
+  gap: 2px;
+  padding: 2px;
+  background: var(--control-bg);
+  border: 1px solid var(--control-border);
+  border-radius: var(--radius-control);
+}
+
+.radio-group[data-layout="segmented"] .radio-option {
+  position: relative;
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 24px;
+  padding: 4px 8px;
+  border-radius: var(--radius-inner);
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text-field-secondary);
+  cursor: pointer;
+  user-select: none;
+  transition:
+    background 100ms ease,
+    color 100ms ease;
+}
+
+.radio-group[data-layout="segmented"] .radio-dot {
+  display: none;
+}
+
+.radio-group[data-layout="segmented"] .radio-option[data-checked] {
+  background: var(--accent);
+  color: var(--text-bar-strong);
+}
+
+.radio-group[data-layout="segmented"]
+  .radio-option:not([data-checked]):hover {
+  background: var(--control-bg-hover);
+  color: var(--text-field);
+}
+
+.radio-group[data-layout="segmented"] .radio-option:has(input:focus-visible) {
+  outline: 2px solid var(--control-focus);
+  outline-offset: -1px;
+}
+
+/* ── Stacked: one option per row, a drawn dot leads each label ── */
+
+.radio-group[data-layout="stacked"] {
+  flex-direction: column;
+  gap: 2px;
+}
+
+.radio-group[data-layout="stacked"] .radio-option {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 30px;
+  padding: 3px 8px 3px 6px;
+  border-radius: var(--radius-control);
+  font-size: var(--value-size);
+  color: var(--text-field);
+  cursor: pointer;
+  user-select: none;
+  transition: background 100ms ease;
+}
+
+.radio-group[data-layout="stacked"] .radio-option:hover {
+  background: var(--control-bg-hover);
+}
+
+.radio-group[data-layout="stacked"] .radio-dot {
+  flex-shrink: 0;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  border: 1.5px solid var(--control-border-hover);
+  background: var(--control-bg);
+  transition:
+    border-color 100ms ease,
+    box-shadow 100ms ease;
+}
+
+/* Filled center via an inset ring — the accent dot sits inside the border. */
+.radio-group[data-layout="stacked"] .radio-option[data-checked] .radio-dot {
+  border-color: var(--accent);
+  box-shadow: inset 0 0 0 3px var(--accent);
+}
+
+.radio-group[data-layout="stacked"] .radio-option:has(input:focus-visible) {
+  outline: 2px solid var(--control-focus);
+  outline-offset: -2px;
+}
+
+/* ── Read-only — muted, non-interactive (label lock badge is the sole signal) ── */
+
+.prop-field--readonly .radio-option {
+  cursor: default;
+  color: var(--text-field-muted);
+}
+
+.prop-field--readonly .radio-group[data-layout="segmented"] {
+  opacity: 0.55;
+}
+
+.prop-field--readonly
+  .radio-group[data-layout="stacked"]
+  .radio-option[data-checked]
+  .radio-dot {
+  border-color: var(--control-readonly-text);
+  box-shadow: inset 0 0 0 3px var(--control-readonly-text);
+}
