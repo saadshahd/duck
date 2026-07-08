@@ -1,6 +1,11 @@
 import { Data as EffectData, Effect } from "effect";
 import type { ComponentData, Config, Data } from "@puckeditor/core";
-import { slotKeysFromConfig } from "@duckeditor/spec";
+import {
+  collectDescendants,
+  findById,
+  slotKeysFromConfig,
+  slotKeysOf,
+} from "@duckeditor/spec";
 
 // ── Types ───────────────────────────────────────────────────────────
 
@@ -55,53 +60,10 @@ const isKnownComponent = (config: Config, type: string): boolean =>
 const generateId = (type: string): string =>
   `${type}-${Math.random().toString(36).slice(2, 10)}`;
 
-/** Walk all child arrays of a component (its slot props) producing [slotKey, array] pairs. */
-const slotEntries = (
-  component: ComponentData,
-): Array<readonly [string, ComponentData[]]> => {
-  const props = (component.props ?? {}) as Record<string, unknown>;
-  const out: Array<readonly [string, ComponentData[]]> = [];
-  for (const [key, value] of Object.entries(props)) {
-    if (
-      Array.isArray(value) &&
-      value.every((v) => v && typeof v === "object" && "type" in v)
-    ) {
-      out.push([key, value as ComponentData[]]);
-    }
-  }
-  return out;
-};
-
-/** Mutating: find a component by id and visit it. Returns true if found. */
-const visitById = (
-  data: Data,
-  id: string,
-  visit: (node: ComponentData) => void,
-): boolean => {
-  const visitArr = (arr: ComponentData[]): boolean => {
-    for (const node of arr) {
-      if ((node.props as { id?: string })?.id === id) {
-        visit(node);
-        return true;
-      }
-      for (const [, children] of slotEntries(node)) {
-        if (visitArr(children)) return true;
-      }
-    }
-    return false;
-  };
-  return visitArr(data.content);
-};
-
-const findById = (data: Data, id: string): ComponentData | null => {
-  let found: ComponentData | null = null;
-  visitById(data, id, (node) => {
-    found = node;
-  });
-  return found;
-};
-
-/** Find the array containing `id` plus its index. null if id is not in tree. */
+/** Find the array containing `id` plus its index. null if id is not in tree.
+ *  Local: callers splice this array in place. @duckeditor/spec's findParent
+ *  returns location metadata (parentId/slotKey/index) but not a live array
+ *  reference, so it can't serve this mutation-site use case. */
 type ParentSite = {
   readonly array: ComponentData[];
   readonly index: number;
@@ -121,7 +83,10 @@ const findParentSite = (data: Data, id: string): ParentSite | null => {
         return { array: arr, index: i, parentId, slotKey };
       }
       const nodeId = (node.props as { id?: string })?.id ?? null;
-      for (const [key, children] of slotEntries(node)) {
+      for (const key of slotKeysOf(node)) {
+        const children = (node.props as Record<string, unknown>)[
+          key
+        ] as ComponentData[];
         const hit = search(children, nodeId, key);
         if (hit) return hit;
       }
@@ -129,19 +94,6 @@ const findParentSite = (data: Data, id: string): ParentSite | null => {
     return null;
   };
   return search(data.content, null, null);
-};
-
-const collectIds = (component: ComponentData): Set<string> => {
-  const ids = new Set<string>();
-  const walk = (node: ComponentData) => {
-    const id = (node.props as { id?: string })?.id;
-    if (id) ids.add(id);
-    for (const [, children] of slotEntries(node)) {
-      for (const child of children) walk(child);
-    }
-  };
-  walk(component);
-  return ids;
 };
 
 /** Resolve the target array for an add/move: data.content if parentId is null,
@@ -279,8 +231,8 @@ const applyMove = (
     return Effect.fail(opErr("circular-move", { id: op.id }));
 
   if (op.toParentId !== null) {
-    const descendants = collectIds(node);
-    if (descendants.has(op.toParentId))
+    const descendants = collectDescendants(data, op.id);
+    if (descendants.includes(op.toParentId))
       return Effect.fail(
         opErr("circular-move", {
           id: op.id,
