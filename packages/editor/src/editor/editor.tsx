@@ -407,15 +407,6 @@ function EditorSurface<UserConfig extends Config = Config>({
       : null;
   const highlightId = menuHighlightId ?? hoverHighlightId;
 
-  // "Seen" flag: once the user selects any element, suppress the affordance
-  // tooltip forever for the lifetime of this page session (module-level ref is
-  // cheaper than state and avoids re-renders).
-  const hasSelectedRef = useRef(false);
-  if (lastSelectedId && !hasSelectedRef.current) {
-    hasSelectedRef.current = true;
-  }
-  const showHoverTooltip = hoverHighlightId !== null && !hasSelectedRef.current;
-
   const [boxModelVisible, setBoxModelVisible] = useState(false);
 
   useEffect(() => {
@@ -553,7 +544,6 @@ function EditorSurface<UserConfig extends Config = Config>({
             registry={fiberRegistry}
             elementId={highlightId}
             elementType={index.get(highlightId)?.component.type}
-            showTooltip={showHoverTooltip}
           />
         )}
         <ShimmerOverlay

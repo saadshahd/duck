@@ -20,23 +20,16 @@ export function HoverHighlight({
   registry,
   elementId,
   elementType,
-  showTooltip,
 }: {
   registry: FiberRegistry;
   elementId: string;
   elementType: string | undefined;
-  showTooltip?: boolean;
 }) {
   useShadowSheet(css);
   const ref = useHighlightRef(registry, elementId);
   return (
     <div ref={ref} data-role="hover-highlight" className="hover-highlight">
       {elementType && <span className="element-label">{elementType}</span>}
-      {showTooltip && (
-        <span className="hover-tooltip" aria-hidden="true">
-          Click to select · Drag to reorder
-        </span>
-      )}
     </div>
   );
 }

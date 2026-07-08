@@ -1,32 +1,15 @@
 /* Selection domain — hover glow, selection ring, floating action bar */
 
+/* Confident hover ring — a 1.5px accent-tinted border plus a faint inset halo,
+   so "live/selectable" outranks the demo's own static 1px card borders in the
+   squint test. The type-label chip is the only other hover signal (one
+   legibility signal under the pointer — doctrine's hover exception). */
 .hover-highlight {
   position: absolute;
-  border: 1px solid var(--accent-hover);
+  border: 1.5px solid var(--accent-select);
   border-radius: 4px;
+  box-shadow: inset 0 0 0 1px var(--accent-pulse);
   pointer-events: none;
-}
-
-/* Affordance tooltip — appears at the top-right corner, outside the ring */
-
-.hover-tooltip {
-  position: absolute;
-  top: 0;
-  right: 0;
-  transform: translateY(calc(-100% - 4px));
-  background: var(--surface-bar);
-  color: var(--text-bar-muted);
-  font-family: var(--font-system);
-  font-size: 11px;
-  font-weight: 400;
-  padding: 3px 7px;
-  border-radius: 4px;
-  white-space: nowrap;
-  pointer-events: none;
-  line-height: 1.4;
-  box-shadow: var(--shadow-bar);
-  /* Clamp to viewport right edge — shift left if near right boundary */
-  max-width: min(280px, calc(100vw - 16px));
 }
 
 .selection-ring {
@@ -103,7 +86,9 @@
   align-items: center;
   font-size: 11px;
   font-weight: 500;
-  color: var(--text-bar-muted);
+  /* Near-white — this label is the handle's headline (the one piece of
+     identifying info), so it must be the most legible element, not the least. */
+  color: var(--text-bar);
   padding: 0 4px 0 2px;
   white-space: nowrap;
   user-select: none;
