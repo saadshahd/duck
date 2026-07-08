@@ -16,7 +16,7 @@ import {
 
 test.describe("History: undo/redo through real edits", () => {
   test.beforeEach(async ({ page }) => {
-    await page.goto("/");
+    await page.goto("/test.html");
     await page.waitForTimeout(500);
   });
 
@@ -98,7 +98,7 @@ test.describe("History: undo/redo through real edits", () => {
 
 test.describe("History: timeline", () => {
   test.beforeEach(async ({ page }) => {
-    await page.goto("/");
+    await page.goto("/test.html");
     await page.waitForTimeout(500);
   });
 
@@ -249,7 +249,7 @@ test.describe("History: timeline", () => {
 // insert picker only while the FSM holds a live selection.
 test.describe("History: data change removing the selected element deselects", () => {
   test.beforeEach(async ({ page }) => {
-    await page.goto("/");
+    await page.goto("/test.html");
     await page.waitForTimeout(500);
   });
 

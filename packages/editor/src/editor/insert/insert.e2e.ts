@@ -36,7 +36,7 @@ const overlapsWithMargin = (picker: Box, band: Box): boolean =>
 
 test.describe("Insert routing — explicit slot, no silent default", () => {
   test.beforeEach(async ({ page }) => {
-    await page.goto("/");
+    await page.goto("/test.html");
     await page.waitForTimeout(500);
   });
 
@@ -155,7 +155,7 @@ test.describe("Insert routing — explicit slot, no silent default", () => {
     // A short viewport forces the picker to overlap the slot bands (no room to
     // flip clear of them), the exact geometry where the stacking bug surfaces.
     await page.setViewportSize({ width: 1280, height: 500 });
-    await page.goto("/");
+    await page.goto("/test.html");
     await page.waitForTimeout(500);
 
     await page.locator("h3").first().click();

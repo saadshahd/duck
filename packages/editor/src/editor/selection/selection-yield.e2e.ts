@@ -30,7 +30,7 @@ const selectNested = async (page: Page) => {
 
 test.describe("Selection yields while dragging", () => {
   test.beforeEach(async ({ page }) => {
-    await page.goto("/");
+    await page.goto("/test.html");
     await page.waitForTimeout(500);
   });
 
@@ -93,7 +93,7 @@ test.describe("Selection yields while dragging", () => {
 
 test.describe("Slot selection replaces the element ring", () => {
   test.beforeEach(async ({ page }) => {
-    await page.goto("/");
+    await page.goto("/test.html");
     await page.waitForTimeout(500);
   });
 
@@ -122,7 +122,7 @@ test.describe("Slot selection replaces the element ring", () => {
  */
 test.describe("One painter for the selected slot name (R12)", () => {
   test.beforeEach(async ({ page }) => {
-    await page.goto("/");
+    await page.goto("/test.html");
     await page.waitForTimeout(500);
   });
 

@@ -20,7 +20,7 @@ const intersects = (a: Box, b: Box): boolean =>
 
 test.describe("Surface doctrine — supersede + occlusion invariants", () => {
   test.beforeEach(async ({ page }) => {
-    await page.goto("/");
+    await page.goto("/test.html");
     await page.waitForTimeout(500);
   });
 

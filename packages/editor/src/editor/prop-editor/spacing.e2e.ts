@@ -27,7 +27,7 @@ const openBannerSheet = async (page: Page) => {
 
 test.describe("Spacing control — Banner.style.padding / margin", () => {
   test.beforeEach(async ({ page }) => {
-    await page.goto("/");
+    await page.goto("/test.html");
     await page.waitForTimeout(500);
   });
 

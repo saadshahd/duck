@@ -16,7 +16,7 @@ import {
  *  Buttons). */
 test.describe("Box-model overlay", () => {
   test.beforeEach(async ({ page }) => {
-    await page.goto("/");
+    await page.goto("/test.html");
     await page.waitForTimeout(500);
   });
 

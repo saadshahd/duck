@@ -6,26 +6,24 @@ import {
   isResolveErrorVisible,
   getReadOnlyFieldValue,
   countRole,
+  FIX,
 } from "../overlay/testing.js";
 
-// TODO(resolve error-path E2E): needs a failing demo resolver — deferred to
-// demo-catalog v2 (ticket 102). No demo fixture rejects today, and adding a
-// throwing resolver touches the demo catalog (out of scope here). The error
-// transition is already covered by resolution-actor.test.ts.
+// TODO(resolve error-path E2E): needs a failing resolver — deferred. No frozen
+// fixture rejects today, and the error transition is already covered by
+// resolution-actor.test.ts.
 
-/** Happy-path coverage for the resolve pipeline (previously unit-only, no E2E
- *  path exercising it end to end). `hero-description` (Text) is the only
- *  component with resolveData in the demo catalog: it awaits 1000ms then
- *  populates a read-only `resolvedText` field with `Resolved ${trigger}: ${text}`. */
+/** Happy-path coverage for the resolve pipeline. The frozen Text (`FIX.text`)
+ *  carries resolveData: it awaits 1000ms then populates a read-only
+ *  `resolvedText` field with `Resolved ${trigger}: ${text}`. */
 test.describe("Resolve pipeline — happy path", () => {
   test.beforeEach(async ({ page }) => {
-    await page.goto("/");
+    await page.goto("/test.html");
     await page.waitForTimeout(500);
   });
 
-  const heroDescriptionText =
-    "Duck brings AI composition and human review onto the same surface. No panels. No iframes. Just the page.";
-  const elementId = "hero-description";
+  const heroDescriptionText = FIX.text.copy;
+  const elementId = FIX.text.id;
 
   const selectHeroDescription = async (
     page: import("@playwright/test").Page,

@@ -40,7 +40,7 @@ const openCardArray = async (
 
 test.describe("Array field management", () => {
   test.beforeEach(async ({ page }) => {
-    await page.goto("/");
+    await page.goto("/test.html");
     await page.waitForTimeout(500);
   });
 

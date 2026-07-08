@@ -21,7 +21,7 @@ import {
 
 test.describe("Slot constraints — insert picker partitioning", () => {
   test.beforeEach(async ({ page }) => {
-    await page.goto("/");
+    await page.goto("/test.html");
     await page.waitForTimeout(500);
   });
 
@@ -78,7 +78,7 @@ test.describe("Slot constraints — insert picker partitioning", () => {
 
 test.describe("Slot constraints — direct/sibling route", () => {
   test.beforeEach(async ({ page }) => {
-    await page.goto("/");
+    await page.goto("/test.html");
     await page.waitForTimeout(500);
   });
 
@@ -134,7 +134,7 @@ test.describe("Slot constraints — direct/sibling route", () => {
 
 test.describe("Slot constraints — drag/drop blocking", () => {
   test.beforeEach(async ({ page }) => {
-    await page.goto("/");
+    await page.goto("/test.html");
     await page.waitForTimeout(500);
   });
 

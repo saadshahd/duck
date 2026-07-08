@@ -27,7 +27,7 @@ const openBannerSheet = async (page: Page) => {
 
 test.describe("Radio control — Banner.emphasis / Banner.tone", () => {
   test.beforeEach(async ({ page }) => {
-    await page.goto("/");
+    await page.goto("/test.html");
     await page.waitForTimeout(500);
   });
 

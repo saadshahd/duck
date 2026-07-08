@@ -14,7 +14,7 @@ import {
 
 test.describe("Focus sheet shell", () => {
   test.beforeEach(async ({ page }) => {
-    await page.goto("/");
+    await page.goto("/test.html");
     await page.waitForTimeout(500);
   });
 
@@ -234,7 +234,7 @@ const SHEET_SURFACES: Array<{
 
 test.describe("Toolbar pen click targets the selected element", () => {
   test.beforeEach(async ({ page }) => {
-    await page.goto("/");
+    await page.goto("/test.html");
     await page.waitForTimeout(500);
   });
 
@@ -259,7 +259,7 @@ test.describe("Toolbar pen click targets the selected element", () => {
 
 test.describe("Every demo component opens its sheet clean", () => {
   test.beforeEach(async ({ page }) => {
-    await page.goto("/");
+    await page.goto("/test.html");
     await page.waitForTimeout(500);
   });
 

@@ -13,6 +13,7 @@ export const FIX = {
   cta: { id: "cta" },
 
   heading: { id: "heroHeading", copy: "The editor is the canvas." },
+  section: { id: "sectionHeading", copy: "What you can do" },
   text: {
     id: "heroText",
     copy: "Duck brings AI composition and human review onto the same surface. No panels. No iframes. Just the page.",
@@ -64,10 +65,11 @@ const heading = (
   id: string,
   text: string,
   level: "h1" | "h2" | "h3" = "h3",
+  style: Record<string, unknown> = {},
 ): ComponentData =>
   ({
     type: "Heading",
-    props: { id, text, level, style: {} },
+    props: { id, text, level, style },
   }) as unknown as ComponentData;
 
 const textNode = (id: string, text: string): ComponentData =>
@@ -99,7 +101,7 @@ export const fixture: Data = {
       type: "Box",
       props: {
         id: FIX.page.id,
-        style: { padding: "2rem", margin: "0 auto" },
+        style: { maxWidth: "1048px", padding: "2rem", margin: "0 auto" },
         children: [
           {
             type: "Stack",
@@ -108,12 +110,14 @@ export const fixture: Data = {
               direction: "vertical",
               gap: "1.5rem",
               style: {
-                padding: "4rem 0 3rem",
+                padding: "0.5rem 0",
                 textAlign: "center",
                 alignItems: "center",
               },
               children: [
-                heading(FIX.heading.id, FIX.heading.copy, "h1"),
+                heading(FIX.heading.id, FIX.heading.copy, "h1", {
+                  fontSize: "3rem",
+                }),
                 textNode(FIX.text.id, FIX.text.copy),
                 {
                   type: "Stack",
@@ -139,6 +143,7 @@ export const fixture: Data = {
               ],
             },
           },
+          heading(FIX.section.id, FIX.section.copy, "h2"),
           {
             type: "Grid",
             props: {
@@ -179,7 +184,7 @@ export const fixture: Data = {
               id: FIX.cta.id,
               direction: "vertical",
               gap: "1rem",
-              style: { padding: "3rem 0", alignItems: "center" },
+              style: { padding: "1rem 0", alignItems: "center" },
               children: [
                 button(FIX.buttonCta.id, FIX.buttonCta.label, "primary"),
               ],
@@ -191,7 +196,7 @@ export const fixture: Data = {
               id: FIX.testRig.id,
               direction: "horizontal",
               gap: "2rem",
-              style: { padding: "3rem 0", alignItems: "start" },
+              style: { padding: "1rem 0", alignItems: "start" },
               children: [
                 panel({
                   id: FIX.panelStack.id,

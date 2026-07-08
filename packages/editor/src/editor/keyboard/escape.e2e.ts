@@ -3,7 +3,7 @@ import { countSelectionRings } from "../overlay/testing.js";
 
 test.describe("Escape never navigates the browser", () => {
   test.beforeEach(async ({ page }) => {
-    await page.goto("/");
+    await page.goto("/test.html");
     await page.waitForTimeout(500);
   });
 

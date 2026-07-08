@@ -19,7 +19,7 @@ import {
 
 test.describe("Editor overlay", () => {
   test.beforeEach(async ({ page }) => {
-    await page.goto("/");
+    await page.goto("/test.html");
     await page.waitForTimeout(500);
   });
 
@@ -161,7 +161,7 @@ test.describe("Editor overlay", () => {
 
 test.describe("Slot address and slot-stop", () => {
   test.beforeEach(async ({ page }) => {
-    await page.goto("/");
+    await page.goto("/test.html");
     await page.waitForTimeout(500);
   });
 

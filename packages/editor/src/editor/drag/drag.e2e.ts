@@ -57,7 +57,7 @@ const dragAndDropPoint = async (page: Page, source: Locator, point: Point) =>
 
 test.describe("Drag-to-reorder", () => {
   test.beforeEach(async ({ page }) => {
-    await page.goto("/");
+    await page.goto("/test.html");
     await page.waitForTimeout(500);
   });
 
@@ -163,7 +163,7 @@ async function mouseDrag(
 
 test.describe("Slot-aware container drops", () => {
   test.beforeEach(async ({ page }) => {
-    await page.goto("/");
+    await page.goto("/test.html");
     await page.waitForTimeout(500);
   });
 
@@ -283,7 +283,7 @@ async function tapShift(page: Page, at: Point) {
 
 test.describe("Shift-cycle destination stack", () => {
   test.beforeEach(async ({ page }) => {
-    await page.goto("/");
+    await page.goto("/test.html");
     await page.waitForTimeout(500);
   });
 
@@ -393,7 +393,7 @@ test.describe("Shift-cycle destination stack", () => {
 
 test.describe("Move ghost on a between-siblings line drag", () => {
   test.beforeEach(async ({ page }) => {
-    await page.goto("/");
+    await page.goto("/test.html");
     await page.waitForTimeout(500);
   });
 
@@ -427,7 +427,7 @@ test.describe("Move ghost on a between-siblings line drag", () => {
 
 test.describe("Band grammar — carved and discrete", () => {
   test.beforeEach(async ({ page }) => {
-    await page.goto("/");
+    await page.goto("/test.html");
     await page.waitForTimeout(500);
   });
 
@@ -518,7 +518,7 @@ test.describe("Band grammar — carved and discrete", () => {
  *  Shift-cycle dives into the target's slots and reveals the cycle counter chip. */
 test.describe("Same-parent container guard and cycle chip", () => {
   test.beforeEach(async ({ page }) => {
-    await page.goto("/");
+    await page.goto("/test.html");
     await page.waitForTimeout(500);
   });
 

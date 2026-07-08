@@ -20,7 +20,7 @@ import {
 
 test.describe("Slot-selected inline insert", () => {
   test.beforeEach(async ({ page }) => {
-    await page.goto("/");
+    await page.goto("/test.html");
     await page.waitForTimeout(500);
   });
 

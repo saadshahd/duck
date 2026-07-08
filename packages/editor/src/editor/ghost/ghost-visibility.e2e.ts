@@ -17,7 +17,7 @@ import {
  *  (divider) among filled ones — the case that must NEVER be ghosted. */
 test.describe("Ghost placeholder visibility", () => {
   test.beforeEach(async ({ page }) => {
-    await page.goto("/");
+    await page.goto("/test.html");
     await page.waitForTimeout(500);
   });
 

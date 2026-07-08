@@ -28,7 +28,7 @@ const openBannerSheet = async (page: Page) => {
 
 test.describe("Nested object disclosure — Banner.style.border", () => {
   test.beforeEach(async ({ page }) => {
-    await page.goto("/");
+    await page.goto("/test.html");
     await page.waitForTimeout(500);
   });
 

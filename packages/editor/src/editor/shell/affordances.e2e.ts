@@ -15,7 +15,7 @@ import {
 
 test.describe("R4 — state-owned affordance sets", () => {
   test.beforeEach(async ({ page }) => {
-    await page.goto("/");
+    await page.goto("/test.html");
     await page.waitForTimeout(500);
   });
 

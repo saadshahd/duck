@@ -37,6 +37,7 @@ const fontSize = [
   "0.75rem",
   "0.875rem",
   "1rem",
+  "1.125rem",
   "1.25rem",
   "1.5rem",
   "1.875rem",
@@ -46,13 +47,17 @@ const fontSize = [
 
 const color = [
   "#111111",
+  "#2F3437",
   "#555555",
   "#888888",
   "#CCCCCC",
   "#EAEAEA",
   "#F7F6F3",
+  "#FBFBFA",
   "#FFFFFF",
+  "#FDEBEC",
   "#E1F3FE",
+  "#EDF3EC",
   "#FBF3DB",
 ].map(opt);
 

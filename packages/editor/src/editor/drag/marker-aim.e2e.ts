@@ -136,7 +136,7 @@ async function carryCtaToBody(page: Page, dy: number) {
 
 test.describe("Single-child insert axis flips at the child's own midpoint", () => {
   test.beforeEach(async ({ page }) => {
-    await page.goto("/");
+    await page.goto("/test.html");
     await page.waitForTimeout(500);
   });
 
@@ -169,7 +169,7 @@ test.describe("Single-child insert axis flips at the child's own midpoint", () =
 
 test.describe("Discrete markers are hit-targets in both modalities", () => {
   test.beforeEach(async ({ page }) => {
-    await page.goto("/");
+    await page.goto("/test.html");
     await page.waitForTimeout(500);
   });
 

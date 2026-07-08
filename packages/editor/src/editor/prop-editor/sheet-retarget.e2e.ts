@@ -21,7 +21,7 @@ import {
  *  different renderer. */
 test.describe("Sheet re-target — hook-order safety", () => {
   test.beforeEach(async ({ page }) => {
-    await page.goto("/");
+    await page.goto("/test.html");
     await page.waitForTimeout(500);
   });
 

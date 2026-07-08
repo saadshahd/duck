@@ -20,7 +20,7 @@ async function selectFeatureCard(page: import("@playwright/test").Page) {
 
 test.describe("Morph", () => {
   test.beforeEach(async ({ page }) => {
-    await page.goto("/");
+    await page.goto("/test.html");
     await page.waitForTimeout(500);
   });
 

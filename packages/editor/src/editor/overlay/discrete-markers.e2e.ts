@@ -59,7 +59,7 @@ const geometry = (container: Locator, childTexts: readonly string[]) =>
 
 test.describe("Discrete-marker presentation — Scatter panel", () => {
   test.beforeEach(async ({ page }) => {
-    await page.goto("/");
+    await page.goto("/test.html");
     await page.waitForTimeout(500);
   });
 

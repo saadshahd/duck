@@ -35,7 +35,7 @@ const liftHeading = async (page: Page) => {
 
 test.describe("Move ghost — one element, both modalities", () => {
   test.beforeEach(async ({ page }) => {
-    await page.goto("/");
+    await page.goto("/test.html");
     await page.waitForTimeout(500);
   });
 

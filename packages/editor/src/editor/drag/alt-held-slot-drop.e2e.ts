@@ -38,7 +38,7 @@ const firstCardHasButton = (page: Page) =>
 
 test.describe("Alt-held drag onto slot-constrained container", () => {
   test.beforeEach(async ({ page }) => {
-    await page.goto("/");
+    await page.goto("/test.html");
     await page.waitForTimeout(500);
   });
 

@@ -12,7 +12,7 @@ import {
  *  no React hook-order warning, no page crash. */
 test.describe("Empty-container ghost path does not crash the editor", () => {
   test.beforeEach(async ({ page }) => {
-    await page.goto("/");
+    await page.goto("/test.html");
     await page.waitForTimeout(500);
   });
 

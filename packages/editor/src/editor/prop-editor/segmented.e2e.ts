@@ -26,7 +26,7 @@ const openHeadingSheet = async (page: import("@playwright/test").Page) => {
 
 test.describe("Segmented control — Heading.level (T4)", () => {
   test.beforeEach(async ({ page }) => {
-    await page.goto("/");
+    await page.goto("/test.html");
     await page.waitForTimeout(500);
   });
 

@@ -9,7 +9,7 @@ import {
 
 test.describe("Inline text editing", () => {
   test.beforeEach(async ({ page }) => {
-    await page.goto("/");
+    await page.goto("/test.html");
     await page.waitForTimeout(500);
   });
 
@@ -89,7 +89,7 @@ test.describe("Inline text editing", () => {
 
 test.describe("Sheet editing", () => {
   test.beforeEach(async ({ page }) => {
-    await page.goto("/");
+    await page.goto("/test.html");
     await page.waitForTimeout(500);
   });
 

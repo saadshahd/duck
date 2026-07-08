@@ -34,7 +34,7 @@ const lift = async (page: Page) => {
 
 test.describe("Carry (pointer-driven move)", () => {
   test.beforeEach(async ({ page }) => {
-    await page.goto("/");
+    await page.goto("/test.html");
     await page.waitForTimeout(500);
   });
 
@@ -137,7 +137,7 @@ test.describe("Carry (pointer-driven move)", () => {
 
 test.describe("Carry affordances", () => {
   test.beforeEach(async ({ page }) => {
-    await page.goto("/");
+    await page.goto("/test.html");
     await page.waitForTimeout(500);
   });
 
@@ -281,7 +281,7 @@ test.describe("Carry affordances", () => {
 
 test.describe("Carry tracks scroll", () => {
   test.beforeEach(async ({ page }) => {
-    await page.goto("/");
+    await page.goto("/test.html");
     await page.waitForTimeout(500);
   });
 
@@ -375,7 +375,7 @@ test.describe("Carry tracks scroll", () => {
 
 test.describe("Carry cycle chip", () => {
   test.beforeEach(async ({ page }) => {
-    await page.goto("/");
+    await page.goto("/test.html");
     await page.waitForTimeout(500);
   });
 
