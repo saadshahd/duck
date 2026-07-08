@@ -1,7 +1,11 @@
 import { Fragment, useEffect, useRef, useState } from "react";
-import type { RefObject } from "react";
 import { useFloating, offset, flip, shift } from "@floating-ui/react";
-import { useShadowSheet, useOnClickOutside } from "../overlay/index.js";
+import {
+  useShadowSheet,
+  useOnClickOutside,
+  useAnchor,
+} from "../overlay/index.js";
+import type { FiberRegistry } from "../fiber/index.js";
 import type { MorphEntry } from "./use-morph.js";
 import css from "./morph.css?inline";
 
@@ -20,7 +24,8 @@ type Props = {
   onCommit: (index: number) => void;
   onClose: () => void;
   commitError: string | null;
-  anchorRef: RefObject<HTMLElement | null>;
+  registry: FiberRegistry;
+  elementId: string;
 };
 
 export function MorphPicker({
@@ -29,37 +34,24 @@ export function MorphPicker({
   onCommit,
   onClose,
   commitError,
-  anchorRef,
+  registry,
+  elementId,
 }: Props) {
   useShadowSheet(css);
   // Keyboard-only state — mouse hover is handled by CSS :hover.
   const [keyboardActive, setKeyboardActive] = useState(-1);
   const keyboardActiveRef = useRef(-1);
 
+  // Anchor beside the morphed element (right-start, flipping to left-start when
+  // the right edge lacks room) so the picker never drops over the element it is
+  // transforming — the see-while-you-edit loop stays unbroken. Not the ♦ button,
+  // which sits above the element and would drop the menu straight onto it.
   const { refs, floatingStyles } = useFloating({
-    placement: "bottom-start",
+    placement: "right-start",
     middleware: MIDDLEWARE,
   });
 
-  useEffect(
-    function anchorToButton() {
-      refs.setPositionReference({
-        getBoundingClientRect: () =>
-          anchorRef.current?.getBoundingClientRect() ?? {
-            x: 0,
-            y: 0,
-            top: 0,
-            left: 0,
-            bottom: 0,
-            right: 0,
-            width: 0,
-            height: 0,
-            toJSON: () => ({}),
-          },
-      });
-    },
-    [refs, anchorRef],
-  );
+  useAnchor(refs, registry, { kind: "element", elementId });
 
   useOnClickOutside(refs.floating, onClose);
 

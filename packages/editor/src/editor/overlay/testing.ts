@@ -690,6 +690,19 @@ export const getMorphPickerEntries = (page: Page) =>
     }));
   }) as Promise<{ name: string; kind: string }[] | null>;
 
+export const getMorphPickerRect = (page: Page) =>
+  shadowQuery(page, (r) => {
+    const picker = r.querySelector("[data-role='morph-picker']");
+    if (!picker) return null;
+    const b = picker.getBoundingClientRect();
+    return { top: b.top, left: b.left, right: b.right, bottom: b.bottom };
+  }) as Promise<{
+    top: number;
+    left: number;
+    right: number;
+    bottom: number;
+  } | null>;
+
 export const hasMorphVariantsLabel = (page: Page) =>
   shadowQuery(
     page,

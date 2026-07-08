@@ -641,14 +641,15 @@ function EditorSurface<UserConfig extends Config = Config>({
               onClose={() => send({ type: "ESCAPE" })}
             />
           ))}
-        {operable && morph.isOpen && (
+        {operable && morph.isOpen && fiberRegistry && singleSelected && (
           <MorphPicker
             entries={morph.entries}
             onHover={onMorphHover}
             onCommit={onMorphCommit}
             onClose={morph.closePicker}
             commitError={morph.commitError}
-            anchorRef={morphButtonRef}
+            registry={fiberRegistry}
+            elementId={singleSelected}
           />
         )}
         {affordances.slotStop &&

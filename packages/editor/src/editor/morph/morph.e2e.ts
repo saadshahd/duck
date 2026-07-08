@@ -4,6 +4,7 @@ import {
   clickMorphButton,
   getMorphPickerItems,
   getMorphPickerEntries,
+  getMorphPickerRect,
   hasMorphVariantsLabel,
   clickMorphPickerItem,
   hasMorphOverlay,
@@ -141,6 +142,30 @@ test.describe("Morph", () => {
     expect(entries).not.toBeNull();
     expect(entries!.length).toBeGreaterThan(0);
     expect(entries!.every((e) => e.kind === "variant")).toBe(true);
+  });
+
+  test("picker anchors beside the element, never occluding it", async ({
+    page,
+  }) => {
+    await page.locator("h1").click();
+    await page.waitForTimeout(300);
+
+    await clickMorphButton(page);
+    await page.waitForTimeout(200);
+
+    const element = await page.locator("h1").boundingBox();
+    const picker = await getMorphPickerRect(page);
+    expect(element).not.toBeNull();
+    expect(picker).not.toBeNull();
+
+    // Doctrine: the control surface must not occlude the selected element. The
+    // picker's rect must not intersect the morphed element's rect — it sits
+    // beside the box (right-start / left-start), not dropped over it.
+    const overlapsX =
+      picker!.left < element!.x + element!.width && picker!.right > element!.x;
+    const overlapsY =
+      picker!.top < element!.y + element!.height && picker!.bottom > element!.y;
+    expect(overlapsX && overlapsY).toBe(false);
   });
 
   test("quick variants appear as a labeled group and commit a prop change", async ({
