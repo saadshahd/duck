@@ -59,6 +59,13 @@ export const FIX = {
   },
 
   banner: { id: "banner", text: "Heads up — the new controls are live." },
+
+  sections: {
+    id: "sections",
+    heading: "First section",
+    childId: "sectionsChildText",
+    childText: "Nested content inside an array-item slot.",
+  },
 } as const;
 
 const heading = (
@@ -93,6 +100,9 @@ const card = (props: Record<string, unknown>): ComponentData =>
 
 const panel = (props: Record<string, unknown>): ComponentData =>
   ({ type: "Panel", props }) as unknown as ComponentData;
+
+const sections = (props: Record<string, unknown>): ComponentData =>
+  ({ type: "Sections", props }) as unknown as ComponentData;
 
 export const fixture: Data = {
   root: { props: {} },
@@ -258,6 +268,17 @@ export const fixture: Data = {
               },
             },
           },
+          sections({
+            id: FIX.sections.id,
+            items: [
+              {
+                heading: FIX.sections.heading,
+                content: [
+                  textNode(FIX.sections.childId, FIX.sections.childText),
+                ],
+              },
+            ],
+          }),
         ],
       },
     },

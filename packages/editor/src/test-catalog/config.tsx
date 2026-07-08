@@ -800,6 +800,46 @@ export const config: Config = {
         );
       },
     },
+
+    // Array-item slot: `items` is an array field whose sub-fields include a
+    // `slot` (`content`) alongside a scalar (`heading`). Exercises ticket 114 —
+    // a slot nested inside an array item, addressed by `["items", i, "content"]`
+    // rather than a top-level slot key.
+    Sections: {
+      fields: {
+        items: {
+          type: "array",
+          arrayFields: {
+            heading: { type: "text" },
+            content: { type: "slot" },
+          },
+          defaultItemProps: { heading: "Section", content: [] },
+          getItemSummary: (item, i) =>
+            (item.heading as string) || `Section ${(i ?? 0) + 1}`,
+        },
+      },
+      defaultProps: {
+        items: [{ heading: "Section", content: [] }],
+      },
+      render: ({ id, items }) => (
+        <div data-testid={id}>
+          {items.map(
+            (
+              item: {
+                heading: string;
+                content: React.FC<{ as: typeof BareSlot }>;
+              },
+              i: number,
+            ) => (
+              <div key={i} data-section>
+                <h4>{item.heading}</h4>
+                <item.content as={BareSlot} />
+              </div>
+            ),
+          )}
+        </div>
+      ),
+    },
   },
 
   root: {
