@@ -96,6 +96,7 @@ export const Swatch = (({
               className="swatch-item"
               data-role="swatch-item"
               data-value={hex}
+              title={opt.label ? `${opt.label} · ${hex}` : hex}
             >
               <SegmentGroup.ItemText>
                 <span
