@@ -38,7 +38,7 @@ export function DragOverlay({ registry, data, target, altHeld }: Props) {
       <Tiles
         tiling={target.tiling}
         containerRect={containerRect}
-        activeSlotKey={target.slotKey}
+        activePath={target.path}
         labels={slotLabels(data, target.elementId)}
       />
     </>

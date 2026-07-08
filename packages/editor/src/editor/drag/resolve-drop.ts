@@ -111,7 +111,7 @@ export function resolveDrop({
     newData: move(
       data,
       sourceData.elementId,
-      { at: "slot", parentId: indicator.elementId, path: [indicator.slotKey] },
+      { at: "slot", parentId: indicator.elementId, path: indicator.path },
       indicator.index,
     ),
     event: {

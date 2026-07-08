@@ -1,11 +1,11 @@
 import type { ComponentData, Data } from "@puckeditor/core";
-import { preOrder, slotKeysOf } from "@duckeditor/spec";
+import { getIn, preOrder, slotPathsOf } from "@duckeditor/spec";
 
 const isEmptyContainer = (component: ComponentData): boolean => {
-  const slots = slotKeysOf(component);
+  const slots = slotPathsOf(component);
   if (slots.length === 0) return false;
   return slots.every(
-    (key) => (component.props[key] as ComponentData[]).length === 0,
+    (path) => (getIn(component.props, path) as ComponentData[]).length === 0,
   );
 };
 

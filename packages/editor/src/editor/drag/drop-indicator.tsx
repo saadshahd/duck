@@ -19,7 +19,9 @@ const activeTileRect = (
   target: DropTarget & { kind: "container" },
 ): DOMRect | undefined =>
   target.tiling.kind === "tiled"
-    ? target.tiling.tiles.find((t) => t.slotKey === target.slotKey)?.rect
+    ? target.tiling.tiles.find(
+        (t) => t.path.join(".") === target.path.join("."),
+      )?.rect
     : undefined;
 
 function ContainerHighlight({

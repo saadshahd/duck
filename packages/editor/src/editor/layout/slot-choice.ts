@@ -20,12 +20,12 @@ export const slotChoiceRect = (args: {
   const { tiling } = buildTiling({ data, containerId: parentId, registry });
 
   if (tiling.kind === "tiled")
-    return tiling.tiles.find((t) => t.slotKey === slotKey)?.rect;
+    return tiling.tiles.find((t) => t.path.join(".") === slotKey)?.rect;
 
   const containerRect = registry.get(parentId)?.getBoundingClientRect();
   if (!containerRect) return undefined;
   return discreteMarkers(tiling, containerRect).find(
-    (m) => m.slotKey === slotKey,
+    (m) => m.path.join(".") === slotKey,
   )?.rect;
 };
 

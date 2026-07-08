@@ -184,9 +184,7 @@ export function useCarry({
       if (!cfg || !sType || target.kind !== "container") return target;
       const parentType = findById(dataRef.current, target.elementId)?.type;
       if (!parentType) return target;
-      const blocked = !allowedTypes(cfg, parentType, [target.slotKey]).has(
-        sType,
-      );
+      const blocked = !allowedTypes(cfg, parentType, target.path).has(sType);
       return blocked ? { ...target, blocked } : target;
     };
 

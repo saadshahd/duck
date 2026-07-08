@@ -4,9 +4,11 @@ import {
   allowedTypes,
   findById,
   findParent,
+  getIn,
   parentIdOf,
   sameSite,
-  slotKeysOf,
+  slotKeyOf,
+  slotPathsOf,
   type ParentSite,
   type SlotPath,
 } from "@duckeditor/spec";
@@ -56,33 +58,33 @@ const adjustSameSlot = ({
 /** Insert index inside a slot: nearest-child position when measured, append
  *  otherwise (empty/unmeasurable slots have no child geometry). */
 const indexInSlot = ({
-  slotKey,
+  path,
   point,
   regions,
   component,
   axis,
 }: {
-  slotKey: string;
+  path: SlotPath;
   point: Point;
   regions: readonly MeasuredRegion[];
   component: ComponentData;
   axis: "vertical" | "horizontal";
 }): number => {
-  const measured = regions.find((r) => r.slotKey === slotKey);
+  const measured = regions.find((r) => r.path.join(".") === path.join("."));
   if (measured) return slotInsertIndex({ point, axis, region: measured });
-  return (component.props[slotKey] as ComponentData[]).length;
+  return (getIn(component.props, path) as ComponentData[]).length;
 };
 
 const containerTarget = ({
   elementId,
-  slotKey,
+  path,
   index,
   source,
   tiling,
   component,
 }: {
   elementId: string;
-  slotKey: string;
+  path: SlotPath;
   index: number;
   source: DragData;
   tiling: Tiling;
@@ -91,16 +93,16 @@ const containerTarget = ({
   const adjusted = adjustSameSlot({
     index,
     source,
-    site: { at: "slot", parentId: elementId, path: [slotKey] },
+    site: { at: "slot", parentId: elementId, path },
   });
   if (adjusted === null) return null;
   return {
     kind: "container",
     elementId,
-    slotKey,
+    path,
     index: adjusted,
     tiling,
-    activeLabel: qualifiedLabel(component.type, slotKey),
+    activeLabel: qualifiedLabel(component.type, slotKeyOf(path)),
   };
 };
 
@@ -130,8 +132,8 @@ const resolveContainer = ({
 }): ContainerOutcome => {
   const component = findById(data, elementId);
   if (!component) return { tag: "none" };
-  const slotKeys = slotKeysOf(component);
-  if (!slotKeys.length) return { tag: "none" };
+  const paths = slotPathsOf(component);
+  if (!paths.length) return { tag: "none" };
 
   const { tiling, regions } = buildTiling({
     data,
@@ -139,18 +141,18 @@ const resolveContainer = ({
     registry,
   });
 
-  const axisOf = (slotKey: string) =>
+  const axisOf = (path: SlotPath) =>
     resolveSlotAxis(
       data,
-      { at: "slot", parentId: elementId, path: [slotKey] },
+      { at: "slot", parentId: elementId, path },
       registry,
     ) ?? "vertical";
 
-  const appendTo = (slotKey: string): DropTarget | null =>
+  const appendTo = (path: SlotPath): DropTarget | null =>
     containerTarget({
       elementId,
-      slotKey,
-      index: (component.props[slotKey] as ComponentData[]).length,
+      path,
+      index: (getIn(component.props, path) as ComponentData[]).length,
       source,
       tiling,
       component,
@@ -158,19 +160,19 @@ const resolveContainer = ({
 
   const current =
     previous?.kind === "container" && previous.elementId === elementId
-      ? previous.slotKey
+      ? previous.path
       : undefined;
 
-  const aimAt = (slotKey: string): DropTarget | null =>
+  const aimAt = (path: SlotPath): DropTarget | null =>
     containerTarget({
       elementId,
-      slotKey,
+      path,
       index: indexInSlot({
-        slotKey,
+        path,
         point,
         regions,
         component,
-        axis: axisOf(slotKey),
+        axis: axisOf(path),
       }),
       source,
       tiling,
@@ -186,15 +188,13 @@ const resolveContainer = ({
     const marker: Tile | undefined = containerRect
       ? aimedMarker(tiling, containerRect, point, current)
       : undefined;
-    return containerOutcome(
-      marker ? aimAt(marker.slotKey) : appendTo(slotKeys[0]),
-    );
+    return containerOutcome(marker ? aimAt(marker.path) : appendTo(paths[0]));
   }
 
   const tile = aimedTile(tiling, point, current);
-  if (!tile) return containerOutcome(appendTo(slotKeys[0]));
+  if (!tile) return containerOutcome(appendTo(paths[0]));
 
-  return containerOutcome(aimAt(tile.slotKey));
+  return containerOutcome(aimAt(tile.path));
 };
 
 /** A discrete container paints its markers OVER its children's geometry, so a
@@ -329,7 +329,7 @@ export function resolveIndicator({
       const containerType = findById(data, t.elementId)?.type;
       return {
         ...t,
-        blocked: isBlocked(config, sourceType, containerType, [t.slotKey]),
+        blocked: isBlocked(config, sourceType, containerType, t.path),
       };
     }
     if (outcome.tag === "noop") return null;
@@ -352,7 +352,7 @@ export function resolveIndicator({
       const markerType = findById(data, marker.elementId)?.type;
       return {
         ...marker,
-        blocked: isBlocked(config, sourceType, markerType, [marker.slotKey]),
+        blocked: isBlocked(config, sourceType, markerType, marker.path),
       };
     }
     return marker;

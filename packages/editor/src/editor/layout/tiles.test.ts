@@ -21,17 +21,17 @@ const shape = (t: Tiling) =>
     ? {
         kind: t.kind,
         axis: t.axis,
-        yielded: t.yielded,
-        carved: [...t.carved].sort(),
+        yielded: t.yielded.map((p) => p.join(".")),
+        carved: [...t.carved].map((p) => p.join(".")).sort(),
         tiles: t.tiles.map((tile) => ({
-          slotKey: tile.slotKey,
+          slotKey: tile.path.join("."),
           rect: xywh(tile.rect),
         })),
       }
     : {
         kind: t.kind,
         slots: t.slots.map((s) => ({
-          slotKey: s.slotKey,
+          slotKey: s.path.join("."),
           ...(s.rect ? { rect: xywh(s.rect) } : {}),
         })),
       };
@@ -46,7 +46,7 @@ describe("tileSlots — single slot", () => {
       shape(
         tileSlots({
           containerRect: C,
-          slots: [{ slotKey: "only", rect: rect(10, 50, 100, 200) }],
+          slots: [{ path: ["only"], rect: rect(10, 50, 100, 200) }],
         }),
       ),
     ).toEqual({
@@ -63,7 +63,7 @@ describe("tileSlots — single slot", () => {
       shape(
         tileSlots({
           containerRect: C,
-          slots: [{ slotKey: "only" }],
+          slots: [{ path: ["only"] }],
           cssAxis: "vertical",
         }),
       ),
@@ -84,8 +84,8 @@ describe("tileSlots — axis selection", () => {
         tileSlots({
           containerRect: C,
           slots: [
-            { slotKey: "top", rect: rect(0, 0, 200, 100) },
-            { slotKey: "bottom", rect: rect(0, 200, 200, 100) },
+            { path: ["top"], rect: rect(0, 0, 200, 100) },
+            { path: ["bottom"], rect: rect(0, 200, 200, 100) },
           ],
         }),
       ),
@@ -108,8 +108,8 @@ describe("tileSlots — axis selection", () => {
         tileSlots({
           containerRect: wide,
           slots: [
-            { slotKey: "left", rect: rect(0, 0, 100, 100) },
-            { slotKey: "right", rect: rect(200, 0, 100, 100) },
+            { path: ["left"], rect: rect(0, 0, 100, 100) },
+            { path: ["right"], rect: rect(200, 0, 100, 100) },
           ],
         }),
       ),
@@ -131,8 +131,8 @@ describe("tileSlots — axis selection", () => {
     const result = tileSlots({
       containerRect: wide,
       slots: [
-        { slotKey: "a", rect: rect(0, 0, 50, 30) },
-        { slotKey: "b", rect: rect(250, 70, 50, 30) },
+        { path: ["a"], rect: rect(0, 0, 50, 30) },
+        { path: ["b"], rect: rect(250, 70, 50, 30) },
       ],
     });
     expect(result.kind === "tiled" && result.axis).toBe("horizontal");
@@ -143,8 +143,8 @@ describe("tileSlots — axis selection", () => {
     const result = tileSlots({
       containerRect: tall,
       slots: [
-        { slotKey: "a", rect: rect(0, 0, 30, 50) },
-        { slotKey: "b", rect: rect(70, 250, 30, 50) },
+        { path: ["a"], rect: rect(0, 0, 30, 50) },
+        { path: ["b"], rect: rect(70, 250, 30, 50) },
       ],
     });
     expect(result.kind === "tiled" && result.axis).toBe("vertical");
@@ -157,8 +157,8 @@ describe("tileSlots — axis selection", () => {
         tileSlots({
           containerRect: C,
           slots: [
-            { slotKey: "a", rect: rect(0, 0, 150, 150) },
-            { slotKey: "b", rect: rect(50, 50, 150, 150) },
+            { path: ["a"], rect: rect(0, 0, 150, 150) },
+            { path: ["b"], rect: rect(50, 50, 150, 150) },
           ],
         }),
       ),
@@ -180,8 +180,8 @@ describe("tileSlots — band geometry", () => {
         tileSlots({
           containerRect: C,
           slots: [
-            { slotKey: "top", rect: rect(0, 20, 200, 80) }, // 20..100
-            { slotKey: "bottom", rect: rect(0, 200, 200, 80) }, // 200..280
+            { path: ["top"], rect: rect(0, 20, 200, 80) }, // 20..100
+            { path: ["bottom"], rect: rect(0, 200, 200, 80) }, // 200..280
           ],
         }),
       ),
@@ -204,9 +204,9 @@ describe("tileSlots — band geometry", () => {
         tileSlots({
           containerRect: C,
           slots: [
-            { slotKey: "a", rect: rect(0, 0, 200, 50) },
-            { slotKey: "b", rect: rect(0, 100, 200, 50) },
-            { slotKey: "c", rect: rect(0, 200, 200, 50) },
+            { path: ["a"], rect: rect(0, 0, 200, 50) },
+            { path: ["b"], rect: rect(0, 100, 200, 50) },
+            { path: ["c"], rect: rect(0, 200, 200, 50) },
           ],
         }),
       ),
@@ -228,7 +228,7 @@ describe("tileSlots — band geometry", () => {
       shape(
         tileSlots({
           containerRect: C,
-          slots: [{ slotKey: "only", rect: rect(-50, -50, 400, 500) }],
+          slots: [{ path: ["only"], rect: rect(-50, -50, 400, 500) }],
         }),
       ),
     ).toEqual({
@@ -247,26 +247,26 @@ describe("tileSlots — gapless invariant", () => {
       name: "two vertical",
       container: C,
       slots: [
-        { slotKey: "a", rect: rect(0, 0, 200, 100) },
-        { slotKey: "b", rect: rect(0, 200, 200, 100) },
+        { path: ["a"], rect: rect(0, 0, 200, 100) },
+        { path: ["b"], rect: rect(0, 200, 200, 100) },
       ],
     },
     {
       name: "three vertical",
       container: C,
       slots: [
-        { slotKey: "a", rect: rect(0, 0, 200, 50) },
-        { slotKey: "b", rect: rect(0, 100, 200, 50) },
-        { slotKey: "c", rect: rect(0, 200, 200, 50) },
+        { path: ["a"], rect: rect(0, 0, 200, 50) },
+        { path: ["b"], rect: rect(0, 100, 200, 50) },
+        { path: ["c"], rect: rect(0, 200, 200, 50) },
       ],
     },
     {
       name: "empty between two measured",
       container: C,
       slots: [
-        { slotKey: "a", rect: rect(0, 0, 200, 100) },
-        { slotKey: "mid" },
-        { slotKey: "b", rect: rect(0, 200, 200, 100) },
+        { path: ["a"], rect: rect(0, 0, 200, 100) },
+        { path: ["mid"] },
+        { path: ["b"], rect: rect(0, 200, 200, 100) },
       ],
     },
   ];
@@ -296,9 +296,9 @@ describe("tileSlots — sub-floor measured slot yields", () => {
     const result = tileSlots({
       containerRect: C,
       slots: [
-        { slotKey: "a", rect: rect(0, 0, 200, 5) },
-        { slotKey: "b", rect: rect(0, 10, 200, 5) },
-        { slotKey: "c", rect: rect(0, 290, 200, 10) },
+        { path: ["a"], rect: rect(0, 0, 200, 5) },
+        { path: ["b"], rect: rect(0, 10, 200, 5) },
+        { path: ["c"], rect: rect(0, 290, 200, 10) },
       ],
     });
     expect(shape(result)).toEqual({
@@ -322,9 +322,9 @@ describe("tileSlots — empty slots among measured", () => {
         tileSlots({
           containerRect: C,
           slots: [
-            { slotKey: "a", rect: rect(0, 0, 200, 100) },
-            { slotKey: "mid" },
-            { slotKey: "b", rect: rect(0, 200, 200, 100) },
+            { path: ["a"], rect: rect(0, 0, 200, 100) },
+            { path: ["mid"] },
+            { path: ["b"], rect: rect(0, 200, 200, 100) },
           ],
         }),
       ),
@@ -347,9 +347,9 @@ describe("tileSlots — empty slots among measured", () => {
         tileSlots({
           containerRect: C,
           slots: [
-            { slotKey: "head" },
-            { slotKey: "a", rect: rect(0, 0, 200, 100) },
-            { slotKey: "b", rect: rect(0, 200, 200, 100) },
+            { path: ["head"] },
+            { path: ["a"], rect: rect(0, 0, 200, 100) },
+            { path: ["b"], rect: rect(0, 200, 200, 100) },
           ],
         }),
       ),
@@ -372,9 +372,9 @@ describe("tileSlots — empty slots among measured", () => {
         tileSlots({
           containerRect: C,
           slots: [
-            { slotKey: "a", rect: rect(0, 0, 200, 100) },
-            { slotKey: "b", rect: rect(0, 200, 200, 100) },
-            { slotKey: "foot" },
+            { path: ["a"], rect: rect(0, 0, 200, 100) },
+            { path: ["b"], rect: rect(0, 200, 200, 100) },
+            { path: ["foot"] },
           ],
         }),
       ),
@@ -398,10 +398,10 @@ describe("tileSlots — empty slots among measured", () => {
         tileSlots({
           containerRect: C,
           slots: [
-            { slotKey: "a", rect: rect(0, 0, 200, 100) },
-            { slotKey: "e1" },
-            { slotKey: "e2" },
-            { slotKey: "b", rect: rect(0, 200, 200, 100) },
+            { path: ["a"], rect: rect(0, 0, 200, 100) },
+            { path: ["e1"] },
+            { path: ["e2"] },
+            { path: ["b"], rect: rect(0, 200, 200, 100) },
           ],
         }),
       ),
@@ -427,7 +427,7 @@ describe("tileSlots — empty slots among measured", () => {
       shape(
         tileSlots({
           containerRect: small,
-          slots: [{ slotKey: "a", rect: rect(0, 0, 40, 40) }, { slotKey: "e" }],
+          slots: [{ path: ["a"], rect: rect(0, 0, 40, 40) }, { path: ["e"] }],
         }),
       ),
     ).toEqual({
@@ -446,7 +446,7 @@ describe("tileSlots — all empty", () => {
       shape(
         tileSlots({
           containerRect: C,
-          slots: [{ slotKey: "a" }, { slotKey: "b" }, { slotKey: "c" }],
+          slots: [{ path: ["a"] }, { path: ["b"] }, { path: ["c"] }],
           cssAxis: "vertical",
         }),
       ),
@@ -468,7 +468,7 @@ describe("tileSlots — all empty", () => {
       shape(
         tileSlots({
           containerRect: C,
-          slots: [{ slotKey: "a" }, { slotKey: "b" }],
+          slots: [{ path: ["a"] }, { path: ["b"] }],
           cssAxis: "horizontal",
         }),
       ),
@@ -489,7 +489,7 @@ describe("tileSlots — all empty", () => {
       shape(
         tileSlots({
           containerRect: C,
-          slots: [{ slotKey: "a" }, { slotKey: "b" }],
+          slots: [{ path: ["a"] }, { path: ["b"] }],
         }),
       ),
     ).toEqual({
@@ -518,9 +518,9 @@ describe("axis tie-breaker with single measured slot", () => {
         tileSlots({
           containerRect: rect(0, 0, 300, 600),
           slots: [
-            { slotKey: "header" },
-            { slotKey: "body", rect: rect(10, 250, 280, 100) },
-            { slotKey: "footer" },
+            { path: ["header"] },
+            { path: ["body"], rect: rect(10, 250, 280, 100) },
+            { path: ["footer"] },
           ],
           cssAxis: "vertical",
         }),
@@ -547,8 +547,8 @@ describe("axis tie-breaker with single measured slot", () => {
     const result = tileSlots({
       containerRect,
       slots: [
-        { slotKey: "a", rect: rect(10, 10, 100, 100) },
-        { slotKey: "b", rect: rect(10, 150, 100, 140) },
+        { path: ["a"], rect: rect(10, 10, 100, 100) },
+        { path: ["b"], rect: rect(10, 150, 100, 140) },
       ],
       cssAxis: "horizontal",
     });
@@ -573,9 +573,9 @@ describe("tileSlots — carved slot keys", () => {
         tileSlots({
           containerRect: rect(0, 0, 300, 600),
           slots: [
-            { slotKey: "header" },
-            { slotKey: "body", rect: rect(10, 250, 280, 100) },
-            { slotKey: "footer" },
+            { path: ["header"] },
+            { path: ["body"], rect: rect(10, 250, 280, 100) },
+            { path: ["footer"] },
           ],
           cssAxis: "vertical",
         }),
@@ -598,7 +598,7 @@ describe("tileSlots — carved slot keys", () => {
       shape(
         tileSlots({
           containerRect: rect(0, 0, 300, 600),
-          slots: [{ slotKey: "a" }, { slotKey: "b" }],
+          slots: [{ path: ["a"] }, { path: ["b"] }],
           cssAxis: "vertical",
         }),
       ),
@@ -618,17 +618,17 @@ describe("tileSlots — carved slot keys", () => {
 describe("tileSlots — purity & ordering", () => {
   test("does not mutate inputs", () => {
     const slots: SlotInput[] = [
-      { slotKey: "a", rect: rect(0, 0, 200, 100) },
-      { slotKey: "b", rect: rect(0, 200, 200, 100) },
+      { path: ["a"], rect: rect(0, 0, 200, 100) },
+      { path: ["b"], rect: rect(0, 200, 200, 100) },
     ];
     const snapshot = JSON.stringify(
-      slots.map((s) => ({ k: s.slotKey, r: s.rect && xywh(s.rect) })),
+      slots.map((s) => ({ k: s.path.join("."), r: s.rect && xywh(s.rect) })),
     );
     const container = rect(0, 0, 200, 300);
     tileSlots({ containerRect: container, slots });
     expect(
       JSON.stringify(
-        slots.map((s) => ({ k: s.slotKey, r: s.rect && xywh(s.rect) })),
+        slots.map((s) => ({ k: s.path.join("."), r: s.rect && xywh(s.rect) })),
       ),
     ).toBe(snapshot);
     expect(xywh(container)).toEqual({ x: 0, y: 0, w: 200, h: 300 });
@@ -639,20 +639,20 @@ describe("tileSlots — purity & ordering", () => {
     const t = tileSlots({
       containerRect: C,
       slots: [
-        { slotKey: "bottom", rect: rect(0, 200, 200, 100) },
-        { slotKey: "top", rect: rect(0, 0, 200, 100) },
+        { path: ["bottom"], rect: rect(0, 200, 200, 100) },
+        { path: ["top"], rect: rect(0, 0, 200, 100) },
       ],
     });
     if (t.kind !== "tiled") throw new Error("expected tiled");
-    expect(t.tiles.map((x) => x.slotKey)).toEqual(["top", "bottom"]);
+    expect(t.tiles.map((x) => x.path.join("."))).toEqual(["top", "bottom"]);
   });
 
   test("same input → same output", () => {
     const args = {
       containerRect: C,
       slots: [
-        { slotKey: "a", rect: rect(0, 0, 200, 100) },
-        { slotKey: "b", rect: rect(0, 200, 200, 100) },
+        { path: ["a"], rect: rect(0, 0, 200, 100) },
+        { path: ["b"], rect: rect(0, 200, 200, 100) },
       ],
     };
     expect(shape(tileSlots(args))).toEqual(shape(tileSlots(args)));
@@ -695,8 +695,8 @@ describe("discreteMarkers", () => {
     discreteMarkers({ kind: "discrete", slots }, containerRect);
 
   test("uniform marker size, one per slot", () => {
-    const markers = markersFor([{ slotKey: "a" }, { slotKey: "b" }], C);
-    expect(markers.map((m) => m.slotKey)).toEqual(["a", "b"]);
+    const markers = markersFor([{ path: ["a"] }, { path: ["b"] }], C);
+    expect(markers.map((m) => m.path.join("."))).toEqual(["a", "b"]);
     expect(
       markers.every(
         (m) =>
@@ -709,9 +709,9 @@ describe("discreteMarkers", () => {
   test("scattered children → each marker rides its own child-rect midpoint, not an equidistant column", () => {
     const container = rect(0, 0, 200, 500);
     const slots: SlotInput[] = [
-      { slotKey: "a", rect: rect(11, 40, 40, 40) },
-      { slotKey: "b", rect: rect(121, 200, 40, 40) },
-      { slotKey: "c", rect: rect(151, 360, 40, 40) },
+      { path: ["a"], rect: rect(11, 40, 40, 40) },
+      { path: ["b"], rect: rect(121, 200, 40, 40) },
+      { path: ["c"], rect: rect(151, 360, 40, 40) },
     ];
     const markers = markersFor(slots, container);
     expect(markers.map((m) => yMid(m.rect))).toEqual([60, 220, 380]);
@@ -721,8 +721,8 @@ describe("discreteMarkers", () => {
   test("stacked children → markers in along-axis midpoint order", () => {
     const container = rect(0, 0, 200, 300);
     const slots: SlotInput[] = [
-      { slotKey: "top", rect: rect(0, 0, 200, 100) },
-      { slotKey: "bottom", rect: rect(0, 200, 200, 100) },
+      { path: ["top"], rect: rect(0, 0, 200, 100) },
+      { path: ["bottom"], rect: rect(0, 200, 200, 100) },
     ];
     const markers = markersFor(slots, container);
     expect(markers.map((m) => yMid(m.rect))).toEqual([50, 250]);
@@ -732,7 +732,7 @@ describe("discreteMarkers", () => {
   test("single child → marker centered on that child", () => {
     const container = rect(0, 0, 200, 300);
     const markers = markersFor(
-      [{ slotKey: "only", rect: rect(20, 130, 60, 40) }],
+      [{ path: ["only"], rect: rect(20, 130, 60, 40) }],
       container,
     );
     expect(yMid(markers[0].rect)).toBe(150);
@@ -742,7 +742,7 @@ describe("discreteMarkers", () => {
   test("child near the top edge → marker clamped inside the container", () => {
     const container = rect(0, 100, 200, 300);
     const markers = markersFor(
-      [{ slotKey: "a", rect: rect(10, 100, 40, 4) }],
+      [{ path: ["a"], rect: rect(10, 100, 40, 4) }],
       container,
     );
     expect(markers[0].rect.top).toBe(container.top);
@@ -752,7 +752,7 @@ describe("discreteMarkers", () => {
   test("child near the bottom edge → marker clamped inside the container", () => {
     const container = rect(0, 0, 200, 300);
     const markers = markersFor(
-      [{ slotKey: "a", rect: rect(10, 296, 40, 4) }],
+      [{ path: ["a"], rect: rect(10, 296, 40, 4) }],
       container,
     );
     expect(markers[0].rect.bottom).toBe(container.bottom);
@@ -762,7 +762,7 @@ describe("discreteMarkers", () => {
   test("narrow container → marker clamped to the left edge", () => {
     const container = rect(0, 0, 80, 300);
     const markers = markersFor(
-      [{ slotKey: "a", rect: rect(0, 100, 80, 40) }],
+      [{ path: ["a"], rect: rect(0, 100, 80, 40) }],
       container,
     );
     expect(markers[0].rect.left).toBe(container.left);
@@ -770,7 +770,7 @@ describe("discreteMarkers", () => {
 
   test("slot without measured children → centered stack fallback, clamped", () => {
     const container = rect(0, 0, 200, 300);
-    const markers = markersFor([{ slotKey: "a" }, { slotKey: "b" }], container);
+    const markers = markersFor([{ path: ["a"] }, { path: ["b"] }], container);
     expect(markers.every((m) => containedBy(m.rect, container))).toBe(true);
     expect(markers[0].rect.top).toBeLessThan(markers[1].rect.top);
   });
@@ -779,9 +779,9 @@ describe("discreteMarkers", () => {
     const container = rect(0, 0, 200, 300);
     const markers = markersFor(
       [
-        { slotKey: "a", rect: rect(10, 20, 40, 40) },
-        { slotKey: "b" },
-        { slotKey: "c", rect: rect(10, 260, 40, 40) },
+        { path: ["a"], rect: rect(10, 20, 40, 40) },
+        { path: ["b"] },
+        { path: ["c"], rect: rect(10, 260, 40, 40) },
       ],
       container,
     );
@@ -796,9 +796,9 @@ describe("aimedMarker — discrete markers are hit-targets", () => {
   // ride each child's midpoint. Markers are 160 wide, centered → x ∈ [20, 180].
   const scatterContainer = rect(0, 0, 200, 500);
   const scatterSlots: SlotInput[] = [
-    { slotKey: "a", rect: rect(11, 40, 40, 40) }, // mid y = 60
-    { slotKey: "b", rect: rect(121, 200, 40, 40) }, // mid y = 220
-    { slotKey: "c", rect: rect(151, 360, 40, 40) }, // mid y = 380
+    { path: ["a"], rect: rect(11, 40, 40, 40) }, // mid y = 60
+    { path: ["b"], rect: rect(121, 200, 40, 40) }, // mid y = 220
+    { path: ["c"], rect: rect(151, 360, 40, 40) }, // mid y = 380
   ];
   const scatter: Extract<Tiling, { kind: "discrete" }> = {
     kind: "discrete",
@@ -806,7 +806,12 @@ describe("aimedMarker — discrete markers are hit-targets", () => {
   };
 
   const aim = (x: number, y: number, current?: string) =>
-    aimedMarker(scatter, scatterContainer, { x, y }, current);
+    aimedMarker(
+      scatter,
+      scatterContainer,
+      { x, y },
+      current ? [current] : undefined,
+    );
 
   // Aiming at each marker's CENTER resolves that marker's slot — the core law:
   // markers enter the aimable set in the discrete (scatter) modality.
@@ -817,13 +822,13 @@ describe("aimedMarker — discrete markers are hit-targets", () => {
   ];
   for (const { slot, x, y } of centers) {
     test(`marker center (${x},${y}) resolves slot "${slot}"`, () => {
-      expect(aim(x, y)?.slotKey).toBe(slot);
+      expect(aim(x, y)?.path.join(".")).toBe(slot);
     });
   }
 
   test("aiming at the marker's left/right extent still resolves that slot", () => {
-    expect(aim(20, 60)?.slotKey).toBe("a"); // left edge
-    expect(aim(180, 60)?.slotKey).toBe("a"); // right edge
+    expect(aim(20, 60)?.path.join(".")).toBe("a"); // left edge
+    expect(aim(180, 60)?.path.join(".")).toBe("a"); // right edge
   });
 
   test("a point clear of every marker (between rows, outside hysteresis) → undefined", () => {
@@ -838,7 +843,7 @@ describe("aimedMarker — discrete markers are hit-targets", () => {
   test("current marker holds while the point stays within its hysteresis-expanded rect", () => {
     // marker a spans y ∈ [48, 72]; just below at 72 + (HYSTERESIS-1) still sticks.
     const justBelow = 72 + TILE_HYSTERESIS.bottom - 1;
-    expect(aim(100, justBelow, "a")?.slotKey).toBe("a");
+    expect(aim(100, justBelow, "a")?.path.join(".")).toBe("a");
     // …but with no current marker, the same point hits nothing.
     expect(aim(100, justBelow)).toBeUndefined();
   });
@@ -854,13 +859,13 @@ describe("aimedMarker — discrete markers are hit-targets", () => {
     const container = rect(0, 0, 200, 300);
     const tiling: Extract<Tiling, { kind: "discrete" }> = {
       kind: "discrete",
-      slots: [{ slotKey: "head" }, { slotKey: "foot" }],
+      slots: [{ path: ["head"] }, { path: ["foot"] }],
     };
-    expect(aimedMarker(tiling, container, { x: 100, y: 136 })?.slotKey).toBe(
-      "head",
-    );
-    expect(aimedMarker(tiling, container, { x: 100, y: 164 })?.slotKey).toBe(
-      "foot",
-    );
+    expect(
+      aimedMarker(tiling, container, { x: 100, y: 136 })?.path.join("."),
+    ).toBe("head");
+    expect(
+      aimedMarker(tiling, container, { x: 100, y: 164 })?.path.join("."),
+    ).toBe("foot");
   });
 });

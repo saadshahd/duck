@@ -12,9 +12,9 @@ const containerIndicator = (
 ): DropTarget => ({
   kind: "container",
   elementId,
-  slotKey,
+  path: [slotKey],
   index,
-  tiling: { kind: "discrete", slots: [{ slotKey }] },
+  tiling: { kind: "discrete", slots: [{ path: [slotKey] }] },
   activeLabel: slotKey,
 });
 

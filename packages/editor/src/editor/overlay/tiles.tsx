@@ -1,3 +1,4 @@
+import { slotKeyOf, type SlotPath } from "@duckeditor/spec";
 import {
   type Tile as TileGeometry,
   type Tiling,
@@ -7,10 +8,14 @@ import {
 import { useShadowSheet } from "./use-shadow-sheet.js";
 import css from "./tiles.css?inline";
 
+const pathKey = (path: SlotPath): string => path.join(".");
+const samePath = (a: SlotPath, b: SlotPath): boolean =>
+  pathKey(a) === pathKey(b);
+
 type TilesProps = {
   tiling: Tiling;
   containerRect: DOMRect;
-  activeSlotKey?: string;
+  activePath?: SlotPath;
   labels: Readonly<Record<string, string>>;
 };
 
@@ -49,20 +54,21 @@ function Tile({
 function DiscreteStack({
   markers,
   containerRect,
-  activeSlotKey,
+  activePath,
   labels,
 }: {
   markers: readonly TileGeometry[];
   containerRect: DOMRect;
-  activeSlotKey?: string;
+  activePath?: SlotPath;
   labels: Readonly<Record<string, string>>;
 }) {
-  return markers.flatMap(({ slotKey, rect }) => {
+  return markers.flatMap(({ path, rect }) => {
+    const key = pathKey(path);
     const leader = leaderRect(containerRect, rect);
     return [
       leader.width > 0 ? (
         <div
-          key={`${slotKey}-leader`}
+          key={`${key}-leader`}
           data-role="slot-leader"
           className="slot-leader"
           style={{
@@ -74,10 +80,10 @@ function DiscreteStack({
         />
       ) : null,
       <Tile
-        key={slotKey}
+        key={key}
         rect={rect}
-        label={labels[slotKey] ?? slotKey}
-        active={slotKey === activeSlotKey}
+        label={labels[key] ?? slotKeyOf(path)}
+        active={activePath ? samePath(path, activePath) : false}
         discrete
       />,
     ].filter(Boolean);
@@ -90,7 +96,7 @@ function DiscreteStack({
 export function Tiles({
   tiling,
   containerRect,
-  activeSlotKey,
+  activePath,
   labels,
 }: TilesProps) {
   useShadowSheet(css);
@@ -100,24 +106,24 @@ export function Tiles({
       <DiscreteStack
         markers={discreteMarkers(tiling, containerRect)}
         containerRect={containerRect}
-        activeSlotKey={activeSlotKey}
+        activePath={activePath}
         labels={labels}
       />
     );
 
   const tiles = tiling.tiles.map((tile) => (
     <Tile
-      key={tile.slotKey}
+      key={pathKey(tile.path)}
       rect={tile.rect}
-      label={labels[tile.slotKey] ?? tile.slotKey}
-      active={tile.slotKey === activeSlotKey}
-      carved={tiling.carved.includes(tile.slotKey)}
+      label={labels[pathKey(tile.path)] ?? slotKeyOf(tile.path)}
+      active={activePath ? samePath(tile.path, activePath) : false}
+      carved={tiling.carved.some((p) => samePath(p, tile.path))}
     />
   ));
 
   const activeYielded =
-    activeSlotKey && tiling.yielded.includes(activeSlotKey)
-      ? activeSlotKey
+    activePath && tiling.yielded.some((p) => samePath(p, activePath))
+      ? activePath
       : undefined;
 
   return (
@@ -127,11 +133,11 @@ export function Tiles({
         <Tile
           rect={
             discreteMarkers(
-              { kind: "discrete", slots: [{ slotKey: activeYielded }] },
+              { kind: "discrete", slots: [{ path: activeYielded }] },
               containerRect,
             )[0].rect
           }
-          label={labels[activeYielded] ?? activeYielded}
+          label={labels[pathKey(activeYielded)] ?? slotKeyOf(activeYielded)}
           active
           discrete
         />

@@ -41,7 +41,7 @@ describe("ghostContent", () => {
     const target: DropTarget = {
       kind: "container",
       elementId: "card-1",
-      slotKey: "body",
+      path: ["body"],
       index: 0,
       tiling: {
         kind: "tiled",

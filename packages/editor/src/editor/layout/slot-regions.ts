@@ -1,5 +1,5 @@
 import type { ComponentData, Data } from "@puckeditor/core";
-import { findById, slotKeysOf } from "@duckeditor/spec";
+import { findById, getIn, slotPathsOf, type SlotPath } from "@duckeditor/spec";
 import type { FiberRegistry } from "../fiber/index.js";
 import type { Axis } from "./axis.js";
 import {
@@ -14,7 +14,7 @@ type SlotChild = { index: number; rect: DOMRect };
 /** A slot with measurable child geometry: the union of its child rects clamped
  *  to the parent, plus the individual children for index resolution. */
 export type MeasuredRegion = {
-  slotKey: string;
+  path: SlotPath;
   rect: DOMRect;
   children: readonly SlotChild[];
 };
@@ -86,16 +86,16 @@ export const slotRegions = ({
   if (!parent) return [];
   const parentRect = registry.get(parentId)?.getBoundingClientRect();
   if (!parentRect) return [];
-  return slotKeysOf(parent).flatMap((slotKey) => {
+  return slotPathsOf(parent).flatMap((path) => {
     const children = measureChildren(
-      parent.props[slotKey] as ComponentData[],
+      getIn(parent.props, path) as ComponentData[],
       registry,
       parentRect,
     );
     if (!children.length) return [];
     return [
       {
-        slotKey,
+        path,
         rect: intersectRect(
           unionRects(children.map((c) => c.rect)),
           parentRect,

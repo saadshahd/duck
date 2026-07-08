@@ -1,7 +1,16 @@
+import { type SlotPath } from "@duckeditor/spec";
 import type { Axis } from "./axis.js";
 import { containsPoint, expandRect, type Edges } from "./rect.js";
 
 export const TILE_FLOOR = 24;
+
+/** Dedup/identity string for a slot prop-path within one container. Two slots of
+ *  the same container always have distinct paths, so distinct keys — the trailing
+ *  key alone collides across array items (`items.0.content` vs `items.1.content`).*/
+const pathKey = (path: SlotPath): string => path.join(".");
+
+const samePath = (a: SlotPath, b: SlotPath): boolean =>
+  pathKey(a) === pathKey(b);
 
 /** Sticky margin around the active tile: the pointer holds the current tile while
  *  within its expanded rect, so a tile does not flip the instant the pointer
@@ -24,7 +33,7 @@ export const leaderRect = (
   );
 };
 
-export type Tile = { slotKey: string; rect: DOMRect };
+export type Tile = { path: SlotPath; rect: DOMRect };
 
 type Point = { x: number; y: number };
 
@@ -81,7 +90,7 @@ export const discreteMarkers = (
       containerRect.bottom,
     );
     return {
-      slotKey: slot.slotKey,
+      path: slot.path,
       rect: new DOMRect(
         confine(left, width, containerRect.left, containerRect.right),
         top,
@@ -99,9 +108,11 @@ export const discreteMarkers = (
 export const aimedTile = (
   tiling: Extract<Tiling, { kind: "tiled" }>,
   point: Point,
-  current?: string,
+  current?: SlotPath,
 ): Tile | undefined => {
-  const cur = tiling.tiles.find((t) => t.slotKey === current);
+  const cur = current
+    ? tiling.tiles.find((t) => samePath(t.path, current))
+    : undefined;
   if (cur && containsPoint(expandRect(cur.rect, TILE_HYSTERESIS), point))
     return cur;
   return tiling.tiles.find((t) => containsPoint(t.rect, point));
@@ -116,10 +127,12 @@ export const aimedMarker = (
   tiling: Extract<Tiling, { kind: "discrete" }>,
   containerRect: DOMRect,
   point: Point,
-  current?: string,
+  current?: SlotPath,
 ): Tile | undefined => {
   const markers = discreteMarkers(tiling, containerRect);
-  const cur = markers.find((m) => m.slotKey === current);
+  const cur = current
+    ? markers.find((m) => samePath(m.path, current))
+    : undefined;
   if (cur && containsPoint(expandRect(cur.rect, TILE_HYSTERESIS), point))
     return cur;
   return markers.find((m) => containsPoint(m.rect, point));
@@ -130,16 +143,16 @@ export type Tiling =
       kind: "tiled";
       axis: Axis;
       tiles: readonly Tile[];
-      yielded: readonly string[];
-      carved: readonly string[];
+      yielded: readonly SlotPath[];
+      carved: readonly SlotPath[];
     }
   | { kind: "discrete"; slots: readonly SlotInput[] };
 
-export type SlotInput = { slotKey: string; rect?: DOMRect };
+export type SlotInput = { path: SlotPath; rect?: DOMRect };
 
 type Interval = { start: number; end: number };
 
-type Band = { slotKey: string; band: Interval };
+type Band = { path: SlotPath; band: Interval };
 
 type AxisGeometry = {
   lo: (r: DOMRect) => number;
@@ -213,8 +226,8 @@ const discrete = (slots: readonly SlotInput[]): Tiling => ({
 
 const toTiling = (
   bands: readonly Band[],
-  yielded: readonly string[],
-  carved: readonly string[],
+  yielded: readonly SlotPath[],
+  carved: readonly SlotPath[],
   axis: Axis,
   container: DOMRect,
 ): Tiling => {
@@ -224,7 +237,7 @@ const toTiling = (
     axis,
     tiles: [...bands]
       .sort(byStart)
-      .map((b) => ({ slotKey: b.slotKey, rect: g.build(b.band, container) })),
+      .map((b) => ({ path: b.path, rect: g.build(b.band, container) })),
     yielded,
     carved,
   };
@@ -242,11 +255,11 @@ const equalSplit = (
   const step = (g.hi(container) - lo) / slots.length;
   return toTiling(
     slots.map((s, i) => ({
-      slotKey: s.slotKey,
+      path: s.path,
       band: { start: lo + i * step, end: lo + (i + 1) * step },
     })),
     [],
-    slots.map((s) => s.slotKey),
+    slots.map((s) => s.path),
     axis,
     container,
   );
@@ -257,7 +270,7 @@ const equalSplit = (
 const bandsFrom = (intervals: readonly Band[], span: Interval): Band[] => {
   const ordered = [...intervals].sort(byStart);
   return ordered.map((p, i) => ({
-    slotKey: p.slotKey,
+    path: p.path,
     band: {
       start:
         i === 0 ? span.start : (ordered[i - 1].band.end + p.band.start) / 2,
@@ -274,16 +287,16 @@ const bandsFrom = (intervals: readonly Band[], span: Interval): Band[] => {
 const absorbSubFloor = (
   bands: readonly Band[],
   span: Interval,
-): { kept: Band[]; yielded: string[] } => {
+): { kept: Band[]; yielded: SlotPath[] } => {
   const surviving = bands.filter((b) => extent(b.band) >= TILE_FLOOR);
   const yielded = bands
     .filter((b) => extent(b.band) < TILE_FLOOR)
-    .map((b) => b.slotKey);
+    .map((b) => b.path);
   if (!yielded.length) return { kept: [...bands], yielded: [] };
   if (!surviving.length) return { kept: [], yielded };
   return {
     kept: bandsFrom(
-      surviving.map((b) => ({ slotKey: b.slotKey, band: b.band })),
+      surviving.map((b) => ({ path: b.path, band: b.band })),
       span,
     ),
     yielded,
@@ -302,11 +315,17 @@ const emptyBoundary = (
   const before = slots
     .slice(0, declIndex)
     .reverse()
-    .find((s) => bands.has(s.slotKey));
-  const after = slots.slice(declIndex + 1).find((s) => bands.has(s.slotKey));
+    .find((s) => bands.has(pathKey(s.path)));
+  const after = slots
+    .slice(declIndex + 1)
+    .find((s) => bands.has(pathKey(s.path)));
   if (!before) return span.start;
   if (!after) return span.end;
-  return (bands.get(before.slotKey)!.end + bands.get(after.slotKey)!.start) / 2;
+  return (
+    (bands.get(pathKey(before.path))!.end +
+      bands.get(pathKey(after.path))!.start) /
+    2
+  );
 };
 
 /** TILE_FLOOR band per empty slot at its interpolated boundary. Consecutive
@@ -317,24 +336,24 @@ const carveBands = (
   measured: readonly Band[],
   span: Interval,
 ): Band[] => {
-  const bandByKey = new Map(measured.map((b) => [b.slotKey, b.band]));
+  const bandByKey = new Map(measured.map((b) => [pathKey(b.path), b.band]));
 
   const grouped = slots.reduce((acc, s, declIndex) => {
     if (s.rect) return acc;
     const at = emptyBoundary(declIndex, slots, bandByKey, span);
-    return acc.set(at, [...(acc.get(at) ?? []), s.slotKey]);
-  }, new Map<number, string[]>());
+    return acc.set(at, [...(acc.get(at) ?? []), s.path]);
+  }, new Map<number, SlotPath[]>());
 
-  return [...grouped.entries()].flatMap(([at, keys]) => {
-    const total = keys.length * TILE_FLOOR;
+  return [...grouped.entries()].flatMap(([at, paths]) => {
+    const total = paths.length * TILE_FLOOR;
     const start =
       at <= span.start
         ? span.start
         : at >= span.end
           ? span.end - total
           : at - total / 2;
-    return keys.map((slotKey, i) => ({
-      slotKey,
+    return paths.map((path, i) => ({
+      path,
       band: {
         start: start + i * TILE_FLOOR,
         end: start + (i + 1) * TILE_FLOOR,
@@ -349,7 +368,7 @@ const shrinkAround = (
   carved: readonly Band[],
 ): Band[] =>
   measured.map((m) => ({
-    slotKey: m.slotKey,
+    path: m.path,
     band: carved.reduce((b, c) => subtractInterval(b, c.band), m.band),
   }));
 
@@ -388,7 +407,7 @@ export const tileSlots = (args: {
   if (!slots.length) return discrete(slots);
 
   const measured = slots.flatMap((s) =>
-    s.rect ? [{ slotKey: s.slotKey, rect: s.rect }] : [],
+    s.rect ? [{ path: s.path, rect: s.rect }] : [],
   );
 
   if (!measured.length) {
@@ -399,7 +418,7 @@ export const tileSlots = (args: {
 
   const project = (axis: Axis): Band[] =>
     measured.map((m) => ({
-      slotKey: m.slotKey,
+      path: m.path,
       band: projection(m.rect, axis, containerRect),
     }));
 
@@ -428,7 +447,7 @@ export const tileSlots = (args: {
   if (slots.every((s) => s.rect))
     return toTiling(kept, yielded, [], axis, containerRect);
 
-  const emptyKeys = slots.filter((s) => !s.rect).map((s) => s.slotKey);
+  const emptyKeys = slots.filter((s) => !s.rect).map((s) => s.path);
   const carvedBands = carveEmpties(slots, kept, span);
   if (carvedBands.some((b) => extent(b.band) < TILE_FLOOR - 1e-9))
     return discrete(slots);

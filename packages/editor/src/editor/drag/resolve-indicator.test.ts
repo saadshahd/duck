@@ -61,9 +61,9 @@ const sourceA = () =>
 const containerTarget = (slotKey: string, index: number): DropTarget => ({
   kind: "container",
   elementId: "card",
-  slotKey,
+  path: [slotKey],
   index,
-  tiling: { kind: "discrete", slots: [{ slotKey }] },
+  tiling: { kind: "discrete", slots: [{ path: [slotKey] }] },
   activeLabel: `Card › ${slotKey}`,
 });
 
@@ -131,7 +131,7 @@ describe("resolveIndicator", () => {
     expect(resolve({ source, target })).toMatchObject({
       kind: "container",
       elementId: "box",
-      slotKey: "items",
+      path: ["items"],
       index: 1, // length of items minus d (source removed) = 1
       activeLabel: "Box › items",
     });
@@ -182,7 +182,7 @@ describe("resolveIndicator", () => {
     expect(indicator).toMatchObject({
       kind: "container",
       elementId: "card",
-      slotKey: "body",
+      path: ["body"],
       index: 0,
       activeLabel: "Card › body",
     });
@@ -214,7 +214,7 @@ describe("resolveIndicator", () => {
       registry: cardRegistry(),
     });
 
-    expect(indicator).toMatchObject({ slotKey: "body", index: 2 });
+    expect(indicator).toMatchObject({ path: ["body"], index: 2 });
   });
 
   test("previous indicator's slot is sticky near its tile boundary", () => {
@@ -246,14 +246,14 @@ describe("resolveIndicator", () => {
       registry: cardRegistry(),
     };
 
-    expect(resolve(args)).toMatchObject({ slotKey: "body" });
+    expect(resolve(args)).toMatchObject({ path: ["body"] });
     // Sticky: header is held even though the point sits in the body band. The
     // header slot has one wide child (h1, 180×40 → horizontal before/after axis),
     // so its insert index flips at the child's x-midpoint (100); point.x=100 is
     // not strictly past it → insert before → index 0.
     expect(
       resolve({ ...args, previous: containerTarget("header", 1) }),
-    ).toMatchObject({ slotKey: "header", index: 0 });
+    ).toMatchObject({ path: ["header"], index: 0 });
   });
 
   test("pointer over an empty slot's carved band → that slot at append index", () => {
@@ -281,7 +281,7 @@ describe("resolveIndicator", () => {
 
     expect(indicator).toMatchObject({
       kind: "container",
-      slotKey: "footer",
+      path: ["footer"],
       index: 0,
       activeLabel: "Card › footer",
     });
@@ -310,7 +310,7 @@ describe("resolveIndicator", () => {
     ).toMatchObject({
       kind: "container",
       elementId: "card",
-      slotKey: "header",
+      path: ["header"],
       index: 1, // header has h1, append at end = 1
     });
   });

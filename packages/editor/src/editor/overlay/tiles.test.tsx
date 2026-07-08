@@ -30,8 +30,8 @@ describe("Tiles — tiled", () => {
     kind: "tiled",
     axis: "vertical",
     tiles: [
-      { slotKey: "header", rect: new DOMRect(0, 0, 400, 100) },
-      { slotKey: "body", rect: new DOMRect(0, 100, 400, 200) },
+      { path: ["header"], rect: new DOMRect(0, 0, 400, 100) },
+      { path: ["body"], rect: new DOMRect(0, 100, 400, 200) },
     ],
     yielded: [],
     carved: [],
@@ -48,7 +48,7 @@ describe("Tiles — tiled", () => {
       tiling,
       containerRect: container,
       labels,
-      activeSlotKey: "body",
+      activePath: ["body"],
     });
     expect(activeOf(els)).toEqual(["Card › body"]);
   });
@@ -67,7 +67,7 @@ describe("Tiles — tiled", () => {
 describe("Tiles — discrete", () => {
   const tiling: Tiling = {
     kind: "discrete",
-    slots: [{ slotKey: "header" }, { slotKey: "body" }, { slotKey: "footer" }],
+    slots: [{ path: ["header"] }, { path: ["body"] }, { path: ["footer"] }],
   };
   const labels = {
     header: "Card › header",
@@ -90,7 +90,7 @@ describe("Tiles — discrete", () => {
       tiling,
       containerRect: container,
       labels,
-      activeSlotKey: "footer",
+      activePath: ["footer"],
     });
     expect(activeOf(els)).toEqual(["Card › footer"]);
   });
@@ -122,8 +122,8 @@ describe("Tiles — yielded slots", () => {
   const tiling: Tiling = {
     kind: "tiled",
     axis: "vertical",
-    tiles: [{ slotKey: "body", rect: new DOMRect(0, 0, 400, 300) }],
-    yielded: ["caption"],
+    tiles: [{ path: ["body"], rect: new DOMRect(0, 0, 400, 300) }],
+    yielded: [["caption"]],
     carved: [],
   };
   const labels = { body: "Card › body", caption: "Card › caption" };
@@ -138,7 +138,7 @@ describe("Tiles — yielded slots", () => {
       tiling,
       containerRect: container,
       labels,
-      activeSlotKey: "caption",
+      activePath: ["caption"],
     });
     const marker = els.find((el) => el.textContent === "Card › caption");
     expect(marker?.hasAttribute("data-discrete")).toBe(true);
@@ -151,11 +151,11 @@ describe("Tiles — carved bands", () => {
     kind: "tiled",
     axis: "vertical",
     tiles: [
-      { slotKey: "header", rect: new DOMRect(0, 0, 400, 100) },
-      { slotKey: "body", rect: new DOMRect(0, 100, 400, 200) },
+      { path: ["header"], rect: new DOMRect(0, 0, 400, 100) },
+      { path: ["body"], rect: new DOMRect(0, 100, 400, 200) },
     ],
     yielded: [],
-    carved: ["header"],
+    carved: [["header"]],
   };
   const labels = { header: "Card › header", body: "Card › body" };
 
@@ -178,7 +178,7 @@ describe("Tiles — carved bands", () => {
 describe("Tiles — discrete leader lines", () => {
   const tiling: Tiling = {
     kind: "discrete",
-    slots: [{ slotKey: "header" }, { slotKey: "body" }, { slotKey: "footer" }],
+    slots: [{ path: ["header"] }, { path: ["body"] }, { path: ["footer"] }],
   };
   const labels = {
     header: "Card › header",

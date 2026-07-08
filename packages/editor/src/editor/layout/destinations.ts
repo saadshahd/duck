@@ -5,11 +5,13 @@ import {
   findById,
   findParent,
   getChildrenAt,
+  getIn,
   preOrder,
   sameSite,
   slotKeyOf,
-  slotKeysOf,
+  slotPathsOf,
   type ParentSite,
+  type SlotPath,
 } from "@duckeditor/spec";
 import type { FiberRegistry } from "../fiber/index.js";
 import { resolveSlotAxis, type Axis } from "./axis.js";
@@ -34,9 +36,9 @@ export type DropTarget =
   | {
       kind: "container";
       elementId: string;
-      slotKey: string;
+      path: SlotPath;
       index: number;
-      /** Painted destinations over the container; the active slot is `slotKey`. */
+      /** Painted destinations over the container; the active slot is `path`. */
       tiling: Tiling;
       activeLabel: string;
       blocked?: boolean;
@@ -61,7 +63,7 @@ export const qualifiedLabel = (
   slotKey: string,
 ): string => `${componentType} › ${slotKey}`;
 
-/** Per-slot qualified labels for a container, keyed by slotKey. */
+/** Per-slot qualified labels for a container, keyed by the slot's path key. */
 export const slotLabels = (
   data: Data,
   containerId: string,
@@ -69,9 +71,9 @@ export const slotLabels = (
   const container = findById(data, containerId);
   if (!container) return {};
   return Object.fromEntries(
-    slotKeysOf(container).map((slotKey) => [
-      slotKey,
-      qualifiedLabel(container.type, slotKey),
+    slotPathsOf(container).map((path) => [
+      path.join("."),
+      qualifiedLabel(container.type, slotKeyOf(path)),
     ]),
   );
 };
@@ -90,7 +92,7 @@ export const resolveLabel = (data: Data, target: DropTarget): string | null => {
     return type ? qualifiedLabel(type, slotKeyOf(parent.path)) : null;
   }
   const type = findById(data, target.elementId)?.type;
-  return type ? qualifiedLabel(type, target.slotKey) : null;
+  return type ? qualifiedLabel(type, slotKeyOf(target.path)) : null;
 };
 
 type Located = ParentSite & {
@@ -113,7 +115,7 @@ const candidateChain = (args: {
     .flatMap(({ component, path }) => {
       const id = component.props.id as string;
       if (excluded.has(id)) return [];
-      if (!slotKeysOf(component).length) return [];
+      if (!slotPathsOf(component).length) return [];
       const rect = registry.get(id)?.getBoundingClientRect();
       if (!rect || !containsPoint(rect, point)) return [];
       const last = path[path.length - 1];
@@ -123,12 +125,12 @@ const candidateChain = (args: {
 };
 
 const slotDestinations = (container: ComponentData): Destination[] =>
-  slotKeysOf(container).map((slotKey) => ({
+  slotPathsOf(container).map((path) => ({
     at: "slot",
     parentId: container.props.id as string,
-    path: [slotKey],
-    index: (container.props[slotKey] as ComponentData[]).length,
-    label: qualifiedLabel(container.type, slotKey),
+    path,
+    index: (getIn(container.props, path) as ComponentData[]).length,
+    label: qualifiedLabel(container.type, slotKeyOf(path)),
   }));
 
 const besideDestination = (located: Located, data: Data): Destination => {
@@ -159,7 +161,9 @@ const siblingSlotDestinations = (args: {
   const selfId = located.component.props.id as string;
   const isExpandable = (sibling: ComponentData): boolean => {
     const id = sibling.props.id as string;
-    return id !== selfId && !excluded.has(id) && slotKeysOf(sibling).length > 0;
+    return (
+      id !== selfId && !excluded.has(id) && slotPathsOf(sibling).length > 0
+    );
   };
   return (getChildrenAt(data, located) ?? [])
     .filter(isExpandable)
@@ -255,21 +259,23 @@ const aimedSlotDestination = (args: {
   const tile = aimedSlotTile(tiling, containerRect, point);
   if (!tile) return null;
 
-  const measured = regions.find((r) => r.slotKey === tile.slotKey);
+  const measured = regions.find(
+    (r) => r.path.join(".") === tile.path.join("."),
+  );
   const site: ParentSite = {
     at: "slot",
     parentId: containerId,
-    path: [tile.slotKey],
+    path: tile.path,
   };
   const axis = resolveSlotAxis(data, site, registry) ?? "vertical";
   const index = measured
     ? slotInsertIndex({ point, axis, region: measured })
-    : (container.component.props[tile.slotKey] as ComponentData[]).length;
+    : (getIn(container.component.props, tile.path) as ComponentData[]).length;
 
   return {
     ...site,
     index,
-    label: qualifiedLabel(container.component.type, tile.slotKey),
+    label: qualifiedLabel(container.component.type, slotKeyOf(tile.path)),
   };
 };
 

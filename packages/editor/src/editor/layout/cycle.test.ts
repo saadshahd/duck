@@ -185,7 +185,7 @@ describe("toTarget", () => {
     expect(target).toMatchObject({
       kind: "container",
       elementId: "card",
-      slotKey: "body",
+      path: ["body"],
       index: 0,
       activeLabel: "Card › body",
     });

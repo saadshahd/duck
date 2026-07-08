@@ -65,6 +65,7 @@ export const FIX = {
     heading: "First section",
     childId: "sectionsChildText",
     childText: "Nested content inside an array-item slot.",
+    emptyHeading: "Second section",
   },
 } as const;
 
@@ -276,6 +277,10 @@ export const fixture: Data = {
                 content: [
                   textNode(FIX.sections.childId, FIX.sections.childText),
                 ],
+              },
+              {
+                heading: FIX.sections.emptyHeading,
+                content: [],
               },
             ],
           }),

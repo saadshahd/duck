@@ -30,7 +30,7 @@ const page = (...content: ComponentData[]): Data => ({
 const xywh = (r: DOMRect) => ({ x: r.x, y: r.y, w: r.width, h: r.height });
 
 const shape = (region: MeasuredRegion) => ({
-  slotKey: region.slotKey,
+  slotKey: region.path.join("."),
   rect: xywh(region.rect),
   children: region.children.map((c) => ({
     index: c.index,
@@ -201,7 +201,7 @@ const measured = (
   rect: DOMRect,
   children?: DOMRect[],
 ): MeasuredRegion => ({
-  slotKey,
+  path: [slotKey],
   rect,
   children: (children ?? [rect]).map((r, index) => ({ index, rect: r })),
 });
@@ -277,7 +277,7 @@ describe("slotInsertIndex", () => {
 
   test("sparse child indices (escaped sibling dropped) are preserved", () => {
     const region: MeasuredRegion = {
-      slotKey: "body",
+      path: ["body"],
       rect: new DOMRect(10, 60, 100, 40),
       children: [{ index: 2, rect: new DOMRect(10, 60, 100, 40) }],
     };

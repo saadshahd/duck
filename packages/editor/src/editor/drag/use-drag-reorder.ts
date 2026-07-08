@@ -13,7 +13,7 @@ import {
   collectDescendants,
   findParent,
   parentIdOf,
-  slotKeysOf,
+  slotPathsOf,
 } from "@duckeditor/spec";
 import { resolveHit, type FiberRegistry } from "../fiber/index.js";
 import type { EditorEvent, EditorSnapshot } from "../machine/index.js";
@@ -220,7 +220,7 @@ export function useDragReorder({
       const parent = path.at(-1);
       if (!el || !parent) continue;
 
-      const slots = slotKeysOf(component);
+      const slots = slotPathsOf(component);
       const isContainer = slots.length > 0;
       const edges =
         EDGES[resolveSlotAxis(dataRef.current, parent, registry) ?? "vertical"];
@@ -311,9 +311,11 @@ export function useDragReorder({
         const parentType = indexRef.current.get(target.elementId)?.component
           .type;
         if (!parentType) return target;
-        const blocked = !allowedTypes(configRef.current, parentType, [
-          target.slotKey,
-        ]).has(sType);
+        const blocked = !allowedTypes(
+          configRef.current,
+          parentType,
+          target.path,
+        ).has(sType);
         return blocked ? { ...target, blocked } : target;
       }
       return target;

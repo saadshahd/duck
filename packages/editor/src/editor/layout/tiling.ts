@@ -1,17 +1,20 @@
 import type { Data } from "@puckeditor/core";
-import { findById, slotKeysOf } from "@duckeditor/spec";
+import { findById, slotPathsOf, type SlotPath } from "@duckeditor/spec";
 import type { FiberRegistry } from "../fiber/index.js";
 import { cssAxis } from "./axis.js";
 import { slotRegions, type MeasuredRegion } from "./slot-regions.js";
 import { tileSlots, type SlotInput, type Tiling } from "./tiles.js";
 
+const samePath = (a: SlotPath, b: SlotPath): boolean =>
+  a.join(".") === b.join(".");
+
 const slotInputs = (
-  slotKeys: readonly string[],
+  paths: readonly SlotPath[],
   regions: readonly MeasuredRegion[],
 ): SlotInput[] =>
-  slotKeys.map((slotKey) => {
-    const measured = regions.find((r) => r.slotKey === slotKey);
-    return measured ? { slotKey, rect: measured.rect } : { slotKey };
+  paths.map((path) => {
+    const measured = regions.find((r) => samePath(r.path, path));
+    return measured ? { path, rect: measured.rect } : { path };
   });
 
 /** Painted slot geometry for a container plus the per-slot child measurements it
@@ -26,14 +29,14 @@ export const buildTiling = (args: {
 }): { tiling: Tiling; regions: readonly MeasuredRegion[] } => {
   const { data, containerId, registry } = args;
   const container = findById(data, containerId);
-  const slotKeys = container ? slotKeysOf(container) : [];
+  const paths = container ? slotPathsOf(container) : [];
   const containerEl = registry.get(containerId);
   const containerRect = containerEl?.getBoundingClientRect();
   if (!containerEl || !containerRect)
     return {
       tiling: {
         kind: "discrete",
-        slots: slotKeys.map((slotKey) => ({ slotKey })),
+        slots: paths.map((path) => ({ path })),
       },
       regions: [],
     };
@@ -42,7 +45,7 @@ export const buildTiling = (args: {
   return {
     tiling: tileSlots({
       containerRect,
-      slots: slotInputs(slotKeys, regions),
+      slots: slotInputs(paths, regions),
       cssAxis: cssAxis(containerEl) ?? undefined,
     }),
     regions,
