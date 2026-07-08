@@ -50,23 +50,19 @@ export function useActionHandler({
           if (!parent) return;
           const direction = action.tag === "move-up" ? -1 : 1;
           const label = action.tag === "move-up" ? labels.prev : labels.next;
-          move(
-            data,
-            lastSelectedId,
-            parent.parentId,
-            parent.slotKey,
-            parent.index + direction,
-          ).map((next) => {
-            animatedUpdate((d) => {
-              commit({
-                beforeData: data,
-                afterData: d,
-                label: `Moved ${type} ${label}`,
-                group: `move:${lastSelectedId}`,
-                resolve: { kind: "move", id: lastSelectedId },
-              });
-            }, next);
-          });
+          move(data, lastSelectedId, parent, parent.index + direction).map(
+            (next) => {
+              animatedUpdate((d) => {
+                commit({
+                  beforeData: data,
+                  afterData: d,
+                  label: `Moved ${type} ${label}`,
+                  group: `move:${lastSelectedId}`,
+                  resolve: { kind: "move", id: lastSelectedId },
+                });
+              }, next);
+            },
+          );
           break;
         }
         case "delete": {
@@ -93,8 +89,7 @@ export function useActionHandler({
             } else {
               const target = nearestSibling(
                 data,
-                parentBefore?.parentId ?? null,
-                parentBefore?.slotKey ?? null,
+                parentBefore ?? { at: "root" },
                 lastSelectedId,
               );
               target

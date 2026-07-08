@@ -34,8 +34,7 @@ const data = (): Data => ({
 const sourceA = () =>
   bag({
     elementId: "a",
-    parentId: null,
-    slotKey: null,
+    at: "root",
     index: 0,
     role: "sibling",
   });
@@ -118,13 +117,13 @@ describe("resolveDrop", () => {
   test("returns null when target is a descendant", () => {
     const source = bag({
       elementId: "box",
-      parentId: null,
-      slotKey: null,
+      at: "root",
       index: 3,
       role: "sibling",
     });
     const target = bag({
       elementId: "d",
+      at: "slot",
       parentId: "box",
       slotKey: "items",
       index: 0,
@@ -138,8 +137,7 @@ describe("resolveDrop", () => {
   test("container drop commits the indicator's slot and index verbatim", () => {
     const target = bag({
       elementId: "box",
-      parentId: null,
-      slotKey: null,
+      at: "root",
       index: 3,
       role: "container",
     });
@@ -166,8 +164,7 @@ describe("resolveDrop", () => {
   test("container drop into an empty slot commits index 0", () => {
     const target = bag({
       elementId: "empty",
-      parentId: null,
-      slotKey: null,
+      at: "root",
       index: 4,
       role: "container",
     });
@@ -186,6 +183,7 @@ describe("resolveDrop", () => {
   test("container indicator commits even when the drop lands on a sibling", () => {
     const target = bag({
       elementId: "d",
+      at: "slot",
       parentId: "box",
       slotKey: "items",
       index: 0,
@@ -206,8 +204,7 @@ describe("resolveDrop", () => {
   test("drop without an indicator → null (never recomputed)", () => {
     const target = bag({
       elementId: "box",
-      parentId: null,
-      slotKey: null,
+      at: "root",
       index: 3,
       role: "container",
     });
@@ -217,8 +214,7 @@ describe("resolveDrop", () => {
   test("no-target indicator → null", () => {
     const target = bag({
       elementId: "box",
-      parentId: null,
-      slotKey: null,
+      at: "root",
       index: 3,
       role: "container",
     });
@@ -231,6 +227,7 @@ describe("resolveDrop", () => {
     // d is at index 0 in box.items; top edge → insert before d at index 0.
     const target = bag({
       elementId: "d",
+      at: "slot",
       parentId: "box",
       slotKey: "items",
       index: 0,
@@ -262,8 +259,7 @@ describe("resolveDrop", () => {
     // [b, a, c, box, empty]. Without the adjustment it would land at index 2.
     const target = bag({
       elementId: "b",
-      parentId: null,
-      slotKey: null,
+      at: "root",
       index: 1,
       role: "sibling",
     });
@@ -301,8 +297,7 @@ describe("resolveDrop", () => {
     // index 3 → [b, c, box, a, empty].
     const target = bag({
       elementId: "box",
-      parentId: null,
-      slotKey: null,
+      at: "root",
       index: 3,
       role: "container",
     });

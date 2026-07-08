@@ -14,11 +14,7 @@ export const remove = (data: Data, id: string): Result<Data, SpecOpsError> => {
 
   return ok(
     cloneAndMutate(data, (draft) => {
-      const siblings = writableChildrenAt(
-        draft,
-        location.parentId,
-        location.slotKey,
-      );
+      const siblings = writableChildrenAt(draft, location);
       if (!siblings) return;
       siblings.splice(location.index, 1);
     }),

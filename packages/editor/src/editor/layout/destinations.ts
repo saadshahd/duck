@@ -6,7 +6,9 @@ import {
   findParent,
   getChildrenAt,
   preOrder,
+  sameSite,
   slotKeysOf,
+  type ParentSite,
 } from "@duckeditor/spec";
 import type { FiberRegistry } from "../fiber/index.js";
 import { resolveSlotAxis, type Axis } from "./axis.js";
@@ -42,11 +44,9 @@ export type DropTarget =
   | { kind: "none"; elementId: string };
 
 /** One reachable drop position in the cycle: a slot append or a between-siblings
- *  insert beside a container. `parentId`/`slotKey` follow spec-ops `move()`:
- *  both null means root content. */
-export type Destination = {
-  parentId: string | null;
-  slotKey: string | null;
+ *  insert beside a container. The `site` follows spec-ops `move()` — the root
+ *  site means root content. */
+export type Destination = ParentSite & {
   index: number;
   label: string;
 };
@@ -84,7 +84,7 @@ export const resolveLabel = (data: Data, target: DropTarget): string | null => {
   if (target.kind === "line") {
     const parent = findParent(data, target.elementId);
     if (!parent) return null;
-    if (parent.parentId === null || parent.slotKey === null) return ROOT_LABEL;
+    if (parent.at !== "slot") return ROOT_LABEL;
     const type = findById(data, parent.parentId)?.type;
     return type ? qualifiedLabel(type, parent.slotKey) : null;
   }
@@ -92,11 +92,9 @@ export const resolveLabel = (data: Data, target: DropTarget): string | null => {
   return type ? qualifiedLabel(type, target.slotKey) : null;
 };
 
-type Located = {
+type Located = ParentSite & {
   component: ComponentData;
   depth: number;
-  parentId: string | null;
-  slotKey: string | null;
   index: number;
 };
 
@@ -118,21 +116,14 @@ const candidateChain = (args: {
       const rect = registry.get(id)?.getBoundingClientRect();
       if (!rect || !containsPoint(rect, point)) return [];
       const last = path[path.length - 1];
-      return [
-        {
-          component,
-          depth: path.length,
-          parentId: last.parentId,
-          slotKey: last.slotKey,
-          index: last.index,
-        } satisfies Located,
-      ];
+      return [{ component, depth: path.length, ...last } satisfies Located];
     })
     .sort((a, b) => b.depth - a.depth);
 };
 
 const slotDestinations = (container: ComponentData): Destination[] =>
   slotKeysOf(container).map((slotKey) => ({
+    at: "slot",
     parentId: container.props.id as string,
     slotKey,
     index: (container.props[slotKey] as ComponentData[]).length,
@@ -141,12 +132,12 @@ const slotDestinations = (container: ComponentData): Destination[] =>
 
 const besideDestination = (located: Located, data: Data): Destination => {
   const index = located.index + 1;
-  if (located.parentId === null || located.slotKey === null)
-    return { parentId: null, slotKey: null, index, label: ROOT_LABEL };
+  if (located.at !== "slot") return { at: "root", index, label: ROOT_LABEL };
   const parent = findById(data, located.parentId);
   if (!parent)
     throw new Error(`besideDestination: missing parent ${located.parentId}`);
   return {
+    at: "slot",
     parentId: located.parentId,
     slotKey: located.slotKey,
     index,
@@ -169,7 +160,7 @@ const siblingSlotDestinations = (args: {
     const id = sibling.props.id as string;
     return id !== selfId && !excluded.has(id) && slotKeysOf(sibling).length > 0;
   };
-  return (getChildrenAt(data, located.parentId, located.slotKey) ?? [])
+  return (getChildrenAt(data, located) ?? [])
     .filter(isExpandable)
     .flatMap(slotDestinations);
 };
@@ -210,7 +201,7 @@ const stackFromChain = (args: {
 };
 
 const identityKey = (d: Destination): string =>
-  `${d.parentId ?? "root"}|${d.slotKey ?? ""}`;
+  d.at === "slot" ? `${d.parentId}|${d.slotKey}` : "root|";
 
 /** The cycle of discrete drop positions under the pointer: deepest container's
  *  slots, then beside-it in its parent, then its slot-bearing siblings' slots,
@@ -264,15 +255,18 @@ const aimedSlotDestination = (args: {
   if (!tile) return null;
 
   const measured = regions.find((r) => r.slotKey === tile.slotKey);
-  const axis =
-    resolveSlotAxis(data, containerId, tile.slotKey, registry) ?? "vertical";
+  const site: ParentSite = {
+    at: "slot",
+    parentId: containerId,
+    slotKey: tile.slotKey,
+  };
+  const axis = resolveSlotAxis(data, site, registry) ?? "vertical";
   const index = measured
     ? slotInsertIndex({ point, axis, region: measured })
     : (container.component.props[tile.slotKey] as ComponentData[]).length;
 
   return {
-    parentId: containerId,
-    slotKey: tile.slotKey,
+    ...site,
     index,
     label: qualifiedLabel(container.component.type, tile.slotKey),
   };
@@ -305,11 +299,7 @@ export const aimDestination = (args: {
 export const stackIndexOf = (
   stack: readonly Destination[],
   destination: Destination,
-): number =>
-  stack.findIndex(
-    (d) =>
-      d.parentId === destination.parentId && d.slotKey === destination.slotKey,
-  );
+): number => stack.findIndex((d) => sameSite(d, destination));
 
 /** Wrapping forward step through a stack of length `stackLength`. 0 when empty. */
 export const stepCycle = (stackLength: number, current: number): number =>

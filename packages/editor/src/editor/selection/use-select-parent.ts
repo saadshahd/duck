@@ -18,7 +18,7 @@ export function createSelectParent(args: {
     if (pointer === "slot-selected" && selectedSlot)
       return send({ type: "SELECT", elementId: selectedSlot.parentId });
     const parent = findParent(data, lastSelectedId);
-    if (parent && parent.parentId !== null)
+    if (parent?.at === "slot")
       return send({ type: "SELECT", elementId: parent.parentId });
     send({ type: "DESELECT" });
   };

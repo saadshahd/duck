@@ -6,6 +6,7 @@ import {
   getChildrenAt,
   slotKeysFromConfig,
   slotKeysOf,
+  type ParentSite,
 } from "@duckeditor/spec";
 import {
   type SpecOpsError,
@@ -57,9 +58,9 @@ const remintSlots = (
   };
 };
 
-/** Insert `component` at `(parentId, slotKey, index?)`. Append when index undefined.
+/** Insert `component` at `site` and `index?`. Append when index undefined.
  *
- *  - `parentId === null && slotKey === null` targets `data.content`.
+ *  - The root site targets `data.content`.
  *  - Defaults from `config.components[type].defaultProps` are merged behind caller props.
  *  - Slot fields not provided by caller are initialised to `[]`.
  *  - A unique id is generated if one isn't supplied.
@@ -67,36 +68,35 @@ const remintSlots = (
 export const add = (
   data: Data,
   args: {
-    parentId: string | null;
-    slotKey: string | null;
+    site: ParentSite;
     component: ComponentData;
     index?: number;
   },
   config: Config,
 ): Result<Data, SpecOpsError> => {
-  const { parentId, slotKey, component, index } = args;
+  const { site, component, index } = args;
 
-  if (parentId !== null && !findById(data, parentId))
-    return err({ tag: "parent-not-found", parentId });
+  if (site.at === "slot" && !findById(data, site.parentId))
+    return err({ tag: "parent-not-found", parentId: site.parentId });
 
-  const targeted = getChildrenAt(data, parentId, slotKey);
+  const targeted = getChildrenAt(data, site);
   if (targeted === null)
     return err({
       tag: "slot-not-defined",
-      parentId: parentId ?? "",
-      slotKey: slotKey ?? "",
+      parentId: site.at === "slot" ? site.parentId : "",
+      slotKey: site.at === "slot" ? site.slotKey : "",
     });
 
-  if (parentId !== null && slotKey !== null) {
-    const parentType = findById(data, parentId)?.type;
+  if (site.at === "slot") {
+    const parentType = findById(data, site.parentId)?.type;
     if (
       parentType &&
-      !allowedTypes(config, parentType, slotKey).has(component.type)
+      !allowedTypes(config, parentType, site.slotKey).has(component.type)
     )
       return err({
         tag: "disallowed-type",
-        parentId,
-        slotKey,
+        parentId: site.parentId,
+        slotKey: site.slotKey,
         componentType: component.type,
       });
   }
@@ -136,7 +136,7 @@ export const add = (
 
   return ok(
     cloneAndMutate(data, (draft) => {
-      const writable = writableChildrenAt(draft, parentId, slotKey);
+      const writable = writableChildrenAt(draft, site);
       if (writable === null) return;
       writable.splice(insertIndex, 0, prepared);
     }),

@@ -53,8 +53,7 @@ const cardRegistry = () =>
 const sourceA = () =>
   bag({
     elementId: "a",
-    parentId: null,
-    slotKey: null,
+    at: "root",
     index: 0,
     role: "sibling",
   });
@@ -94,13 +93,13 @@ describe("resolveIndicator", () => {
   test("returns null when target is a descendant", () => {
     const source = bag({
       elementId: "box",
-      parentId: null,
-      slotKey: null,
+      at: "root",
       index: 3,
       role: "sibling",
     });
     const target = bag({
       elementId: "d",
+      at: "slot",
       parentId: "box",
       slotKey: "items",
       index: 0,
@@ -116,6 +115,7 @@ describe("resolveIndicator", () => {
     // same-parent guard does not fire — this tests pure container resolution.
     const source = bag({
       elementId: "d",
+      at: "slot",
       parentId: "box",
       slotKey: "items",
       index: 0,
@@ -123,8 +123,7 @@ describe("resolveIndicator", () => {
     });
     const target = bag({
       elementId: "box",
-      parentId: null,
-      slotKey: null,
+      at: "root",
       index: 3,
       role: "container",
     });
@@ -141,6 +140,7 @@ describe("resolveIndicator", () => {
   test("append into the source's own slot when already last → null (no-op)", () => {
     const source = bag({
       elementId: "e",
+      at: "slot",
       parentId: "box",
       slotKey: "items",
       index: 1,
@@ -148,8 +148,7 @@ describe("resolveIndicator", () => {
     });
     const target = bag({
       elementId: "box",
-      parentId: null,
-      slotKey: null,
+      at: "root",
       index: 3,
       role: "container",
     });
@@ -160,6 +159,7 @@ describe("resolveIndicator", () => {
     // Source lives inside the card's header slot → different parent from root
     const source = bag({
       elementId: "h1",
+      at: "slot",
       parentId: "card",
       slotKey: "header",
       index: 0,
@@ -167,8 +167,7 @@ describe("resolveIndicator", () => {
     });
     const target = bag({
       elementId: "card",
-      parentId: null,
-      slotKey: null,
+      at: "root",
       index: 1,
       role: "container",
     });
@@ -195,6 +194,7 @@ describe("resolveIndicator", () => {
   test("multi-slot container: point past the last child's center → end index", () => {
     const source = bag({
       elementId: "h1",
+      at: "slot",
       parentId: "card",
       slotKey: "header",
       index: 0,
@@ -202,8 +202,7 @@ describe("resolveIndicator", () => {
     });
     const target = bag({
       elementId: "card",
-      parentId: null,
-      slotKey: null,
+      at: "root",
       index: 1,
       role: "container",
     });
@@ -224,6 +223,7 @@ describe("resolveIndicator", () => {
     // source.parentId="card" ≠ target.parentId=null.
     const source = bag({
       elementId: "b2",
+      at: "slot",
       parentId: "card",
       slotKey: "body",
       index: 1,
@@ -231,8 +231,7 @@ describe("resolveIndicator", () => {
     });
     const target = bag({
       elementId: "card",
-      parentId: null,
-      slotKey: null,
+      at: "root",
       index: 1,
       role: "container",
     });
@@ -260,6 +259,7 @@ describe("resolveIndicator", () => {
   test("pointer over an empty slot's carved band → that slot at append index", () => {
     const source = bag({
       elementId: "h1",
+      at: "slot",
       parentId: "card",
       slotKey: "header",
       index: 0,
@@ -267,8 +267,7 @@ describe("resolveIndicator", () => {
     });
     const target = bag({
       elementId: "card",
-      parentId: null,
-      slotKey: null,
+      at: "root",
       index: 1,
       role: "container",
     });
@@ -293,6 +292,7 @@ describe("resolveIndicator", () => {
     // is not a no-op. emptyRegistry has no slot measurements → discrete fallback.
     const source = bag({
       elementId: "b1",
+      at: "slot",
       parentId: "card",
       slotKey: "body",
       index: 0,
@@ -300,8 +300,7 @@ describe("resolveIndicator", () => {
     });
     const target = bag({
       elementId: "card",
-      parentId: null,
-      slotKey: null,
+      at: "root",
       index: 1,
       role: "container",
     });
@@ -320,6 +319,7 @@ describe("resolveIndicator", () => {
     // source inside a known container so same-parent guard won't misfire
     const source = bag({
       elementId: "d",
+      at: "slot",
       parentId: "box",
       slotKey: "items",
       index: 0,
@@ -327,8 +327,7 @@ describe("resolveIndicator", () => {
     });
     const target = bag({
       elementId: "gone",
-      parentId: null,
-      slotKey: null,
+      at: "root",
       index: 9,
       role: "container",
     });
@@ -341,6 +340,7 @@ describe("resolveIndicator", () => {
   test("returns null when edge is null (no atlaskit symbol)", () => {
     const target = bag({
       elementId: "d",
+      at: "slot",
       parentId: "box",
       slotKey: "items",
       index: 0,
@@ -360,8 +360,7 @@ describe("resolveIndicator", () => {
     });
     const target = bag({
       elementId: "b",
-      parentId: null,
-      slotKey: null,
+      at: "root",
       index: 1,
       role: "sibling",
     });
@@ -423,6 +422,7 @@ describe("resolveIndicator — same-parent container guard", () => {
   const sourceCard3 = () =>
     bag({
       elementId: "card3",
+      at: "slot",
       parentId: "grid",
       slotKey: "items",
       index: 2,
@@ -432,6 +432,7 @@ describe("resolveIndicator — same-parent container guard", () => {
   const targetCard2Container = () =>
     bag({
       elementId: "card2",
+      at: "slot",
       parentId: "grid",
       slotKey: "items",
       index: 1,
@@ -476,6 +477,7 @@ describe("resolveIndicator — same-parent container guard", () => {
     // Use card1 as source to avoid the no-op on the right side as well.
     const sourceCard1 = bag({
       elementId: "card1",
+      at: "slot",
       parentId: "grid",
       slotKey: "items",
       index: 0,
@@ -502,6 +504,7 @@ describe("resolveIndicator — same-parent container guard", () => {
     // adjusted for card1 removal: 1>0 → 0 == source.index=0 → no-op.
     const sourceCard1 = bag({
       elementId: "card1",
+      at: "slot",
       parentId: "grid",
       slotKey: "items",
       index: 0,
@@ -522,8 +525,7 @@ describe("resolveIndicator — same-parent container guard", () => {
     // source in root content (null/null), card2 in grid.items → different parent
     const sourceInRoot = bag({
       elementId: "a",
-      parentId: null,
-      slotKey: null,
+      at: "root",
       index: 0,
       role: "sibling",
     });

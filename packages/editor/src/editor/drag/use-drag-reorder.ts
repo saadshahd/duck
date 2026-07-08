@@ -12,6 +12,7 @@ import {
   buildIndex,
   collectDescendants,
   findParent,
+  parentIdOf,
   slotKeysOf,
 } from "@duckeditor/spec";
 import { resolveHit, type FiberRegistry } from "../fiber/index.js";
@@ -75,7 +76,9 @@ const dropOverIndicator = (
   const { elementId } = indicator;
   if (hit.elementId === elementId) return true;
   if (collectDescendants(data, elementId).includes(hit.elementId)) return true;
-  return findParent(data, elementId)?.parentId === hit.elementId;
+  return (
+    parentIdOf(findParent(data, elementId) ?? { at: "root" }) === hit.elementId
+  );
 };
 
 // --- Hook ---
@@ -173,10 +176,8 @@ export function useDragReorder({
     return draggable({
       element: sourceEl,
       getInitialData: (): DragData => ({
+        ...parent,
         elementId: lastSelectedId,
-        parentId: parent.parentId,
-        slotKey: parent.slotKey,
-        index: parent.index,
         role: "sibling",
       }),
       onGenerateDragPreview: ({ nativeSetDragImage }) => {
@@ -222,14 +223,7 @@ export function useDragReorder({
       const slots = slotKeysOf(component);
       const isContainer = slots.length > 0;
       const edges =
-        EDGES[
-          resolveSlotAxis(
-            dataRef.current,
-            parent.parentId,
-            parent.slotKey,
-            registry,
-          ) ?? "vertical"
-        ];
+        EDGES[resolveSlotAxis(dataRef.current, parent, registry) ?? "vertical"];
 
       cleanups.push(
         dropTargetForElements({
@@ -238,18 +232,14 @@ export function useDragReorder({
           getData: ({ input, element }) => {
             if (isContainer)
               return {
+                ...parent,
                 elementId: id,
-                parentId: parent.parentId,
-                slotKey: parent.slotKey,
-                index: parent.index,
                 role: "container",
               } satisfies DragData;
             return attachClosestEdge(
               {
+                ...parent,
                 elementId: id,
-                parentId: parent.parentId,
-                slotKey: parent.slotKey,
-                index: parent.index,
                 role: "sibling",
               } satisfies DragData,
               { element, input, allowedEdges: edges },

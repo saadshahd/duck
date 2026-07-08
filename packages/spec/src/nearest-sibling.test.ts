@@ -18,31 +18,34 @@ const oneChild = data([el("parent", [el("a")])]);
 const oneRoot = data([el("a")]);
 
 describe("nearestSibling", () => {
+  const slot = { at: "slot", parentId: "parent", slotKey: "children" } as const;
+  const root = { at: "root" } as const;
+
   it("returns previous sibling when deleting middle child", () => {
-    expect(nearestSibling(abcNested, "parent", "children", "b")).toBe("a");
+    expect(nearestSibling(abcNested, slot, "b")).toBe("a");
   });
 
   it("returns previous sibling when deleting last child", () => {
-    expect(nearestSibling(abcNested, "parent", "children", "c")).toBe("b");
+    expect(nearestSibling(abcNested, slot, "c")).toBe("b");
   });
 
   it("returns next sibling when deleting first child (no previous)", () => {
-    expect(nearestSibling(abcNested, "parent", "children", "a")).toBe("b");
+    expect(nearestSibling(abcNested, slot, "a")).toBe("b");
   });
 
   it("returns parent when deleting only child", () => {
-    expect(nearestSibling(oneChild, "parent", "children", "a")).toBe("parent");
+    expect(nearestSibling(oneChild, slot, "a")).toBe("parent");
   });
 
   it("returns null when deleting sole root-level element", () => {
-    expect(nearestSibling(oneRoot, null, null, "a")).toBeNull();
+    expect(nearestSibling(oneRoot, root, "a")).toBeNull();
   });
 
   it("returns previous sibling at root level", () => {
-    expect(nearestSibling(abc, null, null, "b")).toBe("a");
+    expect(nearestSibling(abc, root, "b")).toBe("a");
   });
 
   it("returns next sibling at root level when first", () => {
-    expect(nearestSibling(abc, null, null, "a")).toBe("b");
+    expect(nearestSibling(abc, root, "a")).toBe("b");
   });
 });

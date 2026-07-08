@@ -7,5 +7,5 @@ export const findParentNode = (
   id: string,
 ): ComponentData | null => {
   const parent = findParent(data, id);
-  return parent?.parentId ? findById(data, parent.parentId) : null;
+  return parent?.at === "slot" ? findById(data, parent.parentId) : null;
 };

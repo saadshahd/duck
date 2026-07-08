@@ -4,7 +4,10 @@ import {
   allowedTypes,
   findById,
   findParent,
+  parentIdOf,
+  sameSite,
   slotKeysOf,
+  type ParentSite,
 } from "@duckeditor/spec";
 import type { FiberRegistry } from "../fiber/index.js";
 import {
@@ -23,27 +26,28 @@ import {
   readData,
   resolveSlotAxis,
   resolveDropIndex,
-  sameSlotAs,
   type DragData,
 } from "./helpers.js";
 
 type TargetBag = { data: Record<string | symbol, unknown> };
 type Point = { x: number; y: number };
 
+/** The slot key of a drag/drop site, or undefined at the root. */
+const slotKeyOf = (site: ParentSite): string | undefined =>
+  site.at === "slot" ? site.slotKey : undefined;
+
 /** Post-removal insert index when the source already lives in the target slot.
  *  Null when the move would be a no-op. */
 const adjustSameSlot = ({
   index,
   source,
-  parentId,
-  slotKey,
+  site,
 }: {
   index: number;
   source: DragData;
-  parentId: string;
-  slotKey: string;
+  site: ParentSite;
 }): number | null => {
-  if (source.parentId !== parentId || source.slotKey !== slotKey) return index;
+  if (!sameSite(source, site)) return index;
   const adjusted = index > source.index ? index - 1 : index;
   return adjusted === source.index ? null : adjusted;
 };
@@ -86,8 +90,7 @@ const containerTarget = ({
   const adjusted = adjustSameSlot({
     index,
     source,
-    parentId: elementId,
-    slotKey,
+    site: { at: "slot", parentId: elementId, slotKey },
   });
   if (adjusted === null) return null;
   return {
@@ -104,9 +107,7 @@ const containerTarget = ({
  *  (container exists but offers nothing valid), or a no-op (the resolved slot is
  *  where the source already sits — nothing to do). */
 type ContainerOutcome =
-  | { tag: "target"; target: DropTarget }
-  | { tag: "none" }
-  | { tag: "noop" };
+  { tag: "target"; target: DropTarget } | { tag: "none" } | { tag: "noop" };
 
 const containerOutcome = (target: DropTarget | null): ContainerOutcome =>
   target ? { tag: "target", target } : { tag: "noop" };
@@ -138,7 +139,11 @@ const resolveContainer = ({
   });
 
   const axisOf = (slotKey: string) =>
-    resolveSlotAxis(data, elementId, slotKey, registry) ?? "vertical";
+    resolveSlotAxis(
+      data,
+      { at: "slot", parentId: elementId, slotKey },
+      registry,
+    ) ?? "vertical";
 
   const appendTo = (slotKey: string): DropTarget | null =>
     containerTarget({
@@ -276,16 +281,10 @@ export function resolveIndicator({
     // Same-parent sibling guard: a container whose slot shares the source's
     // parent/slot resolves to a reorder-beside line, not to its own interiors.
     // Shift-cycle still dives in via the destination stack.
-    if (sameSlotAs(targetData, sourceData)) {
+    if (sameSite(targetData, sourceData)) {
       const rect = registry.get(targetData.elementId)?.getBoundingClientRect();
       if (!rect) return null;
-      const axis =
-        resolveSlotAxis(
-          data,
-          targetData.parentId,
-          targetData.slotKey,
-          registry,
-        ) ?? "vertical";
+      const axis = resolveSlotAxis(data, targetData, registry) ?? "vertical";
       const edge = geometricEdge(rect, point, axis);
       const insertIndex =
         edge === "top" || edge === "left"
@@ -294,13 +293,13 @@ export function resolveIndicator({
       const adjusted = adjustSameSlot({
         index: insertIndex,
         source: sourceData,
-        parentId: targetData.parentId ?? "",
-        slotKey: targetData.slotKey ?? "",
+        site: targetData,
       });
       if (adjusted === null) return null;
-      const lineParentType = targetData.parentId
-        ? findById(data, targetData.parentId)?.type
-        : undefined;
+      const lineParentType =
+        targetData.at === "slot"
+          ? findById(data, targetData.parentId)?.type
+          : undefined;
       return {
         kind: "line",
         elementId: targetData.elementId,
@@ -310,7 +309,7 @@ export function resolveIndicator({
           config,
           sourceType,
           lineParentType,
-          targetData.slotKey,
+          slotKeyOf(targetData),
         ),
       };
     }
@@ -340,7 +339,7 @@ export function resolveIndicator({
   // pointer there reports a sibling. The marker is a hit-target — resolve it
   // before falling back to the sibling line.
   const marker = discreteMarkerOver({
-    parentId: targetData.parentId,
+    parentId: parentIdOf(targetData),
     source: sourceData,
     point,
     previous,
@@ -358,21 +357,20 @@ export function resolveIndicator({
     return marker;
   }
 
-  const axis =
-    resolveSlotAxis(data, targetData.parentId, targetData.slotKey, registry) ??
-    "vertical";
+  const axis = resolveSlotAxis(data, targetData, registry) ?? "vertical";
   const edge = extractClosestEdge(target.data);
   if (!edge) return null;
 
   // Same-slot: hide indicator when drop would be a no-op
-  if (sameSlotAs(targetData, sourceData)) {
+  if (sameSite(targetData, sourceData)) {
     const to = resolveDropIndex(sourceData.index, target, axis);
     if (to === sourceData.index) return null;
   }
 
-  const siblingParentType = targetData.parentId
-    ? findById(data, targetData.parentId)?.type
-    : undefined;
+  const siblingParentType =
+    targetData.at === "slot"
+      ? findById(data, targetData.parentId)?.type
+      : undefined;
   return {
     kind: "line",
     elementId: targetData.elementId,
@@ -382,7 +380,7 @@ export function resolveIndicator({
       config,
       sourceType,
       siblingParentType,
-      targetData.slotKey,
+      slotKeyOf(targetData),
     ),
   };
 }

@@ -1,6 +1,6 @@
 import { useCallback, useRef } from "react";
 import type { ComponentData, Config, Data } from "@puckeditor/core";
-import { buildIndex } from "@duckeditor/spec";
+import { buildIndex, type ParentSite } from "@duckeditor/spec";
 import type { Result } from "neverthrow";
 import { add, type SpecOpsError } from "../spec-ops/index.js";
 import type { EditorEvent } from "../machine/index.js";
@@ -16,11 +16,7 @@ type InsertDeps = {
   commit: EditorCommit;
 };
 
-export type InsertTarget = {
-  parentId: string | null;
-  slotKey: string | null;
-  index?: number;
-};
+export type InsertTarget = ParentSite & { index?: number };
 
 const randomSuffix = (): string => Math.random().toString(36).slice(2, 8);
 
@@ -114,16 +110,7 @@ export function useInsert(deps: InsertDeps): {
         props: { id },
       };
 
-      return add(
-        data,
-        {
-          parentId: target.parentId,
-          slotKey: target.slotKey,
-          component,
-          index: target.index,
-        },
-        config,
-      )
+      return add(data, { site: target, component, index: target.index }, config)
         .map((next) => {
           commit({
             beforeData: data,

@@ -60,14 +60,14 @@ describe("routeInsert", () => {
   test("leaf node with a slot parent → sibling insert after it", () => {
     expect(routeInsert(data(), "h")).toEqual({
       kind: "sibling",
-      target: { parentId: "multi", slotKey: "header", index: 1 },
+      target: { at: "slot", parentId: "multi", slotKey: "header", index: 1 },
     });
   });
 
   test("top-level leaf → sibling insert at root after it", () => {
     expect(routeInsert(data(), "plain")).toEqual({
       kind: "sibling",
-      target: { parentId: null, slotKey: null, index: 2 },
+      target: { at: "root", index: 2 },
     });
   });
 });

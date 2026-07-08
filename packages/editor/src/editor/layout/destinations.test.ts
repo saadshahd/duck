@@ -10,7 +10,11 @@ import {
   type Destination,
   type DropTarget,
 } from "./destinations.js";
+import { parentIdOf, sameSite } from "@duckeditor/spec";
 import { stubRegistry } from "../fiber/testing.js";
+
+const slotKeyOf = (d?: Destination) =>
+  d?.at === "slot" ? d.slotKey : undefined;
 
 const containerTarget = (
   elementId: string,
@@ -73,9 +77,21 @@ describe("destinationStack", () => {
         excludeId: "a",
       }),
     ).toEqual([
-      { parentId: "card", slotKey: "header", index: 1, label: "Card › header" },
-      { parentId: "card", slotKey: "body", index: 1, label: "Card › body" },
-      { parentId: null, slotKey: null, index: 2, label: "Root" },
+      {
+        at: "slot",
+        parentId: "card",
+        slotKey: "header",
+        index: 1,
+        label: "Card › header",
+      },
+      {
+        at: "slot",
+        parentId: "card",
+        slotKey: "body",
+        index: 1,
+        label: "Card › body",
+      },
+      { at: "root", index: 2, label: "Root" },
     ]);
   });
 
@@ -101,9 +117,21 @@ describe("destinationStack", () => {
         excludeId: "x",
       }),
     ).toEqual([
-      { parentId: "inner", slotKey: "body", index: 1, label: "Card › body" },
-      { parentId: "outer", slotKey: "main", index: 1, label: "Card › main" },
-      { parentId: null, slotKey: null, index: 1, label: "Root" },
+      {
+        at: "slot",
+        parentId: "inner",
+        slotKey: "body",
+        index: 1,
+        label: "Card › body",
+      },
+      {
+        at: "slot",
+        parentId: "outer",
+        slotKey: "main",
+        index: 1,
+        label: "Card › main",
+      },
+      { at: "root", index: 1, label: "Root" },
     ]);
   });
 
@@ -129,8 +157,14 @@ describe("destinationStack", () => {
         excludeId: "dragged",
       }),
     ).toEqual([
-      { parentId: "other", slotKey: "slot", index: 0, label: "Card › slot" },
-      { parentId: null, slotKey: null, index: 2, label: "Root" },
+      {
+        at: "slot",
+        parentId: "other",
+        slotKey: "slot",
+        index: 0,
+        label: "Card › slot",
+      },
+      { at: "root", index: 2, label: "Root" },
     ]);
   });
 
@@ -149,9 +183,21 @@ describe("destinationStack", () => {
         excludeId: "h",
       }),
     ).toEqual([
-      { parentId: "card", slotKey: "header", index: 1, label: "Card › header" },
-      { parentId: "card", slotKey: "footer", index: 0, label: "Card › footer" },
-      { parentId: null, slotKey: null, index: 1, label: "Root" },
+      {
+        at: "slot",
+        parentId: "card",
+        slotKey: "header",
+        index: 1,
+        label: "Card › header",
+      },
+      {
+        at: "slot",
+        parentId: "card",
+        slotKey: "footer",
+        index: 0,
+        label: "Card › footer",
+      },
+      { at: "root", index: 1, label: "Root" },
     ]);
   });
 
@@ -196,16 +242,28 @@ describe("destinationStack", () => {
     // inner.body append (0), beside-inner in outer.main (1), outer.main append
     // (1 → identity dup of beside-inner, dropped), beside-outer in root (1)
     expect(stack).toEqual([
-      { parentId: "inner", slotKey: "body", index: 0, label: "Card › body" },
-      { parentId: "outer", slotKey: "main", index: 1, label: "Card › main" },
-      { parentId: null, slotKey: null, index: 1, label: "Root" },
+      {
+        at: "slot",
+        parentId: "inner",
+        slotKey: "body",
+        index: 0,
+        label: "Card › body",
+      },
+      {
+        at: "slot",
+        parentId: "outer",
+        slotKey: "main",
+        index: 1,
+        label: "Card › main",
+      },
+      { at: "root", index: 1, label: "Root" },
     ]);
   });
 
   test("global identity dedup never repeats a (parentId, slotKey) — consecutive or not", () => {
     // inner is at index 0 in outer.body, and outer has a second child at index 1.
-    // beside-inner = { parentId: "outer", slotKey: "body", index: 1, label: "Card › body" }
-    // outer.body slot-append = { parentId: "outer", slotKey: "body", index: 2, label: "Card › body" }
+    // beside-inner = { at: "slot", parentId: "outer", slotKey: "body", index: 1, label: "Card › body" }
+    // outer.body slot-append = { at: "slot", parentId: "outer", slotKey: "body", index: 2, label: "Card › body" }
     // Both share the same (parentId, slotKey) identity — global dedup keeps the
     // first and drops the rest, which trivially implies no consecutive dupes.
     const data: Data = {
@@ -230,10 +288,7 @@ describe("destinationStack", () => {
 
     // No two consecutive entries share the same (parentId, slotKey).
     const consecutiveIdentityDupes = result.filter(
-      (d, i) =>
-        i > 0 &&
-        d.parentId === result[i - 1].parentId &&
-        d.slotKey === result[i - 1].slotKey,
+      (d, i) => i > 0 && sameSite(d, result[i - 1]),
     );
     expect(consecutiveIdentityDupes).toEqual([]);
   });
@@ -266,8 +321,8 @@ describe("destinationStack", () => {
     const bodySlots = result.filter((d) => d.label === "Card › body");
     expect(bodySlots.length).toBe(2);
     // They must target different parentIds.
-    expect(bodySlots[0].parentId).toBe("inner");
-    expect(bodySlots[1].parentId).toBe("outer");
+    expect(parentIdOf(bodySlots[0])).toBe("inner");
+    expect(parentIdOf(bodySlots[1])).toBe("outer");
   });
 
   test("sibling containers' slots are reachable without pointer movement (R9 full reach)", () => {
@@ -296,14 +351,27 @@ describe("destinationStack", () => {
       }),
     ).toEqual([
       {
+        at: "slot",
         parentId: "card1",
         slotKey: "header",
         index: 1,
         label: "Card › header",
       },
-      { parentId: null, slotKey: null, index: 1, label: "Root" },
-      { parentId: "card2", slotKey: "body", index: 0, label: "Card › body" },
-      { parentId: "card3", slotKey: "main", index: 1, label: "Card › main" },
+      { at: "root", index: 1, label: "Root" },
+      {
+        at: "slot",
+        parentId: "card2",
+        slotKey: "body",
+        index: 0,
+        label: "Card › body",
+      },
+      {
+        at: "slot",
+        parentId: "card3",
+        slotKey: "main",
+        index: 1,
+        label: "Card › main",
+      },
     ]);
   });
 
@@ -329,12 +397,13 @@ describe("destinationStack", () => {
       }),
     ).toEqual([
       {
+        at: "slot",
         parentId: "card1",
         slotKey: "header",
         index: 0,
         label: "Card › header",
       },
-      { parentId: null, slotKey: null, index: 1, label: "Root" },
+      { at: "root", index: 1, label: "Root" },
     ]);
   });
 
@@ -367,10 +436,28 @@ describe("destinationStack", () => {
         excludeId: "nope",
       }),
     ).toEqual([
-      { parentId: "inner", slotKey: "body", index: 0, label: "Card › body" },
-      { parentId: "outer", slotKey: "main", index: 1, label: "Card › main" },
-      { parentId: null, slotKey: null, index: 1, label: "Root" },
-      { parentId: "aunt", slotKey: "slot", index: 0, label: "Card › slot" },
+      {
+        at: "slot",
+        parentId: "inner",
+        slotKey: "body",
+        index: 0,
+        label: "Card › body",
+      },
+      {
+        at: "slot",
+        parentId: "outer",
+        slotKey: "main",
+        index: 1,
+        label: "Card › main",
+      },
+      { at: "root", index: 1, label: "Root" },
+      {
+        at: "slot",
+        parentId: "aunt",
+        slotKey: "slot",
+        index: 0,
+        label: "Card › slot",
+      },
     ]);
   });
 
@@ -395,7 +482,7 @@ describe("destinationStack", () => {
     // first.body → Root (beside-first) → second.body (first's sibling). At
     // second's level every entry (second.body, Root, first.body) is already
     // seen by global identity dedup, so the level adds nothing.
-    expect(stack.map((d) => d.parentId)).toEqual(["first", null, "second"]);
+    expect(stack.map((d) => parentIdOf(d))).toEqual(["first", null, "second"]);
   });
 });
 
@@ -435,23 +522,23 @@ describe("aimDestination", () => {
   };
 
   test("pointer over the header band → header (not always stack[0], but stack[0] here)", () => {
-    expect(aimAt(30)?.slotKey).toBe("header");
+    expect(slotKeyOf(aimAt(30))).toBe("header");
   });
 
   test("pointer over the body band → body — the slot the pointer is actually over", () => {
     // Pre-R5 carry resolved stack[0] (header) here. Body must be reachable.
-    expect(aimAt(110)?.slotKey).toBe("body");
+    expect(slotKeyOf(aimAt(110))).toBe("body");
   });
 
   test("pointer over the carved footer band → footer — deepest slot still reachable", () => {
-    expect(aimAt(290)?.slotKey).toBe("footer");
+    expect(slotKeyOf(aimAt(290))).toBe("footer");
   });
 
   test("body insert index is resolved from child geometry, not a blind append", () => {
     const above = aimAt(70); // near top of b1
     const below = aimAt(225); // below b2
-    expect(above?.slotKey).toBe("body");
-    expect(below?.slotKey).toBe("body");
+    expect(slotKeyOf(above)).toBe("body");
+    expect(slotKeyOf(below)).toBe("body");
     expect(below!.index).toBeGreaterThan(above!.index);
   });
 
@@ -466,12 +553,14 @@ describe("aimDestination", () => {
     };
     const registry = stubRegistry({ card: new DOMRect(0, 0, 200, 300) });
     expect(
-      aimDestination({
-        point: { x: 100, y: 164 },
-        data,
-        registry,
-        excludeId: "nope",
-      })?.slotKey,
+      slotKeyOf(
+        aimDestination({
+          point: { x: 100, y: 164 },
+          data,
+          registry,
+          excludeId: "nope",
+        }),
+      ),
     ).toBe("body");
   });
 
@@ -521,21 +610,25 @@ describe("aimDestination", () => {
       f: new DOMRect(25, 300, 40, 40), // mid y = 320
     });
     expect(
-      aimDestination({
-        point: { x: 100, y: 125 },
-        data,
-        registry,
-        excludeId: "nope",
-      })?.slotKey,
+      slotKeyOf(
+        aimDestination({
+          point: { x: 100, y: 125 },
+          data,
+          registry,
+          excludeId: "nope",
+        }),
+      ),
     ).toBe("body");
     // …and the footer marker resolves footer — the deepest scattered slot.
     expect(
-      aimDestination({
-        point: { x: 100, y: 320 },
-        data,
-        registry,
-        excludeId: "nope",
-      })?.slotKey,
+      slotKeyOf(
+        aimDestination({
+          point: { x: 100, y: 320 },
+          data,
+          registry,
+          excludeId: "nope",
+        }),
+      ),
     ).toBe("footer");
   });
 
@@ -558,14 +651,27 @@ describe("aimDestination", () => {
 
 describe("stackIndexOf", () => {
   const stack: Destination[] = [
-    { parentId: "card", slotKey: "header", index: 1, label: "Card › header" },
-    { parentId: "card", slotKey: "body", index: 0, label: "Card › body" },
-    { parentId: null, slotKey: null, index: 2, label: "Root" },
+    {
+      at: "slot",
+      parentId: "card",
+      slotKey: "header",
+      index: 1,
+      label: "Card › header",
+    },
+    {
+      at: "slot",
+      parentId: "card",
+      slotKey: "body",
+      index: 0,
+      label: "Card › body",
+    },
+    { at: "root", index: 2, label: "Root" },
   ];
 
   test("matches on parent/slot, ignoring the precise index", () => {
     expect(
       stackIndexOf(stack, {
+        at: "slot",
         parentId: "card",
         slotKey: "body",
         index: 99,
@@ -577,8 +683,7 @@ describe("stackIndexOf", () => {
   test("matches the root destination (both null)", () => {
     expect(
       stackIndexOf(stack, {
-        parentId: null,
-        slotKey: null,
+        at: "root",
         index: 0,
         label: "Root",
       }),
@@ -588,6 +693,7 @@ describe("stackIndexOf", () => {
   test("no matching slot → -1", () => {
     expect(
       stackIndexOf(stack, {
+        at: "slot",
         parentId: "other",
         slotKey: "x",
         index: 0,

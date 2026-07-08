@@ -21,26 +21,29 @@ const data: Data = {
 };
 
 describe("getChildrenAt", () => {
-  it("returns data.content for top-level (null, null)", () => {
-    const children = getChildrenAt(data, null, null);
+  it("returns data.content for the root site", () => {
+    const children = getChildrenAt(data, { at: "root" });
     expect(children).toBe(data.content);
   });
 
   it("returns slot array for known parent + slot", () => {
-    const children = getChildrenAt(data, "stack", "items")!;
+    const children = getChildrenAt(data, {
+      at: "slot",
+      parentId: "stack",
+      slotKey: "items",
+    })!;
     expect(children.map((c) => c.props.id)).toEqual(["h1", "t1"]);
   });
 
   it("returns null for unknown parentId", () => {
-    expect(getChildrenAt(data, "nope", "items")).toBeNull();
+    expect(
+      getChildrenAt(data, { at: "slot", parentId: "nope", slotKey: "items" }),
+    ).toBeNull();
   });
 
   it("returns null when slotKey is not a slot field", () => {
-    expect(getChildrenAt(data, "stack", "title")).toBeNull();
-  });
-
-  it("returns null when only one of parentId/slotKey is null", () => {
-    expect(getChildrenAt(data, "stack", null)).toBeNull();
-    expect(getChildrenAt(data, null, "items")).toBeNull();
+    expect(
+      getChildrenAt(data, { at: "slot", parentId: "stack", slotKey: "title" }),
+    ).toBeNull();
   });
 });

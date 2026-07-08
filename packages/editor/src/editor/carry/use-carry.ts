@@ -302,18 +302,16 @@ export function useCarry({
       }
       dismissCoachMark();
       setTarget(null);
-      move(beforeData, sourceId, dest.parentId, dest.slotKey, dest.index).map(
-        (next) => {
-          animatedUpdate((d) => {
-            commitRef.current({
-              beforeData,
-              afterData: d,
-              label: "Moved element",
-              resolve: { kind: "move", id: sourceId },
-            });
-          }, next);
-        },
-      );
+      move(beforeData, sourceId, dest, dest.index).map((next) => {
+        animatedUpdate((d) => {
+          commitRef.current({
+            beforeData,
+            afterData: d,
+            label: "Moved element",
+            resolve: { kind: "move", id: sourceId },
+          });
+        }, next);
+      });
       send({ type: "CARRY_COMMIT" });
     };
 

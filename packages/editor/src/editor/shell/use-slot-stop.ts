@@ -13,8 +13,7 @@ export function useSlotAddress(
   return useMemo(() => {
     if (!elementId) return undefined;
     const parent = findParent(data, elementId);
-    if (!parent || parent.parentId === null || parent.slotKey === null)
-      return undefined;
+    if (parent?.at !== "slot") return undefined;
     const parentEl = findById(data, parent.parentId);
     if (!parentEl) return undefined;
     return qualifiedLabel(parentEl.type, parent.slotKey);

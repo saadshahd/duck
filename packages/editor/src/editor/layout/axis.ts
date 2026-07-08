@@ -1,6 +1,6 @@
 import type { Data } from "@puckeditor/core";
 import type { Edge } from "@atlaskit/pragmatic-drag-and-drop-hitbox/closest-edge";
-import { getChildrenAt } from "@duckeditor/spec";
+import { getChildrenAt, type ParentSite } from "@duckeditor/spec";
 import type { FiberRegistry } from "../fiber/index.js";
 
 export type Axis = "vertical" | "horizontal";
@@ -72,20 +72,19 @@ const containerCssAxis = (el: HTMLElement | undefined): Axis | null => {
  *  direction, so its before/after axis follows the container's CSS flow when
  *  that resolves (a block-flow paragraph splits top/bottom even when wider than
  *  tall), falling back to the child's own rect midpoint (`rectAxis`) when the
- *  flow is indeterminate. `parentId === null && slotKey === null` measures the
- *  top-level (`data.content`). */
+ *  flow is indeterminate. The root site measures the top-level (`data.content`). */
 export const resolveSlotAxis = (
   data: Data,
-  parentId: string | null,
-  slotKey: string | null,
+  site: ParentSite,
   registry: FiberRegistry,
 ): Axis | null => {
-  const children = getChildrenAt(data, parentId, slotKey);
+  const children = getChildrenAt(data, site);
   if (!children || !children.length) return null;
   if (children.length === 1) {
     const only = registry.get(children[0].props.id as string);
     if (!only) return null;
-    const container = parentId ? registry.get(parentId) : undefined;
+    const container =
+      site.at === "slot" ? registry.get(site.parentId) : undefined;
     return (
       containerCssAxis(container) ?? rectAxis(only.getBoundingClientRect())
     );

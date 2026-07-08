@@ -63,8 +63,7 @@ describe("paste", () => {
     const subtree = copy(data, "s1")._unsafeUnwrap();
     const { data: next } = paste(
       data,
-      null,
-      null,
+      { at: "root" },
       subtree,
       config,
     )._unsafeUnwrap();
@@ -82,7 +81,7 @@ describe("paste", () => {
     const data = sample();
     const subtree = copy(data, "s1")._unsafeUnwrap();
     const ids = allIds(
-      paste(data, null, null, subtree, config)._unsafeUnwrap().data,
+      paste(data, { at: "root" }, subtree, config)._unsafeUnwrap().data,
     );
     expect(new Set(ids).size).toBe(ids.length);
   });
@@ -94,7 +93,7 @@ describe("paste", () => {
     };
     const subtree = copy(deep, "a")._unsafeUnwrap();
     const ids = allIds(
-      paste(deep, null, null, subtree, config)._unsafeUnwrap().data,
+      paste(deep, { at: "root" }, subtree, config)._unsafeUnwrap().data,
     );
     expect(new Set(ids).size).toBe(ids.length);
     expect(ids.length).toBe(8);
@@ -103,14 +102,20 @@ describe("paste", () => {
   it("does not mutate the original data", () => {
     const original = sample();
     const subtree = copy(original, "s1")._unsafeUnwrap();
-    paste(original, null, null, subtree, config);
+    paste(original, { at: "root" }, subtree, config);
     expect(original.content.length).toBe(1);
   });
 
   it("pastes into a slot at a given index", () => {
     const data = sample();
     const subtree = copy(data, "t1")._unsafeUnwrap();
-    const result = paste(data, "s1", "items", subtree, config, 1);
+    const result = paste(
+      data,
+      { at: "slot", parentId: "s1", slotKey: "items" },
+      subtree,
+      config,
+      1,
+    );
     const items = (
       findById(result._unsafeUnwrap().data, "s1")!.props
         .items as ComponentData[]
@@ -123,7 +128,12 @@ describe("paste", () => {
   it("propagates parent-not-found from add", () => {
     const data = sample();
     const subtree = copy(data, "t1")._unsafeUnwrap();
-    const result = paste(data, "missing", "items", subtree, config);
+    const result = paste(
+      data,
+      { at: "slot", parentId: "missing", slotKey: "items" },
+      subtree,
+      config,
+    );
     expect(result._unsafeUnwrapErr().tag).toBe("parent-not-found");
   });
 });

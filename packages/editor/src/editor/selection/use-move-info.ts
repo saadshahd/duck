@@ -27,12 +27,10 @@ export function useMoveInfo(
     const parent = findParent(data, lastSelectedId);
     if (!parent) return DISABLED;
 
-    const siblings = getChildrenAt(data, parent.parentId, parent.slotKey);
+    const siblings = getChildrenAt(data, parent);
     if (!siblings) return DISABLED;
 
-    const axis =
-      resolveSlotAxis(data, parent.parentId, parent.slotKey, registry) ??
-      "vertical";
+    const axis = resolveSlotAxis(data, parent, registry) ?? "vertical";
     return {
       axis,
       canMovePrev: parent.index > 0,

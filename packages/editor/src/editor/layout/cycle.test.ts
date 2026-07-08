@@ -11,7 +11,10 @@ const dest = (
   slotKey: string | null,
   index: number,
   label: string,
-): Destination => ({ parentId, slotKey, index, label });
+): Destination =>
+  parentId === null || slotKey === null
+    ? { at: "root", index, label }
+    : { at: "slot", parentId, slotKey, index, label };
 
 /** A stack rooted at deepest container "card": two slots, then root. */
 const stack = (): Destination[] => [

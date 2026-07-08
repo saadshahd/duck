@@ -1,6 +1,6 @@
 import type { Data } from "@puckeditor/core";
 import { err, ok, type Result } from "neverthrow";
-import { getChildrenAt } from "@duckeditor/spec";
+import { getChildrenAt, sameSite, type ParentSite } from "@duckeditor/spec";
 import {
   type SpecOpsError,
   cloneAndMutate,
@@ -10,9 +10,8 @@ import {
   writableChildrenAt,
 } from "./helpers.js";
 
-/** Move the subtree at `id` to `(toParentId, toSlotKey, toIndex)`.
+/** Move the subtree at `id` to `dest` at `toIndex`.
  *
- *  - `toParentId === null && toSlotKey === null` targets `data.content`.
  *  - Within-slot move where `toIndex` equals the current index is a no-op:
  *    the original `data` reference is returned (caller can detect with `===`).
  *  - Errors: `element-not-found`, `parent-not-found`, `slot-not-defined`,
@@ -20,34 +19,32 @@ import {
 export const move = (
   data: Data,
   id: string,
-  toParentId: string | null,
-  toSlotKey: string | null,
+  dest: ParentSite,
   toIndex: number,
 ): Result<Data, SpecOpsError> => {
   const source = findParent(data, id);
   if (!source) return err({ tag: "element-not-found", id });
 
-  if (toParentId !== null) {
+  if (dest.at === "slot") {
     const sourceComponent = findById(data, id);
     if (sourceComponent) {
       const descendants = descendantIds(sourceComponent);
-      if (toParentId === id || descendants.has(toParentId))
-        return err({ tag: "circular-move", id, toParentId });
+      if (dest.parentId === id || descendants.has(dest.parentId))
+        return err({ tag: "circular-move", id, toParentId: dest.parentId });
     }
-    if (!findById(data, toParentId))
-      return err({ tag: "parent-not-found", parentId: toParentId });
+    if (!findById(data, dest.parentId))
+      return err({ tag: "parent-not-found", parentId: dest.parentId });
   }
 
-  const target = getChildrenAt(data, toParentId, toSlotKey);
+  const target = getChildrenAt(data, dest);
   if (target === null)
     return err({
       tag: "slot-not-defined",
-      parentId: toParentId ?? "",
-      slotKey: toSlotKey ?? "",
+      parentId: dest.at === "slot" ? dest.parentId : "",
+      slotKey: dest.at === "slot" ? dest.slotKey : "",
     });
 
-  const sameSlot =
-    source.parentId === toParentId && source.slotKey === toSlotKey;
+  const sameSlot = sameSite(source, dest);
 
   // No-op: same slot, same index. Return original reference.
   if (sameSlot && source.index === toIndex) return ok(data);
@@ -64,14 +61,10 @@ export const move = (
 
   return ok(
     cloneAndMutate(data, (draft) => {
-      const fromArr = writableChildrenAt(
-        draft,
-        source.parentId,
-        source.slotKey,
-      );
+      const fromArr = writableChildrenAt(draft, source);
       if (!fromArr) return;
       const [moved] = fromArr.splice(source.index, 1);
-      const toArr = writableChildrenAt(draft, toParentId, toSlotKey);
+      const toArr = writableChildrenAt(draft, dest);
       if (!toArr) return;
       toArr.splice(toIndex, 0, moved);
     }),

@@ -1,4 +1,5 @@
 import type { Data } from "@puckeditor/core";
+import { parentIdOf } from "@duckeditor/spec";
 import type { FiberRegistry } from "../fiber/index.js";
 import { buildTiling } from "./tiling.js";
 import {
@@ -42,7 +43,7 @@ const IDLE: CycleState = { active: false, index: 0, anchorId: "" };
 /** The deepest container under the pointer for the current stack: the parent of
  *  the first (deepest-slot) destination. Empty when the stack is empty. */
 const deepestId = (stack: readonly Destination[]): string =>
-  stack[0]?.parentId ?? "";
+  parentIdOf(stack[0] ?? { at: "root" }) ?? "";
 
 export const Cycle = {
   idle: IDLE,
@@ -133,7 +134,7 @@ export const Cycle = {
     data: Data,
     registry: FiberRegistry,
   ): DropTarget => {
-    if (destination.parentId === null || destination.slotKey === null)
+    if (destination.at !== "slot")
       return {
         kind: "root",
         index: destination.index,

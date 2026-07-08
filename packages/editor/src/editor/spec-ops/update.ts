@@ -39,11 +39,7 @@ export const update = (
   return ok(
     cloneAndMutate(data, (draft) => {
       if (location === null) return;
-      const siblings = writableChildrenAt(
-        draft,
-        location.parentId,
-        location.slotKey,
-      );
+      const siblings = writableChildrenAt(draft, location);
       if (!siblings) return;
       const target = siblings[location.index];
       target.props = nextProps;

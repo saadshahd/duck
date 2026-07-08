@@ -20,11 +20,7 @@ export const replace = (
 
   return ok(
     cloneAndMutate(data, (draft) => {
-      const siblings = writableChildrenAt(
-        draft,
-        location.parentId,
-        location.slotKey,
-      );
+      const siblings = writableChildrenAt(draft, location);
       if (!siblings) return;
       siblings[location.index] = replacement;
     }),

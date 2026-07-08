@@ -30,8 +30,8 @@ describe("buildIndex", () => {
   it("includes path for nested components", () => {
     const idx = buildIndex(data);
     expect(idx.get("h1")?.path).toEqual([
-      { parentId: null, slotKey: null, index: 0 },
-      { parentId: "stack", slotKey: "items", index: 0 },
+      { at: "root", index: 0 },
+      { at: "slot", parentId: "stack", slotKey: "items", index: 0 },
     ]);
   });
 

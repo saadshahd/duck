@@ -11,7 +11,7 @@ function* walkComponent(component: ComponentData, path: Path): Iterable<Visit> {
     for (let index = 0; index < children.length; index++) {
       yield* walkComponent(children[index], [
         ...path,
-        { parentId: component.props.id as string, slotKey, index },
+        { at: "slot", parentId: component.props.id as string, slotKey, index },
       ]);
     }
   }
@@ -20,8 +20,6 @@ function* walkComponent(component: ComponentData, path: Path): Iterable<Visit> {
 /** Pre-order traversal (parents before children). Yields each component with its path. */
 export function* preOrder(data: Data): Iterable<Visit> {
   for (let index = 0; index < data.content.length; index++) {
-    yield* walkComponent(data.content[index], [
-      { parentId: null, slotKey: null, index },
-    ]);
+    yield* walkComponent(data.content[index], [{ at: "root", index }]);
   }
 }

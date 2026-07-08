@@ -1,11 +1,11 @@
 import type { Data } from "@puckeditor/core";
 import type { Result } from "neverthrow";
 import { getReorderDestinationIndex } from "@atlaskit/pragmatic-drag-and-drop-hitbox/util/get-reorder-destination-index";
-import { findParent } from "@duckeditor/spec";
+import { findParent, sameSite, parentIdOf } from "@duckeditor/spec";
 import { move, type SpecOpsError } from "../spec-ops/index.js";
 import type { EditorEvent } from "../machine/index.js";
 import type { DropTarget } from "../layout/index.js";
-import { readData, resolveInsertIndex, sameSlotAs } from "./helpers.js";
+import { readData, resolveInsertIndex } from "./helpers.js";
 
 type TargetBag = { data: Record<string | symbol, unknown> };
 
@@ -66,7 +66,7 @@ export function resolveDrop({
     if (!parent) return null;
     // Same-slot reorder must account for the source's removal, or a forward
     // move lands one position too far. Cross-slot inserts have no such shift.
-    const insertIndex = sameSlotAs(parent, sourceData)
+    const insertIndex = sameSite(parent, sourceData)
       ? getReorderDestinationIndex({
           startIndex: sourceData.index,
           indexOfTarget: parent.index,
@@ -75,17 +75,11 @@ export function resolveDrop({
         })
       : resolveInsertIndex(parent.index, indicator.edge);
     return {
-      newData: move(
-        data,
-        sourceData.elementId,
-        parent.parentId,
-        parent.slotKey,
-        insertIndex,
-      ),
+      newData: move(data, sourceData.elementId, parent, insertIndex),
       event: {
         type: "DROP",
-        sourceParentId: sourceData.parentId,
-        targetParentId: parent.parentId,
+        sourceParentId: parentIdOf(sourceData),
+        targetParentId: parentIdOf(parent),
         fromIndex: sourceData.index,
         toIndex: insertIndex,
       },
@@ -95,10 +89,15 @@ export function resolveDrop({
   // Cycle-selected root content — commit the destination index verbatim.
   if (indicator.kind === "root") {
     return {
-      newData: move(data, sourceData.elementId, null, null, indicator.index),
+      newData: move(
+        data,
+        sourceData.elementId,
+        { at: "root" },
+        indicator.index,
+      ),
       event: {
         type: "DROP",
-        sourceParentId: sourceData.parentId,
+        sourceParentId: parentIdOf(sourceData),
         targetParentId: null,
         fromIndex: sourceData.index,
         toIndex: indicator.index,
@@ -112,13 +111,12 @@ export function resolveDrop({
     newData: move(
       data,
       sourceData.elementId,
-      indicator.elementId,
-      indicator.slotKey,
+      { at: "slot", parentId: indicator.elementId, slotKey: indicator.slotKey },
       indicator.index,
     ),
     event: {
       type: "DROP",
-      sourceParentId: sourceData.parentId,
+      sourceParentId: parentIdOf(sourceData),
       targetParentId: indicator.elementId,
       fromIndex: sourceData.index,
       toIndex: indicator.index,

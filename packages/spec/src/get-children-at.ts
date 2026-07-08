@@ -1,18 +1,17 @@
 import type { ComponentData, Data } from "@puckeditor/core";
+import type { ParentSite } from "./path.js";
 import { findById } from "./find-by-id.js";
 import { slotKeysOf } from "./slot-keys-of.js";
 
-/** Children at a slot location. Top-level is `(null, null)` → `data.content`.
- *  Returns null when parentId is unknown, or parentId is given but slotKey isn't a slot field. */
+/** Children at a site. Root → `data.content`.
+ *  Returns null when the parent is unknown, or the slot isn't a slot field. */
 export const getChildrenAt = (
   data: Data,
-  parentId: string | null,
-  slotKey: string | null,
+  site: ParentSite,
 ): readonly ComponentData[] | null => {
-  if (parentId === null && slotKey === null) return data.content;
-  if (parentId === null || slotKey === null) return null;
-  const parent = findById(data, parentId);
+  if (site.at === "root") return data.content;
+  const parent = findById(data, site.parentId);
   if (parent === null) return null;
-  if (!slotKeysOf(parent).includes(slotKey)) return null;
-  return parent.props[slotKey] as ComponentData[];
+  if (!slotKeysOf(parent).includes(site.slotKey)) return null;
+  return parent.props[site.slotKey] as ComponentData[];
 };

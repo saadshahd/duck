@@ -1,6 +1,7 @@
-export type { Path, PathStep } from "./path.js";
+export type { Path, PathStep, ParentSite } from "./path.js";
+export { sameSite, parentIdOf } from "./path.js";
 export { findById } from "./find-by-id.js";
-export { findParent, type ParentInfo } from "./find-parent.js";
+export { findParent } from "./find-parent.js";
 export { findParentNode } from "./find-parent-node.js";
 export { replaceById } from "./replace-by-id.js";
 export { buildIndex } from "./build-index.js";

@@ -4,6 +4,7 @@ import {
   findParent,
   getChildrenAt,
   slotKeysOf,
+  type ParentSite,
 } from "@duckeditor/spec";
 import { err, ok, type Result } from "neverthrow";
 
@@ -88,18 +89,16 @@ export const cloneAndMutate = (
   return next;
 };
 
-/** Resolve a writable children array on a draft for `(parentId, slotKey)`.
+/** Resolve a writable children array on a draft for `site`.
  *  Returns null if the parent or slot doesn't exist on the draft. */
 export const writableChildrenAt = (
   draft: Data,
-  parentId: string | null,
-  slotKey: string | null,
+  site: ParentSite,
 ): ComponentData[] | null => {
-  if (parentId === null && slotKey === null) return draft.content;
-  if (parentId === null || slotKey === null) return null;
-  const parent = findById(draft, parentId);
+  if (site.at === "root") return draft.content;
+  const parent = findById(draft, site.parentId);
   if (!parent) return null;
-  const slotValue = parent.props[slotKey];
+  const slotValue = parent.props[site.slotKey];
   return Array.isArray(slotValue) ? (slotValue as ComponentData[]) : null;
 };
 

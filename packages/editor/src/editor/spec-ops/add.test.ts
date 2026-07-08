@@ -48,7 +48,7 @@ describe("add — top-level (parentId=null, slotKey=null)", () => {
   it("appends to data.content when index undefined", () => {
     const result = add(
       empty(),
-      { parentId: null, slotKey: null, component: text("new") },
+      { site: { at: "root" }, component: text("new") },
       config,
     );
     expect(result.isOk()).toBe(true);
@@ -60,7 +60,7 @@ describe("add — top-level (parentId=null, slotKey=null)", () => {
   it("inserts at index 0", () => {
     const result = add(
       sample(),
-      { parentId: null, slotKey: null, component: text("first"), index: 0 },
+      { site: { at: "root" }, component: text("first"), index: 0 },
       config,
     );
     const ids = result._unsafeUnwrap().content.map((c) => c.props.id);
@@ -70,7 +70,7 @@ describe("add — top-level (parentId=null, slotKey=null)", () => {
   it("rejects index > length", () => {
     const result = add(
       sample(),
-      { parentId: null, slotKey: null, component: text("x"), index: 99 },
+      { site: { at: "root" }, component: text("x"), index: 99 },
       config,
     );
     expect(result.isErr()).toBe(true);
@@ -82,7 +82,10 @@ describe("add — into a slot", () => {
   it("appends to a slot when index undefined", () => {
     const result = add(
       sample(),
-      { parentId: "s1", slotKey: "items", component: text("t3") },
+      {
+        site: { at: "slot", parentId: "s1", slotKey: "items" },
+        component: text("t3"),
+      },
       config,
     );
     expect(result.isOk()).toBe(true);
@@ -97,8 +100,7 @@ describe("add — into a slot", () => {
     const result = add(
       sample(),
       {
-        parentId: "s1",
-        slotKey: "items",
+        site: { at: "slot", parentId: "s1", slotKey: "items" },
         component: text("middle"),
         index: 1,
       },
@@ -116,8 +118,7 @@ describe("add — defaults and id generation", () => {
     const result = add(
       empty(),
       {
-        parentId: null,
-        slotKey: null,
+        site: { at: "root" },
         component: {
           type: "Button",
           props: { id: "b1", label: "Submit" },
@@ -137,8 +138,7 @@ describe("add — defaults and id generation", () => {
     const result = add(
       empty(),
       {
-        parentId: null,
-        slotKey: null,
+        site: { at: "root" },
         component: { type: "Stack", props: { id: "s9" } } as ComponentData,
       },
       config,
@@ -151,8 +151,7 @@ describe("add — defaults and id generation", () => {
     const result = add(
       empty(),
       {
-        parentId: null,
-        slotKey: null,
+        site: { at: "root" },
         component: {
           type: "Text",
           props: { text: "hi" },
@@ -168,8 +167,7 @@ describe("add — defaults and id generation", () => {
     const result = add(
       empty(),
       {
-        parentId: null,
-        slotKey: null,
+        site: { at: "root" },
         component: text("custom-id"),
       },
       config,
@@ -219,8 +217,7 @@ describe("add — slot allow/disallow enforcement", () => {
     const result = add(
       withCard(),
       {
-        parentId: "c1",
-        slotKey: "header",
+        site: { at: "slot", parentId: "c1", slotKey: "header" },
         component: { type: "Grid", props: { id: "g1" } } as ComponentData,
       },
       constrainedConfig,
@@ -238,8 +235,7 @@ describe("add — slot allow/disallow enforcement", () => {
     const result = add(
       withCard(),
       {
-        parentId: "c1",
-        slotKey: "header",
+        site: { at: "slot", parentId: "c1", slotKey: "header" },
         component: { type: "Heading", props: { id: "h1" } } as ComponentData,
       },
       constrainedConfig,
@@ -251,8 +247,7 @@ describe("add — slot allow/disallow enforcement", () => {
     const result = add(
       withCard(),
       {
-        parentId: "c1",
-        slotKey: "body",
+        site: { at: "slot", parentId: "c1", slotKey: "body" },
         component: { type: "Grid", props: { id: "g1" } } as ComponentData,
       },
       constrainedConfig,
@@ -264,8 +259,7 @@ describe("add — slot allow/disallow enforcement", () => {
     const result = add(
       withCard(),
       {
-        parentId: null,
-        slotKey: null,
+        site: { at: "root" },
         component: { type: "Grid", props: { id: "g1" } } as ComponentData,
       },
       constrainedConfig,
@@ -278,7 +272,10 @@ describe("add — errors", () => {
   it("parent-not-found when parentId missing", () => {
     const result = add(
       sample(),
-      { parentId: "zzz", slotKey: "items", component: text("x") },
+      {
+        site: { at: "slot", parentId: "zzz", slotKey: "items" },
+        component: text("x"),
+      },
       config,
     );
     expect(result.isErr()).toBe(true);
@@ -288,7 +285,10 @@ describe("add — errors", () => {
   it("slot-not-defined when slot is not an array on the parent", () => {
     const result = add(
       sample(),
-      { parentId: "t1", slotKey: "text", component: text("x") },
+      {
+        site: { at: "slot", parentId: "t1", slotKey: "text" },
+        component: text("x"),
+      },
       config,
     );
     expect(result.isErr()).toBe(true);
@@ -298,7 +298,11 @@ describe("add — errors", () => {
   it("index-out-of-bounds (negative)", () => {
     const result = add(
       sample(),
-      { parentId: "s1", slotKey: "items", component: text("x"), index: -1 },
+      {
+        site: { at: "slot", parentId: "s1", slotKey: "items" },
+        component: text("x"),
+        index: -1,
+      },
       config,
     );
     expect(result._unsafeUnwrapErr().tag).toBe("index-out-of-bounds");
@@ -350,8 +354,7 @@ describe("add — slot template re-minting", () => {
     const result = add(
       empty(),
       {
-        parentId: null,
-        slotKey: null,
+        site: { at: "root" },
         component: { type: "Container", props: {} } as unknown as ComponentData,
       },
       templateConfig,
@@ -365,8 +368,7 @@ describe("add — slot template re-minting", () => {
     const first = add(
       empty(),
       {
-        parentId: null,
-        slotKey: null,
+        site: { at: "root" },
         component: { type: "Container", props: {} } as unknown as ComponentData,
       },
       templateConfig,
@@ -374,8 +376,7 @@ describe("add — slot template re-minting", () => {
     const second = add(
       first,
       {
-        parentId: null,
-        slotKey: null,
+        site: { at: "root" },
         component: { type: "Container", props: {} } as unknown as ComponentData,
       },
       templateConfig,
@@ -393,8 +394,7 @@ describe("add — slot template re-minting", () => {
     const result = add(
       empty(),
       {
-        parentId: null,
-        slotKey: null,
+        site: { at: "root" },
         component: { type: "Grid", props: {} } as unknown as ComponentData,
       },
       deepConfig,
@@ -413,7 +413,10 @@ describe("add — immutability", () => {
     const snapshot = JSON.stringify(original);
     add(
       original,
-      { parentId: "s1", slotKey: "items", component: text("t3") },
+      {
+        site: { at: "slot", parentId: "s1", slotKey: "items" },
+        component: text("t3"),
+      },
       config,
     );
     expect(JSON.stringify(original)).toBe(snapshot);
@@ -423,7 +426,10 @@ describe("add — immutability", () => {
     const original = sample();
     const result = add(
       original,
-      { parentId: "s1", slotKey: "items", component: text("t3") },
+      {
+        site: { at: "slot", parentId: "s1", slotKey: "items" },
+        component: text("t3"),
+      },
       config,
     );
     expect(result._unsafeUnwrap()).not.toBe(original);

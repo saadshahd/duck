@@ -85,13 +85,14 @@ export function SlotOutline({
       ? (config.components[srcNode.type]?.label ?? srcNode.type)
       : srcId;
 
-    move(data, srcId, parentId, label, destIndex).map((next) =>
-      commit({
-        beforeData: data,
-        afterData: next,
-        label: `Moved ${srcLabel}`,
-        resolve: { kind: "update", id: parentId },
-      }),
+    move(data, srcId, { at: "slot", parentId, slotKey: label }, destIndex).map(
+      (next) =>
+        commit({
+          beforeData: data,
+          afterData: next,
+          label: `Moved ${srcLabel}`,
+          resolve: { kind: "update", id: parentId },
+        }),
     );
     setDragOverIndex(undefined);
   };
@@ -108,7 +109,11 @@ export function SlotOutline({
       type: componentType,
       props: { id: newId },
     };
-    add(data, { parentId, slotKey: label, component }, config).map((next) =>
+    add(
+      data,
+      { site: { at: "slot", parentId, slotKey: label }, component },
+      config,
+    ).map((next) =>
       commit({
         beforeData: data,
         afterData: next,
@@ -154,7 +159,12 @@ export function SlotOutline({
             const srcLabel = srcNode
               ? (config.components[srcNode.type]?.label ?? srcNode.type)
               : crossDrag.srcId;
-            move(data, crossDrag.srcId, parentId, label, 0).map((next) =>
+            move(
+              data,
+              crossDrag.srcId,
+              { at: "slot", parentId, slotKey: label },
+              0,
+            ).map((next) =>
               commit({
                 beforeData: data,
                 afterData: next,

@@ -1,6 +1,6 @@
 import type { Config, ComponentData, Data } from "@puckeditor/core";
 import { err, ok, type Result } from "neverthrow";
-import { slotKeysOf } from "@duckeditor/spec";
+import { slotKeysOf, type ParentSite } from "@duckeditor/spec";
 import { add } from "./add.js";
 import { type SpecOpsError, cloneData, findById } from "./helpers.js";
 
@@ -48,13 +48,12 @@ export const copy = (
   return ok(cloneData(found));
 };
 
-/** Insert `component` (and its full subtree) at `(parentId, slotKey)` after
- *  regenerating every id to avoid collisions. Index defaults to append.
+/** Insert `component` (and its full subtree) at `site` after regenerating every
+ *  id to avoid collisions. Index defaults to append.
  *  Returns the updated data and the id of the inserted top-level component. */
 export const paste = (
   data: Data,
-  parentId: string | null,
-  slotKey: string | null,
+  site: ParentSite,
   component: ComponentData,
   config: Config,
   index?: number,
@@ -62,9 +61,8 @@ export const paste = (
   const cloned = cloneData(component);
   regenerateIds(cloned, collectIds(data));
   const id = cloned.props.id as string;
-  return add(
+  return add(data, { site, component: cloned, index }, config).map((data) => ({
     data,
-    { parentId, slotKey, component: cloned, index },
-    config,
-  ).map((data) => ({ data, id }));
+    id,
+  }));
 };

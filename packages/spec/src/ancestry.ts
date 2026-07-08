@@ -22,8 +22,8 @@ export const buildParentMap = (data: Data): ParentMap => {
     const last = path[path.length - 1];
     map.set(component.props.id as string, {
       id: component.props.id as string,
-      parentId: last.parentId,
-      slotKey: last.slotKey,
+      parentId: last.at === "slot" ? last.parentId : null,
+      slotKey: last.at === "slot" ? last.slotKey : null,
       index: last.index,
     });
   }

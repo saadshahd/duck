@@ -15,6 +15,7 @@ import {
   findById,
   getChildrenAt,
   normalizeData,
+  type ParentSite,
   type PatternConfig,
 } from "@duckeditor/spec";
 import { useMachine } from "@xstate/react";
@@ -426,14 +427,9 @@ function EditorSurface<UserConfig extends Config = Config>({
 
   const slotInsertTarget = useMemo((): InsertTarget | null => {
     if (!selectedSlot) return null;
-    const children =
-      getChildrenAt(currentData, selectedSlot.parentId, selectedSlot.slotKey) ??
-      [];
-    return {
-      parentId: selectedSlot.parentId,
-      slotKey: selectedSlot.slotKey,
-      index: children.length,
-    };
+    const site: ParentSite = { at: "slot", ...selectedSlot };
+    const children = getChildrenAt(currentData, site) ?? [];
+    return { ...site, index: children.length };
   }, [selectedSlot, currentData]);
 
   const slotPickerAllowedTypes = useMemo(

@@ -24,23 +24,16 @@ const data: Data = {
 
 describe("findParent", () => {
   it("returns top-level position for first content entry", () => {
-    expect(findParent(data, "stack")).toEqual({
-      parentId: null,
-      slotKey: null,
-      index: 0,
-    });
+    expect(findParent(data, "stack")).toEqual({ at: "root", index: 0 });
   });
 
   it("returns top-level position for second content entry", () => {
-    expect(findParent(data, "footer")).toEqual({
-      parentId: null,
-      slotKey: null,
-      index: 1,
-    });
+    expect(findParent(data, "footer")).toEqual({ at: "root", index: 1 });
   });
 
   it("returns parent + slot + index for nested child", () => {
     expect(findParent(data, "heading")).toEqual({
+      at: "slot",
       parentId: "stack",
       slotKey: "items",
       index: 0,
@@ -49,6 +42,7 @@ describe("findParent", () => {
 
   it("returns parent for sibling at later index", () => {
     expect(findParent(data, "card")).toEqual({
+      at: "slot",
       parentId: "stack",
       slotKey: "items",
       index: 1,
@@ -57,6 +51,7 @@ describe("findParent", () => {
 
   it("returns parent for deeply nested child", () => {
     expect(findParent(data, "body")).toEqual({
+      at: "slot",
       parentId: "card",
       slotKey: "body",
       index: 0,

@@ -1,6 +1,6 @@
 import { useCallback } from "react";
 import type { Data } from "@puckeditor/core";
-import { findParent } from "@duckeditor/spec";
+import { findParent, sameSite } from "@duckeditor/spec";
 import {
   emitsResolveOps,
   type DataCommit,
@@ -23,7 +23,7 @@ const parentScopeChanged = ({
   const before = findParent(beforeData, id);
   const after = findParent(afterData, id);
   if (!before || !after) return false;
-  return before.parentId !== after.parentId || before.slotKey !== after.slotKey;
+  return !sameSite(before, after);
 };
 
 export const resolvePlanToOp = ({
@@ -83,7 +83,4 @@ export const useEditorCommit = ({
   push: DataPush;
   emitOp: ResolveOpEmit;
 }): EditorCommit =>
-  useCallback(
-    (commit) => commitData({ commit, push, emitOp }),
-    [push, emitOp],
-  );
+  useCallback((commit) => commitData({ commit, push, emitOp }), [push, emitOp]);

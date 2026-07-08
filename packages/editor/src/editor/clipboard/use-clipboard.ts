@@ -1,6 +1,10 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { ComponentData, Config, Data } from "@puckeditor/core";
-import { collectDescendants, findParent } from "@duckeditor/spec";
+import {
+  collectDescendants,
+  findParent,
+  type ParentSite,
+} from "@duckeditor/spec";
 import { copy, paste, remove, type SpecOpsError } from "../spec-ops/index.js";
 import { type ClipboardActions, type EditorCommit } from "../types.js";
 import { Fragment } from "./fragment.js";
@@ -36,13 +40,9 @@ const readSystem = (): Promise<SystemRead> =>
 const pastePosition = (
   data: Data,
   selectedId: string | null,
-): {
-  parentId: string | null;
-  slotKey: string | null;
-  index: number;
-} | null => {
+): (ParentSite & { index: number }) | null => {
   if (!selectedId) {
-    return { parentId: null, slotKey: null, index: data.content.length };
+    return { at: "root", index: data.content.length };
   }
   const parent = findParent(data, selectedId);
   if (!parent) return null;
@@ -137,14 +137,7 @@ export function useClipboard(
       return;
     }
 
-    paste(
-      data,
-      position.parentId,
-      position.slotKey,
-      component,
-      config,
-      position.index,
-    ).match(
+    paste(data, position, component, config, position.index).match(
       ({ data: next, id }) => {
         commit({
           beforeData: data,
@@ -170,14 +163,7 @@ export function useClipboard(
     if (!parent) return;
     copy(data, lastSelectedId)
       .andThen((component) =>
-        paste(
-          data,
-          parent.parentId,
-          parent.slotKey,
-          component,
-          config,
-          parent.index + 1,
-        ),
+        paste(data, parent, component, config, parent.index + 1),
       )
       .map(({ data: next, id }) => {
         commit({

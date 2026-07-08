@@ -30,15 +30,15 @@ describe("preOrder", () => {
 
   it("yields top-level path with null parent and null slot", () => {
     const first = [...preOrder(data)][0];
-    expect(first.path).toEqual([{ parentId: null, slotKey: null, index: 0 }]);
+    expect(first.path).toEqual([{ at: "root", index: 0 }]);
   });
 
   it("yields nested path with parentId and slotKey", () => {
     const visits = [...preOrder(data)];
     const heading = visits.find((v) => v.component.props.id === "heading")!;
     expect(heading.path).toEqual([
-      { parentId: null, slotKey: null, index: 0 },
-      { parentId: "stack", slotKey: "items", index: 0 },
+      { at: "root", index: 0 },
+      { at: "slot", parentId: "stack", slotKey: "items", index: 0 },
     ]);
   });
 
@@ -46,9 +46,9 @@ describe("preOrder", () => {
     const visits = [...preOrder(data)];
     const body = visits.find((v) => v.component.props.id === "body")!;
     expect(body.path).toEqual([
-      { parentId: null, slotKey: null, index: 0 },
-      { parentId: "stack", slotKey: "items", index: 1 },
-      { parentId: "card", slotKey: "body", index: 0 },
+      { at: "root", index: 0 },
+      { at: "slot", parentId: "stack", slotKey: "items", index: 1 },
+      { at: "slot", parentId: "card", slotKey: "body", index: 0 },
     ]);
   });
 

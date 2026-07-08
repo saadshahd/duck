@@ -55,22 +55,21 @@ describe("findById", () => {
 describe("findParent", () => {
   it("returns top-level location for root entry", () => {
     expect(findParent(sample(), "s1")).toEqual({
-      parentId: null,
-      slotKey: null,
+      at: "root",
       index: 0,
     });
   });
 
   it("returns top-level location for second root entry", () => {
     expect(findParent(sample(), "s2")).toEqual({
-      parentId: null,
-      slotKey: null,
+      at: "root",
       index: 1,
     });
   });
 
   it("returns parent + slot for nested component", () => {
     expect(findParent(sample(), "t2")).toEqual({
+      at: "slot",
       parentId: "s1",
       slotKey: "items",
       index: 1,
@@ -105,34 +104,45 @@ describe("allIds", () => {
 });
 
 describe("getChildrenAt", () => {
-  it("returns top-level content for null/null", () => {
+  it("returns top-level content for the root site", () => {
     const data = sample();
-    expect(getChildrenAt(data, null, null)).toBe(data.content);
+    expect(getChildrenAt(data, { at: "root" })).toBe(data.content);
   });
 
-  it("returns the slot array for parentId+slotKey", () => {
-    const arr = getChildrenAt(sample(), "s1", "items");
+  it("returns the slot array for a slot site", () => {
+    const arr = getChildrenAt(sample(), {
+      at: "slot",
+      parentId: "s1",
+      slotKey: "items",
+    });
     expect(arr?.map((c) => c.props.id)).toEqual(["t1", "t2"]);
   });
 
   it("returns null when parent missing", () => {
-    expect(getChildrenAt(sample(), "zzz", "items")).toBeNull();
+    expect(
+      getChildrenAt(sample(), {
+        at: "slot",
+        parentId: "zzz",
+        slotKey: "items",
+      }),
+    ).toBeNull();
   });
 
   it("returns null when slot is not an array", () => {
-    expect(getChildrenAt(sample(), "t1", "text")).toBeNull();
-  });
-
-  it("returns null when only one of parentId/slotKey is null", () => {
-    expect(getChildrenAt(sample(), "s1", null)).toBeNull();
-    expect(getChildrenAt(sample(), null, "items")).toBeNull();
+    expect(
+      getChildrenAt(sample(), { at: "slot", parentId: "t1", slotKey: "text" }),
+    ).toBeNull();
   });
 });
 
 describe("writableChildrenAt", () => {
   it("returns a mutable reference into the draft", () => {
     const draft = cloneData(sample());
-    const arr = writableChildrenAt(draft, "s1", "items");
+    const arr = writableChildrenAt(draft, {
+      at: "slot",
+      parentId: "s1",
+      slotKey: "items",
+    });
     expect(arr).not.toBeNull();
     arr!.push(text("new"));
     expect(findById(draft, "new")?.props.id).toBe("new");
@@ -140,12 +150,18 @@ describe("writableChildrenAt", () => {
 
   it("returns top-level content for null/null", () => {
     const draft = cloneData(sample());
-    const arr = writableChildrenAt(draft, null, null);
+    const arr = writableChildrenAt(draft, { at: "root" });
     expect(arr).toBe(draft.content);
   });
 
   it("returns null for missing parent", () => {
-    expect(writableChildrenAt(cloneData(sample()), "zzz", "items")).toBeNull();
+    expect(
+      writableChildrenAt(cloneData(sample()), {
+        at: "slot",
+        parentId: "zzz",
+        slotKey: "items",
+      }),
+    ).toBeNull();
   });
 });
 

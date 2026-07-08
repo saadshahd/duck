@@ -3,16 +3,16 @@ import {
   type Edge,
 } from "@atlaskit/pragmatic-drag-and-drop-hitbox/closest-edge";
 import { getReorderDestinationIndex } from "@atlaskit/pragmatic-drag-and-drop-hitbox/util/get-reorder-destination-index";
+import type { ParentSite } from "@duckeditor/spec";
 import type { FiberRegistry } from "../fiber/index.js";
 import type { Axis } from "../layout/index.js";
 
 // --- Drag data bag ---
 
-/** Typed shape stored in pragmatic-dnd's untyped userData bag. */
-export type DragData = {
+/** Typed shape stored in pragmatic-dnd's untyped userData bag. The dragged
+ *  element's own site (root or slot), plus its index and role. */
+export type DragData = ParentSite & {
   elementId: string;
-  parentId: string | null;
-  slotKey: string | null;
   index: number;
   role: "sibling" | "container";
 };
@@ -20,15 +20,6 @@ export type DragData = {
 /** Single boundary cast — all downstream code is type-safe. */
 export const readData = (bag: Record<string | symbol, unknown>) =>
   bag as DragData;
-
-/** A slot location: parent element and slot key (both null at root content). */
-type SlotLocation = { parentId: string | null; slotKey: string | null };
-
-/** Whether two elements live in the same slot — same parent, same slot key.
- *  The one law for "same slot": guard suppression and drop-index adjustment
- *  must agree, so both read it from here. */
-export const sameSlotAs = (a: SlotLocation, b: SlotLocation): boolean =>
-  a.parentId === b.parentId && a.slotKey === b.slotKey;
 
 // --- Axis & edges ---
 

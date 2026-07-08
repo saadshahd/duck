@@ -39,11 +39,7 @@ export const routeInsert = (
   if (!parent) return { kind: "root" };
   return {
     kind: "sibling",
-    target: {
-      parentId: parent.parentId,
-      slotKey: parent.slotKey,
-      index: parent.index + 1,
-    },
+    target: { ...parent, index: parent.index + 1 },
   };
 };
 
@@ -51,7 +47,7 @@ export const routeInsert = (
  *  append or the resolved next-sibling target. Total over `DirectRoute` — there
  *  is no impossible case to silently misdirect. */
 export const directTarget = (route: DirectRoute): InsertTarget =>
-  route.kind === "sibling" ? route.target : { parentId: null, slotKey: null };
+  route.kind === "sibling" ? route.target : { at: "root" };
 
 /** The set of component types permitted at `target`, read off the Puck-native
  *  `SlotField.allow`/`disallow` via the shared `allowedTypes` predicate.
@@ -62,7 +58,7 @@ export const allowedTypesForTarget = (
   config: Config,
   target: InsertTarget,
 ): ReadonlySet<string> | undefined => {
-  if (!target.parentId || !target.slotKey) return undefined;
+  if (target.at !== "slot") return undefined;
   const parentType = findById(data, target.parentId)?.type;
   return parentType
     ? allowedTypes(config, parentType, target.slotKey)

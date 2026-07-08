@@ -41,7 +41,7 @@ export const slotChildAt = (args: {
   point: { x: number; y: number };
 }): string | undefined => {
   const { data, parentId, slotKey, registry, point } = args;
-  const children = getChildrenAt(data, parentId, slotKey) ?? [];
+  const children = getChildrenAt(data, { at: "slot", parentId, slotKey }) ?? [];
   return children
     .map((child) => child.props.id as string)
     .find((id) => {
