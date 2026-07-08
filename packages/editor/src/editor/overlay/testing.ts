@@ -1,5 +1,15 @@
 import type { Page, Locator } from "@playwright/test";
 
+export { FIX } from "../../test-catalog/fixture.js";
+
+// --- Frozen-catalog selection ---
+
+/** Click the frozen-catalog element rendered with the given `data-testid` (its
+ *  fixture id). The single deterministic way to select a specific element
+ *  without relying on copy or DOM structure. */
+export const selectByTestId = (page: Page, id: string) =>
+  page.locator(`[data-testid='${id}']`).first().click();
+
 // --- Shadow DOM access ---
 
 /** Evaluate a function against the editor overlay's shadow root. */
