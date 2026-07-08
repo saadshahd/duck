@@ -10,11 +10,15 @@ import {
   type Destination,
   type DropTarget,
 } from "./destinations.js";
-import { parentIdOf, sameSite } from "@duckeditor/spec";
+import {
+  parentIdOf,
+  sameSite,
+  slotKeyOf as slotKeyOfPath,
+} from "@duckeditor/spec";
 import { stubRegistry } from "../fiber/testing.js";
 
 const slotKeyOf = (d?: Destination) =>
-  d?.at === "slot" ? d.path[d.path.length - 1] : undefined;
+  d?.at === "slot" ? slotKeyOfPath(d.path) : undefined;
 
 const containerTarget = (
   elementId: string,

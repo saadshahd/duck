@@ -1,5 +1,5 @@
-import type { ComponentData, Data } from "@puckeditor/core";
-import { findById, findParent, slotKeysOf } from "@duckeditor/spec";
+import type { Data } from "@puckeditor/core";
+import { collectDescendants, findById, findParent } from "@duckeditor/spec";
 import { err, ok, type Result } from "neverthrow";
 
 export { findById, findParent };
@@ -19,23 +19,11 @@ export type SpecOpsError =
       componentType: string;
     };
 
-/** All descendant ids beneath `component` (exclusive of component). */
-export const descendantIds = (
-  component: ComponentData,
-): ReadonlySet<string> => {
-  const result = new Set<string>();
-  const visit = (node: ComponentData): void => {
-    for (const slotKey of slotKeysOf(node)) {
-      const children = node.props[slotKey] as ComponentData[];
-      for (const child of children) {
-        result.add(child.props.id as string);
-        visit(child);
-      }
-    }
-  };
-  visit(component);
-  return result;
-};
+/** All descendant ids beneath the component at `id` (exclusive), descending
+ *  into nested array-item slots. Empty when `id` has no children or doesn't
+ *  exist. */
+export const descendantIds = (data: Data, id: string): ReadonlySet<string> =>
+  new Set(collectDescendants(data, id));
 
 // --- Bounds checks ---
 

@@ -81,13 +81,15 @@ describe("findParent", () => {
 
 describe("descendantIds", () => {
   it("collects ids beneath a parent", () => {
-    const s1 = findById(sample(), "s1")!;
-    expect(descendantIds(s1)).toEqual(new Set(["t1", "t2"]));
+    expect(descendantIds(sample(), "s1")).toEqual(new Set(["t1", "t2"]));
   });
 
   it("returns empty set for leaf", () => {
-    const t1 = findById(sample(), "t1")!;
-    expect(descendantIds(t1).size).toBe(0);
+    expect(descendantIds(sample(), "t1").size).toBe(0);
+  });
+
+  it("returns empty set for an unknown id", () => {
+    expect(descendantIds(sample(), "zzz").size).toBe(0);
   });
 });
 

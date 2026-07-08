@@ -1,5 +1,6 @@
 import { describe, it, expect } from "bun:test";
 import type { ComponentData, Config, Data } from "@puckeditor/core";
+import { allIds } from "@duckeditor/spec";
 import { add } from "./add.js";
 import { findById } from "./helpers.js";
 
@@ -404,6 +405,64 @@ describe("add — slot template re-minting", () => {
     const text = (card.props.children as ComponentData[])[0];
     expect(card.props.id).toMatch(/^card-/);
     expect(text.props.id).toMatch(/^text-/);
+  });
+});
+
+describe("add — slot re-minting descends array-item slots", () => {
+  // Card.features is an array of plain objects, each holding a nested "content"
+  // slot — a slot reachable only via an array-item, not a top-level prop key.
+  const arrayItemSlotConfig: Config = {
+    components: {
+      Card: {
+        defaultProps: {
+          features: [
+            {
+              content: [{ type: "Heading", props: { id: "h1", text: "hi" } }],
+            },
+          ],
+        },
+        render: () => null as never,
+      },
+      Heading: { defaultProps: { text: "x" }, render: () => null as never },
+    },
+    root: { render: () => null as never },
+  } as Config;
+
+  it("re-mints ids of components nested inside array-item slots", () => {
+    const result = add(
+      empty(),
+      {
+        site: { at: "root" },
+        component: { type: "Card", props: {} } as unknown as ComponentData,
+      },
+      arrayItemSlotConfig,
+    );
+    const card = result._unsafeUnwrap().content[0];
+    const features = card.props.features as { content: ComponentData[] }[];
+    const heading = features[0].content[0];
+    expect(heading.props.id).not.toBe("h1");
+    expect(heading.props.id).toMatch(/^heading-/);
+  });
+
+  it("produces globally unique ids across the reminted subtree, twice over", () => {
+    const first = add(
+      empty(),
+      {
+        site: { at: "root" },
+        component: { type: "Card", props: {} } as unknown as ComponentData,
+      },
+      arrayItemSlotConfig,
+    )._unsafeUnwrap();
+    const next = add(
+      first,
+      {
+        site: { at: "root" },
+        component: { type: "Card", props: {} } as unknown as ComponentData,
+      },
+      arrayItemSlotConfig,
+    )._unsafeUnwrap();
+    const ids = allIds(next);
+    expect(new Set(ids).size).toBe(ids.length);
   });
 });
 

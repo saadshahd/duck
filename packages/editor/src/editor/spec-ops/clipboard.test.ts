@@ -137,4 +137,64 @@ describe("paste", () => {
     );
     expect(result._unsafeUnwrapErr().tag).toBe("parent-not-found");
   });
+
+  describe("paste — descends array-item slots", () => {
+    // Card.features is an array of plain objects, each holding a nested
+    // "content" slot — reachable only via an array-item, not a top-level key.
+    const cardConfig: Config = {
+      components: {
+        Card: { defaultProps: { features: [] }, render: () => null as never },
+        Heading: { defaultProps: { text: "x" }, render: () => null as never },
+      },
+      root: { render: () => null as never },
+    } as Config;
+
+    const heading = (id: string): ComponentData => ({
+      type: "Heading",
+      props: { id, text: "hi" },
+    });
+
+    const card = (
+      id: string,
+      features: { content: ComponentData[] }[],
+    ): ComponentData => ({ type: "Card", props: { id, features } });
+
+    const withCard = (): Data => ({
+      root: { props: {} },
+      content: [card("c1", [{ content: [heading("h1")] }])],
+    });
+
+    it("regenerates the id of a component nested inside an array-item slot", () => {
+      const data = withCard();
+      const subtree = copy(data, "c1")._unsafeUnwrap();
+      const { data: next } = paste(
+        data,
+        { at: "root" },
+        subtree,
+        cardConfig,
+      )._unsafeUnwrap();
+      const pasted = next.content[1];
+      const features = pasted.props.features as { content: ComponentData[] }[];
+      expect(features[0].content[0].props.id).not.toBe("h1");
+    });
+
+    it("pasting the same subtree twice never leaves two live components sharing an id", () => {
+      const data = withCard();
+      const subtree = copy(data, "c1")._unsafeUnwrap();
+      const once = paste(
+        data,
+        { at: "root" },
+        subtree,
+        cardConfig,
+      )._unsafeUnwrap();
+      const twice = paste(
+        once.data,
+        { at: "root" },
+        subtree,
+        cardConfig,
+      )._unsafeUnwrap();
+      const ids = allIds(twice.data);
+      expect(new Set(ids).size).toBe(ids.length);
+    });
+  });
 });

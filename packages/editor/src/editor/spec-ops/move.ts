@@ -31,12 +31,9 @@ export const move = (
   if (!source) return err({ tag: "element-not-found", id });
 
   if (dest.at === "slot") {
-    const sourceComponent = findById(data, id);
-    if (sourceComponent) {
-      const descendants = descendantIds(sourceComponent);
-      if (dest.parentId === id || descendants.has(dest.parentId))
-        return err({ tag: "circular-move", id, toParentId: dest.parentId });
-    }
+    const descendants = descendantIds(data, id);
+    if (dest.parentId === id || descendants.has(dest.parentId))
+      return err({ tag: "circular-move", id, toParentId: dest.parentId });
     if (!findById(data, dest.parentId))
       return err({ tag: "parent-not-found", parentId: dest.parentId });
   }

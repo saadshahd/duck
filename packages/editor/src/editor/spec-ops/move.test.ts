@@ -38,14 +38,24 @@ const itemsOf = (data: Data, id: string): string[] =>
 
 describe("move — between slots", () => {
   it("moves from one slot to another", () => {
-    const result = move(twoStacks(), "a", { at: "slot", parentId: "right", path: ["items"] }, 0);
+    const result = move(
+      twoStacks(),
+      "a",
+      { at: "slot", parentId: "right", path: ["items"] },
+      0,
+    );
     const next = result._unsafeUnwrap();
     expect(itemsOf(next, "left")).toEqual(["b"]);
     expect(itemsOf(next, "right")).toEqual(["a", "c", "d"]);
   });
 
   it("moves to end of target slot", () => {
-    const result = move(twoStacks(), "a", { at: "slot", parentId: "right", path: ["items"] }, 2);
+    const result = move(
+      twoStacks(),
+      "a",
+      { at: "slot", parentId: "right", path: ["items"] },
+      2,
+    );
     const next = result._unsafeUnwrap();
     expect(itemsOf(next, "right")).toEqual(["c", "d", "a"]);
   });
@@ -61,7 +71,12 @@ describe("move — between slots", () => {
       root: { props: {} },
       content: [text("solo"), stack("box", [])],
     };
-    const result = move(data, "solo", { at: "slot", parentId: "box", path: ["items"] }, 0);
+    const result = move(
+      data,
+      "solo",
+      { at: "slot", parentId: "box", path: ["items"] },
+      0,
+    );
     const next = result._unsafeUnwrap();
     expect(next.content.map((c) => c.props.id)).toEqual(["box"]);
     expect(itemsOf(next, "box")).toEqual(["solo"]);
@@ -70,7 +85,12 @@ describe("move — between slots", () => {
 
 describe("move — within slot", () => {
   it("reorders within the same slot", () => {
-    const result = move(twoStacks(), "a", { at: "slot", parentId: "left", path: ["items"] }, 1);
+    const result = move(
+      twoStacks(),
+      "a",
+      { at: "slot", parentId: "left", path: ["items"] },
+      1,
+    );
     expect(itemsOf(result._unsafeUnwrap(), "left")).toEqual(["b", "a"]);
   });
 
@@ -82,7 +102,12 @@ describe("move — within slot", () => {
 
   it("returns same Data reference when toIndex equals current index", () => {
     const original = twoStacks();
-    const result = move(original, "a", { at: "slot", parentId: "left", path: ["items"] }, 0);
+    const result = move(
+      original,
+      "a",
+      { at: "slot", parentId: "left", path: ["items"] },
+      0,
+    );
     expect(result.isOk()).toBe(true);
     expect(result._unsafeUnwrap()).toBe(original);
   });
@@ -96,37 +121,72 @@ describe("move — within slot", () => {
 
 describe("move — errors", () => {
   it("element-not-found", () => {
-    const result = move(twoStacks(), "zzz", { at: "slot", parentId: "right", path: ["items"] }, 0);
+    const result = move(
+      twoStacks(),
+      "zzz",
+      { at: "slot", parentId: "right", path: ["items"] },
+      0,
+    );
     expect(result._unsafeUnwrapErr().tag).toBe("element-not-found");
   });
 
   it("parent-not-found", () => {
-    const result = move(twoStacks(), "a", { at: "slot", parentId: "missing", path: ["items"] }, 0);
+    const result = move(
+      twoStacks(),
+      "a",
+      { at: "slot", parentId: "missing", path: ["items"] },
+      0,
+    );
     expect(result._unsafeUnwrapErr().tag).toBe("parent-not-found");
   });
 
   it("slot-not-defined when slot key is not an array on parent", () => {
-    const result = move(twoStacks(), "a", { at: "slot", parentId: "b", path: ["items"] }, 0);
+    const result = move(
+      twoStacks(),
+      "a",
+      { at: "slot", parentId: "b", path: ["items"] },
+      0,
+    );
     expect(result._unsafeUnwrapErr().tag).toBe("slot-not-defined");
   });
 
   it("index-out-of-bounds for negative target", () => {
-    const result = move(twoStacks(), "a", { at: "slot", parentId: "right", path: ["items"] }, -1);
+    const result = move(
+      twoStacks(),
+      "a",
+      { at: "slot", parentId: "right", path: ["items"] },
+      -1,
+    );
     expect(result._unsafeUnwrapErr().tag).toBe("index-out-of-bounds");
   });
 
   it("index-out-of-bounds for too-large target", () => {
-    const result = move(twoStacks(), "a", { at: "slot", parentId: "right", path: ["items"] }, 99);
+    const result = move(
+      twoStacks(),
+      "a",
+      { at: "slot", parentId: "right", path: ["items"] },
+      99,
+    );
     expect(result._unsafeUnwrapErr().tag).toBe("index-out-of-bounds");
   });
 
   it("circular-move: drop into self", () => {
-    const result = move(nested(), "outer", { at: "slot", parentId: "outer", path: ["items"] }, 0);
+    const result = move(
+      nested(),
+      "outer",
+      { at: "slot", parentId: "outer", path: ["items"] },
+      0,
+    );
     expect(result._unsafeUnwrapErr().tag).toBe("circular-move");
   });
 
   it("circular-move: drop into descendant", () => {
-    const result = move(nested(), "outer", { at: "slot", parentId: "inner", path: ["items"] }, 0);
+    const result = move(
+      nested(),
+      "outer",
+      { at: "slot", parentId: "inner", path: ["items"] },
+      0,
+    );
     expect(result._unsafeUnwrapErr().tag).toBe("circular-move");
   });
 
@@ -135,7 +195,32 @@ describe("move — errors", () => {
       root: { props: {} },
       content: [stack("a", [stack("b", [stack("c", [])])])],
     };
-    const result = move(data, "a", { at: "slot", parentId: "c", path: ["items"] }, 0);
+    const result = move(
+      data,
+      "a",
+      { at: "slot", parentId: "c", path: ["items"] },
+      0,
+    );
+    expect(result._unsafeUnwrapErr().tag).toBe("circular-move");
+  });
+
+  it("circular-move: drop into a descendant reachable only via an array-item slot", () => {
+    // Card.features is an array of plain objects, each holding a nested
+    // "content" slot — reachable only via an array-item, not a top-level key.
+    const card = (
+      id: string,
+      features: { content: ComponentData[] }[],
+    ): ComponentData => ({ type: "Card", props: { id, features } });
+    const data: Data = {
+      root: { props: {} },
+      content: [card("outer", [{ content: [card("inner", [])] }])],
+    };
+    const result = move(
+      data,
+      "outer",
+      { at: "slot", parentId: "inner", path: ["features", 0, "content"] },
+      0,
+    );
     expect(result._unsafeUnwrapErr().tag).toBe("circular-move");
   });
 });
@@ -150,7 +235,12 @@ describe("move — immutability", () => {
 
   it("returns a new Data reference for actual moves", () => {
     const original = twoStacks();
-    const result = move(original, "a", { at: "slot", parentId: "right", path: ["items"] }, 0);
+    const result = move(
+      original,
+      "a",
+      { at: "slot", parentId: "right", path: ["items"] },
+      0,
+    );
     expect(result._unsafeUnwrap()).not.toBe(original);
   });
 });

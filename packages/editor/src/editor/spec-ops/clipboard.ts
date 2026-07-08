@@ -1,18 +1,19 @@
 import type { Config, ComponentData, Data } from "@puckeditor/core";
 import { err, ok, type Result } from "neverthrow";
-import { slotKeysOf, type ParentSite } from "@duckeditor/spec";
+import { getIn, slotPathsOf, type ParentSite } from "@duckeditor/spec";
 import { add } from "./add.js";
 import { type SpecOpsError, cloneData, findById } from "./helpers.js";
 import { mintId, takenIds } from "./id.js";
 
 /** Walk `component` (mutating in place) and replace every props.id with a fresh,
- *  globally-unique id. `taken` is updated as ids are minted. */
+ *  globally-unique id, descending into nested array-item slots. `taken` is
+ *  updated as ids are minted. */
 const regenerateIds = (component: ComponentData, taken: Set<string>): void => {
   const next = mintId(component.type, taken);
   taken.add(next);
   component.props.id = next;
-  for (const slotKey of slotKeysOf(component)) {
-    const children = component.props[slotKey] as ComponentData[];
+  for (const slotPath of slotPathsOf(component)) {
+    const children = getIn(component.props, slotPath) as ComponentData[];
     for (const child of children) regenerateIds(child, taken);
   }
 };

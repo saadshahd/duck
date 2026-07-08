@@ -4,34 +4,39 @@ import {
   allowedTypes,
   componentDef,
   getChildrenAt,
+  getIn,
   slotKeyOf,
   slotKeysFromConfig,
-  slotKeysOf,
+  slotPathsOf,
   writableChildrenAt,
   type ParentSite,
 } from "@duckeditor/spec";
 import { type SpecOpsError, cloneAndMutate, findById } from "./helpers.js";
 import { mintId, takenIds } from "./id.js";
 
+/** Remint the id of every child reachable through `component`'s slots
+ *  (including nested array-item slots), recursively. Mutates in place —
+ *  callers own a clone before calling this. */
+const remintChildren = (component: ComponentData, taken: Set<string>): void => {
+  for (const slotPath of slotPathsOf(component)) {
+    const children = getIn(component.props, slotPath) as ComponentData[];
+    children.forEach((child, i) => {
+      const id = mintId(child.type, taken);
+      taken.add(id);
+      children[i] = { ...child, props: { ...child.props, id } };
+      remintChildren(children[i], taken);
+    });
+  }
+};
+
+/** Clone `component` and remint every descendant id (own id untouched). */
 const remintSlots = (
   component: ComponentData,
   taken: Set<string>,
 ): ComponentData => {
-  const slots = new Set(slotKeysOf(component));
-  if (slots.size === 0) return component;
-  const remintChild = (child: ComponentData): ComponentData => {
-    const id = mintId(child.type, taken);
-    taken.add(id);
-    return remintSlots({ ...child, props: { ...child.props, id } }, taken);
-  };
-  return {
-    ...component,
-    props: Object.fromEntries(
-      Object.entries(component.props).map(([k, v]) =>
-        slots.has(k) ? [k, (v as ComponentData[]).map(remintChild)] : [k, v],
-      ),
-    ) as ComponentData["props"],
-  };
+  const clone = structuredClone(component);
+  remintChildren(clone, taken);
+  return clone;
 };
 
 /** Insert `component` at `site` and `index?`. Append when index undefined.
