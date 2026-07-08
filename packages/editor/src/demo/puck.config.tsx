@@ -68,6 +68,22 @@ const color = [
 
 const radius = ["0", "4px", "6px", "8px", "12px", "16px", "9999px"].map(opt);
 
+const borderWidth = ["0", "1px", "2px", "3px", "4px"].map(opt);
+
+const emphasisLevel = [
+  { label: "Low", value: "low" },
+  { label: "Medium", value: "medium" },
+  { label: "High", value: "high" },
+];
+
+const bannerTone = [
+  { label: "Neutral", value: "neutral" },
+  { label: "Informational", value: "informational" },
+  { label: "Positive", value: "positive" },
+  { label: "Warning", value: "warning" },
+  { label: "Critical", value: "critical" },
+];
+
 const maxWidth = [
   "320px",
   "480px",
@@ -712,6 +728,108 @@ export const config: Config = {
           <Children as={BareSlot} />
         </div>
       ),
+    },
+
+    // Showcase for the rich controls (ticket 113) — reference material for demo
+    // catalog v2. Exercises: radio rendered segmented (emphasis, 3 short options)
+    // AND stacked (tone, 5 longer options); the spacing control on padding/margin
+    // (1–4 token shorthand); and a nested object (style.border) that renders as a
+    // hanging-caret disclosure inside the always-open Style section.
+    Banner: {
+      fields: {
+        text: { type: "text" },
+        emphasis: { type: "radio", options: emphasisLevel },
+        tone: { type: "radio", options: bannerTone },
+        style: {
+          type: "object",
+          objectFields: {
+            padding: {
+              type: "select",
+              options: space,
+              metadata: { control: "spacing", unit: "rem" },
+            },
+            margin: {
+              type: "select",
+              options: margin,
+              metadata: { control: "spacing", unit: "rem" },
+            },
+            background: {
+              type: "select",
+              options: color,
+              metadata: { control: "swatch" },
+            },
+            border: {
+              type: "object",
+              objectFields: {
+                width: {
+                  type: "select",
+                  options: borderWidth,
+                  metadata: { control: "dimension", unit: "px" },
+                },
+                color: {
+                  type: "select",
+                  options: color,
+                  metadata: { control: "swatch" },
+                },
+              },
+            },
+          },
+        },
+      },
+      defaultProps: {
+        text: "Heads up — this banner shows the new controls.",
+        emphasis: "medium",
+        tone: "informational",
+        style: {
+          padding: "1.5rem",
+          margin: "0 auto",
+          background: "#E1F3FE",
+          border: { width: "1px", color: "#CCCCCC" },
+        },
+      },
+      render: ({ text, emphasis, tone, style }) => {
+        const s = (style ?? {}) as {
+          padding?: string;
+          margin?: string;
+          background?: string;
+          border?: { width?: string; color?: string };
+        };
+        const border = s.border ?? {};
+        const toneColor =
+          {
+            neutral: "#555555",
+            informational: "#1E6FB8",
+            positive: "#2F7D42",
+            warning: "#9A6A00",
+            critical: "#B3261E",
+          }[(tone as string) ?? "neutral"] ?? "#555555";
+        const emph =
+          {
+            low: { fontSize: "0.875rem", fontWeight: 400 },
+            medium: { fontSize: "1rem", fontWeight: 500 },
+            high: { fontSize: "1.25rem", fontWeight: 700 },
+          }[(emphasis as string) ?? "medium"] ??
+          ({ fontSize: "1rem", fontWeight: 500 } as const);
+        const hasBorder = Boolean(border.width) && border.width !== "0";
+        return (
+          <div
+            data-banner
+            style={{
+              padding: s.padding ?? "1.5rem",
+              margin: s.margin,
+              background: s.background ?? "#F7F6F3",
+              borderRadius: "8px",
+              border: hasBorder
+                ? `${border.width} solid ${border.color ?? "#EAEAEA"}`
+                : undefined,
+              color: toneColor,
+              ...emph,
+            }}
+          >
+            {text}
+          </div>
+        );
+      },
     },
 
     // Test-only irregular container. Four slots in declaration order

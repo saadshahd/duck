@@ -117,7 +117,11 @@
                         "props": {
                           "id": "feature-1",
                           "style": {},
-                          "tags": [{ "label": "Design" }],
+                          "tags": [
+                            {
+                              "label": "Design"
+                            }
+                          ],
                           "header": [
                             {
                               "type": "Heading",
@@ -149,10 +153,23 @@
                         "props": {
                           "id": "feature-2",
                           "style": {},
-                          "tags": [{ "label": "Alpha" }, { "label": "Beta" }],
+                          "tags": [
+                            {
+                              "label": "Alpha"
+                            },
+                            {
+                              "label": "Beta"
+                            }
+                          ],
                           "features": [
-                            { "title": "Fast", "detail": "Sub-second edits" },
-                            { "title": "Secure", "detail": "Sandboxed drafts" }
+                            {
+                              "title": "Fast",
+                              "detail": "Sub-second edits"
+                            },
+                            {
+                              "title": "Secure",
+                              "detail": "Sandboxed drafts"
+                            }
                           ],
                           "header": [
                             {
@@ -270,7 +287,10 @@
               "id": "test-rig",
               "direction": "horizontal",
               "gap": "2rem",
-              "style": { "padding": "3rem 0", "alignItems": "start" },
+              "style": {
+                "padding": "3rem 0",
+                "alignItems": "start"
+              },
               "children": [
                 {
                   "type": "Panel",
@@ -360,6 +380,24 @@
                   }
                 }
               ]
+            }
+          },
+          {
+            "type": "Banner",
+            "props": {
+              "id": "showcase-banner",
+              "text": "Heads up — the new controls are live.",
+              "emphasis": "high",
+              "tone": "warning",
+              "style": {
+                "padding": "1.5rem",
+                "margin": "0 auto",
+                "background": "#FBF3DB",
+                "border": {
+                  "width": "1px",
+                  "color": "#CCCCCC"
+                }
+              }
             }
           }
         ]
