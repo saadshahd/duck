@@ -3,8 +3,9 @@ import type { ComponentData, Config, Data } from "@puckeditor/core";
 import {
   collectDescendants,
   findById,
+  findParent,
   slotKeysFromConfig,
-  slotKeysOf,
+  writableChildrenAt,
 } from "@duckeditor/spec";
 
 // ── Types ───────────────────────────────────────────────────────────
@@ -59,42 +60,6 @@ const isKnownComponent = (config: Config, type: string): boolean =>
 
 const generateId = (type: string): string =>
   `${type}-${Math.random().toString(36).slice(2, 10)}`;
-
-/** Find the array containing `id` plus its index. null if id is not in tree.
- *  Local: callers splice this array in place. @duckeditor/spec's findParent
- *  returns location metadata (parentId/slotKey/index) but not a live array
- *  reference, so it can't serve this mutation-site use case. */
-type ParentSite = {
-  readonly array: ComponentData[];
-  readonly index: number;
-  readonly parentId: string | null;
-  readonly slotKey: string | null;
-};
-
-const findParentSite = (data: Data, id: string): ParentSite | null => {
-  const search = (
-    arr: ComponentData[],
-    parentId: string | null,
-    slotKey: string | null,
-  ): ParentSite | null => {
-    for (let i = 0; i < arr.length; i++) {
-      const node = arr[i]!;
-      if ((node.props as { id?: string })?.id === id) {
-        return { array: arr, index: i, parentId, slotKey };
-      }
-      const nodeId = (node.props as { id?: string })?.id ?? null;
-      for (const key of slotKeysOf(node)) {
-        const children = (node.props as Record<string, unknown>)[
-          key
-        ] as ComponentData[];
-        const hit = search(children, nodeId, key);
-        if (hit) return hit;
-      }
-    }
-    return null;
-  };
-  return search(data.content, null, null);
-};
 
 /** Resolve the target array for an add/move: data.content if parentId is null,
  *  else parent.props[slotKey]. Validates parent exists, slot is declared. */
@@ -212,9 +177,11 @@ const applyRemove = (
   data: Data,
   op: Extract<Op, { op: "remove" }>,
 ): Effect.Effect<Data, OpError> => {
-  const site = findParentSite(data, op.id);
-  if (!site) return Effect.fail(opErr("element-not-found", { id: op.id }));
-  site.array.splice(site.index, 1);
+  const pathStep = findParent(data, op.id);
+  if (!pathStep) return Effect.fail(opErr("element-not-found", { id: op.id }));
+  const array = writableChildrenAt(data, pathStep);
+  if (!array) return Effect.fail(opErr("element-not-found", { id: op.id }));
+  array.splice(pathStep.index, 1);
   return Effect.succeed(data);
 };
 
@@ -223,9 +190,11 @@ const applyMove = (
   op: Extract<Op, { op: "move" }>,
   config: Config,
 ): Effect.Effect<Data, OpError> => {
-  const site = findParentSite(data, op.id);
-  if (!site) return Effect.fail(opErr("element-not-found", { id: op.id }));
-  const node = site.array[site.index]!;
+  const pathStep = findParent(data, op.id);
+  if (!pathStep) return Effect.fail(opErr("element-not-found", { id: op.id }));
+  const array = writableChildrenAt(data, pathStep);
+  if (!array) return Effect.fail(opErr("element-not-found", { id: op.id }));
+  const node = array[pathStep.index]!;
 
   if (op.toParentId === op.id)
     return Effect.fail(opErr("circular-move", { id: op.id }));
@@ -244,13 +213,13 @@ const applyMove = (
   return resolveTargetArray(data, config, op.toParentId, op.toSlotKey).pipe(
     Effect.flatMap((target) => {
       // Detach first so index math is consistent.
-      site.array.splice(site.index, 1);
-      const sameArray = target === site.array;
+      array.splice(pathStep.index, 1);
+      const sameArray = target === array;
       const insertAt =
-        sameArray && op.toIndex > site.index ? op.toIndex - 1 : op.toIndex;
+        sameArray && op.toIndex > pathStep.index ? op.toIndex - 1 : op.toIndex;
       if (insertAt < 0 || insertAt > target.length) {
         // Re-insert at original to leave tree unchanged on failure.
-        site.array.splice(site.index, 0, node);
+        array.splice(pathStep.index, 0, node);
         return Effect.fail(
           opErr("index-out-of-bounds", {
             index: op.toIndex,
