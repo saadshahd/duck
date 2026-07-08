@@ -1,6 +1,6 @@
 import { useRef } from "react";
 import type { Ref } from "react";
-import { useShadowSheet } from "../overlay/index.js";
+import { useShadowSheet, usePrevious } from "../overlay/index.js";
 import css from "./morph.css?inline";
 
 const MorphIcon = () => (
@@ -25,11 +25,10 @@ type Props = {
 
 export function MorphButton({ count, elementId, onClick, buttonRef }: Props) {
   useShadowSheet(css);
-  const prevElementId = useRef(elementId);
+  const prevElementId = usePrevious(elementId);
   const pulseKey = useRef(0);
 
-  if (elementId !== prevElementId.current) {
-    prevElementId.current = elementId;
+  if (elementId !== prevElementId) {
     if (count > 0) pulseKey.current += 1;
   }
 
