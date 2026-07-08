@@ -328,10 +328,10 @@ const ARROW_GLYPHS: Record<Axis, { prev: string; next: string }> = {
   vertical: { prev: "↑", next: "↓" },
 };
 
-// Which edge does the "next" arrow sit on, by axis?
-const NEXT_EDGE: Record<Axis, "bottom" | "right"> = {
-  vertical: "bottom",
-  horizontal: "right",
+// Which element edge each move arrow floats on, by axis.
+const ARROW_EDGES: Record<Axis, { prev: Edge; next: Edge }> = {
+  vertical: { prev: "top", next: "bottom" },
+  horizontal: { prev: "left", next: "right" },
 };
 
 /** Unified floating action bar: move arrows + optional action buttons.
@@ -382,13 +382,10 @@ export function EdgeArrows({
 
   const labels = ARIA_LABELS[axis];
   const glyphs = ARROW_GLYPHS[axis];
+  const edges = ARROW_EDGES[axis];
 
-  // Edge arrows — horizontal: left+right; vertical: top+bottom
-  const nextEdge = NEXT_EDGE[axis];
-  const prevEdge: "left" | "top" = axis === "horizontal" ? "left" : "top";
-
-  const nextRef = useEdgeArrow(registry, elementId, nextEdge);
-  const prevEdgeRef = useEdgeArrow(registry, elementId, prevEdge);
+  const nextRef = useEdgeArrow(registry, elementId, edges.next);
+  const prevEdgeRef = useEdgeArrow(registry, elementId, edges.prev);
 
   return (
     <>
