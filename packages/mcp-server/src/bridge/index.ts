@@ -1,3 +1,4 @@
+import { Data as EffectData, Effect, Option } from "effect";
 import type { Data } from "@puckeditor/core";
 import type {
   BrowserMessage,
@@ -61,7 +62,7 @@ export const createBridge = (): Bridge => {
           open() {},
           message(ws, raw) {
             const msg = parseMessage(raw);
-            if (msg) dispatch[msg.type]?.(ws, msg);
+            if (Option.isSome(msg)) dispatch[msg.value.type]?.(ws, msg.value);
           },
           close(ws) {
             pool.remove(ws);
@@ -112,16 +113,31 @@ export const createBridge = (): Bridge => {
 
 const stringify = (msg: ServerMessage) => JSON.stringify(msg);
 
-const parseMessage = (raw: string | Buffer): BrowserMessage | null => {
-  try {
-    const msg = JSON.parse(
-      typeof raw === "string" ? raw : new TextDecoder().decode(raw),
-    );
-    return typeof msg?.type === "string" ? msg : null;
-  } catch {
-    return null;
-  }
-};
+class MalformedBrowserMessage extends EffectData.TaggedError(
+  "MalformedBrowserMessage",
+)<{ readonly reason: string }> {}
+
+/** Parse + shape-check one inbound frame. Never throws: JSON.parse failures
+ *  and messages missing a string `type` both fail with a typed error. */
+const decodeMessage = (
+  raw: string | Buffer,
+): Effect.Effect<BrowserMessage, MalformedBrowserMessage> =>
+  Effect.try({
+    try: (): unknown =>
+      JSON.parse(typeof raw === "string" ? raw : new TextDecoder().decode(raw)),
+    catch: () => new MalformedBrowserMessage({ reason: "invalid JSON" }),
+  }).pipe(
+    Effect.filterOrFail(
+      (msg): msg is BrowserMessage =>
+        typeof (msg as { type?: unknown } | null)?.type === "string",
+      () => new MalformedBrowserMessage({ reason: "missing type field" }),
+    ),
+  );
+
+/** Malformed frames are ignored, not surfaced: a bad message from one
+ *  browser tab must not take down the bridge's WebSocket loop. */
+const parseMessage = (raw: string | Buffer): Option.Option<BrowserMessage> =>
+  Effect.runSync(Effect.option(decodeMessage(raw)));
 
 function route(
   req: Request,
