@@ -1,11 +1,7 @@
 import type { Data } from "@puckeditor/core";
 import { err, ok, type Result } from "neverthrow";
-import {
-  type SpecOpsError,
-  cloneAndMutate,
-  findParent,
-  writableChildrenAt,
-} from "./helpers.js";
+import { writableChildrenAt } from "@duckeditor/spec";
+import { type SpecOpsError, cloneAndMutate, findParent } from "./helpers.js";
 
 /** Remove the subtree rooted at `id`. Errors: `element-not-found`. */
 export const remove = (data: Data, id: string): Result<Data, SpecOpsError> => {

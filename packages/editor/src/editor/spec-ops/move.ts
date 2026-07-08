@@ -1,13 +1,17 @@
 import type { Data } from "@puckeditor/core";
 import { err, ok, type Result } from "neverthrow";
-import { getChildrenAt, sameSite, type ParentSite } from "@duckeditor/spec";
+import {
+  getChildrenAt,
+  sameSite,
+  writableChildrenAt,
+  type ParentSite,
+} from "@duckeditor/spec";
 import {
   type SpecOpsError,
   cloneAndMutate,
   descendantIds,
   findById,
   findParent,
-  writableChildrenAt,
 } from "./helpers.js";
 
 /** Move the subtree at `id` to `dest` at `toIndex`.

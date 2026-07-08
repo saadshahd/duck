@@ -1,11 +1,5 @@
 import type { ComponentData, Data } from "@puckeditor/core";
-import {
-  findById,
-  findParent,
-  getChildrenAt,
-  slotKeysOf,
-  type ParentSite,
-} from "@duckeditor/spec";
+import { findById, findParent, slotKeysOf } from "@duckeditor/spec";
 import { err, ok, type Result } from "neverthrow";
 
 export { findById, findParent };
@@ -43,20 +37,6 @@ export const descendantIds = (
   return result;
 };
 
-/** All component ids in pre-order (component first, then children). */
-export const allIds = (data: Data): readonly string[] => {
-  const result: string[] = [];
-  const visit = (node: ComponentData): void => {
-    result.push(node.props.id as string);
-    for (const slotKey of slotKeysOf(node)) {
-      const children = node.props[slotKey] as ComponentData[];
-      for (const child of children) visit(child);
-    }
-  };
-  for (const top of data.content) visit(top);
-  return result;
-};
-
 // --- Bounds checks ---
 
 export const checkBoundsInclusive = (
@@ -87,19 +67,6 @@ export const cloneAndMutate = (
   const next = structuredClone(data);
   mutate(next);
   return next;
-};
-
-/** Resolve a writable children array on a draft for `site`.
- *  Returns null if the parent or slot doesn't exist on the draft. */
-export const writableChildrenAt = (
-  draft: Data,
-  site: ParentSite,
-): ComponentData[] | null => {
-  if (site.at === "root") return draft.content;
-  const parent = findById(draft, site.parentId);
-  if (!parent) return null;
-  const slotValue = parent.props[site.slotKey];
-  return Array.isArray(slotValue) ? (slotValue as ComponentData[]) : null;
 };
 
 export const moveInArray = <T>(arr: T[], from: number, to: number): T[] => {

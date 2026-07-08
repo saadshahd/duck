@@ -1,11 +1,11 @@
 import type { Config, Data } from "@puckeditor/core";
 import { err, ok, type Result } from "neverthrow";
+import { writableChildrenAt } from "@duckeditor/spec";
 import {
   type SpecOpsError,
   cloneAndMutate,
   findById,
   findParent,
-  writableChildrenAt,
 } from "./helpers.js";
 
 const defaultsFor = (config: Config, type: string): Record<string, unknown> => {

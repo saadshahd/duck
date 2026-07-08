@@ -2,7 +2,6 @@ import { describe, it, expect } from "bun:test";
 import type { ComponentData, Data } from "@puckeditor/core";
 import { getChildrenAt } from "@duckeditor/spec";
 import {
-  allIds,
   checkBoundsExclusive,
   checkBoundsInclusive,
   cloneAndMutate,
@@ -11,7 +10,6 @@ import {
   findById,
   findParent,
   moveInArray,
-  writableChildrenAt,
 } from "./helpers.js";
 
 const text = (id: string, content = "x"): ComponentData => ({
@@ -93,16 +91,6 @@ describe("descendantIds", () => {
   });
 });
 
-describe("allIds", () => {
-  it("yields ids in pre-order", () => {
-    expect(allIds(sample())).toEqual(["s1", "t1", "t2", "s2", "t3"]);
-  });
-
-  it("returns empty for empty content", () => {
-    expect(allIds(empty())).toEqual([]);
-  });
-});
-
 describe("getChildrenAt", () => {
   it("returns top-level content for the root site", () => {
     const data = sample();
@@ -131,36 +119,6 @@ describe("getChildrenAt", () => {
   it("returns null when slot is not an array", () => {
     expect(
       getChildrenAt(sample(), { at: "slot", parentId: "t1", slotKey: "text" }),
-    ).toBeNull();
-  });
-});
-
-describe("writableChildrenAt", () => {
-  it("returns a mutable reference into the draft", () => {
-    const draft = cloneData(sample());
-    const arr = writableChildrenAt(draft, {
-      at: "slot",
-      parentId: "s1",
-      slotKey: "items",
-    });
-    expect(arr).not.toBeNull();
-    arr!.push(text("new"));
-    expect(findById(draft, "new")?.props.id).toBe("new");
-  });
-
-  it("returns top-level content for null/null", () => {
-    const draft = cloneData(sample());
-    const arr = writableChildrenAt(draft, { at: "root" });
-    expect(arr).toBe(draft.content);
-  });
-
-  it("returns null for missing parent", () => {
-    expect(
-      writableChildrenAt(cloneData(sample()), {
-        at: "slot",
-        parentId: "zzz",
-        slotKey: "items",
-      }),
     ).toBeNull();
   });
 });

@@ -6,14 +6,10 @@ import {
   getChildrenAt,
   slotKeysFromConfig,
   slotKeysOf,
+  writableChildrenAt,
   type ParentSite,
 } from "@duckeditor/spec";
-import {
-  type SpecOpsError,
-  cloneAndMutate,
-  findById,
-  writableChildrenAt,
-} from "./helpers.js";
+import { type SpecOpsError, cloneAndMutate, findById } from "./helpers.js";
 import { mintId, takenIds } from "./id.js";
 
 const remintSlots = (

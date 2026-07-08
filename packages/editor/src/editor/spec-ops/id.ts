@@ -1,5 +1,5 @@
 import type { Data } from "@puckeditor/core";
-import { allIds } from "./helpers.js";
+import { allIds } from "@duckeditor/spec";
 
 const randomSuffix = (): string => Math.random().toString(36).slice(2, 8);
 

@@ -5,7 +5,8 @@ export { findParent } from "./find-parent.js";
 export { findParentNode } from "./find-parent-node.js";
 export { replaceById } from "./replace-by-id.js";
 export { buildIndex } from "./build-index.js";
-export { getChildrenAt } from "./get-children-at.js";
+export { getChildrenAt, writableChildrenAt } from "./get-children-at.js";
+export { allIds } from "./all-ids.js";
 export {
   slotKeysOf,
   slotKeysFromConfig,

@@ -15,3 +15,16 @@ export const getChildrenAt = (
   if (!slotKeysOf(parent).includes(site.slotKey)) return null;
   return parent.props[site.slotKey] as ComponentData[];
 };
+
+/** Resolve a writable children array on a draft for `site`.
+ *  Returns null if the parent or slot doesn't exist on the draft. */
+export const writableChildrenAt = (
+  draft: Data,
+  site: ParentSite,
+): ComponentData[] | null => {
+  if (site.at === "root") return draft.content;
+  const parent = findById(draft, site.parentId);
+  if (!parent) return null;
+  const slotValue = parent.props[site.slotKey];
+  return Array.isArray(slotValue) ? (slotValue as ComponentData[]) : null;
+};
