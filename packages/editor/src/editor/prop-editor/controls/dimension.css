@@ -9,10 +9,12 @@
   width: 100%;
 }
 
-/* Chip row — no wrap; scrolls horizontally if presets exceed panel width */
+/* Chip row — wraps so every preset is fully visible and reachable. A no-wrap
+   scroller hid trailing presets behind a permanent edge fade (audit F6); wrapping
+   guarantees the last preset is never clipped, at the cost of a little height. */
 .dimension-chips {
   display: flex;
-  flex-wrap: nowrap;
+  flex-wrap: wrap;
   align-items: center;
   gap: 4px;
   padding: 2px;
@@ -21,18 +23,6 @@
   border-radius: var(--radius-control);
   width: 100%;
   box-sizing: border-box;
-  overflow-x: auto;
-  /* Hide scrollbar chrome while keeping scrollability */
-  scrollbar-width: none;
-  /* Soft right-edge fade: an overflowing preset dissolves instead of clipping
-     mid-glyph at the border (a guillotined chip reads as broken, not scrollable).
-     Only the trailing 16px fades, so a strip that fits keeps every chip crisp. */
-  -webkit-mask-image: linear-gradient(to right, #000 calc(100% - 16px), transparent);
-  mask-image: linear-gradient(to right, #000 calc(100% - 16px), transparent);
-}
-
-.dimension-chips::-webkit-scrollbar {
-  display: none;
 }
 
 /* Each chip is an Ark SegmentGroup item (a label element wrapping a hidden radio) */

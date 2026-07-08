@@ -13,9 +13,12 @@
 
 /* ── Preset chips + clear sentinel (shared by both layouts) ────────────────── */
 
+/* Chip row — wraps so every preset is reachable (audit F6); a no-wrap scroller
+   hid trailing presets behind a permanent edge fade. Shared with dimension.css
+   (properties repeated, not coupled — the overlay CSS rule). */
 .spacing-chips {
   display: flex;
-  flex-wrap: nowrap;
+  flex-wrap: wrap;
   align-items: center;
   gap: 4px;
   padding: 2px;
@@ -24,16 +27,6 @@
   border-radius: var(--radius-control);
   width: 100%;
   box-sizing: border-box;
-  overflow-x: auto;
-  scrollbar-width: none;
-  /* Overflowing preset dissolves at the trailing edge instead of clipping a
-     glyph — reads as scrollable, not broken (the 112 chip-fade). */
-  -webkit-mask-image: linear-gradient(to right, #000 calc(100% - 16px), transparent);
-  mask-image: linear-gradient(to right, #000 calc(100% - 16px), transparent);
-}
-
-.spacing-chips::-webkit-scrollbar {
-  display: none;
 }
 
 .spacing-chip {
