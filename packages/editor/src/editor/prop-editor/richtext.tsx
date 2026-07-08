@@ -65,15 +65,37 @@ const OPS: Record<
   },
 };
 
-/** Compact glyph shown on each toolbar button; the full name is the aria-label. */
-const GLYPH: Record<RichTextActionId, string> = {
-  bold: "B",
-  italic: "I",
-  strike: "S",
-  heading: "H",
-  bulletList: "•",
-  orderedList: "1.",
+/** One pictographic stroke icon per action — a single unified metaphor across the
+ *  toolbar (the audit flagged the old B/I/S/H letters mixed with •/1. symbols).
+ *  Drawn on a 24-grid, rendered small; `currentColor` follows the button's state
+ *  colour. The full action name stays the aria-label. */
+const ICON_D: Record<RichTextActionId, string> = {
+  bold: "M6 12h9a4 4 0 0 1 0 8H7a1 1 0 0 1-1-1V5a1 1 0 0 1 1-1h7a4 4 0 0 1 0 8",
+  italic: "M19 4h-9 M14 20H5 M15 4 9 20",
+  strike: "M16 4H9a3 3 0 0 0-2.83 4 M14 12a4 4 0 0 1 0 8H6 M4 12h16",
+  heading: "M6 12h12 M6 20V4 M18 20V4",
+  bulletList: "M8 6h13 M8 12h13 M8 18h13 M3 6h.01 M3 12h.01 M3 18h.01",
+  orderedList:
+    "M10 6h11 M10 12h11 M10 18h11 M4 6h1v4 M4 10h2 M6 18H4c0-1 2-2 2-3s-1-1.5-2-1",
 };
+
+const ToolbarIcon = ({ id }: { id: RichTextActionId }): ReactNode => (
+  <svg
+    className="richtext-icon"
+    width="14"
+    height="14"
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+    aria-hidden="true"
+    focusable="false"
+  >
+    <path d={ICON_D[id]} />
+  </svg>
+);
 
 function Toolbar({
   editor,
@@ -107,7 +129,6 @@ function Toolbar({
             type="button"
             className="richtext-btn"
             data-role={`richtext-action-${action.id}`}
-            data-glyph={action.id}
             aria-label={action.label}
             aria-pressed={on}
             data-active={on || undefined}
@@ -119,7 +140,7 @@ function Toolbar({
               OPS[action.id].run(editor);
             }}
           >
-            <span className="richtext-glyph">{GLYPH[action.id]}</span>
+            <ToolbarIcon id={action.id} />
           </button>
         );
       })}

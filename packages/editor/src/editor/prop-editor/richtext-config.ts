@@ -1,6 +1,11 @@
 import type { Field } from "@puckeditor/core";
 import type { Extensions } from "@tiptap/core";
 import StarterKit from "@tiptap/starter-kit";
+import { Placeholder } from "@tiptap/extensions";
+
+/** Muted prompt shown in an empty editor. Catalog-agnostic default — a catalog
+ *  tunes it per field via `metadata.tiptap.placeholder`. */
+const DEFAULT_PLACEHOLDER = "Add text…";
 
 /** The richtext control's Tiptap config, carried on a field's `metadata.tiptap`.
  *  Puck's native `richtext` field element-izes its value and can't round-trip
@@ -13,6 +18,7 @@ import StarterKit from "@tiptap/starter-kit";
 export type RichTextMetadata = {
   options?: Record<string, unknown>;
   extensions?: Extensions;
+  placeholder?: string;
 };
 
 /** Read the richtext config off a field's `metadata.tiptap`. The cast is local and
@@ -67,5 +73,8 @@ export const extensionsFor = (field: Field): Extensions => [
   StarterKit.configure(
     options(field) as Parameters<typeof StarterKit.configure>[0],
   ),
+  Placeholder.configure({
+    placeholder: meta(field).placeholder ?? DEFAULT_PLACEHOLDER,
+  }),
   ...(meta(field).extensions ?? []),
 ];

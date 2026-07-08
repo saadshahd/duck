@@ -50,15 +50,28 @@ describe("toolbarActionsFor", () => {
   });
 });
 
+const placeholderOf = (f: Field) =>
+  extensionsFor(f).find((e) => e.name === "placeholder")?.options.placeholder;
+
 describe("extensionsFor", () => {
-  it("returns StarterKit alone for a bare field", () => {
-    expect(extensionsFor(field())).toHaveLength(1);
+  it("returns StarterKit + Placeholder for a bare field", () => {
+    expect(extensionsFor(field())).toHaveLength(2);
   });
 
-  it("appends catalog-supplied extensions after StarterKit", () => {
+  it("appends catalog-supplied extensions after the built-ins", () => {
     const extra = Extension.create({ name: "catalogExtra" });
     const result = extensionsFor(field({ extensions: [extra] }));
-    expect(result).toHaveLength(2);
-    expect(result[1]).toBe(extra);
+    expect(result).toHaveLength(3);
+    expect(result[2]).toBe(extra);
+  });
+
+  it("defaults the placeholder when the field sets none", () => {
+    expect(placeholderOf(field())).toBe("Add text…");
+  });
+
+  it("uses the field's placeholder override when present", () => {
+    expect(placeholderOf(field({ placeholder: "Add a note…" }))).toBe(
+      "Add a note…",
+    );
   });
 });
