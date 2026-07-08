@@ -1,7 +1,7 @@
 import { useState, type MouseEvent as ReactMouseEvent } from "react";
 import type { Field } from "@puckeditor/core";
 import { useShadowSheet } from "../../overlay/index.js";
-import { FieldLabel, fieldClass } from "../field-shell.js";
+import { FieldLabel, fieldClass, resolveValueMode } from "../field-shell.js";
 import { toDisplayLabel } from "../field-label.js";
 import { FieldMetadata } from "../field-metadata.js";
 import { useDebouncedText } from "../use-debounced-text.js";
@@ -63,13 +63,17 @@ export const Spacing = (({
   const unit = FieldMetadata.unit(selectField) ?? "";
   const storedStr = String(value ?? "");
   const sides = parseSides(storedStr);
-  const unset = storedStr.trim() === "";
   const derivedLinked = isLinked(sides);
-  // A set value that matches no preset chip: without a marker the chip row reads
-  // as "default" while the real value lives in the field(s) below. Mark it — see
-  // dimension.tsx for the shared honesty rationale (audit F14).
-  const isCustom =
-    !unset && !selectField.options.some((o) => String(o.value) === storedStr);
+  // One classification, shared with dimension/swatch via resolveValueMode:
+  // unset drives the linked-layout default; literal (a set value matching no
+  // preset chip) gets the "Custom" marker so the chip row never reads as
+  // "default" while the real value lives in the field(s) below (audit F14).
+  const mode = resolveValueMode(
+    value,
+    selectField.options.map((o) => String(o.value)),
+  );
+  const unset = mode.mode === "unset";
+  const isCustom = mode.mode === "literal";
 
   // undefined = follow the stored value's shape; a boolean pins the user's choice.
   const [linkOverride, setLinkOverride] = useState<boolean | undefined>();
