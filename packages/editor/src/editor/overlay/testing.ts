@@ -411,6 +411,16 @@ export const countSelectionRings = (page: Page) =>
     (r) => r.querySelectorAll("[data-role='selection-ring']").length,
   ) as Promise<number>;
 
+/** True when the selection ring is in editing mode — the "sheet open" surface
+ *  state (bolder ring + backdrop cutout). The ring carries data-editing only
+ *  while a focus sheet is open on the selected element. */
+export const isSelectionRingEditing = (page: Page) =>
+  shadowQuery(
+    page,
+    (r) =>
+      r.querySelector("[data-role='selection-ring'][data-editing]") !== null,
+  ) as Promise<boolean>;
+
 /** True when the unified action bar (edit + move buttons) is mounted.
  *  Previously checked for [data-role='selection-label'] — that breadcrumb strip
  *  was removed in favour of a single floating action bar. */

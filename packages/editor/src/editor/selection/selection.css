@@ -36,11 +36,16 @@
   pointer-events: none;
 }
 
-/* Editing mode: bolder ring signals "sheet open" vs plain selection */
+/* Editing mode: a crafted accent ring signals "sheet open" vs plain selection.
+   Softer than the old solid-black slab — a crisp accent border lifted off the
+   element by an inner white keyline, ringed by a faint accent halo. The lift
+   shadow lives on the backdrop cutout (the lit rectangle), not here. */
 .selection-ring[data-editing] {
   border-width: 2px;
   border-color: var(--accent);
-  box-shadow: 0 0 0 1px var(--accent);
+  box-shadow:
+    inset 0 0 0 1px rgba(255, 255, 255, 0.55),
+    0 0 0 3px var(--accent-pulse);
 }
 
 .action-bar {

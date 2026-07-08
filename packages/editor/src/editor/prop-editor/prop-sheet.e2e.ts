@@ -8,6 +8,7 @@ import {
   isSheetVisible,
   getSheetRect,
   getBackdropCutoutRect,
+  isSelectionRingEditing,
 } from "../overlay/testing.js";
 
 test.describe("Focus sheet shell", () => {
@@ -154,6 +155,37 @@ test.describe("Focus sheet shell", () => {
     const afterCutout = await getBackdropCutoutRect(page);
     expect(afterCutout).toEqual(beforeCutout);
     expect(await isSheetVisible(page)).toBe(true);
+  });
+
+  // F8 selection surface — opening a sheet raises exactly one selection surface:
+  // the backdrop cutout frames the element AND the ring enters editing mode.
+  // Closing tears both down. Guards the "one control surface, selection-scoped"
+  // doctrine that the softened ring + elevation rework runs through.
+  test("F8: editing surface raises the backdrop cutout + editing ring, then clears on close", async ({
+    page,
+  }) => {
+    await page.locator("h1").click();
+    await page.waitForTimeout(200);
+
+    // Selected but not editing — no backdrop, ring is the plain (non-editing) one.
+    expect(await getBackdropCutoutRect(page)).toBeNull();
+    expect(await isSelectionRingEditing(page)).toBe(false);
+
+    await clickToolbarAction(page, "edit");
+    await page.waitForTimeout(400);
+
+    // Editing — the surface is up: cutout frames the element, ring is editing.
+    expect(await isSheetVisible(page)).toBe(true);
+    expect(await getBackdropCutoutRect(page)).not.toBeNull();
+    expect(await isSelectionRingEditing(page)).toBe(true);
+
+    await page.keyboard.press("Escape");
+    await page.waitForTimeout(300);
+
+    // Closed — the surface is gone; selection persists but no editing chrome.
+    expect(await isSheetVisible(page)).toBe(false);
+    expect(await getBackdropCutoutRect(page)).toBeNull();
+    expect(await isSelectionRingEditing(page)).toBe(false);
   });
 });
 
