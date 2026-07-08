@@ -14,7 +14,7 @@ const dest = (
 ): Destination =>
   parentId === null || slotKey === null
     ? { at: "root", index, label }
-    : { at: "slot", parentId, slotKey, index, label };
+    : { at: "slot", parentId, path: [slotKey], index, label };
 
 /** A stack rooted at deepest container "card": two slots, then root. */
 const stack = (): Destination[] => [

@@ -8,6 +8,7 @@ import {
   sameSite,
   slotKeysOf,
   type ParentSite,
+  type SlotPath,
 } from "@duckeditor/spec";
 import type { FiberRegistry } from "../fiber/index.js";
 import {
@@ -32,9 +33,9 @@ import {
 type TargetBag = { data: Record<string | symbol, unknown> };
 type Point = { x: number; y: number };
 
-/** The slot key of a drag/drop site, or undefined at the root. */
-const slotKeyOf = (site: ParentSite): string | undefined =>
-  site.at === "slot" ? site.slotKey : undefined;
+/** The slot prop-path of a drag/drop site, or undefined at the root. */
+const pathOf = (site: ParentSite): SlotPath | undefined =>
+  site.at === "slot" ? site.path : undefined;
 
 /** Post-removal insert index when the source already lives in the target slot.
  *  Null when the move would be a no-op. */
@@ -90,7 +91,7 @@ const containerTarget = ({
   const adjusted = adjustSameSlot({
     index,
     source,
-    site: { at: "slot", parentId: elementId, slotKey },
+    site: { at: "slot", parentId: elementId, path: [slotKey] },
   });
   if (adjusted === null) return null;
   return {
@@ -141,7 +142,7 @@ const resolveContainer = ({
   const axisOf = (slotKey: string) =>
     resolveSlotAxis(
       data,
-      { at: "slot", parentId: elementId, slotKey },
+      { at: "slot", parentId: elementId, path: [slotKey] },
       registry,
     ) ?? "vertical";
 
@@ -231,10 +232,10 @@ const isBlocked = (
   config: Config | undefined,
   sourceType: string | null | undefined,
   parentType: string | undefined,
-  slotKey: string | null | undefined,
+  path: SlotPath | undefined,
 ): boolean => {
-  if (!config || !sourceType || !parentType || !slotKey) return false;
-  return !allowedTypes(config, parentType, slotKey).has(sourceType);
+  if (!config || !sourceType || !parentType || !path) return false;
+  return !allowedTypes(config, parentType, path).has(sourceType);
 };
 
 /**
@@ -309,7 +310,7 @@ export function resolveIndicator({
           config,
           sourceType,
           lineParentType,
-          slotKeyOf(targetData),
+          pathOf(targetData),
         ),
       };
     }
@@ -328,7 +329,7 @@ export function resolveIndicator({
       const containerType = findById(data, t.elementId)?.type;
       return {
         ...t,
-        blocked: isBlocked(config, sourceType, containerType, t.slotKey),
+        blocked: isBlocked(config, sourceType, containerType, [t.slotKey]),
       };
     }
     if (outcome.tag === "noop") return null;
@@ -351,7 +352,7 @@ export function resolveIndicator({
       const markerType = findById(data, marker.elementId)?.type;
       return {
         ...marker,
-        blocked: isBlocked(config, sourceType, markerType, marker.slotKey),
+        blocked: isBlocked(config, sourceType, markerType, [marker.slotKey]),
       };
     }
     return marker;
@@ -380,7 +381,7 @@ export function resolveIndicator({
       config,
       sourceType,
       siblingParentType,
-      slotKeyOf(targetData),
+      pathOf(targetData),
     ),
   };
 }

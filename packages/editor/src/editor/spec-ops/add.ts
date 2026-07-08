@@ -4,6 +4,7 @@ import {
   allowedTypes,
   componentDef,
   getChildrenAt,
+  slotKeyOf,
   slotKeysFromConfig,
   slotKeysOf,
   writableChildrenAt,
@@ -59,19 +60,19 @@ export const add = (
     return err({
       tag: "slot-not-defined",
       parentId: site.at === "slot" ? site.parentId : "",
-      slotKey: site.at === "slot" ? site.slotKey : "",
+      slotKey: site.at === "slot" ? slotKeyOf(site.path) : "",
     });
 
   if (site.at === "slot") {
     const parentType = findById(data, site.parentId)?.type;
     if (
       parentType &&
-      !allowedTypes(config, parentType, site.slotKey).has(component.type)
+      !allowedTypes(config, parentType, site.path).has(component.type)
     )
       return err({
         tag: "disallowed-type",
         parentId: site.parentId,
-        slotKey: site.slotKey,
+        slotKey: slotKeyOf(site.path),
         componentType: component.type,
       });
   }

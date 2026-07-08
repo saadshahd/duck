@@ -101,7 +101,7 @@ describe("resolveIndicator", () => {
       elementId: "d",
       at: "slot",
       parentId: "box",
-      slotKey: "items",
+      path: ["items"],
       index: 0,
       role: "sibling",
     });
@@ -117,7 +117,7 @@ describe("resolveIndicator", () => {
       elementId: "d",
       at: "slot",
       parentId: "box",
-      slotKey: "items",
+      path: ["items"],
       index: 0,
       role: "sibling",
     });
@@ -142,7 +142,7 @@ describe("resolveIndicator", () => {
       elementId: "e",
       at: "slot",
       parentId: "box",
-      slotKey: "items",
+      path: ["items"],
       index: 1,
       role: "sibling",
     });
@@ -161,7 +161,7 @@ describe("resolveIndicator", () => {
       elementId: "h1",
       at: "slot",
       parentId: "card",
-      slotKey: "header",
+      path: ["header"],
       index: 0,
       role: "sibling",
     });
@@ -196,7 +196,7 @@ describe("resolveIndicator", () => {
       elementId: "h1",
       at: "slot",
       parentId: "card",
-      slotKey: "header",
+      path: ["header"],
       index: 0,
       role: "sibling",
     });
@@ -225,7 +225,7 @@ describe("resolveIndicator", () => {
       elementId: "b2",
       at: "slot",
       parentId: "card",
-      slotKey: "body",
+      path: ["body"],
       index: 1,
       role: "sibling",
     });
@@ -261,7 +261,7 @@ describe("resolveIndicator", () => {
       elementId: "h1",
       at: "slot",
       parentId: "card",
-      slotKey: "header",
+      path: ["header"],
       index: 0,
       role: "sibling",
     });
@@ -294,7 +294,7 @@ describe("resolveIndicator", () => {
       elementId: "b1",
       at: "slot",
       parentId: "card",
-      slotKey: "body",
+      path: ["body"],
       index: 0,
       role: "sibling",
     });
@@ -321,7 +321,7 @@ describe("resolveIndicator", () => {
       elementId: "d",
       at: "slot",
       parentId: "box",
-      slotKey: "items",
+      path: ["items"],
       index: 0,
       role: "sibling",
     });
@@ -342,7 +342,7 @@ describe("resolveIndicator", () => {
       elementId: "d",
       at: "slot",
       parentId: "box",
-      slotKey: "items",
+      path: ["items"],
       index: 0,
       role: "sibling",
     });
@@ -424,7 +424,7 @@ describe("resolveIndicator — same-parent container guard", () => {
       elementId: "card3",
       at: "slot",
       parentId: "grid",
-      slotKey: "items",
+      path: ["items"],
       index: 2,
       role: "sibling",
     });
@@ -434,7 +434,7 @@ describe("resolveIndicator — same-parent container guard", () => {
       elementId: "card2",
       at: "slot",
       parentId: "grid",
-      slotKey: "items",
+      path: ["items"],
       index: 1,
       role: "container",
     });
@@ -479,7 +479,7 @@ describe("resolveIndicator — same-parent container guard", () => {
       elementId: "card1",
       at: "slot",
       parentId: "grid",
-      slotKey: "items",
+      path: ["items"],
       index: 0,
       role: "sibling",
     });
@@ -506,7 +506,7 @@ describe("resolveIndicator — same-parent container guard", () => {
       elementId: "card1",
       at: "slot",
       parentId: "grid",
-      slotKey: "items",
+      path: ["items"],
       index: 0,
       role: "sibling",
     });

@@ -1,5 +1,5 @@
 import type { Data } from "@puckeditor/core";
-import { parentIdOf } from "@duckeditor/spec";
+import { parentIdOf, slotKeyOf } from "@duckeditor/spec";
 import type { FiberRegistry } from "../fiber/index.js";
 import { buildTiling } from "./tiling.js";
 import {
@@ -143,7 +143,7 @@ export const Cycle = {
     return {
       kind: "container",
       elementId: destination.parentId,
-      slotKey: destination.slotKey,
+      slotKey: slotKeyOf(destination.path),
       index: destination.index,
       tiling: buildTiling({
         data,

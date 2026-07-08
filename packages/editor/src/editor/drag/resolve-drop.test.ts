@@ -125,7 +125,7 @@ describe("resolveDrop", () => {
       elementId: "d",
       at: "slot",
       parentId: "box",
-      slotKey: "items",
+      path: ["items"],
       index: 0,
       role: "sibling",
     });
@@ -185,7 +185,7 @@ describe("resolveDrop", () => {
       elementId: "d",
       at: "slot",
       parentId: "box",
-      slotKey: "items",
+      path: ["items"],
       index: 0,
       role: "sibling",
     });
@@ -229,7 +229,7 @@ describe("resolveDrop", () => {
       elementId: "d",
       at: "slot",
       parentId: "box",
-      slotKey: "items",
+      path: ["items"],
       index: 0,
       role: "sibling",
     });

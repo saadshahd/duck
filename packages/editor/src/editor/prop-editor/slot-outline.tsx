@@ -77,7 +77,7 @@ export function SlotOutline({
       ? (config.components[srcNode.type]?.label ?? srcNode.type)
       : srcId;
 
-    move(data, srcId, { at: "slot", parentId, slotKey: label }, destIndex).map(
+    move(data, srcId, { at: "slot", parentId, path: [label] }, destIndex).map(
       (next) =>
         commit({
           beforeData: data,
@@ -102,7 +102,7 @@ export function SlotOutline({
     };
     add(
       data,
-      { site: { at: "slot", parentId, slotKey: label }, component },
+      { site: { at: "slot", parentId, path: [label] }, component },
       config,
     ).map((next) =>
       commit({
@@ -153,7 +153,7 @@ export function SlotOutline({
             move(
               data,
               crossDrag.srcId,
-              { at: "slot", parentId, slotKey: label },
+              { at: "slot", parentId, path: [label] },
               0,
             ).map((next) =>
               commit({

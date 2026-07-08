@@ -418,7 +418,11 @@ function EditorSurface<UserConfig extends Config = Config>({
 
   const slotInsertTarget = useMemo((): InsertTarget | null => {
     if (!selectedSlot) return null;
-    const site: ParentSite = { at: "slot", ...selectedSlot };
+    const site: ParentSite = {
+      at: "slot",
+      parentId: selectedSlot.parentId,
+      path: [selectedSlot.slotKey],
+    };
     const children = getChildrenAt(currentData, site) ?? [];
     return { ...site, index: children.length };
   }, [selectedSlot, currentData]);

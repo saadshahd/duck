@@ -241,7 +241,7 @@ describe("resolveSlotAxis", () => {
 
   test("no children → null (no geometry to measure)", () => {
     const registry = stubRegistry({ container: new DOMRect(0, 0, 200, 300) });
-    expect(resolveSlotAxis(dataWith([]), { at: "slot", parentId: "container", slotKey: "items" }, registry)).toBe(
+    expect(resolveSlotAxis(dataWith([]), { at: "slot", parentId: "container", path: ["items"] }, registry)).toBe(
       null,
     );
   });
@@ -252,7 +252,7 @@ describe("resolveSlotAxis", () => {
       only: new DOMRect(80, 50, 40, 200), // taller than wide
     });
     expect(
-      resolveSlotAxis(dataWith([text("only")]), { at: "slot", parentId: "container", slotKey: "items" }, registry),
+      resolveSlotAxis(dataWith([text("only")]), { at: "slot", parentId: "container", path: ["items"] }, registry),
     ).toBe("vertical");
   });
 
@@ -262,14 +262,14 @@ describe("resolveSlotAxis", () => {
       only: new DOMRect(20, 80, 240, 40), // wider than tall
     });
     expect(
-      resolveSlotAxis(dataWith([text("only")]), { at: "slot", parentId: "container", slotKey: "items" }, registry),
+      resolveSlotAxis(dataWith([text("only")]), { at: "slot", parentId: "container", path: ["items"] }, registry),
     ).toBe("horizontal");
   });
 
   test("single child not in the registry → null", () => {
     const registry = stubRegistry({ container: new DOMRect(0, 0, 200, 300) });
     expect(
-      resolveSlotAxis(dataWith([text("only")]), { at: "slot", parentId: "container", slotKey: "items" }, registry),
+      resolveSlotAxis(dataWith([text("only")]), { at: "slot", parentId: "container", path: ["items"] }, registry),
     ).toBe(null);
   });
 
@@ -281,7 +281,7 @@ describe("resolveSlotAxis", () => {
     expect(
       resolveSlotAxis(
         dataWith([text("a"), text("b")]),
-        { at: "slot", parentId: "container", slotKey: "items" },
+        { at: "slot", parentId: "container", path: ["items"] },
         registry,
       ),
     ).toBe("vertical");
@@ -295,7 +295,7 @@ describe("resolveSlotAxis", () => {
     expect(
       resolveSlotAxis(
         dataWith([text("a"), text("b")]),
-        { at: "slot", parentId: "container", slotKey: "items" },
+        { at: "slot", parentId: "container", path: ["items"] },
         registry,
       ),
     ).toBe("horizontal");

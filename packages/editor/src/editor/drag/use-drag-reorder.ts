@@ -311,11 +311,9 @@ export function useDragReorder({
         const parentType = indexRef.current.get(target.elementId)?.component
           .type;
         if (!parentType) return target;
-        const blocked = !allowedTypes(
-          configRef.current,
-          parentType,
+        const blocked = !allowedTypes(configRef.current, parentType, [
           target.slotKey,
-        ).has(sType);
+        ]).has(sType);
         return blocked ? { ...target, blocked } : target;
       }
       return target;

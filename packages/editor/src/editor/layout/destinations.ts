@@ -7,6 +7,7 @@ import {
   getChildrenAt,
   preOrder,
   sameSite,
+  slotKeyOf,
   slotKeysOf,
   type ParentSite,
 } from "@duckeditor/spec";
@@ -86,7 +87,7 @@ export const resolveLabel = (data: Data, target: DropTarget): string | null => {
     if (!parent) return null;
     if (parent.at !== "slot") return ROOT_LABEL;
     const type = findById(data, parent.parentId)?.type;
-    return type ? qualifiedLabel(type, parent.slotKey) : null;
+    return type ? qualifiedLabel(type, slotKeyOf(parent.path)) : null;
   }
   const type = findById(data, target.elementId)?.type;
   return type ? qualifiedLabel(type, target.slotKey) : null;
@@ -125,7 +126,7 @@ const slotDestinations = (container: ComponentData): Destination[] =>
   slotKeysOf(container).map((slotKey) => ({
     at: "slot",
     parentId: container.props.id as string,
-    slotKey,
+    path: [slotKey],
     index: (container.props[slotKey] as ComponentData[]).length,
     label: qualifiedLabel(container.type, slotKey),
   }));
@@ -139,9 +140,9 @@ const besideDestination = (located: Located, data: Data): Destination => {
   return {
     at: "slot",
     parentId: located.parentId,
-    slotKey: located.slotKey,
+    path: located.path,
     index,
-    label: qualifiedLabel(parent.type, located.slotKey),
+    label: qualifiedLabel(parent.type, slotKeyOf(located.path)),
   };
 };
 
@@ -201,7 +202,7 @@ const stackFromChain = (args: {
 };
 
 const identityKey = (d: Destination): string =>
-  d.at === "slot" ? `${d.parentId}|${d.slotKey}` : "root|";
+  d.at === "slot" ? `${d.parentId}|${d.path.join(".")}` : "root|";
 
 /** The cycle of discrete drop positions under the pointer: deepest container's
  *  slots, then beside-it in its parent, then its slot-bearing siblings' slots,
@@ -258,7 +259,7 @@ const aimedSlotDestination = (args: {
   const site: ParentSite = {
     at: "slot",
     parentId: containerId,
-    slotKey: tile.slotKey,
+    path: [tile.slotKey],
   };
   const axis = resolveSlotAxis(data, site, registry) ?? "vertical";
   const index = measured

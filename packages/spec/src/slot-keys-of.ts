@@ -1,4 +1,5 @@
 import type { ComponentConfig, ComponentData } from "@puckeditor/core";
+import type { SlotPath } from "./path.js";
 
 const isComponentDataLike = (value: unknown): value is ComponentData =>
   typeof value === "object" &&
@@ -8,16 +9,42 @@ const isComponentDataLike = (value: unknown): value is ComponentData =>
   (value as { props: unknown }).props !== null &&
   typeof (value as { props: { id?: unknown } }).props.id === "string";
 
-const isSlotValue = (value: unknown): value is ComponentData[] =>
+/** A slot value is an array whose every element is `{ type, props: { id } }`.
+ *  Empty arrays satisfy this vacuously and count as slots. */
+export const isSlotValue = (value: unknown): value is ComponentData[] =>
   Array.isArray(value) && value.every(isComponentDataLike);
 
-/** Discover slot keys on a component by duck-typing prop values.
- *  A slot value is an array whose every element is `{ type: string, props: { id: string } }`.
- *  Empty arrays satisfy this vacuously and are reported as slots. */
+const isPlainObject = (value: unknown): value is Record<string, unknown> =>
+  typeof value === "object" && value !== null && !Array.isArray(value);
+
+/** Every slot's prop-path within `props`. A slot array is emitted as its path;
+ *  arrays-of-plain-objects and plain objects are descended (so array-item and
+ *  object-nested slots are found); primitives and primitive arrays are skipped. */
+const slotPathsIn = (
+  props: Record<string, unknown>,
+  prefix: SlotPath,
+): SlotPath[] =>
+  Object.entries(props).flatMap(([key, value]) => {
+    const here: SlotPath = [...prefix, key];
+    if (isSlotValue(value)) return [here];
+    if (Array.isArray(value))
+      return value.flatMap((item, index) =>
+        isPlainObject(item) ? slotPathsIn(item, [...here, index]) : [],
+      );
+    if (isPlainObject(value)) return slotPathsIn(value, here);
+    return [];
+  });
+
+/** Discover every slot on a component by duck-typing prop values, at any prop
+ *  nesting depth (top-level, array-item, object-nested). */
+export const slotPathsOf = (component: ComponentData): readonly SlotPath[] =>
+  slotPathsIn(component.props, []);
+
+/** Top-level slot keys — the single-segment subset of `slotPathsOf`. */
 export const slotKeysOf = (component: ComponentData): readonly string[] =>
-  Object.entries(component.props)
-    .filter(([, value]) => isSlotValue(value))
-    .map(([key]) => key);
+  slotPathsOf(component)
+    .filter((path) => path.length === 1)
+    .map((path) => path[0] as string);
 
 type WithComponents = { components: Record<string, ComponentConfig> };
 

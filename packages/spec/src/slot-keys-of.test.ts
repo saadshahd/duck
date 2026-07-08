@@ -1,6 +1,6 @@
 import { describe, it, expect } from "bun:test";
 import type { ComponentData } from "@puckeditor/core";
-import { slotKeysOf } from "./slot-keys-of.js";
+import { slotKeysOf, slotPathsOf } from "./slot-keys-of.js";
 
 const make = (
   type: string,
@@ -47,5 +47,48 @@ describe("slotKeysOf", () => {
       stuff: [{ type: "X", props: {} }],
     });
     expect(slotKeysOf(c)).toEqual([]);
+  });
+});
+
+describe("slotPathsOf", () => {
+  it("emits single-segment paths for top-level slots", () => {
+    const c = make("Layout", "l1", {
+      header: [make("Heading", "h1")],
+      body: [make("Text", "t1")],
+      gap: 4,
+    });
+    expect(slotPathsOf(c)).toEqual([["header"], ["body"]]);
+  });
+
+  it("skips primitive arrays (tags)", () => {
+    const c = make("Tag", "t1", { tags: ["a", "b"], counts: [1, 2] });
+    expect(slotPathsOf(c)).toEqual([]);
+  });
+
+  it("recurses arrays of plain objects but emits nothing when no slot is found", () => {
+    const c = make("Features", "f1", {
+      features: [{ title: "one" }, { title: "two" }],
+    });
+    expect(slotPathsOf(c)).toEqual([]);
+  });
+
+  it("emits a per-index path for a slot nested in an array item", () => {
+    const c = make("Sections", "s1", {
+      items: [
+        { heading: "a", content: [make("Text", "a-text")] },
+        { heading: "b", content: [] },
+      ],
+    });
+    expect(slotPathsOf(c)).toEqual([
+      ["items", 0, "content"],
+      ["items", 1, "content"],
+    ]);
+  });
+
+  it("emits a path for a slot nested in an object field", () => {
+    const c = make("Panel", "p1", {
+      config: { body: [make("Text", "t1")] },
+    });
+    expect(slotPathsOf(c)).toEqual([["config", "body"]]);
   });
 });

@@ -31,7 +31,7 @@ describe("buildIndex", () => {
     const idx = buildIndex(data);
     expect(idx.get("h1")?.path).toEqual([
       { at: "root", index: 0 },
-      { at: "slot", parentId: "stack", slotKey: "items", index: 0 },
+      { at: "slot", parentId: "stack", path: ["items"], index: 0 },
     ]);
   });
 

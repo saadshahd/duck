@@ -38,4 +38,28 @@ describe("collectDescendants", () => {
   it("returns empty for unknown id", () => {
     expect(collectDescendants(data, "nope")).toEqual([]);
   });
+
+  it("collects descendants through array-item slots", () => {
+    const sections: Data = {
+      root: { props: {} },
+      content: [
+        make("Sections", "sections", {
+          items: [
+            { heading: "a", content: [make("Text", "a-text")] },
+            {
+              heading: "b",
+              content: [
+                make("Card", "b-card", { body: [make("Text", "b-text")] }),
+              ],
+            },
+          ],
+        }),
+      ],
+    };
+    expect(collectDescendants(sections, "sections")).toEqual([
+      "a-text",
+      "b-card",
+      "b-text",
+    ]);
+  });
 });

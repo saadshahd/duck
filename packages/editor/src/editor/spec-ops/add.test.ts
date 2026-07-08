@@ -83,7 +83,7 @@ describe("add — into a slot", () => {
     const result = add(
       sample(),
       {
-        site: { at: "slot", parentId: "s1", slotKey: "items" },
+        site: { at: "slot", parentId: "s1", path: ["items"] },
         component: text("t3"),
       },
       config,
@@ -100,7 +100,7 @@ describe("add — into a slot", () => {
     const result = add(
       sample(),
       {
-        site: { at: "slot", parentId: "s1", slotKey: "items" },
+        site: { at: "slot", parentId: "s1", path: ["items"] },
         component: text("middle"),
         index: 1,
       },
@@ -217,7 +217,7 @@ describe("add — slot allow/disallow enforcement", () => {
     const result = add(
       withCard(),
       {
-        site: { at: "slot", parentId: "c1", slotKey: "header" },
+        site: { at: "slot", parentId: "c1", path: ["header"] },
         component: { type: "Grid", props: { id: "g1" } } as ComponentData,
       },
       constrainedConfig,
@@ -235,7 +235,7 @@ describe("add — slot allow/disallow enforcement", () => {
     const result = add(
       withCard(),
       {
-        site: { at: "slot", parentId: "c1", slotKey: "header" },
+        site: { at: "slot", parentId: "c1", path: ["header"] },
         component: { type: "Heading", props: { id: "h1" } } as ComponentData,
       },
       constrainedConfig,
@@ -247,7 +247,7 @@ describe("add — slot allow/disallow enforcement", () => {
     const result = add(
       withCard(),
       {
-        site: { at: "slot", parentId: "c1", slotKey: "body" },
+        site: { at: "slot", parentId: "c1", path: ["body"] },
         component: { type: "Grid", props: { id: "g1" } } as ComponentData,
       },
       constrainedConfig,
@@ -273,7 +273,7 @@ describe("add — errors", () => {
     const result = add(
       sample(),
       {
-        site: { at: "slot", parentId: "zzz", slotKey: "items" },
+        site: { at: "slot", parentId: "zzz", path: ["items"] },
         component: text("x"),
       },
       config,
@@ -286,7 +286,7 @@ describe("add — errors", () => {
     const result = add(
       sample(),
       {
-        site: { at: "slot", parentId: "t1", slotKey: "text" },
+        site: { at: "slot", parentId: "t1", path: ["text"] },
         component: text("x"),
       },
       config,
@@ -299,7 +299,7 @@ describe("add — errors", () => {
     const result = add(
       sample(),
       {
-        site: { at: "slot", parentId: "s1", slotKey: "items" },
+        site: { at: "slot", parentId: "s1", path: ["items"] },
         component: text("x"),
         index: -1,
       },
@@ -414,7 +414,7 @@ describe("add — immutability", () => {
     add(
       original,
       {
-        site: { at: "slot", parentId: "s1", slotKey: "items" },
+        site: { at: "slot", parentId: "s1", path: ["items"] },
         component: text("t3"),
       },
       config,
@@ -427,7 +427,7 @@ describe("add — immutability", () => {
     const result = add(
       original,
       {
-        site: { at: "slot", parentId: "s1", slotKey: "items" },
+        site: { at: "slot", parentId: "s1", path: ["items"] },
         component: text("t3"),
       },
       config,

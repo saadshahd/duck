@@ -1,17 +1,18 @@
 import type { ComponentData, Data } from "@puckeditor/core";
-import type { Path } from "./path.js";
-import { slotKeysOf } from "./slot-keys-of.js";
+import { getIn, type Path } from "./path.js";
+import { slotPathsOf } from "./slot-keys-of.js";
 
 type Visit = { readonly component: ComponentData; readonly path: Path };
 
 function* walkComponent(component: ComponentData, path: Path): Iterable<Visit> {
   yield { component, path };
-  for (const slotKey of slotKeysOf(component)) {
-    const children = component.props[slotKey] as ComponentData[];
+  const parentId = component.props.id as string;
+  for (const slotPath of slotPathsOf(component)) {
+    const children = getIn(component.props, slotPath) as ComponentData[];
     for (let index = 0; index < children.length; index++) {
       yield* walkComponent(children[index], [
         ...path,
-        { at: "slot", parentId: component.props.id as string, slotKey, index },
+        { at: "slot", parentId, path: slotPath, index },
       ]);
     }
   }

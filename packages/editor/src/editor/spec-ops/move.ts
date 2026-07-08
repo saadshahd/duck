@@ -3,6 +3,7 @@ import { err, ok, type Result } from "neverthrow";
 import {
   getChildrenAt,
   sameSite,
+  slotKeyOf,
   writableChildrenAt,
   type ParentSite,
 } from "@duckeditor/spec";
@@ -45,7 +46,7 @@ export const move = (
     return err({
       tag: "slot-not-defined",
       parentId: dest.at === "slot" ? dest.parentId : "",
-      slotKey: dest.at === "slot" ? dest.slotKey : "",
+      slotKey: dest.at === "slot" ? slotKeyOf(dest.path) : "",
     });
 
   const sameSlot = sameSite(source, dest);

@@ -33,12 +33,12 @@ describe("preOrder", () => {
     expect(first.path).toEqual([{ at: "root", index: 0 }]);
   });
 
-  it("yields nested path with parentId and slotKey", () => {
+  it("yields nested path with parentId and slot prop-path", () => {
     const visits = [...preOrder(data)];
     const heading = visits.find((v) => v.component.props.id === "heading")!;
     expect(heading.path).toEqual([
       { at: "root", index: 0 },
-      { at: "slot", parentId: "stack", slotKey: "items", index: 0 },
+      { at: "slot", parentId: "stack", path: ["items"], index: 0 },
     ]);
   });
 
@@ -47,8 +47,38 @@ describe("preOrder", () => {
     const body = visits.find((v) => v.component.props.id === "body")!;
     expect(body.path).toEqual([
       { at: "root", index: 0 },
-      { at: "slot", parentId: "stack", slotKey: "items", index: 1 },
-      { at: "slot", parentId: "card", slotKey: "body", index: 0 },
+      { at: "slot", parentId: "stack", path: ["items"], index: 1 },
+      { at: "slot", parentId: "card", path: ["body"], index: 0 },
+    ]);
+  });
+
+  it("descends into array-item slots, addressing them by prop-path", () => {
+    const sections: Data = {
+      root: { props: {} },
+      content: [
+        make("Sections", "sections", {
+          items: [
+            { heading: "Intro", content: [make("Text", "intro")] },
+            { heading: "Body", content: [make("Text", "body-text")] },
+          ],
+        }),
+      ],
+    };
+    const visits = [...preOrder(sections)];
+    expect(visits.map((v) => v.component.props.id)).toEqual([
+      "sections",
+      "intro",
+      "body-text",
+    ]);
+    const bodyText = visits.find((v) => v.component.props.id === "body-text")!;
+    expect(bodyText.path).toEqual([
+      { at: "root", index: 0 },
+      {
+        at: "slot",
+        parentId: "sections",
+        path: ["items", 1, "content"],
+        index: 0,
+      },
     ]);
   });
 

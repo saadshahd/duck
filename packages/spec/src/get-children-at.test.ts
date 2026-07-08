@@ -30,21 +30,41 @@ describe("getChildrenAt", () => {
     const children = getChildrenAt(data, {
       at: "slot",
       parentId: "stack",
-      slotKey: "items",
+      path: ["items"],
     })!;
     expect(children.map((c) => c.props.id)).toEqual(["h1", "t1"]);
   });
 
   it("returns null for unknown parentId", () => {
     expect(
-      getChildrenAt(data, { at: "slot", parentId: "nope", slotKey: "items" }),
+      getChildrenAt(data, { at: "slot", parentId: "nope", path: ["items"] }),
     ).toBeNull();
   });
 
-  it("returns null when slotKey is not a slot field", () => {
+  it("returns null when the path is not a slot field", () => {
     expect(
-      getChildrenAt(data, { at: "slot", parentId: "stack", slotKey: "title" }),
+      getChildrenAt(data, { at: "slot", parentId: "stack", path: ["title"] }),
     ).toBeNull();
+  });
+
+  it("resolves children in an array-item slot by prop-path", () => {
+    const sections: Data = {
+      root: { props: {} },
+      content: [
+        make("Sections", "sections", {
+          items: [
+            { heading: "a", content: [make("Text", "a-text")] },
+            { heading: "b", content: [make("Text", "b1"), make("Text", "b2")] },
+          ],
+        }),
+      ],
+    };
+    const children = getChildrenAt(sections, {
+      at: "slot",
+      parentId: "sections",
+      path: ["items", 1, "content"],
+    })!;
+    expect(children.map((c) => c.props.id)).toEqual(["b1", "b2"]);
   });
 });
 
@@ -54,11 +74,32 @@ describe("writableChildrenAt", () => {
     const arr = writableChildrenAt(draft, {
       at: "slot",
       parentId: "stack",
-      slotKey: "items",
+      path: ["items"],
     });
     expect(arr).not.toBeNull();
     arr!.push(make("Text", "new"));
     expect(draft.content[0]!.props.items).toHaveLength(3);
+  });
+
+  it("returns a mutable reference into an array-item slot", () => {
+    const draft: Data = {
+      root: { props: {} },
+      content: [
+        make("Sections", "sections", {
+          items: [{ heading: "a", content: [make("Text", "a-text")] }],
+        }),
+      ],
+    };
+    const arr = writableChildrenAt(draft, {
+      at: "slot",
+      parentId: "sections",
+      path: ["items", 0, "content"],
+    });
+    expect(arr).not.toBeNull();
+    arr!.push(make("Text", "new"));
+    expect(
+      (draft.content[0]!.props.items as { content: unknown[] }[])[0]!.content,
+    ).toHaveLength(2);
   });
 
   it("returns data.content for the root site", () => {
@@ -71,7 +112,7 @@ describe("writableChildrenAt", () => {
       writableChildrenAt(structuredClone(data), {
         at: "slot",
         parentId: "nope",
-        slotKey: "items",
+        path: ["items"],
       }),
     ).toBeNull();
   });
@@ -81,7 +122,7 @@ describe("writableChildrenAt", () => {
       writableChildrenAt(structuredClone(data), {
         at: "slot",
         parentId: "footer",
-        slotKey: "items",
+        path: ["items"],
       }),
     ).toBeNull();
   });

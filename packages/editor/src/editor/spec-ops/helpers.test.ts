@@ -69,7 +69,7 @@ describe("findParent", () => {
     expect(findParent(sample(), "t2")).toEqual({
       at: "slot",
       parentId: "s1",
-      slotKey: "items",
+      path: ["items"],
       index: 1,
     });
   });
@@ -101,7 +101,7 @@ describe("getChildrenAt", () => {
     const arr = getChildrenAt(sample(), {
       at: "slot",
       parentId: "s1",
-      slotKey: "items",
+      path: ["items"],
     });
     expect(arr?.map((c) => c.props.id)).toEqual(["t1", "t2"]);
   });
@@ -111,14 +111,14 @@ describe("getChildrenAt", () => {
       getChildrenAt(sample(), {
         at: "slot",
         parentId: "zzz",
-        slotKey: "items",
+        path: ["items"],
       }),
     ).toBeNull();
   });
 
   it("returns null when slot is not an array", () => {
     expect(
-      getChildrenAt(sample(), { at: "slot", parentId: "t1", slotKey: "text" }),
+      getChildrenAt(sample(), { at: "slot", parentId: "t1", path: ["text"] }),
     ).toBeNull();
   });
 });

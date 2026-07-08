@@ -112,7 +112,7 @@ describe("paste", () => {
     const subtree = copy(data, "t1")._unsafeUnwrap();
     const result = paste(
       data,
-      { at: "slot", parentId: "s1", slotKey: "items" },
+      { at: "slot", parentId: "s1", path: ["items"] },
       subtree,
       config,
       1,
@@ -131,7 +131,7 @@ describe("paste", () => {
     const subtree = copy(data, "t1")._unsafeUnwrap();
     const result = paste(
       data,
-      { at: "slot", parentId: "missing", slotKey: "items" },
+      { at: "slot", parentId: "missing", path: ["items"] },
       subtree,
       config,
     );

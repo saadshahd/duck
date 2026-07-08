@@ -1,5 +1,5 @@
-export type { Path, PathStep, ParentSite } from "./path.js";
-export { sameSite, parentIdOf } from "./path.js";
+export type { Path, PathStep, ParentSite, SlotPath } from "./path.js";
+export { sameSite, parentIdOf, slotKeyOf, getIn } from "./path.js";
 export { findById } from "./find-by-id.js";
 export { findParent } from "./find-parent.js";
 export { findParentNode } from "./find-parent-node.js";
@@ -9,6 +9,7 @@ export { getChildrenAt, writableChildrenAt } from "./get-children-at.js";
 export { allIds } from "./all-ids.js";
 export {
   slotKeysOf,
+  slotPathsOf,
   slotKeysFromConfig,
   componentDef,
 } from "./slot-keys-of.js";

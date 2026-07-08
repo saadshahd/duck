@@ -14,7 +14,7 @@ import { parentIdOf, sameSite } from "@duckeditor/spec";
 import { stubRegistry } from "../fiber/testing.js";
 
 const slotKeyOf = (d?: Destination) =>
-  d?.at === "slot" ? d.slotKey : undefined;
+  d?.at === "slot" ? d.path[d.path.length - 1] : undefined;
 
 const containerTarget = (
   elementId: string,
@@ -80,14 +80,14 @@ describe("destinationStack", () => {
       {
         at: "slot",
         parentId: "card",
-        slotKey: "header",
+        path: ["header"],
         index: 1,
         label: "Card › header",
       },
       {
         at: "slot",
         parentId: "card",
-        slotKey: "body",
+        path: ["body"],
         index: 1,
         label: "Card › body",
       },
@@ -120,14 +120,14 @@ describe("destinationStack", () => {
       {
         at: "slot",
         parentId: "inner",
-        slotKey: "body",
+        path: ["body"],
         index: 1,
         label: "Card › body",
       },
       {
         at: "slot",
         parentId: "outer",
-        slotKey: "main",
+        path: ["main"],
         index: 1,
         label: "Card › main",
       },
@@ -160,7 +160,7 @@ describe("destinationStack", () => {
       {
         at: "slot",
         parentId: "other",
-        slotKey: "slot",
+        path: ["slot"],
         index: 0,
         label: "Card › slot",
       },
@@ -186,14 +186,14 @@ describe("destinationStack", () => {
       {
         at: "slot",
         parentId: "card",
-        slotKey: "header",
+        path: ["header"],
         index: 1,
         label: "Card › header",
       },
       {
         at: "slot",
         parentId: "card",
-        slotKey: "footer",
+        path: ["footer"],
         index: 0,
         label: "Card › footer",
       },
@@ -245,14 +245,14 @@ describe("destinationStack", () => {
       {
         at: "slot",
         parentId: "inner",
-        slotKey: "body",
+        path: ["body"],
         index: 0,
         label: "Card › body",
       },
       {
         at: "slot",
         parentId: "outer",
-        slotKey: "main",
+        path: ["main"],
         index: 1,
         label: "Card › main",
       },
@@ -262,8 +262,8 @@ describe("destinationStack", () => {
 
   test("global identity dedup never repeats a (parentId, slotKey) — consecutive or not", () => {
     // inner is at index 0 in outer.body, and outer has a second child at index 1.
-    // beside-inner = { at: "slot", parentId: "outer", slotKey: "body", index: 1, label: "Card › body" }
-    // outer.body slot-append = { at: "slot", parentId: "outer", slotKey: "body", index: 2, label: "Card › body" }
+    // beside-inner = { at: "slot", parentId: "outer", path: ["body"], index: 1, label: "Card › body" }
+    // outer.body slot-append = { at: "slot", parentId: "outer", path: ["body"], index: 2, label: "Card › body" }
     // Both share the same (parentId, slotKey) identity — global dedup keeps the
     // first and drops the rest, which trivially implies no consecutive dupes.
     const data: Data = {
@@ -353,7 +353,7 @@ describe("destinationStack", () => {
       {
         at: "slot",
         parentId: "card1",
-        slotKey: "header",
+        path: ["header"],
         index: 1,
         label: "Card › header",
       },
@@ -361,14 +361,14 @@ describe("destinationStack", () => {
       {
         at: "slot",
         parentId: "card2",
-        slotKey: "body",
+        path: ["body"],
         index: 0,
         label: "Card › body",
       },
       {
         at: "slot",
         parentId: "card3",
-        slotKey: "main",
+        path: ["main"],
         index: 1,
         label: "Card › main",
       },
@@ -399,7 +399,7 @@ describe("destinationStack", () => {
       {
         at: "slot",
         parentId: "card1",
-        slotKey: "header",
+        path: ["header"],
         index: 0,
         label: "Card › header",
       },
@@ -439,14 +439,14 @@ describe("destinationStack", () => {
       {
         at: "slot",
         parentId: "inner",
-        slotKey: "body",
+        path: ["body"],
         index: 0,
         label: "Card › body",
       },
       {
         at: "slot",
         parentId: "outer",
-        slotKey: "main",
+        path: ["main"],
         index: 1,
         label: "Card › main",
       },
@@ -454,7 +454,7 @@ describe("destinationStack", () => {
       {
         at: "slot",
         parentId: "aunt",
-        slotKey: "slot",
+        path: ["slot"],
         index: 0,
         label: "Card › slot",
       },
@@ -654,14 +654,14 @@ describe("stackIndexOf", () => {
     {
       at: "slot",
       parentId: "card",
-      slotKey: "header",
+      path: ["header"],
       index: 1,
       label: "Card › header",
     },
     {
       at: "slot",
       parentId: "card",
-      slotKey: "body",
+      path: ["body"],
       index: 0,
       label: "Card › body",
     },
@@ -673,7 +673,7 @@ describe("stackIndexOf", () => {
       stackIndexOf(stack, {
         at: "slot",
         parentId: "card",
-        slotKey: "body",
+        path: ["body"],
         index: 99,
         label: "x",
       }),
@@ -695,7 +695,7 @@ describe("stackIndexOf", () => {
       stackIndexOf(stack, {
         at: "slot",
         parentId: "other",
-        slotKey: "x",
+        path: ["x"],
         index: 0,
         label: "y",
       }),

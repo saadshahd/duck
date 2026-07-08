@@ -35,7 +35,7 @@ describe("findParent", () => {
     expect(findParent(data, "heading")).toEqual({
       at: "slot",
       parentId: "stack",
-      slotKey: "items",
+      path: ["items"],
       index: 0,
     });
   });
@@ -44,7 +44,7 @@ describe("findParent", () => {
     expect(findParent(data, "card")).toEqual({
       at: "slot",
       parentId: "stack",
-      slotKey: "items",
+      path: ["items"],
       index: 1,
     });
   });
@@ -53,7 +53,27 @@ describe("findParent", () => {
     expect(findParent(data, "body")).toEqual({
       at: "slot",
       parentId: "card",
-      slotKey: "body",
+      path: ["body"],
+      index: 0,
+    });
+  });
+
+  it("returns the array-item slot site for a child in an array-item slot", () => {
+    const sections: Data = {
+      root: { props: {} },
+      content: [
+        make("Sections", "sections", {
+          items: [
+            { heading: "a", content: [make("Text", "a-text")] },
+            { heading: "b", content: [make("Text", "b-text")] },
+          ],
+        }),
+      ],
+    };
+    expect(findParent(sections, "b-text")).toEqual({
+      at: "slot",
+      parentId: "sections",
+      path: ["items", 1, "content"],
       index: 0,
     });
   });

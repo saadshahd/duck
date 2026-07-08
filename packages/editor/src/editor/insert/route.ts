@@ -60,7 +60,5 @@ export const allowedTypesForTarget = (
 ): ReadonlySet<string> | undefined => {
   if (target.at !== "slot") return undefined;
   const parentType = findById(data, target.parentId)?.type;
-  return parentType
-    ? allowedTypes(config, parentType, target.slotKey)
-    : undefined;
+  return parentType ? allowedTypes(config, parentType, target.path) : undefined;
 };

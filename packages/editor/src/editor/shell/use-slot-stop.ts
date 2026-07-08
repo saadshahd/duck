@@ -1,6 +1,6 @@
 import { useMemo } from "react";
 import type { Data } from "@puckeditor/core";
-import { findById, findParent } from "@duckeditor/spec";
+import { findById, findParent, slotKeyOf } from "@duckeditor/spec";
 import { qualifiedLabel } from "../layout/index.js";
 
 /** The `Component › slot` address of the slot an element lives in, or undefined
@@ -16,6 +16,6 @@ export function useSlotAddress(
     if (parent?.at !== "slot") return undefined;
     const parentEl = findById(data, parent.parentId);
     if (!parentEl) return undefined;
-    return qualifiedLabel(parentEl.type, parent.slotKey);
+    return qualifiedLabel(parentEl.type, slotKeyOf(parent.path));
   }, [data, elementId]);
 }

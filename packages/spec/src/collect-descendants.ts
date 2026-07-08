@@ -1,10 +1,11 @@
 import type { ComponentData, Data } from "@puckeditor/core";
+import { getIn } from "./path.js";
 import { findById } from "./find-by-id.js";
-import { slotKeysOf } from "./slot-keys-of.js";
+import { slotPathsOf } from "./slot-keys-of.js";
 
 const descendantsOf = (component: ComponentData): string[] =>
-  slotKeysOf(component).flatMap((slotKey) => {
-    const children = component.props[slotKey] as ComponentData[];
+  slotPathsOf(component).flatMap((slotPath) => {
+    const children = getIn(component.props, slotPath) as ComponentData[];
     return children.flatMap((child) => [
       child.props.id as string,
       ...descendantsOf(child),

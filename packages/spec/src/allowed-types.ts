@@ -1,11 +1,40 @@
-import type { Config, SlotField } from "@puckeditor/core";
+import type { Config, Field, SlotField } from "@puckeditor/core";
+import type { SlotPath } from "./path.js";
 
 const allTypes = (config: Config): ReadonlySet<string> =>
   new Set(Object.keys(config.components ?? {}));
 
+/** Walk config fields along a slot's prop-path to the field that defines it.
+ *  String segments look up a field; array/object fields descend into their
+ *  `arrayFields`/`objectFields`; numeric (array-index) segments are skipped. */
+const fieldAt = (
+  config: Config,
+  parentType: string,
+  path: SlotPath,
+): Field | null => {
+  let fields = config.components?.[parentType]?.fields as
+    Record<string, Field> | undefined;
+  let field: Field | undefined;
+  for (const segment of path) {
+    if (typeof segment === "number") continue;
+    if (!fields) return null;
+    field = fields[segment];
+    if (!field) return null;
+    fields =
+      field.type === "array"
+        ? (field.arrayFields as Record<string, Field>)
+        : field.type === "object"
+          ? (field.objectFields as Record<string, Field>)
+          : undefined;
+  }
+  return field ?? null;
+};
+
 /**
  * Resolves the set of component types permitted in a slot, reading Puck-native
- * `SlotField.allow`/`disallow` from the catalog Config.
+ * `SlotField.allow`/`disallow` from the catalog Config. The slot is addressed
+ * by its prop-path, so array-item and object-nested slots resolve their own
+ * constraints.
  *
  * Four-case rule:
  *   bare slot (no allow, no disallow) → all types
@@ -18,10 +47,10 @@ const allTypes = (config: Config): ReadonlySet<string> =>
 export const allowedTypes = (
   config: Config,
   parentType: string,
-  slotKey: string,
+  path: SlotPath,
 ): ReadonlySet<string> => {
   const all = allTypes(config);
-  const rawField = config.components?.[parentType]?.fields?.[slotKey];
+  const rawField = fieldAt(config, parentType, path);
   if (!rawField || rawField.type !== "slot") return all;
   const field = rawField as SlotField;
 

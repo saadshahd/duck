@@ -18,7 +18,7 @@ const oneChild = data([el("parent", [el("a")])]);
 const oneRoot = data([el("a")]);
 
 describe("nearestSibling", () => {
-  const slot = { at: "slot", parentId: "parent", slotKey: "children" } as const;
+  const slot = { at: "slot", parentId: "parent", path: ["children"] } as const;
   const root = { at: "root" } as const;
 
   it("returns previous sibling when deleting middle child", () => {
