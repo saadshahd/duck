@@ -72,7 +72,9 @@ function Panel({
       data-closing={closing || undefined}
     >
       <header className="prop-sheet-header" data-role="prop-sheet-header">
-        <span className="prop-sheet-header-label">{label}</span>
+        <span className="prop-sheet-header-label" data-role="prop-sheet-label">
+          {label}
+        </span>
         <button
           className="prop-sheet-close"
           aria-label="Close"

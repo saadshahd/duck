@@ -1,4 +1,5 @@
 import { type ReactNode, useState, useEffect } from "react";
+import { Result } from "neverthrow";
 import type { Config, Data, Field } from "@puckeditor/core";
 import { useFloating, flip, shift } from "@floating-ui/react";
 import { Disclosure } from "./disclosure.js";
@@ -580,6 +581,11 @@ const CustomRender = ({
   );
 };
 
+const parseJson = Result.fromThrowable(
+  (text: string): unknown => JSON.parse(text),
+  () => "invalid-json" as const,
+);
+
 const FallbackField = ({
   label,
   field,
@@ -612,12 +618,13 @@ const FallbackField = ({
         onChange={(e) => {
           const raw = e.target.value;
           setText(raw);
-          try {
-            onChange(JSON.parse(raw));
-            setInvalid(false);
-          } catch {
-            setInvalid(true);
-          }
+          parseJson(raw).match(
+            (parsed) => {
+              onChange(parsed);
+              setInvalid(false);
+            },
+            () => setInvalid(true),
+          );
         }}
         rows={3}
       />

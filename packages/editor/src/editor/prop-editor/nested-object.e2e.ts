@@ -2,6 +2,7 @@ import { test, expect } from "@playwright/test";
 import type { Page } from "@playwright/test";
 import {
   clickToolbarAction,
+  countRole,
   isSheetVisible,
   readDisclosureTriggers,
   clickDisclosureTrigger,
@@ -24,17 +25,6 @@ const openBannerSheet = async (page: Page) => {
   await clickToolbarAction(page, "edit");
   await page.waitForTimeout(400);
 };
-
-/** Count of a given data-role inside the overlay shadow root. */
-const countRole = (page: Page, role: string) =>
-  page.evaluate((r) => {
-    for (const d of document.querySelectorAll("div")) {
-      if (!d.shadowRoot || (d as HTMLElement).style.position !== "fixed")
-        continue;
-      return d.shadowRoot.querySelectorAll(`[data-role='${r}']`).length;
-    }
-    return 0;
-  }, role) as Promise<number>;
 
 test.describe("Nested object disclosure — Banner.style.border", () => {
   test.beforeEach(async ({ page }) => {

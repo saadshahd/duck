@@ -929,6 +929,50 @@ export const isSheetVisible = (page: Page) =>
     (r) => r.querySelector("[data-role='prop-sheet']") !== null,
   ) as Promise<boolean>;
 
+/** The sheet header's label text — which element's sheet is open. Null when
+ *  the sheet is absent. */
+export const getSheetHeaderLabel = (page: Page) =>
+  shadowQuery(
+    page,
+    (r) =>
+      r.querySelector("[data-role='prop-sheet-label']")?.textContent?.trim() ??
+      null,
+  ) as Promise<string | null>;
+
+/** Count of a data-role inside the overlay. Zero when the overlay is absent. */
+export const countRole = (page: Page, role: string) =>
+  page.evaluate((wanted) => {
+    for (const d of document.querySelectorAll("div")) {
+      if (!d.shadowRoot || d.style.position !== "fixed") continue;
+      return d.shadowRoot.querySelectorAll(`[data-role='${wanted}']`).length;
+    }
+    return 0;
+  }, role) as Promise<number>;
+
+/** Count of interactive controls in the open sheet — inputs, selects,
+ *  textareas, radio groups, and disclosure triggers. Zero means the sheet
+ *  rendered empty (or not at all). */
+export const countSheetControls = (page: Page) =>
+  shadowQuery(
+    page,
+    (r) =>
+      r.querySelectorAll(
+        [
+          "[data-role='prop-sheet'] input",
+          "[data-role='prop-sheet'] textarea",
+          "[data-role='prop-sheet'] select",
+          "[data-role='prop-sheet'] [role='radiogroup']",
+          "[data-role='prop-sheet'] [data-role='disclosure-trigger']",
+        ].join(", "),
+      ).length,
+  ) as Promise<number>;
+
+/** True while the editor's crash boundary is showing its recovery notice.
+ *  The notice lives in the light DOM — a crash replaces the whole editor
+ *  surface, overlay shadow root included. */
+export const isCrashNoticeVisible = (page: Page) =>
+  page.locator("[data-role='crash-recovery']").isVisible();
+
 /** The sheet panel's viewport bounding box. Lets a test assert the sheet is
  *  fully on-screen and not occluding the canvas element. Null when absent. */
 export const getSheetRect = (page: Page) =>

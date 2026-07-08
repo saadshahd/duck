@@ -1,6 +1,10 @@
-import { test, expect } from "@playwright/test";
+import { test, expect, type Page } from "@playwright/test";
 import {
   clickToolbarAction,
+  climbToParent,
+  countSheetControls,
+  getSheetHeaderLabel,
+  isCrashNoticeVisible,
   isSheetVisible,
   getSheetRect,
   getBackdropCutoutRect,
@@ -151,4 +155,83 @@ test.describe("Focus sheet shell", () => {
     expect(afterCutout).toEqual(beforeCutout);
     expect(await isSheetVisible(page)).toBe(true);
   });
+});
+
+/* Every demo component type reached via a click + climb chain (Duck selects the
+ * innermost element under the pointer; climbing reaches the containers).
+ * `ancestry` is the expected sheet header label at each level, innermost first.
+ * Together the chains cover the full demo catalog. */
+const SHEET_SURFACES: Array<{
+  name: string;
+  select: (page: Page) => Promise<void>;
+  ancestry: string[];
+}> = [
+  {
+    name: "hero column",
+    select: (page) => page.getByText("The editor is the canvas.").click(),
+    ancestry: ["Heading", "Stack", "Box"],
+  },
+  {
+    name: "feature card",
+    select: (page) => page.getByText("Zero Chrome").first().click(),
+    ancestry: ["Heading", "Card", "Grid"],
+  },
+  {
+    name: "panel",
+    select: (page) => page.getByText("Stack panel").first().click(),
+    ancestry: ["Heading", "Panel"],
+  },
+  {
+    name: "primary button",
+    select: (page) => page.getByText("Start building").click(),
+    ancestry: ["Button"],
+  },
+  {
+    name: "body text",
+    select: (page) =>
+      page.getByText("Duck brings AI composition").first().click(),
+    ancestry: ["Text"],
+  },
+  {
+    name: "banner",
+    select: (page) => page.locator("[data-banner]").click(),
+    ancestry: ["Banner"],
+  },
+];
+
+test.describe("Every demo component opens its sheet clean", () => {
+  test.beforeEach(async ({ page }) => {
+    await page.goto("/");
+    await page.waitForTimeout(500);
+  });
+
+  // Regression guard for the crash boundary: a sheet that trips it makes the
+  // component uneditable, which no amount of sheet polish is worth.
+  for (const surface of SHEET_SURFACES) {
+    test(`${surface.name} ancestry: ${surface.ancestry.join(" → ")}`, async ({
+      page,
+    }) => {
+      await surface.select(page);
+      await page.waitForTimeout(250);
+
+      for (const [level, label] of surface.ancestry.entries()) {
+        if (level > 0) {
+          await climbToParent(page);
+          await page.waitForTimeout(200);
+        }
+        await clickToolbarAction(page, "edit");
+        await page.waitForTimeout(400);
+
+        expect(await isCrashNoticeVisible(page)).toBe(false);
+        expect(await isSheetVisible(page)).toBe(true);
+        expect(await getSheetHeaderLabel(page)).toBe(label);
+        expect(await countSheetControls(page)).toBeGreaterThan(0);
+
+        // Escape closes the sheet but keeps the selection — the next climb
+        // starts from this element.
+        await page.keyboard.press("Escape");
+        await page.waitForTimeout(250);
+      }
+    });
+  }
 });
