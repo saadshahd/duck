@@ -307,35 +307,24 @@ export const config: Config = {
           readOnly: { resolvedText: true },
         };
       },
-      render: ({ text, resolvedText, style }) => (
+      // `resolvedText` is populated by resolveData and shown as a read-only
+      // field in the sheet (demoing the honest read-only resolved presentation)
+      // — it is deliberately NOT rendered as page content, so the resolver's
+      // debug string never leaks into the canvas.
+      render: ({ text, style }) => (
         <div>
           <p
             style={{
               marginTop: 0,
               marginRight: 0,
               marginLeft: 0,
-              marginBottom: "0.25rem",
+              marginBottom: "1rem",
               lineHeight: "1.6",
               ...style,
             }}
           >
             {text}
           </p>
-          {resolvedText ? (
-            <p
-              style={{
-                marginTop: 0,
-                marginRight: 0,
-                marginLeft: 0,
-                marginBottom: "1rem",
-                color: "#888888",
-                fontSize: "0.75rem",
-                lineHeight: "1.4",
-              }}
-            >
-              {resolvedText}
-            </p>
-          ) : null}
         </div>
       ),
     },
