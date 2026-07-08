@@ -55,7 +55,11 @@ const unmount = (ctx: { host: HTMLDivElement; root: Root }) => {
 const press = (key: string): boolean => {
   let defaultPrevented = false;
   act(() => {
-    const e = new KeyboardEvent("keydown", { key, bubbles: true, cancelable: true });
+    const e = new KeyboardEvent("keydown", {
+      key,
+      bubbles: true,
+      cancelable: true,
+    });
     document.dispatchEvent(e);
     defaultPrevented = e.defaultPrevented;
   });
@@ -69,7 +73,11 @@ const collect = () => {
 
 describe("useMenuKeyboard", () => {
   test("initial activeIndex is -1 (nothing highlighted)", () => {
-    const ctx = mount(3, () => {}, () => {});
+    const ctx = mount(
+      3,
+      () => {},
+      () => {},
+    );
     try {
       expect(ctx.latest().activeIndex).toBe(-1);
     } finally {
@@ -78,7 +86,11 @@ describe("useMenuKeyboard", () => {
   });
 
   test("ArrowDown from -1 moves to 0", () => {
-    const ctx = mount(3, () => {}, () => {});
+    const ctx = mount(
+      3,
+      () => {},
+      () => {},
+    );
     try {
       press("ArrowDown");
       expect(ctx.latest().activeIndex).toBe(0);
@@ -88,7 +100,11 @@ describe("useMenuKeyboard", () => {
   });
 
   test("ArrowDown wraps from the last index to 0", () => {
-    const ctx = mount(3, () => {}, () => {});
+    const ctx = mount(
+      3,
+      () => {},
+      () => {},
+    );
     try {
       act(() => ctx.latest().setActiveIndex(2));
       press("ArrowDown");
@@ -99,7 +115,11 @@ describe("useMenuKeyboard", () => {
   });
 
   test("ArrowUp from -1 wraps to the last index", () => {
-    const ctx = mount(3, () => {}, () => {});
+    const ctx = mount(
+      3,
+      () => {},
+      () => {},
+    );
     try {
       press("ArrowUp");
       expect(ctx.latest().activeIndex).toBe(2);
@@ -109,7 +129,11 @@ describe("useMenuKeyboard", () => {
   });
 
   test("ArrowUp from 0 wraps to the last index", () => {
-    const ctx = mount(3, () => {}, () => {});
+    const ctx = mount(
+      3,
+      () => {},
+      () => {},
+    );
     try {
       act(() => ctx.latest().setActiveIndex(0));
       press("ArrowUp");
@@ -120,7 +144,11 @@ describe("useMenuKeyboard", () => {
   });
 
   test("ArrowUp from a middle index decrements by one", () => {
-    const ctx = mount(3, () => {}, () => {});
+    const ctx = mount(
+      3,
+      () => {},
+      () => {},
+    );
     try {
       act(() => ctx.latest().setActiveIndex(1));
       press("ArrowUp");
@@ -166,7 +194,11 @@ describe("useMenuKeyboard", () => {
   });
 
   test("an unhandled key changes nothing and is not prevented", () => {
-    const ctx = mount(3, () => {}, () => {});
+    const ctx = mount(
+      3,
+      () => {},
+      () => {},
+    );
     try {
       act(() => ctx.latest().setActiveIndex(1));
       const prevented = press("a");
@@ -178,7 +210,11 @@ describe("useMenuKeyboard", () => {
   });
 
   test("handled keys call preventDefault", () => {
-    const ctx = mount(3, () => {}, () => {});
+    const ctx = mount(
+      3,
+      () => {},
+      () => {},
+    );
     try {
       expect(press("ArrowDown")).toBe(true);
       expect(press("Escape")).toBe(true);

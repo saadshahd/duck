@@ -12,3 +12,4 @@ export { Tiles } from "./tiles.js";
 export { Announcer } from "./announcer.js";
 export { MoveGhost } from "./move-ghost.js";
 export { usePrevious } from "./use-previous.js";
+export { useMenuKeyboard } from "./use-menu-keyboard.js";

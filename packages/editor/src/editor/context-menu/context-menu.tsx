@@ -2,10 +2,13 @@ import { useEffect } from "react";
 import { useFloating, flip, shift } from "@floating-ui/react";
 import type { Data } from "@puckeditor/core";
 import { findById } from "@duckeditor/spec";
-import { useShadowSheet, useOnClickOutside } from "../overlay/index.js";
+import {
+  useShadowSheet,
+  useOnClickOutside,
+  useMenuKeyboard,
+} from "../overlay/index.js";
 import type { EditorEvent } from "../machine/index.js";
 import type { ClipboardActions } from "../types.js";
-import { useMenuKeyboard } from "./use-menu-keyboard.js";
 import css from "./context-menu.css?inline";
 
 const MIDDLEWARE = [flip(), shift({ padding: 8 })];

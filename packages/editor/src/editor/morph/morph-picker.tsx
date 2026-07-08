@@ -1,16 +1,16 @@
-import { Fragment, useEffect, useRef, useState } from "react";
+import { Fragment } from "react";
 import { useFloating, offset, flip, shift } from "@floating-ui/react";
 import {
   useShadowSheet,
   useOnClickOutside,
   useAnchor,
+  useMenuKeyboard,
 } from "../overlay/index.js";
 import type { FiberRegistry } from "../fiber/index.js";
 import type { MorphEntry } from "./use-morph.js";
 import css from "./morph.css?inline";
 
 const MIDDLEWARE = [offset(8), flip(), shift({ padding: 8 })];
-const HANDLED = new Set(["Escape", "ArrowDown", "ArrowUp", "Enter"]);
 
 const nameOf = (entry: MorphEntry) =>
   entry.kind === "pattern" ? entry.pattern.name : entry.variant.name;
@@ -38,9 +38,6 @@ export function MorphPicker({
   elementId,
 }: Props) {
   useShadowSheet(css);
-  // Keyboard-only state — mouse hover is handled by CSS :hover.
-  const [keyboardActive, setKeyboardActive] = useState(-1);
-  const keyboardActiveRef = useRef(-1);
 
   // Anchor beside the morphed element (right-start, flipping to left-start when
   // the right edge lacks room) so the picker never drops over the element it is
@@ -55,40 +52,13 @@ export function MorphPicker({
 
   useOnClickOutside(refs.floating, onClose);
 
-  useEffect(
-    function wireKeyboard() {
-      const count = entries.length;
-      const onKeyDown = (e: KeyboardEvent) => {
-        if (!HANDLED.has(e.key)) return;
-        e.preventDefault();
-        e.stopImmediatePropagation();
-        if (e.key === "Escape") {
-          onClose();
-        } else if (e.key === "ArrowDown") {
-          const next =
-            keyboardActiveRef.current < count - 1
-              ? keyboardActiveRef.current + 1
-              : 0;
-          keyboardActiveRef.current = next;
-          setKeyboardActive(next);
-          onHover(next);
-        } else if (e.key === "ArrowUp") {
-          const next =
-            keyboardActiveRef.current > 0
-              ? keyboardActiveRef.current - 1
-              : count - 1;
-          keyboardActiveRef.current = next;
-          setKeyboardActive(next);
-          onHover(next);
-        } else if (e.key === "Enter" && keyboardActiveRef.current >= 0) {
-          onCommit(keyboardActiveRef.current);
-        }
-      };
-      document.addEventListener("keydown", onKeyDown, true);
-      return () => document.removeEventListener("keydown", onKeyDown, true);
-    },
-    [entries.length, onHover, onCommit, onClose],
-  );
+  // Keyboard-only highlight — mouse hover is handled by CSS :hover.
+  const { activeIndex: keyboardActive } = useMenuKeyboard({
+    count: entries.length,
+    onSelect: onCommit,
+    onClose,
+    onHover,
+  });
 
   return (
     <div
