@@ -235,7 +235,7 @@ const ObjectInput = ({
   ));
 
   // Top-level object → an always-open uppercase section landmark (the sheet's
-  // one grouping edge). A nested object (inside another object) → a hanging-caret
+  // one grouping edge). A nested object (inside another object) → a caret
   // disclosure indented one gutter, so depth stays legible without a tall,
   // fully-expanded sheet. One indent step per level — the section itself never
   // indents, so a nested group never double-indents.

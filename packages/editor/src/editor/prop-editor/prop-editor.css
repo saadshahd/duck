@@ -22,9 +22,10 @@
   --radius-inner: calc(var(--radius-control) - 2px);
 
   /* One caret rail. --gutter is at once the sheet's left content inset, the
-     width of the rail carets hang in, AND one indent step — a single value keeps
-     every rail aligned. Root labels sit at --gutter; expanded rows indent by one
-     more --gutter, their carets hanging in that next rail. */
+     width of the in-flow caret cell, AND one indent step — a single value keeps
+     every rail aligned. Carets sit at the content edge as the leftmost content
+     element; labels and expanded fields land one --gutter in, over whose rail
+     the next level's carets sit. */
   --gutter: 16px;
 
   /* Vertical rhythm — deliberately off the 4px content grid: a compact 14/22

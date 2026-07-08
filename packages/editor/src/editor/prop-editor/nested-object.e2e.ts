@@ -10,7 +10,7 @@ import {
 /**
  * Nested object disclosure — a `style.border` object (Banner showcase) rendered
  * inside the always-open Style section. A top-level object stays a section
- * landmark; a nested object becomes a hanging-caret disclosure, collapsed by
+ * landmark; a nested object becomes a caret disclosure, collapsed by
  * default, that reveals its own fields (border width = a dimension control,
  * border color = a swatch) on open. width uses data-role="dimension"; the Banner
  * sheet has no other dimension control, so its count is a clean observer for the

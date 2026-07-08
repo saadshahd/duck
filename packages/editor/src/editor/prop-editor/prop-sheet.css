@@ -64,15 +64,16 @@
   }
 }
 
-/* Openable group header (Tags, Features …). The label sits at the sheet's one
-   content edge; the caret hangs in the left gutter so it never displaces text.
+/* Openable group header (Tags, Features …). The caret is the leftmost content
+   element: an in-flow --gutter cell starting at the content edge, the label one
+   cell in — caret and field controls share one left edge (user ruling
+   2026-07-08, supersedes 112's hanging caret; same anatomy as array-row-toggle).
    Same size as a field label — the louder weight, strong ink, count and hover
    are what say "this opens" (uppercase would make it read as a static section). */
 .disclosure-trigger {
-  position: relative; /* the caret hangs against this box */
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 0; /* the caret cell already spaces the label; the count guards itself */
   width: 100%;
   appearance: none;
   border: none;
@@ -83,8 +84,8 @@
   font-size: var(--label-size);
   font-weight: 600;
   cursor: pointer;
-  /* left inset 0 so the label sits on the content edge; right inset keeps the
-     count off the focus ring (which insets 2px) instead of kissing it. */
+  /* left inset 0 so the caret cell starts on the content edge; right inset keeps
+     the count off the focus ring (which insets 2px) instead of kissing it. */
   padding: 8px 6px 8px 0;
   text-align: left;
   transition: color 100ms ease;
@@ -99,13 +100,12 @@
   outline-offset: -2px; /* keyboard only — never a box on a mouse click */
 }
 
-/* Hangs in the [0, --gutter] rail, optically centered, ≥4px off the sheet edge.
+/* One --gutter caret cell, in flow at the content edge; centered so the glyph
+   sits exactly over the thread rails of the expanded groups below.
    One glyph that rotates on open — a glyph swap is the generic tell. */
 .disclosure-chevron {
-  position: absolute;
-  left: calc(-1 * var(--gutter));
-  top: 0;
-  bottom: 0;
+  flex-shrink: 0;
+  align-self: stretch;
   width: var(--gutter);
   display: flex;
   align-items: center;
@@ -121,6 +121,7 @@
 
 .disclosure-count {
   margin-left: auto;
+  padding-left: 6px; /* a long label stops short of the count (trigger gap is 0) */
   min-width: 1.25em; /* a 9 → 10 count never nudges the row */
   font-size: 12px; /* 12px floor */
   font-weight: 400;

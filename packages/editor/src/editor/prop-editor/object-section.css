@@ -33,10 +33,10 @@
   margin-top: 0;
 }
 
-/* ── Nested object (inside another object) — a hanging-caret disclosure ──────
+/* ── Nested object (inside another object) — a caret disclosure ──────────────
    A nested object is not a section landmark; it is an openable group, so it
    borrows the same trigger anatomy as arrays (.disclosure-trigger lives in
-   prop-sheet.css: caret hangs in the gutter rail, label at the content edge). */
+   prop-sheet.css: caret cell at the content edge, label one cell in). */
 .object-nested {
   margin-bottom: var(--field-gap);
 }
