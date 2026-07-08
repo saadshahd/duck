@@ -221,6 +221,9 @@ const EDGE_GAP = 6;
 const clampAxis = (value: number, max: number) =>
   Math.min(Math.max(value, 0), max);
 
+type ArrowPlacement =
+  { detached: true } | { detached: false; top: number; left: number };
+
 /** H2 — the handle never leaves the viewport. Clamps the arrow box inside the
  *  viewport; when the anchor edge itself is scrolled out (the clamp would
  *  detach the arrow from its edge by more than its own size) the arrow hides
@@ -229,13 +232,13 @@ function viewportArrowStyle(
   desired: { top: number; left: number },
   arrowSize: number,
   viewport: { width: number; height: number },
-): { top: number; left: number } | undefined {
+): ArrowPlacement {
   const top = clampAxis(desired.top, viewport.height - arrowSize);
   const left = clampAxis(desired.left, viewport.width - arrowSize);
   const isDetached =
     Math.abs(top - desired.top) > arrowSize ||
     Math.abs(left - desired.left) > arrowSize;
-  return isDetached ? undefined : { top, left };
+  return isDetached ? { detached: true } : { detached: false, top, left };
 }
 
 /** Syncs a fixed-position button to an element edge via autoUpdate.
@@ -260,18 +263,18 @@ function useEdgeArrow(registry: FiberRegistry, elementId: string, edge: Edge) {
           return;
         }
         const r = el.getBoundingClientRect();
-        const s = viewportArrowStyle(
+        const placement = viewportArrowStyle(
           EDGE_STYLE[edge](r, ARROW_SIZE, EDGE_GAP),
           ARROW_SIZE,
           { width: window.innerWidth, height: window.innerHeight },
         );
-        if (!s) {
+        if (placement.detached) {
           btn.style.visibility = "hidden";
           return;
         }
         btn.style.visibility = "";
-        btn.style.top = `${s.top}px`;
-        btn.style.left = `${s.left}px`;
+        btn.style.top = `${placement.top}px`;
+        btn.style.left = `${placement.left}px`;
       };
 
       const el = registry.get(elementId);
