@@ -116,6 +116,33 @@ export const clickToolbarAction = (page: Page, action: string) =>
     }
   }, action);
 
+/** Click a toolbar action with a REAL mouse (page.mouse at the button's viewport
+ *  center), unlike clickToolbarAction's programmatic .click(). A trusted click is
+ *  what reproduces the self-unmount race: opening the sheet detaches the button
+ *  mid-dispatch, and only a native click flushes React's discrete update
+ *  synchronously enough for a bubbled document handler to see the detached
+ *  target. Returns false when the button isn't found. */
+export const realClickToolbarAction = async (
+  page: Page,
+  action: string,
+): Promise<boolean> => {
+  const rect = (await page.evaluate((a) => {
+    for (const d of document.querySelectorAll("div")) {
+      if (!d.shadowRoot || d.style.position !== "fixed") continue;
+      const btn = d.shadowRoot.querySelector(
+        `[role='toolbar'] [data-role='action-${a}']`,
+      ) as HTMLElement | null;
+      if (!btn) return null;
+      const b = btn.getBoundingClientRect();
+      return { x: b.left + b.width / 2, y: b.top + b.height / 2 };
+    }
+    return null;
+  }, action)) as { x: number; y: number } | null;
+  if (!rect) return false;
+  await page.mouse.click(rect.x, rect.y);
+  return true;
+};
+
 // --- Drop indicator helpers ---
 
 export const hasDropIndicator = (page: Page) =>

@@ -1,4 +1,10 @@
-import { useEffect, useRef, useCallback, type ReactNode } from "react";
+import {
+  useEffect,
+  useRef,
+  useCallback,
+  type ReactNode,
+  type CSSProperties,
+} from "react";
 import {
   useFloating,
   offset,
@@ -46,57 +52,77 @@ const BoxModelIcon = () => (
   </svg>
 );
 
-/** Edit-props button — renders inside the unified action bar. */
-export function ActionEdit({ onClick }: { onClick: () => void }) {
+/** Base for every action-bar button.
+ *
+ *  Always stops the click from propagating. Canvas selection lives on a
+ *  document-level click listener that hit-tests the pointer position; an
+ *  action that unmounts the toolbar (edit opens the sheet, delete removes the
+ *  element) detaches this button mid-dispatch, so the bubbled click would fail
+ *  the "from shadow DOM?" guard and re-select whatever canvas element sits
+ *  beneath the button. Stopping here — synchronously, before the unmount —
+ *  keeps every chrome click from ever reaching that listener. No action button
+ *  may bypass this base. */
+function ActionButton({
+  role,
+  label,
+  onClick,
+  children,
+  tooltip = label,
+  pressed,
+  style,
+}: {
+  role: string;
+  label: string;
+  onClick: () => void;
+  children: ReactNode;
+  tooltip?: string;
+  pressed?: boolean;
+  style?: CSSProperties;
+}) {
   return (
     <button
       type="button"
-      data-role="action-edit"
-      aria-label="Edit props"
-      onClick={onClick}
+      data-role={role}
+      aria-label={label}
+      aria-pressed={pressed}
+      style={style}
+      onClick={(e) => {
+        e.stopPropagation();
+        onClick();
+      }}
     >
-      <PencilIcon />
+      {children}
       <span className="action-bar-tooltip" role="tooltip">
-        Edit props
+        {tooltip}
       </span>
     </button>
+  );
+}
+
+/** Edit-props button — renders inside the unified action bar. */
+export function ActionEdit({ onClick }: { onClick: () => void }) {
+  return (
+    <ActionButton role="action-edit" label="Edit props" onClick={onClick}>
+      <PencilIcon />
+    </ActionButton>
   );
 }
 
 /** Insert sibling button — renders inside the unified action bar. */
 export function ActionInsert({ onClick }: { onClick: () => void }) {
   return (
-    <button
-      type="button"
-      data-role="action-insert"
-      aria-label="Insert"
-      onClick={(e) => {
-        e.stopPropagation();
-        onClick();
-      }}
-    >
+    <ActionButton role="action-insert" label="Insert" onClick={onClick}>
       +
-      <span className="action-bar-tooltip" role="tooltip">
-        Insert
-      </span>
-    </button>
+    </ActionButton>
   );
 }
 
 /** Delete button — renders inside the unified action bar. */
 export function ActionDelete({ onClick }: { onClick: () => void }) {
   return (
-    <button
-      type="button"
-      data-role="action-delete"
-      aria-label="Delete"
-      onClick={onClick}
-    >
+    <ActionButton role="action-delete" label="Delete" onClick={onClick}>
       ×
-      <span className="action-bar-tooltip" role="tooltip">
-        Delete
-      </span>
-    </button>
+    </ActionButton>
   );
 }
 
@@ -109,19 +135,16 @@ export function ActionBoxModel({
   onToggle: () => void;
 }) {
   return (
-    <button
-      type="button"
-      data-role="box-model-toggle"
-      aria-label="Toggle box model"
-      aria-pressed={active}
+    <ActionButton
+      role="box-model-toggle"
+      label="Toggle box model"
+      tooltip="Box model"
+      pressed={active}
       onClick={onToggle}
       style={active ? { background: "rgba(255,255,255,0.12)" } : undefined}
     >
       <BoxModelIcon />
-      <span className="action-bar-tooltip" role="tooltip">
-        Box model
-      </span>
-    </button>
+    </ActionButton>
   );
 }
 

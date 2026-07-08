@@ -1,6 +1,7 @@
 import { test, expect, type Page } from "@playwright/test";
 import {
   clickToolbarAction,
+  realClickToolbarAction,
   climbToParent,
   countSheetControls,
   getSheetHeaderLabel,
@@ -230,6 +231,31 @@ const SHEET_SURFACES: Array<{
     ancestry: ["Banner"],
   },
 ];
+
+test.describe("Toolbar pen click targets the selected element", () => {
+  test.beforeEach(async ({ page }) => {
+    await page.goto("/");
+    await page.waitForTimeout(500);
+  });
+
+  // Regression: a REAL click on the pen used to bubble to the document
+  // selection handler with a now-detached target (opening the sheet unmounts
+  // the toolbar), which re-hit-tested the pointer and selected whatever canvas
+  // element sat beneath the pen — so the sheet opened for the wrong element.
+  // The pen must open the sheet for the element that is actually selected.
+  test("real click on the pen opens the selected element's sheet, not the one beneath it", async ({
+    page,
+  }) => {
+    await page.locator("[data-banner]").click();
+    await page.waitForTimeout(250);
+
+    expect(await realClickToolbarAction(page, "edit")).toBe(true);
+    await page.waitForTimeout(400);
+
+    expect(await isSheetVisible(page)).toBe(true);
+    expect(await getSheetHeaderLabel(page)).toBe("Banner");
+  });
+});
 
 test.describe("Every demo component opens its sheet clean", () => {
   test.beforeEach(async ({ page }) => {
