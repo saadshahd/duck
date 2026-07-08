@@ -2274,3 +2274,351 @@ export const clickRichTextAction = async (
   await page.mouse.click(c.x, c.y);
   return true;
 };
+
+// --- Radio control helpers ---
+
+/** Locate a `[data-role='radio-group']` root scoped by the field's visible label
+ *  (the `<label>` in the shared `.prop-field` wrapper), mirroring dimensionRoot. */
+const radioRoot = (root: ShadowRoot, label?: string): Element | undefined => {
+  const roots = [
+    ...root.querySelectorAll("[data-role='radio-group']"),
+  ] as HTMLElement[];
+  if (!label) return roots[0];
+  return roots.find((r) => {
+    const field = r.closest(".prop-field");
+    return field?.querySelector("label")?.textContent?.trim() === label;
+  });
+};
+
+/** A radio field's chosen layout ("segmented" | "stacked") plus every option's
+ *  value, checked, and focused state — read from the overlay shadow root by
+ *  data-role. `checked` reads the native input; `focused` reads shadow
+ *  activeElement (containment counts — focus sits on the option's input). */
+export const readRadioGroup = (page: Page, fieldLabel?: string) =>
+  page.evaluate(
+    ({ label, finder }) => {
+      for (const d of document.querySelectorAll("div")) {
+        if (!d.shadowRoot || (d as HTMLElement).style.position !== "fixed")
+          continue;
+        const find = new Function(
+          "root",
+          "label",
+          `return (${finder})(root, label)`,
+        );
+        const root = find(d.shadowRoot, label) as Element | undefined;
+        if (!root) continue;
+        const active = d.shadowRoot.activeElement;
+        return {
+          layout: root.getAttribute("data-layout") ?? "",
+          options: [...root.querySelectorAll("[data-role='radio-option']")].map(
+            (el) => {
+              const input = el.querySelector(
+                "input[type='radio']",
+              ) as HTMLInputElement | null;
+              return {
+                value: el.getAttribute("data-value") ?? "",
+                checked: input?.checked ?? false,
+                focused: el === active || el.contains(active),
+              };
+            },
+          ),
+        };
+      }
+      return null;
+    },
+    { label: fieldLabel, finder: radioRoot.toString() },
+  ) as Promise<{
+    layout: string;
+    options: { value: string; checked: boolean; focused: boolean }[];
+  } | null>;
+
+/** The on-screen center of the radio option whose data-value matches, scoped to
+ *  the named field — for a REAL mouse click. Null when absent. */
+export const getRadioOptionCenter = (
+  page: Page,
+  value: string,
+  fieldLabel?: string,
+) =>
+  page.evaluate(
+    ({ wanted, label, finder }) => {
+      for (const d of document.querySelectorAll("div")) {
+        if (!d.shadowRoot || (d as HTMLElement).style.position !== "fixed")
+          continue;
+        const find = new Function(
+          "root",
+          "label",
+          `return (${finder})(root, label)`,
+        );
+        const root = find(d.shadowRoot, label) as Element | undefined;
+        if (!root) continue;
+        const opts = [
+          ...root.querySelectorAll("[data-role='radio-option']"),
+        ] as HTMLElement[];
+        const el = opts.find((o) => o.getAttribute("data-value") === wanted);
+        if (!el) return null;
+        el.scrollIntoView({ block: "nearest" });
+        const b = el.getBoundingClientRect();
+        return { x: b.left + b.width / 2, y: b.top + b.height / 2 };
+      }
+      return null;
+    },
+    { wanted: value, label: fieldLabel, finder: radioRoot.toString() },
+  ) as Promise<{ x: number; y: number } | null>;
+
+/** Focus the first radio option's input, scoped to the field, then press an
+ *  arrow key — exercising the native roving-radio arrow navigation. Returns the
+ *  value that became checked after the key, or null when the group is absent. */
+export const arrowNavRadio = async (
+  page: Page,
+  key: "ArrowDown" | "ArrowUp" | "ArrowRight" | "ArrowLeft",
+  fieldLabel?: string,
+): Promise<string | null> => {
+  const focused = await page.evaluate(
+    ({ label, finder }) => {
+      for (const d of document.querySelectorAll("div")) {
+        if (!d.shadowRoot || (d as HTMLElement).style.position !== "fixed")
+          continue;
+        const find = new Function(
+          "root",
+          "label",
+          `return (${finder})(root, label)`,
+        );
+        const root = find(d.shadowRoot, label) as Element | undefined;
+        if (!root) continue;
+        // Focus the CHECKED radio (a comma selector returns the first input in
+        // DOM order, not the checked one) so the arrow key moves from it.
+        const input = (root.querySelector("input[type='radio']:checked") ??
+          root.querySelector("input[type='radio']")) as HTMLInputElement | null;
+        input?.focus();
+        return input !== null;
+      }
+      return false;
+    },
+    { label: fieldLabel, finder: radioRoot.toString() },
+  );
+  if (!focused) return null;
+  await page.keyboard.press(key);
+  await page.waitForTimeout(120);
+  const group = await readRadioGroup(page, fieldLabel);
+  return group?.options.find((o) => o.checked)?.value ?? null;
+};
+
+// --- Spacing control helpers ---
+
+const spacingRoot = (root: ShadowRoot, label?: string): Element | undefined => {
+  const roots = [
+    ...root.querySelectorAll("[data-role='spacing']"),
+  ] as HTMLElement[];
+  if (!label) return roots[0];
+  return roots.find((r) => {
+    const field = r.closest(".prop-field");
+    return field?.querySelector("label")?.textContent?.trim() === label;
+  });
+};
+
+/** A spacing control's full reading scoped by field label: linked flag, chip
+ *  values + checked, the linked number input's value (null when unlinked), the
+ *  four side inputs (null when linked), and whether the clear sentinel is
+ *  selected (unset). One pass so a test asserts the honest state in one call. */
+export const readSpacing = (page: Page, fieldLabel?: string) =>
+  page.evaluate(
+    ({ label, finder }) => {
+      for (const d of document.querySelectorAll("div")) {
+        if (!d.shadowRoot || (d as HTMLElement).style.position !== "fixed")
+          continue;
+        const find = new Function(
+          "root",
+          "label",
+          `return (${finder})(root, label)`,
+        );
+        const root = find(d.shadowRoot, label) as Element | undefined;
+        if (!root) continue;
+        const linkedInput = root.querySelector(
+          "[data-role='spacing-input']",
+        ) as HTMLInputElement | null;
+        const sideEls = [
+          ...root.querySelectorAll("[data-role='spacing-side']"),
+        ] as HTMLInputElement[];
+        const sides =
+          sideEls.length === 0
+            ? null
+            : sideEls.reduce(
+                (acc, el) => {
+                  acc[el.getAttribute("data-side") ?? ""] = el.value;
+                  return acc;
+                },
+                {} as Record<string, string>,
+              );
+        const sentinel = root.querySelector("[data-role='spacing-sentinel']");
+        return {
+          linked: root.hasAttribute("data-linked"),
+          chips: [...root.querySelectorAll("[data-role='spacing-chip']")].map(
+            (el) => ({
+              value: el.getAttribute("data-value") ?? "",
+              checked: el.hasAttribute("data-checked"),
+            }),
+          ),
+          linkedInput: linkedInput ? linkedInput.value : null,
+          sides,
+          sentinelSelected: sentinel?.hasAttribute("data-selected") ?? false,
+        };
+      }
+      return null;
+    },
+    { label: fieldLabel, finder: spacingRoot.toString() },
+  ) as Promise<{
+    linked: boolean;
+    chips: { value: string; checked: boolean }[];
+    linkedInput: string | null;
+    sides: Record<string, string> | null;
+    sentinelSelected: boolean;
+  } | null>;
+
+/** Click the spacing link toggle (real mouse), scoped to the field. Returns
+ *  false when absent or disabled. */
+export const clickSpacingLink = async (
+  page: Page,
+  fieldLabel?: string,
+): Promise<boolean> => {
+  const c = (await page.evaluate(
+    ({ label, finder }) => {
+      for (const d of document.querySelectorAll("div")) {
+        if (!d.shadowRoot || (d as HTMLElement).style.position !== "fixed")
+          continue;
+        const find = new Function(
+          "root",
+          "label",
+          `return (${finder})(root, label)`,
+        );
+        const root = find(d.shadowRoot, label) as Element | undefined;
+        if (!root) continue;
+        const btn = root.querySelector(
+          "[data-role='spacing-link']",
+        ) as HTMLButtonElement | null;
+        if (!btn || btn.disabled) return null;
+        btn.scrollIntoView({ block: "nearest" });
+        const b = btn.getBoundingClientRect();
+        return { x: b.left + b.width / 2, y: b.top + b.height / 2 };
+      }
+      return null;
+    },
+    { label: fieldLabel, finder: spacingRoot.toString() },
+  )) as { x: number; y: number } | null;
+  if (!c) return false;
+  await page.mouse.click(c.x, c.y);
+  await page.waitForTimeout(120);
+  return true;
+};
+
+/** The on-screen center of the spacing chip whose data-value matches, scoped to
+ *  the field — for a REAL mouse click. Null when absent. */
+export const getSpacingChipCenter = (
+  page: Page,
+  value: string,
+  fieldLabel?: string,
+) =>
+  page.evaluate(
+    ({ wanted, label, finder }) => {
+      for (const d of document.querySelectorAll("div")) {
+        if (!d.shadowRoot || (d as HTMLElement).style.position !== "fixed")
+          continue;
+        const find = new Function(
+          "root",
+          "label",
+          `return (${finder})(root, label)`,
+        );
+        const root = find(d.shadowRoot, label) as Element | undefined;
+        if (!root) continue;
+        const chips = [
+          ...root.querySelectorAll("[data-role='spacing-chip']"),
+        ] as HTMLElement[];
+        const el = chips.find((c) => c.getAttribute("data-value") === wanted);
+        if (!el) return null;
+        el.scrollIntoView({ block: "nearest", inline: "nearest" });
+        const b = el.getBoundingClientRect();
+        return { x: b.left + b.width / 2, y: b.top + b.height / 2 };
+      }
+      return null;
+    },
+    { wanted: value, label: fieldLabel, finder: spacingRoot.toString() },
+  ) as Promise<{ x: number; y: number } | null>;
+
+/** The on-screen center of the spacing clear sentinel, scoped to the field. */
+export const getSpacingSentinelCenter = (page: Page, fieldLabel?: string) =>
+  page.evaluate(
+    ({ label, finder }) => {
+      for (const d of document.querySelectorAll("div")) {
+        if (!d.shadowRoot || (d as HTMLElement).style.position !== "fixed")
+          continue;
+        const find = new Function(
+          "root",
+          "label",
+          `return (${finder})(root, label)`,
+        );
+        const root = find(d.shadowRoot, label) as Element | undefined;
+        if (!root) continue;
+        const el = root.querySelector(
+          "[data-role='spacing-sentinel']",
+        ) as HTMLElement | null;
+        if (!el) return null;
+        const b = el.getBoundingClientRect();
+        return { x: b.left + b.width / 2, y: b.top + b.height / 2 };
+      }
+      return null;
+    },
+    { label: fieldLabel, finder: spacingRoot.toString() },
+  ) as Promise<{ x: number; y: number } | null>;
+
+// --- Disclosure trigger helpers (arrays + nested objects share the anatomy) ---
+
+/** Every disclosure trigger in the open sheet with its label and open state.
+ *  Nested-object groups (e.g. "Border") and array groups both use this anatomy. */
+export const readDisclosureTriggers = (page: Page) =>
+  shadowQuery(page, (r) =>
+    [
+      ...r.querySelectorAll(
+        "[data-role='prop-sheet'] [data-role='disclosure-trigger']",
+      ),
+    ].map((el) => ({
+      label:
+        (
+          el.querySelector(".disclosure-label") as HTMLElement | null
+        )?.textContent?.trim() ?? "",
+      open: el.getAttribute("aria-expanded") === "true",
+    })),
+  ) as Promise<{ label: string; open: boolean }[]>;
+
+/** Click the disclosure trigger whose label matches (real mouse), so a test can
+ *  open one named group without expanding every disclosure. Returns false when
+ *  no trigger carries that label. */
+export const clickDisclosureTrigger = async (
+  page: Page,
+  label: string,
+): Promise<boolean> => {
+  const c = (await page.evaluate((wanted) => {
+    for (const d of document.querySelectorAll("div")) {
+      if (!d.shadowRoot || (d as HTMLElement).style.position !== "fixed")
+        continue;
+      const triggers = [
+        ...d.shadowRoot.querySelectorAll(
+          "[data-role='prop-sheet'] [data-role='disclosure-trigger']",
+        ),
+      ] as HTMLElement[];
+      const el = triggers.find(
+        (t) =>
+          (
+            t.querySelector(".disclosure-label") as HTMLElement | null
+          )?.textContent?.trim() === wanted,
+      );
+      if (!el) return null;
+      el.scrollIntoView({ block: "nearest" });
+      const b = el.getBoundingClientRect();
+      return { x: b.left + b.width / 2, y: b.top + b.height / 2 };
+    }
+    return null;
+  }, label)) as { x: number; y: number } | null;
+  if (!c) return false;
+  await page.mouse.click(c.x, c.y);
+  await page.waitForTimeout(150);
+  return true;
+};

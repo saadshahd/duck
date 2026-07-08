@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, type MouseEvent as ReactMouseEvent } from "react";
 import type { Field } from "@puckeditor/core";
 import { useShadowSheet } from "../../overlay/index.js";
 import { FieldLabel, fieldClass } from "../field-shell.js";
@@ -108,7 +108,11 @@ export const Spacing = (({
     onChange(undefined);
   };
 
-  const toggleLink = () => {
+  const toggleLink = (e: ReactMouseEvent) => {
+    // Toggling swaps the layout, so this button unmounts itself on click. Without
+    // stopping the event, the click reaches the sheet's click-outside handler with
+    // a now-detached target and reads as a click outside → the sheet closes.
+    e.stopPropagation();
     if (readOnly || unset) return;
     cancelDrafts();
     if (linked) {
