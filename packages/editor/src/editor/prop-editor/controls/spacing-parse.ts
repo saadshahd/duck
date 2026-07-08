@@ -22,8 +22,9 @@ const EMPTY: Sides = { top: "", right: "", bottom: "", left: "" };
 export const parseSides = (value: string): Sides => {
   const t = value.trim();
   if (!t) return EMPTY;
-  const [a, b, c, d] = t.split(/\s+/);
-  switch (t.split(/\s+/).length) {
+  const tokens = t.split(/\s+/);
+  const [a, b, c, d] = tokens;
+  switch (tokens.length) {
     case 1:
       return { top: a, right: a, bottom: a, left: a };
     case 2:
