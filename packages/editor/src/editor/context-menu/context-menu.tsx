@@ -123,6 +123,15 @@ export function ContextMenu({
       data-role="context-menu"
       onClick={(e) => e.stopPropagation()}
     >
+      {elementIds.length > 0 && (
+        <div
+          className="context-menu-group-label"
+          role="presentation"
+          data-role="context-menu-nav-label"
+        >
+          Select element
+        </div>
+      )}
       {elementIds.map((id, i) => {
         const component = findById(data, id);
         if (!component) return null;

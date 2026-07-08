@@ -1,6 +1,7 @@
 import { test, expect } from "@playwright/test";
 import {
   isContextMenuVisible,
+  getContextMenuNavLabel,
   getContextMenuAncestryTypes,
   getContextMenuActions,
   clickContextMenuAncestryItem,
@@ -27,6 +28,9 @@ test.describe("Context menu", () => {
     await page.waitForTimeout(300);
 
     expect(await isContextMenuVisible(page)).toBe(true);
+    // The nav group is labelled so the breadcrumb reads as navigation, not
+    // another action row.
+    expect(await getContextMenuNavLabel(page)).toBe("Select element");
     const ancestry = await getContextMenuAncestryTypes(page);
     expect(ancestry[0]).toBe("Heading");
     expect(ancestry).toContain("Card");

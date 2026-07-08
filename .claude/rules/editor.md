@@ -12,7 +12,7 @@ Use `neverthrow` for Result types in spec-ops and any fallible editor logic. Do 
 When adding any editor UI element:
 - **No chrome when nothing is selected.** An untouched page renders pixel-identical to Puck's `<Render>` output. The only exception: legibility signals (e.g., the hover ring) that exist strictly under the pointer and vanish with it.
 - **While a selection exists, exactly ONE control surface may exist.** It is selection-scoped: it appears on edit intent, re-targets when selection moves, and disappears when selection ends. A second concurrent surface is a violation, not a feature.
-- A control surface must NEVER occlude the selected element. Anchor surfaces to the viewport edge, not to canvas elements.
+- A control surface must NEVER occlude the selected element — the feedback loop is sacred: the designer must always see what they are editing. The anchoring mechanism depends on the surface: the persistent focus sheet anchors to the viewport edge; transient element-anchored poppers (quick-variants, context menu) attach to the selected element's rect and flip / shift / clamp to sit beside it — never over it, always within the viewport.
 - Do NOT add sidebars, toolbars, or panels that persist independent of selection. Selection-gated is the ceiling — police creep against it.
 - Controls must be honest: never display a value that differs from stored data; render read-only state distinctly.
 

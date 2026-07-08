@@ -1908,6 +1908,16 @@ export const isContextMenuVisible = (page: Page) =>
     (r) => r.querySelector("[data-role='context-menu']") !== null,
   ) as Promise<boolean>;
 
+/** The section label naming the ancestry group as navigation, or null when
+ *  absent. Distinguishes the nav rows from the action rows below the divider. */
+export const getContextMenuNavLabel = (page: Page) =>
+  shadowQuery(
+    page,
+    (r) =>
+      r.querySelector("[data-role='context-menu-nav-label']")?.textContent ??
+      null,
+  ) as Promise<string | null>;
+
 /** The ancestry entries (component-type menuitems above the divider), in
  *  paint order — the deepest hit element first. */
 export const getContextMenuAncestryTypes = (page: Page) =>
