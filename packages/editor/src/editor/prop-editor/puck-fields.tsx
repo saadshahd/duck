@@ -655,14 +655,20 @@ const renderers = {
 >;
 
 /** Render a single Puck field with the appropriate input.
- *  Priority: metadata.control (if registered) → field.type renderer → FallbackField. */
+ *  Priority: metadata.control (if registered) → field.type renderer → FallbackField.
+ *
+ *  The resolved renderer is mounted as an element, never called as `Renderer(props)`.
+ *  Invoking it as a function would inline its hooks into this fiber, so a re-target
+ *  that swaps the renderer at the same field key (Segmented → Spacing) would change
+ *  the hook order and crash. As an element each renderer owns its fiber: a swap is a
+ *  clean unmount + mount. */
 function PuckFieldInput(props: FieldProps): ReactNode {
   const Renderer = resolveRenderer(
     props as FieldProps<Field, unknown>,
     controlRenderers,
     renderers as Record<string, (p: FieldProps<Field, unknown>) => ReactNode>,
   );
-  if (Renderer) return Renderer(props as FieldProps<never, unknown>);
+  if (Renderer) return <Renderer {...(props as FieldProps<never, unknown>)} />;
   return <FallbackField {...props} />;
 }
 

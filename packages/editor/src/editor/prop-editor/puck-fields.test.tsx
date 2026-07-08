@@ -1,11 +1,7 @@
 import { describe, it, expect } from "bun:test";
 import { renderToStaticMarkup } from "react-dom/server";
-import type { Config, Data, Field } from "@puckeditor/core";
-import { PuckFields } from "./puck-fields.js";
-
-const emptyData: Data = { content: [], root: { props: {} } };
-const emptyConfig: Config = { components: {} };
-const noopCommit = () => ({ status: "unchanged" as const });
+import type { Field } from "@puckeditor/core";
+import { fieldsTree } from "./puck-fields-testing.js";
 
 const objectField = (
   label: string,
@@ -17,28 +13,19 @@ const objectField = (
 const textField = (label: string): Field =>
   ({ type: "text", label }) as unknown as Field;
 
-const render = (fields: Record<string, Field>) =>
-  renderToStaticMarkup(
-    <PuckFields
-      fields={fields}
-      values={{}}
-      onChange={() => {}}
-      elementId="test"
-      data={emptyData}
-      config={emptyConfig}
-      commit={noopCommit}
-    />,
-  );
+/** Render the fields to static markup and return a queryable host element. */
+const render = (fields: Record<string, Field>): HTMLElement => {
+  const host = document.createElement("div");
+  host.innerHTML = renderToStaticMarkup(fieldsTree(fields));
+  return host;
+};
 
 describe("PuckFields — object field grouping", () => {
   it("renders a section heading using field.label for an object field", () => {
     const fields: Record<string, Field> = {
       style: objectField("Styling", { color: textField("Color") }),
     };
-    const markup = render(fields);
-    const host = document.createElement("div");
-    host.innerHTML = markup;
-    const heading = host.querySelector(".field-section-heading");
+    const heading = render(fields).querySelector(".field-section-heading");
     expect(heading?.textContent).toBe("Styling");
   });
 
@@ -52,10 +39,7 @@ describe("PuckFields — object field grouping", () => {
         },
       ),
     };
-    const markup = render(fields);
-    const host = document.createElement("div");
-    host.innerHTML = markup;
-    const heading = host.querySelector(".field-section-heading");
+    const heading = render(fields).querySelector(".field-section-heading");
     expect(heading?.textContent).toBe("Appearance");
   });
 
@@ -66,10 +50,7 @@ describe("PuckFields — object field grouping", () => {
         objectFields: { color: textField("Color") },
       } as unknown as Field,
     };
-    const markup = render(fields);
-    const host = document.createElement("div");
-    host.innerHTML = markup;
-    const heading = host.querySelector(".field-section-heading");
+    const heading = render(fields).querySelector(".field-section-heading");
     expect(heading?.textContent).toBe("Background color");
   });
 
@@ -79,10 +60,7 @@ describe("PuckFields — object field grouping", () => {
         marginBottom: { type: "text" } as unknown as Field,
       }),
     };
-    const markup = render(fields);
-    const host = document.createElement("div");
-    host.innerHTML = markup;
-    const section = host.querySelector(".field-section");
+    const section = render(fields).querySelector(".field-section");
     const labels = [...section!.querySelectorAll("label")].map(
       (el) => el.textContent,
     );
@@ -96,10 +74,7 @@ describe("PuckFields — object field grouping", () => {
         size: textField("Size"),
       }),
     };
-    const markup = render(fields);
-    const host = document.createElement("div");
-    host.innerHTML = markup;
-    const section = host.querySelector(".field-section");
+    const section = render(fields).querySelector(".field-section");
     const labels = [...section!.querySelectorAll("label")].map(
       (el) => el.textContent,
     );
@@ -133,10 +108,7 @@ describe("PuckFields — object field grouping", () => {
         metadata: { group: "Theme" },
       } as unknown as Field,
     };
-    const markup = render(fields);
-    const host = document.createElement("div");
-    host.innerHTML = markup;
-    const sections = [...host.querySelectorAll(".field-section")];
+    const sections = [...render(fields).querySelectorAll(".field-section")];
     expect(sections.length).toBe(1);
     expect(
       sections[0].querySelector(".field-section-heading")?.textContent,
