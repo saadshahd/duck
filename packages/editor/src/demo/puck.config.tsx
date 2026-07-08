@@ -722,6 +722,7 @@ export const config: Config = {
           style={{
             display: "grid",
             gridTemplateColumns: `repeat(${columns ?? 3}, 1fr)`,
+            alignItems: "start",
             gap: gap ?? "1.5rem",
           }}
         >

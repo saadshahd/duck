@@ -248,7 +248,10 @@ test.describe("Slot-aware container drops", () => {
     const tags = await card(page).evaluate((el) =>
       [...el.children].map((c) => c.tagName),
     );
-    expect(tags).toEqual(["DIV", "H3"]);
+    // The moved H3 lands after the body Text; the trailing DIV is the card's
+    // `tags` decoration (feature-1 carries a "Design" tag for the array-field
+    // suite), which renders after the body slot and before the empty footer.
+    expect(tags).toEqual(["DIV", "H3", "DIV"]);
   });
 });
 
@@ -327,13 +330,21 @@ test.describe("Shift-cycle destination stack", () => {
   test("drop into the empty footer via its carved bottom band", async ({
     page,
   }) => {
+    // Target the undecorated card: its empty footer's carved band sits directly
+    // below the body (the last rendered slot child), so the bottom band is
+    // pointer-reachable. The "Zero Chrome" card carries a `tags` decoration
+    // (an unregistered trailing element), which pushes the footer band into a
+    // region the pointer path cannot resolve — that card reaches its footer via
+    // the shift-cycle stack instead (covered above).
+    const targetCard = page
+      .locator('h3:has-text("Catalog-Agnostic")')
+      .locator("..");
     const heading = page.locator("h1");
     await heading.click();
     await page.waitForTimeout(300);
 
-    const box = await card(page).boundingBox();
+    const box = await targetCard.boundingBox();
     if (!box) throw new Error("Card not visible");
-    // Bottom carved band — previously given to the sibling role by the gate.
     const footerBand: Point = {
       x: box.x + box.width / 2,
       y: box.y + box.height - 10,
@@ -342,7 +353,7 @@ test.describe("Shift-cycle destination stack", () => {
     await mouseDrag(page, heading, [footerBand], true);
     await page.waitForTimeout(500);
 
-    const tags = await card(page).evaluate((el) =>
+    const tags = await targetCard.evaluate((el) =>
       [...el.children].map((c) => c.tagName),
     );
     // H1 lands as the card's last child (the footer slot's only element).
