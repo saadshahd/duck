@@ -508,6 +508,14 @@ export const toggleBoxModel = (page: Page) =>
     }
   });
 
+/** True when the box-model toggle carries aria-pressed="true". Null when the
+ *  toggle isn't rendered (no single selection). */
+export const isBoxModelToggleActive = (page: Page) =>
+  shadowQuery(page, (r) => {
+    const btn = r.querySelector("[data-role='box-model-toggle']");
+    return btn ? btn.getAttribute("aria-pressed") === "true" : null;
+  }) as Promise<boolean | null>;
+
 export const getSlotStopLabelText = (page: Page) =>
   shadowQuery(
     page,
@@ -2702,6 +2710,176 @@ export const getSpacingSentinelCenter = (page: Page, fieldLabel?: string) =>
     },
     { label: fieldLabel, finder: spacingRoot.toString() },
   ) as Promise<{ x: number; y: number } | null>;
+
+// --- Box-model helpers ---
+
+/** Every box-model band currently painted, with its band kind ("margin" |
+ *  "padding" | "content") and viewport rect. Empty when the overlay is off. */
+export const readBoxModelBands = (page: Page) =>
+  shadowQuery(page, (r) =>
+    [...r.querySelectorAll("[data-role='box-model-band']")].map((el) => {
+      const b = el.getBoundingClientRect();
+      return {
+        band: el.getAttribute("data-band") ?? "",
+        top: b.top,
+        left: b.left,
+        width: b.width,
+        height: b.height,
+      };
+    }),
+  ) as Promise<
+    { band: string; top: number; left: number; width: number; height: number }[]
+  >;
+
+/** Count of painted gap regions (one per visible gap between flex/grid
+ *  children). Zero when the container has < 2 children or a zero gap. */
+export const countGapRegions = (page: Page) =>
+  shadowQuery(
+    page,
+    (r) => r.querySelectorAll("[data-role='box-model-gap-region']").length,
+  ) as Promise<number>;
+
+/** The box-model bands container's on-screen (viewport) bounding box. Lets a
+ *  test verify the overlay tracks the selected element through scroll. Null
+ *  when the toggle is off. */
+export const getBoxModelBandsRect = (page: Page) =>
+  shadowQuery(page, (r) => {
+    const el = r.querySelector(
+      "[data-role='box-model-bands']",
+    ) as HTMLElement | null;
+    if (!el) return null;
+    const b = el.getBoundingClientRect();
+    return { top: b.top, left: b.left, bottom: b.bottom, right: b.right };
+  }) as Promise<{
+    top: number;
+    left: number;
+    bottom: number;
+    right: number;
+  } | null>;
+
+// --- Ghost helpers ---
+
+/** True when the light-DOM element at `selector` currently carries the ghost
+ *  marker (data-duck-ghost), set by useGhostPlaceholders while it is styled
+ *  as a placeholder. Reads the light DOM directly — ghosting styles the
+ *  user's own element, not an overlay affordance. */
+export const isGhostStyled = (page: Page, selector: string) =>
+  page.evaluate(
+    (sel) =>
+      document.querySelector(sel)?.hasAttribute("data-duck-ghost") ?? false,
+    selector,
+  ) as Promise<boolean>;
+
+/** The light-DOM element's on-screen (viewport) bounding box at `selector`.
+ *  Null when no such element exists. */
+export const getGhostRect = (page: Page, selector: string) =>
+  page.evaluate((sel) => {
+    const el = document.querySelector(sel);
+    if (!el) return null;
+    const b = el.getBoundingClientRect();
+    return { top: b.top, left: b.left, width: b.width, height: b.height };
+  }, selector) as Promise<{
+    top: number;
+    left: number;
+    width: number;
+    height: number;
+  } | null>;
+
+// --- Resolve helpers ---
+
+/** True when the resolving shimmer is mounted, optionally scoped to a
+ *  specific element id. */
+export const isResolvingVisible = (page: Page, elementId?: string) =>
+  page.evaluate((id) => {
+    for (const d of document.querySelectorAll("div")) {
+      if (!d.shadowRoot || (d as HTMLElement).style.position !== "fixed")
+        continue;
+      const sel = id
+        ? `[data-role='resolve-resolving'][data-element-id='${id}']`
+        : "[data-role='resolve-resolving']";
+      return d.shadowRoot.querySelector(sel) !== null;
+    }
+    return false;
+  }, elementId) as Promise<boolean>;
+
+/** True when the resolve-error frame is mounted, optionally scoped to a
+ *  specific element id. */
+export const isResolveErrorVisible = (page: Page, elementId?: string) =>
+  page.evaluate((id) => {
+    for (const d of document.querySelectorAll("div")) {
+      if (!d.shadowRoot || (d as HTMLElement).style.position !== "fixed")
+        continue;
+      const sel = id
+        ? `[data-role='resolve-error'][data-element-id='${id}']`
+        : "[data-role='resolve-error']";
+      return d.shadowRoot.querySelector(sel) !== null;
+    }
+    return false;
+  }, elementId) as Promise<boolean>;
+
+/** The current value of a read-only sheet field (native text/textarea input),
+ *  scoped by its visible label — mirrors the dimensionRoot/segmentedRoot
+ *  label-scoping pattern. Null when no field with that label is rendered. */
+export const getReadOnlyFieldValue = (page: Page, fieldLabel: string) =>
+  page.evaluate((wanted) => {
+    for (const d of document.querySelectorAll("div")) {
+      if (!d.shadowRoot || (d as HTMLElement).style.position !== "fixed")
+        continue;
+      const fields = [
+        ...d.shadowRoot.querySelectorAll(
+          "[data-role='prop-sheet'] .prop-field",
+        ),
+      ];
+      const field = fields.find(
+        (f) => f.querySelector("label")?.textContent?.trim() === wanted,
+      );
+      if (!field) continue;
+      const input = field.querySelector("input, textarea") as
+        HTMLInputElement | HTMLTextAreaElement | null;
+      return input ? input.value : null;
+    }
+    return null;
+  }, fieldLabel) as Promise<string | null>;
+
+// --- Sheet control-kind helper (re-target safety) ---
+
+export type SheetControlKind =
+  "dimension" | "spacing" | "segmented" | "swatch" | "radio-group" | null;
+
+/** Which control root is rendered for a field, scoped by its visible label.
+ *  Lets a re-target test assert a control actually SWAPPED kind in place
+ *  (e.g. dimension -> spacing) rather than merely re-rendering the same kind. */
+export const getSheetControlKind = (
+  page: Page,
+  fieldLabel: string,
+): Promise<SheetControlKind> =>
+  page.evaluate((wanted) => {
+    const kinds = [
+      "dimension",
+      "spacing",
+      "segmented",
+      "swatch",
+      "radio-group",
+    ];
+    for (const d of document.querySelectorAll("div")) {
+      if (!d.shadowRoot || (d as HTMLElement).style.position !== "fixed")
+        continue;
+      const fields = [
+        ...d.shadowRoot.querySelectorAll(
+          "[data-role='prop-sheet'] .prop-field",
+        ),
+      ];
+      const field = fields.find(
+        (f) => f.querySelector("label")?.textContent?.trim() === wanted,
+      );
+      if (!field) continue;
+      const found = kinds.find(
+        (k) => field.querySelector(`[data-role='${k}']`) !== null,
+      );
+      return (found ?? null) as SheetControlKind;
+    }
+    return null;
+  }, fieldLabel) as Promise<SheetControlKind>;
 
 // --- Disclosure trigger helpers (arrays + nested objects share the anatomy) ---
 

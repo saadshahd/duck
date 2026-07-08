@@ -68,16 +68,20 @@ function edgeLabels(
  */
 function Band({
   className,
+  band,
   edges,
   children,
 }: {
   className: string;
+  band: "margin" | "padding" | "content";
   edges: Edges;
   children?: React.ReactNode;
 }) {
   return (
     <div
       className={className}
+      data-role="box-model-band"
+      data-band={band}
       style={{
         position: "absolute",
         inset: 0,
@@ -119,12 +123,14 @@ export function BoxModelOverlay({ data }: { data: BoxModelData }) {
   ];
 
   // Nested bands: margin → padding → content
-  const content = <Band className="box-model-content" edges={data.padding} />;
+  const content = (
+    <Band className="box-model-content" band="content" edges={data.padding} />
+  );
 
   const padding = isZeroEdges(data.padding) ? (
     content
   ) : (
-    <Band className="box-model-padding" edges={data.padding}>
+    <Band className="box-model-padding" band="padding" edges={data.padding}>
       {content}
     </Band>
   );
@@ -132,7 +138,7 @@ export function BoxModelOverlay({ data }: { data: BoxModelData }) {
   const margin = isZeroEdges(data.margin) ? (
     padding
   ) : (
-    <Band className="box-model-margin" edges={data.margin}>
+    <Band className="box-model-margin" band="margin" edges={data.margin}>
       {padding}
     </Band>
   );

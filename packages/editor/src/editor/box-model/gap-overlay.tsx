@@ -74,6 +74,7 @@ export function GapOverlay({
         <div
           key={i}
           className="box-model-layer box-model-gap"
+          data-role="box-model-gap-region"
           style={region.style}
         >
           <span
