@@ -27,6 +27,7 @@ export const COMMIT = {
   external: discrete,
   custom: discrete,
   dimension: discrete,
+  spacing: discrete, // chips/link = discrete; its number/side inputs continuous internally
   segmented: discrete,
   swatch: discrete,
 } as const satisfies Record<string, CommitMode>;

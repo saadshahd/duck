@@ -3,6 +3,7 @@ import type { Field } from "@puckeditor/core";
 import type { FieldProps } from "../puck-fields.js";
 import type { ControlId } from "../commit-mode.js";
 import { Dimension } from "./dimension.js";
+import { Spacing } from "./spacing.js";
 import { Segmented } from "./segmented.js";
 import { Swatch } from "./swatch.js";
 import { RichTextInput } from "../richtext.js";
@@ -32,6 +33,7 @@ export type ControlRenderer<F extends Field = Field, V = unknown> = (
 //  entry's commit timing is declared in COMMIT), not one disjoint from field types.
 export const controlRenderers = {
   dimension: Dimension,
+  spacing: Spacing,
   segmented: Segmented,
   swatch: Swatch,
   richtext: RichTextInput,

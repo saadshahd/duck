@@ -1,0 +1,252 @@
+/* Spacing control — plain CSS, shadow-DOM safe (no @property, no Tailwind).
+   Self-registered via useShadowSheet in spacing.tsx. Native inputs + button
+   chips; the same token vocabulary as dimension.css (properties repeated, not
+   coupled — the overlay CSS rule). Two layouts: linked (one number input) and
+   unlinked (a cross of four per-side inputs with the link toggle at its center). */
+
+.spacing-root {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  width: 100%;
+}
+
+/* ── Preset chips + clear sentinel (shared by both layouts) ────────────────── */
+
+.spacing-chips {
+  display: flex;
+  flex-wrap: nowrap;
+  align-items: center;
+  gap: 4px;
+  padding: 2px;
+  background: var(--control-bg);
+  border: 1px solid var(--control-border);
+  border-radius: var(--radius-control);
+  width: 100%;
+  box-sizing: border-box;
+  overflow-x: auto;
+  scrollbar-width: none;
+  /* Overflowing preset dissolves at the trailing edge instead of clipping a
+     glyph — reads as scrollable, not broken (the 112 chip-fade). */
+  -webkit-mask-image: linear-gradient(to right, #000 calc(100% - 16px), transparent);
+  mask-image: linear-gradient(to right, #000 calc(100% - 16px), transparent);
+}
+
+.spacing-chips::-webkit-scrollbar {
+  display: none;
+}
+
+.spacing-chip {
+  flex-shrink: 0;
+  appearance: none;
+  border: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 22px;
+  padding: 3px 7px;
+  border-radius: var(--radius-inner);
+  background: transparent;
+  font-family: var(--font-system);
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--text-field-secondary);
+  cursor: pointer;
+  user-select: none;
+  white-space: nowrap;
+  transition:
+    background 100ms ease,
+    color 100ms ease;
+}
+
+.spacing-chip[data-checked] {
+  background: var(--accent);
+  color: var(--text-bar-strong);
+}
+
+.spacing-chip:not([data-checked]):hover:not(:disabled) {
+  background: var(--control-bg-hover);
+  color: var(--text-field);
+}
+
+.spacing-chip:focus-visible {
+  outline: 2px solid var(--control-focus);
+  outline-offset: -1px;
+}
+
+.spacing-chip:disabled {
+  cursor: not-allowed;
+  color: var(--text-field-muted);
+}
+
+/* Sentinel — hatched, matches the dimension clear affordance so "unset" reads
+   the same way across every constrained control. */
+.spacing-sentinel {
+  flex-shrink: 0;
+  width: 24px;
+  min-height: 22px;
+  border-radius: var(--radius-inner);
+  border: 2px dashed var(--control-border);
+  cursor: pointer;
+  user-select: none;
+  background: repeating-linear-gradient(
+    45deg,
+    var(--control-border) 0px,
+    var(--control-border) 1px,
+    transparent 1px,
+    transparent 4px
+  );
+}
+
+.spacing-sentinel--selected {
+  border-color: var(--control-focus);
+  border-style: solid;
+}
+
+/* ── Linked layout — one number input + unit, link toggle beside it ────────── */
+
+.spacing-linked {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.spacing-input-control {
+  display: flex;
+  align-items: center;
+  flex: 1;
+  height: 28px;
+  background: var(--control-bg);
+  border: 1px solid var(--control-border);
+  border-radius: var(--radius-control);
+  overflow: hidden;
+}
+
+.spacing-input-control:focus-within {
+  outline: 2px solid var(--control-focus);
+  outline-offset: -1px;
+}
+
+.spacing-input-field {
+  flex: 1;
+  min-width: 0;
+  height: 100%;
+  padding: 0 6px;
+  border: none;
+  background: transparent;
+  font-family: var(--font-system);
+  font-size: 12px;
+  color: var(--text-field);
+  outline: none;
+}
+
+.spacing-input-field::placeholder {
+  color: var(--text-field-secondary);
+}
+
+.spacing-unit-badge {
+  padding: 0 8px 0 4px;
+  font-family: var(--font-system);
+  font-size: 11px;
+  color: var(--text-field-secondary);
+  user-select: none;
+  flex-shrink: 0;
+}
+
+/* ── Unlinked layout — a cross of four per-side inputs ─────────────────────── */
+
+.spacing-cross {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+}
+
+.spacing-cross-row {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+}
+
+.spacing-side-input {
+  width: 68px;
+  height: 26px;
+  padding: 0 6px;
+  text-align: center;
+  font-family: var(--font-system);
+  font-size: 12px;
+  color: var(--text-field);
+  background: var(--control-bg);
+  border: 1px solid var(--control-border);
+  border-radius: var(--radius-control);
+  outline: none;
+  transition:
+    border-color 120ms ease,
+    box-shadow 120ms ease;
+}
+
+.spacing-side-input::placeholder {
+  color: var(--text-field-muted);
+}
+
+.spacing-side-input:hover {
+  border-color: var(--control-border-hover);
+}
+
+.spacing-side-input:focus {
+  border-color: var(--control-focus);
+  box-shadow: 0 0 0 1px var(--control-focus);
+}
+
+/* ── Link toggle — the signature affordance, sits at the cross center ──────── */
+
+.spacing-link {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  appearance: none;
+  border: 1px solid var(--control-border);
+  border-radius: var(--radius-control);
+  background: var(--control-bg);
+  color: var(--text-field-tertiary);
+  cursor: pointer;
+  transition:
+    background 100ms ease,
+    color 100ms ease,
+    border-color 100ms ease;
+}
+
+.spacing-link:hover:not(:disabled) {
+  background: var(--control-bg-hover);
+  color: var(--text-field);
+  border-color: var(--control-border-hover);
+}
+
+/* Linked = engaged: accent fill so the joined state is unmistakable. */
+.spacing-link[aria-pressed="true"] {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--text-bar-strong);
+}
+
+.spacing-link:focus-visible {
+  outline: 2px solid var(--control-focus);
+  outline-offset: -1px;
+}
+
+.spacing-link:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+/* ── Read-only ────────────────────────────────────────────────────────────── */
+
+.prop-field--readonly .spacing-side-input,
+.prop-field--readonly .spacing-input-control {
+  opacity: 0.55;
+  pointer-events: none;
+}
