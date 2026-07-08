@@ -148,42 +148,38 @@ export function ActionBoxModel({
   );
 }
 
-/** Computes fixed-position styles for an arrow anchored to an element edge.
+type Edge = "top" | "bottom" | "left" | "right";
+
+/** Fixed-position style for an arrow anchored to each element edge.
  *  - top:    centered horizontally, just inside the element top edge
  *  - bottom: centered horizontally, just below the element
  *  - left:   centered vertically, just left of the element
  *  - right:  centered vertically, just right of the element */
-function edgeStyle(
-  rect: DOMRect,
-  edge: "top" | "bottom" | "left" | "right",
-  arrowSize: number,
-  gap: number,
-): { top: number; left: number } {
-  const half = arrowSize / 2;
-  if (edge === "top") {
-    return {
-      top: rect.top + gap,
-      left: rect.left + rect.width / 2 - half,
-    };
-  }
-  if (edge === "bottom") {
-    return {
-      top: rect.bottom + gap,
-      left: rect.left + rect.width / 2 - half,
-    };
-  }
-  if (edge === "left") {
-    return {
-      top: rect.top + rect.height / 2 - half,
-      left: rect.left - gap - arrowSize,
-    };
-  }
-  // right
-  return {
-    top: rect.top + rect.height / 2 - half,
+const EDGE_STYLE: Record<
+  Edge,
+  (
+    rect: DOMRect,
+    arrowSize: number,
+    gap: number,
+  ) => { top: number; left: number }
+> = {
+  top: (rect, arrowSize, gap) => ({
+    top: rect.top + gap,
+    left: rect.left + rect.width / 2 - arrowSize / 2,
+  }),
+  bottom: (rect, arrowSize, gap) => ({
+    top: rect.bottom + gap,
+    left: rect.left + rect.width / 2 - arrowSize / 2,
+  }),
+  left: (rect, arrowSize, gap) => ({
+    top: rect.top + rect.height / 2 - arrowSize / 2,
+    left: rect.left - gap - arrowSize,
+  }),
+  right: (rect, arrowSize, gap) => ({
+    top: rect.top + rect.height / 2 - arrowSize / 2,
     left: rect.right + gap,
-  };
-}
+  }),
+};
 
 const ARROW_SIZE = 24;
 const EDGE_GAP = 6;
@@ -212,11 +208,7 @@ function viewportArrowStyle(
  *  Returns a callback ref so positioning starts the moment the button mounts,
  *  regardless of when canMove* flips — avoiding the 0,0 flash from a stale
  *  useEffect that won't re-run when only ref.current changes. */
-function useEdgeArrow(
-  registry: FiberRegistry,
-  elementId: string,
-  edge: "top" | "bottom" | "left" | "right",
-) {
+function useEdgeArrow(registry: FiberRegistry, elementId: string, edge: Edge) {
   const cleanupRef = useRef<(() => void) | null>(null);
 
   const ref = useCallback(
@@ -235,7 +227,7 @@ function useEdgeArrow(
         }
         const r = el.getBoundingClientRect();
         const s = viewportArrowStyle(
-          edgeStyle(r, edge, ARROW_SIZE, EDGE_GAP),
+          EDGE_STYLE[edge](r, ARROW_SIZE, EDGE_GAP),
           ARROW_SIZE,
           { width: window.innerWidth, height: window.innerHeight },
         );
