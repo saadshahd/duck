@@ -2785,6 +2785,15 @@ export const getGhostRect = (page: Page, selector: string) =>
     height: number;
   } | null>;
 
+/** Count of light-DOM elements anywhere on the page currently carrying the
+ *  ghost marker. Used to prove a multi-slot component with a mix of empty
+ *  and filled slots is NEVER ghosted (the container itself only qualifies
+ *  when ALL its slots are empty). */
+export const countGhostMarkers = (page: Page) =>
+  page.evaluate(
+    () => document.querySelectorAll("[data-duck-ghost]").length,
+  ) as Promise<number>;
+
 // --- Resolve helpers ---
 
 /** True when the resolving shimmer is mounted, optionally scoped to a

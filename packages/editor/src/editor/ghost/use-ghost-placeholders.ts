@@ -31,6 +31,18 @@ const applyStyles = (el: HTMLElement, styles: SavedStyles): void => {
   for (const k of STYLE_KEYS) el.style[k] = styles[k];
 };
 
+/** Light-DOM marker for a currently-ghosted element. Tests assert on this
+ *  attribute rather than the exact outline/min-height CSS values. */
+const GHOST_MARKER = "data-duck-ghost";
+
+const markGhost = (el: HTMLElement): void => {
+  el.setAttribute(GHOST_MARKER, "");
+};
+
+const unmarkGhost = (el: HTMLElement): void => {
+  el.removeAttribute(GHOST_MARKER);
+};
+
 // --- Reconciliation ---
 
 /** Tree heuristic + DOM measurement to find currently-collapsed components. */
@@ -59,6 +71,7 @@ const restoreStale = (
     const dom = registry.get(id);
     if (!dom) continue;
     applyStyles(dom, original);
+    unmarkGhost(dom);
     active.delete(id);
   }
 };
@@ -75,6 +88,7 @@ const styleNewGhosts = (
     if (!dom) continue;
     active.set(id, saveStyles(dom));
     applyStyles(dom, GHOST_STYLES);
+    markGhost(dom);
   }
 };
 
@@ -85,7 +99,10 @@ const restoreAll = (
 ): void => {
   for (const [id, original] of active) {
     const dom = registry.get(id);
-    if (dom) applyStyles(dom, original);
+    if (dom) {
+      applyStyles(dom, original);
+      unmarkGhost(dom);
+    }
   }
   active.clear();
 };
