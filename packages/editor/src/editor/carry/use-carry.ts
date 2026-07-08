@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { Result } from "neverthrow";
 import type { Config, Data } from "@puckeditor/core";
 import { allowedTypes, findById, findParent } from "@duckeditor/spec";
 import type { FiberRegistry } from "../fiber/index.js";
@@ -39,20 +40,24 @@ const stateOf = (s: EditorSnapshot) => s.value as { drag: string };
  *  `move` op as drag — only the input is plain pointer events, not a native drag. */
 const CARRY_SEEN_KEY = "duck:carry-seen";
 
-const readCarrySeen = (): boolean => {
-  try {
-    return !!localStorage.getItem(CARRY_SEEN_KEY);
-  } catch {
-    return true; // Restricted environment — never show.
-  }
-};
+const getStorageItem = Result.fromThrowable(
+  (key: string) => localStorage.getItem(key),
+  () => "storage-unavailable" as const,
+);
+
+const setStorageItem = Result.fromThrowable(
+  (key: string, value: string) => localStorage.setItem(key, value),
+  () => "storage-unavailable" as const,
+);
+
+const readCarrySeen = (): boolean =>
+  getStorageItem(CARRY_SEEN_KEY)
+    .map((value) => !!value)
+    .unwrapOr(true); // Restricted environment — never show.
 
 const markCarrySeen = () => {
-  try {
-    localStorage.setItem(CARRY_SEEN_KEY, "1");
-  } catch {
-    // Restricted environment — silently skip.
-  }
+  // Restricted environment (private mode / quota) — best-effort, degrade silently.
+  setStorageItem(CARRY_SEEN_KEY, "1");
 };
 
 export function useCarry({
