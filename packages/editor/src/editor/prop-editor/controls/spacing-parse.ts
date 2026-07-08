@@ -16,24 +16,28 @@ export type Sides = {
 
 const EMPTY: Sides = { top: "", right: "", bottom: "", left: "" };
 
-/** Expand a 1–4 token shorthand into four sides (CSS clockwise-from-top rules).
- *  A blank/whitespace value → all sides empty. Extra tokens past four are
- *  ignored (a malformed value never throws — the first four win). */
+/** The CSS clockwise-from-top expansion, as data: token-count → the token index
+ *  each side reads. Four tokens (and any malformed excess) fall through to the
+ *  identity `[top, right, bottom, left]` default. */
+const SIDE_INDICES: Record<number, [number, number, number, number]> = {
+  1: [0, 0, 0, 0],
+  2: [0, 1, 0, 1],
+  3: [0, 1, 2, 1],
+};
+
+/** Expand a 1–4 token shorthand into four sides. A blank/whitespace value → all
+ *  sides empty; a malformed value never throws (the first four tokens win). */
 export const parseSides = (value: string): Sides => {
   const t = value.trim();
   if (!t) return EMPTY;
   const tokens = t.split(/\s+/);
-  const [a, b, c, d] = tokens;
-  switch (tokens.length) {
-    case 1:
-      return { top: a, right: a, bottom: a, left: a };
-    case 2:
-      return { top: a, right: b, bottom: a, left: b };
-    case 3:
-      return { top: a, right: b, bottom: c, left: b };
-    default:
-      return { top: a, right: b, bottom: c, left: d };
-  }
+  const [ti, ri, bi, li] = SIDE_INDICES[tokens.length] ?? [0, 1, 2, 3];
+  return {
+    top: tokens[ti],
+    right: tokens[ri],
+    bottom: tokens[bi],
+    left: tokens[li],
+  };
 };
 
 /** All four sides equal (or all empty) — the value reads as one linked token. */
