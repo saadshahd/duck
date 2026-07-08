@@ -18,31 +18,30 @@ const component = (
 
 const render: ComponentConfig["render"] = () => createElement("div");
 
-const config = (
-  resolveData?: Resolver,
-  metadata?: Metadata,
-): Config =>
-  ({
-    components: {
-      Box: {
-        render,
-        ...(resolveData && { resolveData }),
-        ...(metadata && { metadata }),
-      },
+const config = (resolveData?: Resolver, metadata?: Metadata): Config => ({
+  components: {
+    Box: {
+      render,
+      ...(resolveData && { resolveData }),
+      ...(metadata && { metadata }),
     },
-  });
+  },
+});
 
 describe("invokeResolver", () => {
   test("merges returned props over existing props", async () => {
     const node = component("box", { title: "Draft" });
-    const resolved = expectOk(await invokeResolver({
-      config: config(() => ({ props: { title: "Resolved", slug: "x" } })),
-      node,
-      parent: null,
-      lastData: null,
-      metadata: {},
-      trigger: "replace",
-    }));
+    const resolved = expectOk(
+      await invokeResolver({
+        config: config(() => ({ props: { title: "Resolved", slug: "x" } })),
+        node,
+        parent: null,
+        lastData: null,
+        metadata: {},
+        trigger: "replace",
+        root: {},
+      }),
+    );
 
     expect(resolved.props).toEqual({
       id: "box",
@@ -63,6 +62,7 @@ describe("invokeResolver", () => {
       lastData: null,
       metadata: {},
       trigger: "replace",
+      root: {},
     });
     const replaced = await invokeResolver({
       config: config(() => ({ readOnly: { slug: true } })),
@@ -71,6 +71,7 @@ describe("invokeResolver", () => {
       lastData: null,
       metadata: {},
       trigger: "replace",
+      root: {},
     });
 
     expect(expectOk(empty).readOnly).toEqual({ title: true });
@@ -95,6 +96,7 @@ describe("invokeResolver", () => {
       lastData,
       metadata: { source: "host", fn },
       trigger: "move",
+      root: {},
     });
 
     expect(seen).toHaveLength(1);
@@ -105,9 +107,7 @@ describe("invokeResolver", () => {
     });
     expect((seen[0] as { lastData: ComponentData }).lastData).toEqual(lastData);
     expect((seen[0] as { parent: ComponentData }).parent).toEqual(parent);
-    expect(
-      ((seen[0] as { metadata: { fn: typeof fn } }).metadata.fn),
-    ).toBe(fn);
+    expect((seen[0] as { metadata: { fn: typeof fn } }).metadata.fn).toBe(fn);
   });
 
   test("captures sync throws and async rejects", async () => {
@@ -120,6 +120,7 @@ describe("invokeResolver", () => {
       lastData: null,
       metadata: {},
       trigger: "replace",
+      root: {},
     });
     const rejected = await invokeResolver({
       config: config(async () => Promise.reject(new Error("async"))),
@@ -128,6 +129,7 @@ describe("invokeResolver", () => {
       lastData: null,
       metadata: {},
       trigger: "replace",
+      root: {},
     });
 
     expect(expectErr(thrown).kind).toBe("resolver-failed");
@@ -152,6 +154,7 @@ describe("invokeResolver", () => {
       lastData,
       metadata: {},
       trigger: "replace",
+      root: {},
     });
 
     expect(node.props.title).toBe("New");
@@ -167,6 +170,7 @@ describe("invokeResolver", () => {
       lastData: null,
       metadata: {},
       trigger: "replace",
+      root: {},
     });
 
     expect(expectErr(result)).toMatchObject({
@@ -184,6 +188,7 @@ describe("invokeResolver", () => {
       lastData: null,
       metadata: {},
       trigger: "replace",
+      root: {},
     });
 
     expect(expectOk(result)).toBe(node);

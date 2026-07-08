@@ -1,4 +1,4 @@
-import type { ComponentData, Config, Metadata } from "@puckeditor/core";
+import type { ComponentData, Config, Data, Metadata } from "@puckeditor/core";
 import { deepEqual } from "fast-equals";
 import { fromAsyncThrowable, okAsync, ResultAsync } from "neverthrow";
 import {
@@ -61,6 +61,7 @@ export const invokeResolver = (input: {
   lastData: ComponentData | null;
   metadata: Metadata;
   trigger: ResolveTrigger;
+  root: Data["root"];
 }) => {
   const resolver = resolverFor(input.config, input.node.type);
   if (!resolver) return okAsync<ComponentData, ResolveError>(input.node);
@@ -78,6 +79,7 @@ export const invokeResolver = (input: {
           },
           trigger: input.trigger,
           parent: cloned.parent,
+          root: input.root,
         });
         return mergeResolved(cloned.node, resolved);
       },

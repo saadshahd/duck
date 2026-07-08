@@ -74,6 +74,7 @@ type Invocation = {
   config: Config;
   metadata: Metadata;
   trigger: Exclude<ResolveOp, { type: "remove" }>["trigger"];
+  root: Data["root"];
 };
 
 const idsForOp = (op: ResolveOp): readonly string[] =>
@@ -164,6 +165,7 @@ const queueTarget = (
       config: event.config,
       metadata: event.metadata,
       trigger,
+      root: event.data.root,
     },
   };
 };
@@ -179,6 +181,7 @@ const startInvocation = (
     lastData: invocation.lastData,
     metadata: invocation.metadata,
     trigger: invocation.trigger,
+    root: invocation.root,
   }).then((result) =>
     send({
       type: "SETTLED",
@@ -232,10 +235,7 @@ const handleSettled = (
   scope?: ResolutionScope,
 ): ResolutionContext => {
   const inflight = ctx.inflight.get(event.id);
-  if (
-    inflight?.epoch !== event.epoch ||
-    inflight.version !== event.version
-  ) {
+  if (inflight?.epoch !== event.epoch || inflight.version !== event.version) {
     return ctx;
   }
 
