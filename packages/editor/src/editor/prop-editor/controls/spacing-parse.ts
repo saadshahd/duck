@@ -52,11 +52,14 @@ export const isLinked = (sides: Sides): boolean =>
  *  is the only unset. */
 export const formatSides = (sides: Sides): string => {
   if (!sides.top && !sides.right && !sides.bottom && !sides.left) return "";
-  const top = sides.top || "0";
-  const right = sides.right || "0";
-  const bottom = sides.bottom || "0";
-  const left = sides.left || "0";
-  if (top === right && right === bottom && bottom === left) return top;
+  const filled: Sides = {
+    top: sides.top || "0",
+    right: sides.right || "0",
+    bottom: sides.bottom || "0",
+    left: sides.left || "0",
+  };
+  const { top, right, bottom, left } = filled;
+  if (isLinked(filled)) return top;
   if (top === bottom && right === left) return `${top} ${right}`;
   if (right === left) return `${top} ${right} ${bottom}`;
   return `${top} ${right} ${bottom} ${left}`;
