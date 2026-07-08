@@ -36,6 +36,7 @@ When touching Puck data:
 - Use tree-traversal helpers from `@duckeditor/spec` (`findById`, `findParent`, `buildIndex`, `slotKeysOf`, `preOrder`, etc.). Do NOT reimplement tree walking.
 - Ops are four verbs: `add`, `update`, `remove`, `move`. Do NOT use RFC 6902 JSON Patch.
 - `update` semantics: `{ ...defaults, ...newProps, id: original.id }` — replace, not merge. Slot fields are overwritable; history is the undo safety net.
+- Blessed asymmetry: editor `update` REPLACES omitted slot content (per the line above), while mcp-server `update` PRESERVES omitted slots. This divergence is intentional — the editor has undo, an agent does not, so mcp guards against an agent silently wiping children by omission.
 
 ## Architecture boundary
 

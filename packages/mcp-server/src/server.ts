@@ -91,7 +91,12 @@ const opSchema = z.discriminatedUnion("op", [
   z.object({
     op: z.literal("add"),
     parentId: z.string().nullable(),
-    slotKey: z.string().nullable(),
+    slotPath: z
+      .array(z.union([z.string(), z.number()]))
+      .optional()
+      .describe(
+        'Slot prop-path when parentId is set: top-level ["content"] or array-item ["items", 0, "content"]. Omit for root placement.',
+      ),
     index: z.number().optional(),
     component: z
       .object({
@@ -110,7 +115,12 @@ const opSchema = z.discriminatedUnion("op", [
     op: z.literal("move"),
     id: z.string(),
     toParentId: z.string().nullable(),
-    toSlotKey: z.string().nullable(),
+    toSlotPath: z
+      .array(z.union([z.string(), z.number()]))
+      .optional()
+      .describe(
+        'Destination slot prop-path when toParentId is set: top-level ["content"] or array-item ["items", 0, "content"]. Omit for root.',
+      ),
     toIndex: z.number(),
   }),
 ]);
@@ -185,7 +195,7 @@ function registerTools(mcp: McpServer, ctx: McpContext) {
     {
       description:
         "Edit a page using structural ops. Each op streams: designer sees the change land via the bridge; agent sees per-op progress via notifications/progress. " +
-        "Op vocabulary: add (insert at parentId/slotKey/index), update (replace props), remove (delete by id), move (relocate by id).",
+        "Op vocabulary: add (insert at parentId/slotPath/index), update (replace props), remove (delete by id), move (relocate by id).",
       inputSchema: {
         page: z.string().describe("Page name"),
         ops: z.array(opSchema).describe("Sequential structural ops"),

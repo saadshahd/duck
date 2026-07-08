@@ -10,6 +10,19 @@ const config = {
       fields: { children: { type: "slot" } },
       render: () => null as never,
     },
+    Sections: {
+      defaultProps: { items: [] },
+      fields: {
+        items: {
+          type: "array",
+          arrayFields: {
+            heading: { type: "text" },
+            content: { type: "slot" },
+          },
+        },
+      },
+      render: () => null as never,
+    },
     Text: {
       defaultProps: { text: "" },
       fields: { text: { type: "text" } },
@@ -31,10 +44,38 @@ const seed = (): Data => ({
   ],
 });
 
+/** A Sections node with one array item whose `content` slot holds `t-nested`. */
+const nested = (): Data => ({
+  root: { props: {} },
+  content: [
+    {
+      type: "Sections",
+      props: {
+        id: "sec",
+        items: [
+          {
+            heading: "One",
+            content: [
+              { type: "Text", props: { id: "t-nested", text: "deep" } },
+            ],
+          },
+        ],
+      },
+    },
+  ],
+});
+
 const run = <T>(effect: Effect.Effect<T, never>): T => Effect.runSync(effect);
 
 const runEither = <E, T>(effect: Effect.Effect<T, E>) =>
   Effect.runSync(Effect.either(effect));
+
+const itemsOf = (data: Data) =>
+  (
+    data.content[0]!.props as {
+      items: Array<{ content: Array<{ props: { id: string } }> }>;
+    }
+  ).items;
 
 describe("applyOp - add", () => {
   it("inserts a top-level component when parentId is null", () => {
@@ -44,7 +85,6 @@ describe("applyOp - add", () => {
         {
           op: "add",
           parentId: null,
-          slotKey: null,
           component: { type: "Text", props: { id: "new", text: "B" } },
         },
         config,
@@ -61,7 +101,7 @@ describe("applyOp - add", () => {
         {
           op: "add",
           parentId: "outer",
-          slotKey: "children",
+          slotPath: ["children"],
           index: 0,
           component: { type: "Text", props: { id: "t0", text: "first" } },
         },
@@ -74,6 +114,26 @@ describe("applyOp - add", () => {
     expect(children.map((c) => c.props.id)).toEqual(["t0", "t1"]);
   });
 
+  it("inserts into an array-item slot addressed by prop-path", () => {
+    const result = run(
+      applyOp(
+        nested(),
+        {
+          op: "add",
+          parentId: "sec",
+          slotPath: ["items", 0, "content"],
+          index: 0,
+          component: { type: "Text", props: { id: "t-added", text: "x" } },
+        },
+        config,
+      ) as Effect.Effect<Data, never>,
+    );
+    expect(itemsOf(result)[0]!.content.map((c) => c.props.id)).toEqual([
+      "t-added",
+      "t-nested",
+    ]);
+  });
+
   it("applies defaultProps and generates an id when missing", () => {
     const result = run(
       applyOp(
@@ -81,7 +141,7 @@ describe("applyOp - add", () => {
         {
           op: "add",
           parentId: "outer",
-          slotKey: "children",
+          slotPath: ["children"],
           component: {
             type: "Text",
             props: {} as Record<string, unknown>,
@@ -107,7 +167,6 @@ describe("applyOp - add", () => {
         {
           op: "add",
           parentId: null,
-          slotKey: null,
           component: { type: "Unknown", props: { id: "x" } },
         },
         config,
@@ -125,7 +184,42 @@ describe("applyOp - add", () => {
         {
           op: "add",
           parentId: "outer",
-          slotKey: "nope",
+          slotPath: ["nope"],
+          component: { type: "Text", props: { id: "x" } },
+        },
+        config,
+      ),
+    );
+    expect(result._tag).toBe("Left");
+    if (result._tag === "Left")
+      expect(result.left.tag).toBe("slot-not-defined");
+  });
+
+  it("rejects a slotPath that does not resolve to a slot", () => {
+    const result = runEither(
+      applyOp(
+        nested(),
+        {
+          op: "add",
+          parentId: "sec",
+          slotPath: ["items", 5, "content"],
+          component: { type: "Text", props: { id: "x" } },
+        },
+        config,
+      ),
+    );
+    expect(result._tag).toBe("Left");
+    if (result._tag === "Left")
+      expect(result.left.tag).toBe("slot-not-defined");
+  });
+
+  it("rejects a set parentId with no slotPath", () => {
+    const result = runEither(
+      applyOp(
+        seed(),
+        {
+          op: "add",
+          parentId: "outer",
           component: { type: "Text", props: { id: "x" } },
         },
         config,
@@ -143,7 +237,6 @@ describe("applyOp - add", () => {
         {
           op: "add",
           parentId: null,
-          slotKey: null,
           index: 99,
           component: { type: "Text", props: { id: "x" } },
         },
@@ -221,6 +314,17 @@ describe("applyOp - remove", () => {
     expect(children).toEqual([]);
   });
 
+  it("removes a child from an array-item slot", () => {
+    const result = run(
+      applyOp(
+        nested(),
+        { op: "remove", id: "t-nested" },
+        config,
+      ) as Effect.Effect<Data, never>,
+    );
+    expect(itemsOf(result)[0]!.content).toEqual([]);
+  });
+
   it("fails for unknown id", () => {
     const result = runEither(
       applyOp(seed(), { op: "remove", id: "nope" }, config),
@@ -254,7 +358,7 @@ describe("applyOp - move", () => {
           op: "move",
           id: "t",
           toParentId: "a",
-          toSlotKey: "children",
+          toSlotPath: ["children"],
           toIndex: 0,
         },
         config,
@@ -268,6 +372,54 @@ describe("applyOp - move", () => {
     expect(b.children).toEqual([]);
   });
 
+  it("moves a top-level child into an array-item slot", () => {
+    const data: Data = {
+      root: { props: {} },
+      content: [
+        ...nested().content,
+        { type: "Text", props: { id: "t-top", text: "top" } },
+      ],
+    };
+    const result = run(
+      applyOp(
+        data,
+        {
+          op: "move",
+          id: "t-top",
+          toParentId: "sec",
+          toSlotPath: ["items", 0, "content"],
+          toIndex: 1,
+        },
+        config,
+      ) as Effect.Effect<Data, never>,
+    );
+    expect(result.content).toHaveLength(1);
+    expect(itemsOf(result)[0]!.content.map((c) => c.props.id)).toEqual([
+      "t-nested",
+      "t-top",
+    ]);
+  });
+
+  it("moves a child out of an array-item slot back to root", () => {
+    const result = run(
+      applyOp(
+        nested(),
+        {
+          op: "move",
+          id: "t-nested",
+          toParentId: null,
+          toIndex: 1,
+        },
+        config,
+      ) as Effect.Effect<Data, never>,
+    );
+    expect(itemsOf(result)[0]!.content).toEqual([]);
+    expect(result.content.map((c) => (c.props as { id: string }).id)).toEqual([
+      "sec",
+      "t-nested",
+    ]);
+  });
+
   it("rejects circular moves", () => {
     const result = runEither(
       applyOp(
@@ -276,7 +428,7 @@ describe("applyOp - move", () => {
           op: "move",
           id: "outer",
           toParentId: "outer",
-          toSlotKey: "children",
+          toSlotPath: ["children"],
           toIndex: 0,
         },
         config,
@@ -287,7 +439,7 @@ describe("applyOp - move", () => {
   });
 
   it("rejects move into a descendant", () => {
-    const nested: Data = {
+    const nestedBoxes: Data = {
       root: { props: {} },
       content: [
         {
@@ -301,12 +453,12 @@ describe("applyOp - move", () => {
     };
     const result = runEither(
       applyOp(
-        nested,
+        nestedBoxes,
         {
           op: "move",
           id: "outer",
           toParentId: "inner",
-          toSlotKey: "children",
+          toSlotPath: ["children"],
           toIndex: 0,
         },
         config,

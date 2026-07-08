@@ -81,6 +81,8 @@ Six tools:
 ## Op application
 
 - Four verbs: `add`, `update`, `remove`, `move`. Each returns `Result<Data, SpecOpsError>` from spec-ops.
+- `add`/`move` address the target slot by prop-path: `slotPath`/`toSlotPath` (a `(string|number)[]`), e.g. `["content"]` or `["items", 0, "content"]`. Omit for root placement (`parentId: null`).
+- `update` PRESERVES slot arrays omitted from `props` — a blessed asymmetry with the editor, which REPLACES them. Intentional: an agent lacks the editor's undo, so mcp guards against silently wiping children by omission. Do NOT "fix" this to match the editor.
 - Deep-clone data before applying. Apply ops sequentially via an Effect pipeline.
 - Failure at op N → stop, broadcast last-good state, report `{ ok: false, failedOpIndex: N, error }`.
 - On success: return `{ ok: true, summary, outline }` so the agent has next-turn context without an extra query.

@@ -4,8 +4,12 @@ import {
   collectDescendants,
   findById,
   findParent,
+  getChildrenAt,
+  slotKeyOf,
   slotKeysFromConfig,
   writableChildrenAt,
+  type ParentSite,
+  type SlotPath,
 } from "@duckeditor/spec";
 
 // ── Types ───────────────────────────────────────────────────────────
@@ -14,7 +18,7 @@ export type Op =
   | {
       readonly op: "add";
       readonly parentId: string | null;
-      readonly slotKey: string | null;
+      readonly slotPath?: SlotPath;
       readonly index?: number;
       readonly component: ComponentData;
     }
@@ -28,7 +32,7 @@ export type Op =
       readonly op: "move";
       readonly id: string;
       readonly toParentId: string | null;
-      readonly toSlotKey: string | null;
+      readonly toSlotPath?: SlotPath;
       readonly toIndex: number;
     };
 
@@ -61,40 +65,52 @@ const isKnownComponent = (config: Config, type: string): boolean =>
 const generateId = (type: string): string =>
   `${type}-${Math.random().toString(36).slice(2, 10)}`;
 
-/** Resolve the target array for an add/move: data.content if parentId is null,
- *  else parent.props[slotKey]. Validates parent exists, slot is declared. */
+/** Resolve the target children array for an add/move by prop-path.
+ *  Root when `parentId` is null; otherwise the slot at `slotPath` — a top-level
+ *  slot (`["content"]`) or an array-item slot (`["items", 2, "content"]`).
+ *  Validates parent exists, path addresses a genuine slot; auto-initialises a
+ *  declared-but-unmaterialised top-level slot. */
 const resolveTargetArray = (
   data: Data,
   config: Config,
   parentId: string | null,
-  slotKey: string | null,
+  slotPath?: SlotPath,
 ): Effect.Effect<ComponentData[], OpError> => {
   if (parentId === null) {
     return Effect.succeed(data.content);
   }
   const parent = findById(data, parentId);
   if (!parent) return Effect.fail(opErr("parent-not-found", { parentId }));
-  if (!slotKey)
+  if (!slotPath || slotPath.length === 0)
     return Effect.fail(
       opErr("slot-not-defined", {
         parentId,
         type: parent.type,
-        reason: "slotKey is required when parentId is set",
+        reason: "slotPath is required when parentId is set",
       }),
     );
+
+  const site: ParentSite = { at: "slot", parentId, path: slotPath };
+  // getChildrenAt validates the path resolves to a real slot value (via
+  // isSlotValue); writableChildrenAt then returns the same array to mutate.
+  if (getChildrenAt(data, site))
+    return Effect.succeed(writableChildrenAt(data, site)!);
+
+  // Declared top-level slot not yet present on this node → materialise as [].
   const declared = slotKeysFromConfig(config, parent.type);
-  if (!declared.includes(slotKey))
-    return Effect.fail(
-      opErr("slot-not-defined", {
-        parentId,
-        type: parent.type,
-        slotKey,
-        declared,
-      }),
-    );
-  const props = parent.props as Record<string, unknown>;
-  if (!Array.isArray(props[slotKey])) props[slotKey] = [];
-  return Effect.succeed(props[slotKey] as ComponentData[]);
+  if (slotPath.length === 1 && declared.includes(slotKeyOf(slotPath))) {
+    const props = parent.props as Record<string, unknown>;
+    props[slotKeyOf(slotPath)] = [];
+    return Effect.succeed(props[slotKeyOf(slotPath)] as ComponentData[]);
+  }
+  return Effect.fail(
+    opErr("slot-not-defined", {
+      parentId,
+      type: parent.type,
+      slotPath,
+      declared,
+    }),
+  );
 };
 
 /** Apply config defaults and initialize declared slot keys to [] if missing. */
@@ -129,7 +145,7 @@ const applyAdd = (
 ): Effect.Effect<Data, OpError> => {
   if (!isKnownComponent(config, op.component.type))
     return Effect.fail(opErr("unknown-component", { type: op.component.type }));
-  return resolveTargetArray(data, config, op.parentId, op.slotKey).pipe(
+  return resolveTargetArray(data, config, op.parentId, op.slotPath).pipe(
     Effect.flatMap((arr) => {
       const idx = op.index ?? arr.length;
       if (idx < 0 || idx > arr.length)
@@ -210,7 +226,7 @@ const applyMove = (
       );
   }
 
-  return resolveTargetArray(data, config, op.toParentId, op.toSlotKey).pipe(
+  return resolveTargetArray(data, config, op.toParentId, op.toSlotPath).pipe(
     Effect.flatMap((target) => {
       // Detach first so index math is consistent.
       array.splice(pathStep.index, 1);

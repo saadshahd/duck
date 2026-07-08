@@ -128,7 +128,7 @@ describe("applyOps", () => {
               {
                 op: "add",
                 parentId: "root",
-                slotKey: "children",
+                slotPath: ["children"],
                 component: { type: "Text", props: { id: "n", text: "B" } },
               },
             ],
@@ -230,7 +230,6 @@ describe("applyOps", () => {
               {
                 op: "add",
                 parentId: null,
-                slotKey: null,
                 component: { type: "Text", props: { id: "hero", text: "Hi" } },
               },
             ],
@@ -261,7 +260,6 @@ describe("applyOps", () => {
               {
                 op: "add",
                 parentId: null,
-                slotKey: null,
                 component: { type: "Unknown", props: { id: "x" } },
               },
             ],
@@ -290,7 +288,7 @@ describe("applyOps", () => {
                 op: "move",
                 id: "root",
                 toParentId: "heading",
-                toSlotKey: "children",
+                toSlotPath: ["children"],
                 toIndex: 0,
               },
             ],
@@ -337,7 +335,7 @@ describe("applyOps", () => {
                 op: "move",
                 id: "outer",
                 toParentId: "inner",
-                toSlotKey: "children",
+                toSlotPath: ["children"],
                 toIndex: 0,
               },
             ],
