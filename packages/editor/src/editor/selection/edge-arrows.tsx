@@ -4,6 +4,7 @@ import {
   useCallback,
   type ReactNode,
   type CSSProperties,
+  type Ref,
 } from "react";
 import {
   useFloating,
@@ -145,6 +146,39 @@ export function ActionBoxModel({
     >
       <BoxModelIcon />
     </ActionButton>
+  );
+}
+
+/** A move arrow anchored to an element edge — distinct from the action-bar
+ *  buttons: it carries a positioning ref (useEdgeArrow) and no tooltip, so it
+ *  is its own component rather than an ActionButton variant. */
+function EdgeArrow({
+  arrowRef,
+  role,
+  axis,
+  label,
+  glyph,
+  onClick,
+}: {
+  arrowRef: Ref<HTMLButtonElement>;
+  role: string;
+  axis: Axis;
+  label: string;
+  glyph: string;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      ref={arrowRef}
+      type="button"
+      className="edge-arrow"
+      data-role={role}
+      data-axis={axis}
+      aria-label={label}
+      onClick={onClick}
+    >
+      {glyph}
+    </button>
   );
 }
 
@@ -359,17 +393,13 @@ export function EdgeArrows({
       <div ref={refs.setFloating} style={{ ...floatingStyles, zIndex: 1 }}>
         <div className="action-bar" role="toolbar" aria-label="Element actions">
           {onSelectParent && (
-            <button
-              type="button"
-              data-role="select-parent-btn"
-              aria-label="Select parent element"
-              onClick={(e) => {
-                e.stopPropagation();
-                onSelectParent();
-              }}
+            <ActionButton
+              role="select-parent-btn"
+              label="Select parent element"
+              onClick={onSelectParent}
             >
               ↑
-            </button>
+            </ActionButton>
           )}
           {elementType && (
             <span className="action-bar-type-label">{elementType}</span>
@@ -380,32 +410,26 @@ export function EdgeArrows({
 
       {/* Edge arrow: bottom (↓) for vertical, right (→) for horizontal */}
       {canMoveNext && (
-        <button
-          ref={nextRef}
-          type="button"
-          className="edge-arrow"
-          data-role="edge-arrow-next"
-          data-axis={axis}
-          aria-label={labels.next}
+        <EdgeArrow
+          arrowRef={nextRef}
+          role="edge-arrow-next"
+          axis={axis}
+          label={labels.next}
+          glyph={glyphs.next}
           onClick={onMoveNext}
-        >
-          {glyphs.next}
-        </button>
+        />
       )}
 
       {/* Edge arrow: top (↑) for vertical, left (←) for horizontal */}
       {canMovePrev && (
-        <button
-          ref={prevEdgeRef}
-          type="button"
-          className="edge-arrow"
-          data-role="edge-arrow-prev"
-          data-axis={axis}
-          aria-label={labels.prev}
+        <EdgeArrow
+          arrowRef={prevEdgeRef}
+          role="edge-arrow-prev"
+          axis={axis}
+          label={labels.prev}
+          glyph={glyphs.prev}
           onClick={onMovePrev}
-        >
-          {glyphs.prev}
-        </button>
+        />
       )}
     </>
   );
