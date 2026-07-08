@@ -32,3 +32,38 @@
 .field-section:first-child {
   margin-top: 0;
 }
+
+/* ── Nested object (inside another object) — a hanging-caret disclosure ──────
+   A nested object is not a section landmark; it is an openable group, so it
+   borrows the same trigger anatomy as arrays (.disclosure-trigger lives in
+   prop-sheet.css: caret hangs in the gutter rail, label at the content edge). */
+.object-nested {
+  margin-bottom: var(--field-gap);
+}
+
+/* Expanded fields indent one gutter and carry a hairline thread in the caret
+   rail — the same containment cue arrays use, so nesting reads one way across the
+   sheet. One indent step only: the trigger sits at the content edge, its fields
+   step in once; a deeper object repeats the same single step. */
+.object-nested-fields {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  padding: 2px 0 4px var(--gutter);
+}
+
+.object-nested-fields::before {
+  content: "";
+  position: absolute;
+  left: calc(var(--gutter) / 2); /* centered under the caret above */
+  top: 0;
+  bottom: 8px;
+  width: 1px;
+  background: var(--control-border);
+}
+
+/* The wrapper owns the trailing rhythm; its last field must not add a second
+   gap on top of it (the double-margin bug the section rhythm also guards). */
+.object-nested-fields > :last-child {
+  margin-bottom: 0;
+}

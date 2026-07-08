@@ -219,23 +219,39 @@ const ObjectInput = ({
   const obj = (value ?? {}) as Record<string, unknown>;
   const heading =
     FieldMetadata.group(field) ?? toDisplayLabel(label, field.label);
+  const fields = Object.entries(field.objectFields).map(([key, childField]) => (
+    <PuckFieldInput
+      key={key}
+      label={key}
+      field={childField as Field}
+      value={obj[key]}
+      onChange={(v, meta) => onChange({ ...obj, [key]: v }, meta)}
+      readOnly={readOnly}
+      path={`${path}.${key}`}
+      depth={depth + 1}
+      isOpen={isOpen}
+      toggle={toggle}
+    />
+  ));
+
+  // Top-level object → an always-open uppercase section landmark (the sheet's
+  // one grouping edge). A nested object (inside another object) → a hanging-caret
+  // disclosure indented one gutter, so depth stays legible without a tall,
+  // fully-expanded sheet. One indent step per level — the section itself never
+  // indents, so a nested group never double-indents.
+  if (depth === 0)
+    return <FieldSection heading={heading}>{fields}</FieldSection>;
+
+  const open = isOpen?.(path) ?? false;
   return (
-    <FieldSection heading={heading}>
-      {Object.entries(field.objectFields).map(([key, childField]) => (
-        <PuckFieldInput
-          key={key}
-          label={key}
-          field={childField as Field}
-          value={obj[key]}
-          onChange={(v, meta) => onChange({ ...obj, [key]: v }, meta)}
-          readOnly={readOnly}
-          path={`${path}.${key}`}
-          depth={depth + 1}
-          isOpen={isOpen}
-          toggle={toggle}
-        />
-      ))}
-    </FieldSection>
+    <div className="object-nested">
+      <Disclosure.Trigger
+        label={heading}
+        open={open}
+        onToggle={() => toggle?.(path)}
+      />
+      {open && <div className="object-nested-fields">{fields}</div>}
+    </div>
   );
 };
 
