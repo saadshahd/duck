@@ -1400,6 +1400,36 @@ export const getDimensionInputValue = (page: Page, fieldLabel?: string) =>
     { label: fieldLabel, finder: dimensionRoot.toString() },
   ) as Promise<string | null>;
 
+/** The custom marker for a dimension field, when rendered — `{ title, activeSource }`.
+ *  `title` is the stored literal verbatim; `activeSource` is true when the number
+ *  field carries data-source="custom" (the active-source tint). Null when the value
+ *  is unset or a preset (the marker only exists for an off-grid/compound literal). */
+export const readDimensionCustom = (page: Page, fieldLabel?: string) =>
+  page.evaluate(
+    ({ label, finder }) => {
+      for (const d of document.querySelectorAll("div")) {
+        if (!d.shadowRoot || d.style.position !== "fixed") continue;
+        const find = new Function(
+          "root",
+          "label",
+          `return (${finder})(root, label)`,
+        );
+        const root = find(d.shadowRoot, label) as Element | undefined;
+        if (!root) continue;
+        const el = root.querySelector("[data-role='dimension-custom']");
+        if (!el) return null;
+        // data-source rides the NumberInput.Control, a descendant of the
+        // data-role="dimension-input" root.
+        const activeSource = !!root.querySelector(
+          "[data-role='dimension-input'] [data-source='custom']",
+        );
+        return { title: el.getAttribute("title") ?? "", activeSource };
+      }
+      return null;
+    },
+    { label: fieldLabel, finder: dimensionRoot.toString() },
+  ) as Promise<{ title: string; activeSource: boolean } | null>;
+
 /** The on-screen (viewport) center of the dimension chip whose data-value
  *  matches within the field identified by fieldLabel (or first field if omitted).
  *  The chip row is a no-wrap horizontal scroller (see dimension.css) — chips

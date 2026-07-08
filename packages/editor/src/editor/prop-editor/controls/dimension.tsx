@@ -49,6 +49,13 @@ export const Dimension = (({
   // It shows as "selected" (filled ring) only when the value is absent (unset).
   const isSentinelSelected = mode.mode === "unset";
 
+  // A set value that matches no preset (off-grid or compound, e.g. "3rem 0"):
+  // no chip lights and the sentinel stays empty, so the chip row alone reads as
+  // "default" while the real value hides in the number field below. Mark it — a
+  // front-anchored "Custom" marker in the selected state + an active-source tint
+  // on the number field — so the value is legible from the dominant chip row.
+  const isCustom = mode.mode === "literal";
+
   return (
     <div className={fieldClass(readOnly)}>
       <FieldLabel
@@ -81,6 +88,17 @@ export const Dimension = (({
               if (!readOnly) onChange(undefined);
             }}
           />
+          {isCustom && (
+            <span
+              className="dimension-custom"
+              data-role="dimension-custom"
+              data-selected=""
+              title={`Custom value: ${storedStr}`}
+              aria-label={`Custom value ${storedStr}`}
+            >
+              Custom
+            </span>
+          )}
           {selectField.options.map((opt) => {
             const strVal = String(opt.value);
             return (
@@ -133,6 +151,7 @@ export const Dimension = (({
         >
           <NumberInput.Control
             className="dimension-input-control"
+            data-source={isCustom ? "custom" : undefined}
             data-disabled={readOnly ? "" : undefined}
           >
             <NumberInput.Input

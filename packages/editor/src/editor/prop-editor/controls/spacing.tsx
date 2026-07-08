@@ -65,6 +65,11 @@ export const Spacing = (({
   const sides = parseSides(storedStr);
   const unset = storedStr.trim() === "";
   const derivedLinked = isLinked(sides);
+  // A set value that matches no preset chip: without a marker the chip row reads
+  // as "default" while the real value lives in the field(s) below. Mark it — see
+  // dimension.tsx for the shared honesty rationale (audit F14).
+  const isCustom =
+    !unset && !selectField.options.some((o) => String(o.value) === storedStr);
 
   // undefined = follow the stored value's shape; a boolean pins the user's choice.
   const [linkOverride, setLinkOverride] = useState<boolean | undefined>();
@@ -184,6 +189,17 @@ export const Spacing = (({
             title={unset ? "No value set" : "Clear value"}
             onClick={clear}
           />
+          {isCustom && (
+            <span
+              className="spacing-custom"
+              data-role="spacing-custom"
+              data-selected=""
+              title={`Custom value: ${storedStr}`}
+              aria-label={`Custom value ${storedStr}`}
+            >
+              Custom
+            </span>
+          )}
           {selectField.options.map((opt) => {
             const strVal = String(opt.value);
             const checked = storedStr === strVal;
@@ -206,7 +222,10 @@ export const Spacing = (({
 
         {linked ? (
           <div className="spacing-linked">
-            <div className="spacing-input-control">
+            <div
+              className="spacing-input-control"
+              data-source={isCustom ? "custom" : undefined}
+            >
               <input
                 type="number"
                 className="spacing-input-field"

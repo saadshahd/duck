@@ -99,6 +99,28 @@
   border-style: solid;
 }
 
+/* Custom marker — a set value that matches no preset. Front-anchored (never
+   clipped) and styled like a checked chip so the chip row honestly reads
+   "a value is set" instead of blank-looks-like-default. Paired with the
+   active-source tint on the number field below. */
+.dimension-custom {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 3px 8px;
+  border-radius: var(--radius-inner);
+  font-family: var(--font-system);
+  font-size: 11px;
+  font-weight: 600;
+  background: var(--accent);
+  color: var(--text-bar-strong);
+  min-height: 22px;
+  flex-shrink: 0;
+  white-space: nowrap;
+  user-select: none;
+  cursor: default;
+}
+
 /* NumberInput row — always visible, sits below (or beside) the chips */
 .dimension-input-row {
   display: flex;
@@ -120,6 +142,13 @@
 .dimension-input-control:focus-within {
   outline: 2px solid var(--control-focus);
   outline-offset: -1px;
+}
+
+/* Active source — this field holds the current (custom) value, not the chips.
+   Accent border + faint accent wash draw the eye to where the value lives. */
+.dimension-input-control[data-source="custom"] {
+  border-color: var(--accent);
+  background: var(--accent-pulse);
 }
 
 .dimension-input-field {

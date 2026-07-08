@@ -103,6 +103,27 @@
   border-style: solid;
 }
 
+/* Custom marker — a set value matching no preset. Front-anchored, styled like a
+   checked chip so the row reads "value set" not "default" (shared with
+   dimension.css; properties repeated per the overlay CSS rule). */
+.spacing-custom {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 22px;
+  padding: 3px 8px;
+  border-radius: var(--radius-inner);
+  font-family: var(--font-system);
+  font-size: 11px;
+  font-weight: 600;
+  background: var(--accent);
+  color: var(--text-bar-strong);
+  white-space: nowrap;
+  user-select: none;
+  cursor: default;
+}
+
 /* ── Linked layout — one number input + unit, link toggle beside it ────────── */
 
 .spacing-linked {
@@ -125,6 +146,12 @@
 .spacing-input-control:focus-within {
   outline: 2px solid var(--control-focus);
   outline-offset: -1px;
+}
+
+/* Active source — this field holds the current (custom) value, not the chips. */
+.spacing-input-control[data-source="custom"] {
+  border-color: var(--accent);
+  background: var(--accent-pulse);
 }
 
 .spacing-input-field {

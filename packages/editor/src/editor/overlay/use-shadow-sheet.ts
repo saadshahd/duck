@@ -1,4 +1,4 @@
-import { useContext, useEffect } from "react";
+import { useContext, useLayoutEffect } from "react";
 import { ShadowContext } from "./shadow-context.js";
 
 /**
@@ -10,6 +10,11 @@ import { ShadowContext } from "./shadow-context.js";
  * Why not react-shadow's built-in style injection: we need per-domain
  * mount/unmount lifecycle so sheets are added and removed dynamically
  * based on which domains are currently rendered.
+ *
+ * useLayoutEffect (not useEffect): adoption must land BEFORE the browser paints
+ * the freshly-mounted control, or the first frame renders unstyled — a flash of
+ * run-together, frameless controls when a sheet opens (audit F13). The overlay is
+ * client-only (open shadow root, no SSR), so the layout-effect timing is safe.
  */
 
 type SheetEntry = { sheet: CSSStyleSheet; refs: number };
@@ -27,7 +32,7 @@ function getEntries(shadow: ShadowRoot): Map<string, SheetEntry> {
 export function useShadowSheet(css: string): void {
   const shadow = useContext(ShadowContext);
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     if (!shadow) {
       if (process.env.NODE_ENV !== "production") {
         console.warn(

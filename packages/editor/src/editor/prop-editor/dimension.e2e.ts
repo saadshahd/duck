@@ -10,6 +10,7 @@ import {
   isDimensionSentinelVisible,
   isDimensionSentinelSelected,
   getDimensionSentinelCenter,
+  readDimensionCustom,
 } from "../overlay/testing.js";
 
 /**
@@ -191,5 +192,40 @@ test.describe("Dimension control — Heading.style.fontSize (T6)", () => {
     expect(await isDimensionSentinelSelected(page, FIELD)).toBe(true);
     const inputVal = await getDimensionInputValue(page, FIELD);
     expect(inputVal).toBe("");
+  });
+
+  // O3f (audit F14): a set value matching no preset must be marked so the chip row
+  //   never reads as "default" while the real value hides in the number field.
+  //   Sweeps all three modes: preset → no marker; off-grid literal → marker +
+  //   active-source tint; cleared/unset → no marker.
+  test("O3f: custom (off-grid) value is marked in the chip row", async ({
+    page,
+  }) => {
+    await openHeadingSheet(page);
+
+    // Preset "3rem" is selected → no custom marker.
+    expect(await readDimensionCustom(page, FIELD)).toBeNull();
+
+    // Type an off-grid literal (1.75rem is not a preset).
+    expect(await setDimensionValue(page, "1.75", FIELD)).toBe(true);
+    await page.waitForTimeout(300);
+
+    // No preset chip is checked, but the value is not lost: a "Custom" marker
+    // appears carrying the stored literal, and the number field is flagged as
+    // the active source.
+    expect(
+      (await readDimensionChips(page, FIELD))!.filter((c) => c.checked).length,
+    ).toBe(0);
+    const custom = await readDimensionCustom(page, FIELD);
+    expect(custom).not.toBeNull();
+    expect(custom!.title).toContain("1.75rem");
+    expect(custom!.activeSource).toBe(true);
+
+    // Clearing to unset removes the marker (unset is the sentinel's job, not custom).
+    const sentinel = await getDimensionSentinelCenter(page, FIELD);
+    await page.mouse.click(sentinel!.x, sentinel!.y);
+    await page.waitForTimeout(200);
+    expect(await isDimensionSentinelSelected(page, FIELD)).toBe(true);
+    expect(await readDimensionCustom(page, FIELD)).toBeNull();
   });
 });

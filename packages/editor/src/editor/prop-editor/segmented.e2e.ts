@@ -97,6 +97,32 @@ test.describe("Segmented control — Heading.level (T4)", () => {
     expect(focusedLeft?.value).toBe("h1");
   });
 
+  // O1e (audit F13): an UNSET segmented field must still render the framed control
+  //   (radiogroup + one segment per option) in a neutral none-selected state — never
+  //   collapse to run-together bare text. The hero h1 has no style.textAlign, so its
+  //   "Text align" control is unset while "Level" (h1) is set — proving the frame is
+  //   value-independent, not a side effect of having a selection.
+  test("O1e: unset segmented renders a framed, none-selected control", async ({
+    page,
+  }) => {
+    await openHeadingSheet(page);
+    expect(await isSheetVisible(page)).toBe(true);
+
+    // Frame present: the root is a radiogroup even with nothing selected.
+    expect(await getSegmentedRole(page, "Text align")).toBe("radiogroup");
+
+    // Every option is rendered as a segment, and none is checked (honest empty).
+    const items = await readSegmentedItems(page, "Text align");
+    expect(items).not.toBeNull();
+    expect(items!.map((i) => i.value)).toEqual([
+      "left",
+      "center",
+      "right",
+      "justify",
+    ]);
+    expect(items!.filter((i) => i.checked).length).toBe(0);
+  });
+
   // O1d: selecting a different segment, closing, and reopening retains the choice.
   test("O1d: selected value persists across Escape close and reopen", async ({
     page,
