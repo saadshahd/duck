@@ -383,6 +383,37 @@
             }
           },
           {
+            "type": "Sections",
+            "props": {
+              "id": "showcase-sections",
+              "style": {
+                "gap": "2rem",
+                "padding": "0"
+              },
+              "items": [
+                {
+                  "heading": "Under the hood",
+                  "content": [
+                    {
+                      "type": "Text",
+                      "props": {
+                        "id": "showcase-sections-item-1-text",
+                        "text": "Each section holds its own slot — drop any component in, or leave it empty and use the insert affordance.",
+                        "style": {
+                          "color": "#555555"
+                        }
+                      }
+                    }
+                  ]
+                },
+                {
+                  "heading": "Add your own",
+                  "content": []
+                }
+              ]
+            }
+          },
+          {
             "type": "Banner",
             "props": {
               "id": "showcase-banner",

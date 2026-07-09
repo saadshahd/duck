@@ -822,6 +822,76 @@ export const config: Config = {
       },
     },
 
+    Sections: {
+      fields: {
+        items: {
+          type: "array",
+          arrayFields: {
+            heading: { type: "text" },
+            content: { type: "slot" },
+          },
+          defaultItemProps: { heading: "Section", content: [] },
+          getItemSummary: (item, i) =>
+            (item.heading as string) || `Section ${(i ?? 0) + 1}`,
+        },
+        style: {
+          type: "object",
+          objectFields: {
+            gap: {
+              type: "select",
+              options: space,
+              metadata: { control: "dimension", unit: "rem" },
+            },
+            padding: {
+              type: "select",
+              options: space,
+              metadata: { control: "dimension", unit: "rem" },
+            },
+          },
+        },
+      },
+      defaultProps: {
+        style: { gap: "2rem", padding: "0" },
+        items: [
+          { heading: "Section one", content: [] },
+          { heading: "Section two", content: [] },
+        ],
+      },
+      render: ({ items, style }) => (
+        <div
+          style={{
+            display: "flex",
+            flexDirection: "column",
+            gap: style?.gap ?? "2rem",
+            padding: style?.padding ?? "0",
+          }}
+        >
+          {items.map(
+            (
+              item: {
+                heading: string;
+                content: React.FC<{ as: typeof BareSlot }>;
+              },
+              i: number,
+            ) => (
+              <div key={i} data-section>
+                <h4
+                  style={{
+                    margin: "0 0 0.5rem",
+                    fontSize: "1.125rem",
+                    color: "#2F3437",
+                  }}
+                >
+                  {item.heading}
+                </h4>
+                <item.content as={BareSlot} />
+              </div>
+            ),
+          )}
+        </div>
+      ),
+    },
+
     // Test-only irregular container. Four slots in declaration order
     // (head, divider, body, note) exercising the tiling edge cases on one page:
     // an empty `divider` between measured slots (band carving), a `note` slot
