@@ -6,7 +6,7 @@ import {
   cloneAndMutate,
   findById,
   findParent,
-} from "./helpers.js";
+} from "./mutation.js";
 
 const defaultsFor = (config: Config, type: string): Record<string, unknown> => {
   const components = (config.components ?? {}) as Record<

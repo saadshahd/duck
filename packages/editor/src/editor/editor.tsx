@@ -2,17 +2,14 @@ import {
   createContext,
   useCallback,
   useContext,
-  useEffect,
   useMemo,
   useRef,
   useState,
   type ReactNode,
 } from "react";
 import type { Config, Data, Metadata } from "@puckeditor/core";
-import { deepEqual } from "fast-equals";
 import {
   buildIndex,
-  findById,
   getChildrenAt,
   normalizeData,
   samePath,
@@ -56,8 +53,12 @@ import {
   measureSlot,
 } from "./overlay/index.js";
 import { ghostContent, slotChoices } from "./layout/index.js";
-import { BoxModelLayer } from "./box-model/index.js";
-import { useHistory, HistoryTimeline } from "./history/index.js";
+import { BoxModelLayer, useBoxModelToggle } from "./box-model/index.js";
+import {
+  useHistory,
+  useExternalDataSync,
+  HistoryTimeline,
+} from "./history/index.js";
 import { useKeyboard } from "./keyboard/index.js";
 import { useGhostPlaceholders } from "./ghost/index.js";
 import { useFiberRegistry } from "./shell/use-fiber-registry.js";
@@ -85,7 +86,6 @@ import {
   MorphPicker,
   MorphOverlay,
   usePatterns,
-  withVariant,
 } from "./morph/index.js";
 import { CrashGuard, RecoveryNotice } from "./shell/crash-recovery.js";
 import { useResolution } from "./resolve/use-resolution.js";
@@ -234,15 +234,7 @@ function EditorSurface<UserConfig extends Config = Config>({
     [emitOp, entries, currentIndex, currentData],
   );
 
-  const lastSeenPropRef = useRef(data);
-
-  useEffect(() => {
-    if (data === lastSeenPropRef.current) return;
-    const next = normalizeData(data);
-    lastSeenPropRef.current = data;
-    if (deepEqual(next, currentData)) return;
-    reset(next);
-  }, [data, currentData, reset]);
+  useExternalDataSync({ data, currentData, reset });
 
   const [state, send] = useMachine(editorMachine);
 
@@ -408,11 +400,7 @@ function EditorSurface<UserConfig extends Config = Config>({
       : null;
   const highlightId = menuHighlightId ?? hoverHighlightId;
 
-  const [boxModelVisible, setBoxModelVisible] = useState(false);
-
-  useEffect(() => {
-    setBoxModelVisible(false);
-  }, [lastSelectedId]);
+  const boxModel = useBoxModelToggle(lastSelectedId);
 
   const { selectedSlot } = state.context;
   const slotAddress = useSlotAddress(currentData, lastSelectedId);
@@ -486,25 +474,6 @@ function EditorSurface<UserConfig extends Config = Config>({
     commit,
   });
 
-  const morphSelectedElement = useMemo(
-    () =>
-      morph.isOpen && morph.activeEntry && singleSelected
-        ? findById(currentData, singleSelected)
-        : null,
-    [morph.isOpen, morph.activeEntry, singleSelected, currentData],
-  );
-
-  const morphOverlayData = useMemo(() => {
-    const entry = morph.activeEntry;
-    if (!morphSelectedElement || !entry) return null;
-    if (entry.kind === "variant")
-      return withVariant(morphSelectedElement, entry.variant);
-    if (!patternRegistry) return null;
-    const result = patternRegistry.apply(morphSelectedElement, entry.pattern);
-    if (result.isErr()) return null;
-    return result.value.data;
-  }, [morphSelectedElement, patternRegistry, morph.activeEntry]);
-
   const onMorphHover = useCallback(
     (i: number) =>
       morph.setActiveEntry(i >= 0 ? (morph.entries[i] ?? null) : null),
@@ -534,10 +503,10 @@ function EditorSurface<UserConfig extends Config = Config>({
         ::view-transition-group(*) { animation-duration: 200ms; animation-timing-function: ease; }
       `}</style>
 
-      {morph.isOpen && morphOverlayData && singleSelected && fiberRegistry && (
+      {morph.isOpen && morph.overlayData && singleSelected && fiberRegistry && (
         <MorphOverlay
           config={config}
-          element={morphOverlayData}
+          element={morph.overlayData}
           fiberRegistry={fiberRegistry}
           elementId={singleSelected}
           metadata={metadata}
@@ -568,7 +537,7 @@ function EditorSurface<UserConfig extends Config = Config>({
             />
           ))}
         {affordances.boxModel &&
-          boxModelVisible &&
+          boxModel.visible &&
           fiberRegistry &&
           [...selectedIds].map((id) => (
             <BoxModelLayer key={id} registry={fiberRegistry} elementId={id} />
@@ -601,8 +570,8 @@ function EditorSurface<UserConfig extends Config = Config>({
             )}
             {affordances.boxModel && (
               <ActionBoxModel
-                active={boxModelVisible}
-                onToggle={() => setBoxModelVisible((v) => !v)}
+                active={boxModel.visible}
+                onToggle={boxModel.toggle}
               />
             )}
           </EdgeArrows>

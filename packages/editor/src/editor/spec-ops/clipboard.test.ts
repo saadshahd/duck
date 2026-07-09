@@ -2,7 +2,7 @@ import { describe, it, expect } from "bun:test";
 import type { ComponentData, Config, Data } from "@puckeditor/core";
 import { copy, paste } from "./clipboard.js";
 import { allIds } from "@duckeditor/spec";
-import { findById } from "./helpers.js";
+import { findById } from "./mutation.js";
 
 const config: Config = {
   components: {

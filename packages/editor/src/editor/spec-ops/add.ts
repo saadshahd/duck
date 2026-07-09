@@ -11,7 +11,7 @@ import {
   writableChildrenAt,
   type ParentSite,
 } from "@duckeditor/spec";
-import { type SpecOpsError, cloneAndMutate, findById } from "./helpers.js";
+import { type SpecOpsError, cloneAndMutate, findById } from "./mutation.js";
 import { mintId, takenIds } from "./id.js";
 
 /** Remint the id of every child reachable through `component`'s slots

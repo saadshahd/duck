@@ -1,5 +1,5 @@
 import type { ComponentData } from "@puckeditor/core";
-import type { DragData } from "./helpers.js";
+import type { DragData } from "./drag-data.js";
 
 export { stubRegistry, emptyRegistry } from "../fiber/testing.js";
 

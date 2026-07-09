@@ -31,7 +31,7 @@ import {
   resolveSlotAxis,
   resolveDropIndex,
   type DragData,
-} from "./helpers.js";
+} from "./drag-data.js";
 
 type TargetBag = { data: Record<string | symbol, unknown> };
 type Point = { x: number; y: number };

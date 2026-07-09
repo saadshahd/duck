@@ -1,7 +1,7 @@
 import { describe, it, expect } from "bun:test";
 import type { ComponentData, Config, Data } from "@puckeditor/core";
 import { update } from "./update.js";
-import { findById } from "./helpers.js";
+import { findById } from "./mutation.js";
 
 const config = {
   components: {

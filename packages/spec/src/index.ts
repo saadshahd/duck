@@ -17,7 +17,6 @@ export {
 export { mapComponent } from "./map-component.js";
 export { preOrder } from "./pre-order.js";
 export { collectDescendants } from "./collect-descendants.js";
-export { foldTree } from "./fold-tree.js";
 export { outlineTree, type OutlineNode } from "./outline-tree.js";
 export {
   buildParentMap,

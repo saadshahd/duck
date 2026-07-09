@@ -2,7 +2,7 @@ import { describe, it, expect } from "bun:test";
 import type { ComponentData, Data } from "@puckeditor/core";
 import { expectErr, expectOk } from "../testing/result.js";
 import { remove, removeMany } from "./remove.js";
-import { findById } from "./helpers.js";
+import { findById } from "./mutation.js";
 
 const text = (id: string): ComponentData => ({
   type: "Text",

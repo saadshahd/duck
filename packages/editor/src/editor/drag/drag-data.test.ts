@@ -1,5 +1,5 @@
 import { describe, test, expect } from "bun:test";
-import { resolveInsertIndex } from "./helpers.js";
+import { resolveInsertIndex } from "./drag-data.js";
 
 describe("resolveInsertIndex", () => {
   test("bottom → targetIndex + 1", () => {

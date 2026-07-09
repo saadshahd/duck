@@ -18,8 +18,9 @@ import {
 import { resolveHit, type FiberRegistry } from "../fiber/index.js";
 import type { EditorEvent, EditorSnapshot } from "../machine/index.js";
 import type { DropTarget } from "../layout/index.js";
-import type { DragData } from "./helpers.js";
-import { EDGES, resolveSlotAxis, tagTransitionNames } from "./helpers.js";
+import type { DragData } from "./drag-data.js";
+import { EDGES, resolveSlotAxis } from "./drag-data.js";
+import { tagTransitionNames } from "./view-transition.js";
 import {
   destinationStack,
   Cycle,

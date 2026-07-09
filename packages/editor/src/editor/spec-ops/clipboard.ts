@@ -2,7 +2,7 @@ import type { Config, ComponentData, Data } from "@puckeditor/core";
 import { err, ok, type Result } from "neverthrow";
 import { getIn, slotPathsOf, type ParentSite } from "@duckeditor/spec";
 import { add } from "./add.js";
-import { type SpecOpsError, cloneData, findById } from "./helpers.js";
+import { type SpecOpsError, cloneData, findById } from "./mutation.js";
 import { mintId, takenIds } from "./id.js";
 
 /** Walk `component` (mutating in place) and replace every props.id with a fresh,

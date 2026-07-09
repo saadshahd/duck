@@ -5,7 +5,7 @@ import { findParent, sameSite, parentIdOf } from "@duckeditor/spec";
 import { move, type SpecOpsError } from "../spec-ops/index.js";
 import type { EditorEvent } from "../machine/index.js";
 import type { DropTarget } from "../layout/index.js";
-import { readData, resolveInsertIndex } from "./helpers.js";
+import { readData, resolveInsertIndex } from "./drag-data.js";
 
 type TargetBag = { data: Record<string | symbol, unknown> };
 

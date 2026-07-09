@@ -13,7 +13,7 @@ import {
   descendantIds,
   findById,
   findParent,
-} from "./helpers.js";
+} from "./mutation.js";
 
 /** Move the subtree at `id` to `dest` at `toIndex`.
  *

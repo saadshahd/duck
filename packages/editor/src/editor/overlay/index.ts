@@ -8,7 +8,7 @@ export { chromeClick } from "./chrome-click.js";
 export { useHighlightRef, INSET, EXPAND } from "./use-highlight-ref.js";
 export { useAutoFocus } from "./use-auto-focus.js";
 export { useSlotStopRect, measureSlot } from "./use-slot-stop-rect.js";
-export { isEditable } from "./dom-utils.js";
+export { isEditable } from "./is-editable.js";
 export { Tiles } from "./tiles.js";
 export { Announcer } from "./announcer.js";
 export { MoveGhost } from "./move-ghost.js";

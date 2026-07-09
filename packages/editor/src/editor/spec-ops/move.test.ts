@@ -1,7 +1,7 @@
 import { describe, it, expect } from "bun:test";
 import type { ComponentData, Data } from "@puckeditor/core";
 import { move } from "./move.js";
-import { findById } from "./helpers.js";
+import { findById } from "./mutation.js";
 
 const text = (id: string): ComponentData => ({
   type: "Text",

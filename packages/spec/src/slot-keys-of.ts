@@ -10,7 +10,12 @@ const isComponentDataLike = (value: unknown): value is ComponentData =>
   typeof (value as { props: { id?: unknown } }).props.id === "string";
 
 /** A slot value is an array whose every element is `{ type, props: { id } }`.
- *  Empty arrays satisfy this vacuously and count as slots. */
+ *  Invariant: empty arrays satisfy this vacuously and count as slots by value
+ *  alone — an empty non-slot array prop is therefore indistinguishable here from
+ *  an empty slot. The authoritative disambiguation for empties is config-based
+ *  (`slotKeysFromConfig` / `allowedTypes`, which read the declared `slot` field);
+ *  `allowedTypes` fails closed for non-slot fields, so a phantom slot surfaced
+ *  from such an empty array can never become a live drop target. */
 export const isSlotValue = (value: unknown): value is ComponentData[] =>
   Array.isArray(value) && value.every(isComponentDataLike);
 

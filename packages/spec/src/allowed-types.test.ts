@@ -89,19 +89,27 @@ describe("allowedTypes", () => {
     );
   });
 
-  test("fails open: missing parent type → all types", () => {
+  test("fails closed: missing parent type → empty set", () => {
     const result = allowedTypes(config, "Unknown", ["children"]);
-    expect(result).toEqual(ALL_TYPES);
+    expect(result).toEqual(new Set());
   });
 
-  test("fails open: missing field → all types", () => {
+  test("fails closed: missing field → empty set", () => {
     const result = allowedTypes(config, "Card", ["nonexistent"]);
-    expect(result).toEqual(ALL_TYPES);
+    expect(result).toEqual(new Set());
   });
 
-  test("fails open: non-slot field → all types", () => {
+  test("fails closed: non-slot text field → empty set", () => {
     const result = allowedTypes(config, "Card", ["label"]);
-    expect(result).toEqual(ALL_TYPES);
+    expect(result).toEqual(new Set());
+  });
+
+  test("fails closed: phantom slot on non-slot array field → empty set", () => {
+    // `items` is an `array` field, not a `slot`. An empty `items` prop
+    // duck-types as a slot via `slotPathsOf`, so this path can surface; failing
+    // closed keeps that phantom slot from becoming a live drop target.
+    const result = allowedTypes(config, "Sections", ["items"]);
+    expect(result).toEqual(new Set());
   });
 
   test("Box.children bare slot → all types", () => {

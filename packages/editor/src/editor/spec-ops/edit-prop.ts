@@ -1,6 +1,6 @@
 import type { Config, Data } from "@puckeditor/core";
 import { err, type Result } from "neverthrow";
-import { type SpecOpsError, findById } from "./helpers.js";
+import { type SpecOpsError, findById } from "./mutation.js";
 import { update } from "./update.js";
 
 /** Immutable set: returns a new value with `path` overwritten. Walks objects

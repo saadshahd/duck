@@ -1,5 +1,5 @@
 import { useState, useMemo, useEffect, useCallback } from "react";
-import type { Config, Data } from "@puckeditor/core";
+import type { ComponentData, Config, Data } from "@puckeditor/core";
 import {
   findById,
   type DerivedVariation,
@@ -18,6 +18,7 @@ type MorphState = {
   count: number;
   isOpen: boolean;
   activeEntry: MorphEntry | null;
+  overlayData: ComponentData | null;
   entries: MorphEntry[];
   openPicker: () => void;
   closePicker: () => void;
@@ -64,6 +65,19 @@ export function useMorph({
     ];
   }, [registry, element, config]);
 
+  // The previewed element for the active entry: the pattern applied (or variant
+  // props merged) onto the selected element. Null unless the picker is open with
+  // an active choice — the morph overlay renders exactly this.
+  const overlayData = useMemo<ComponentData | null>(() => {
+    if (!isOpen || !activeEntry || !element) return null;
+    if (activeEntry.kind === "variant")
+      return withVariant(element, activeEntry.variant);
+    if (!registry) return null;
+    const result = registry.apply(element, activeEntry.pattern);
+    if (result.isErr()) return null;
+    return result.value.data;
+  }, [isOpen, activeEntry, element, registry]);
+
   useEffect(
     function resetOnSelectionChange() {
       setIsOpen(false);
@@ -88,11 +102,6 @@ export function useMorph({
     setCommitError(null);
   }, []);
 
-  const close = useCallback(() => {
-    setIsOpen(false);
-    setActiveEntryState(null);
-  }, []);
-
   const commitPattern = useCallback(
     (pattern: SectionPattern) => {
       if (!registry || !remintIds || !element || !selectedId) return;
@@ -111,9 +120,9 @@ export function useMorph({
         label: `Morph: ${pattern.name}`,
         resolve: { kind: "morph", id: selectedId },
       });
-      close();
+      closePicker();
     },
-    [registry, remintIds, element, selectedId, data, commitData, close],
+    [registry, remintIds, element, selectedId, data, commitData, closePicker],
   );
 
   const commitVariant = useCallback(
@@ -132,9 +141,9 @@ export function useMorph({
         label: `Variant: ${variant.name}`,
         resolve: { kind: "morph", id: selectedId },
       });
-      close();
+      closePicker();
     },
-    [element, selectedId, data, config, commitData, close],
+    [element, selectedId, data, config, commitData, closePicker],
   );
 
   const commit = useCallback(
@@ -149,6 +158,7 @@ export function useMorph({
     count: entries.length,
     isOpen,
     activeEntry,
+    overlayData,
     entries,
     openPicker,
     closePicker,

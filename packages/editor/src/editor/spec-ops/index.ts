@@ -1,4 +1,4 @@
-export { type SpecOpsError } from "./helpers.js";
+export { type SpecOpsError } from "./mutation.js";
 export { add } from "./add.js";
 export { remove, removeMany } from "./remove.js";
 export { move } from "./move.js";

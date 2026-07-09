@@ -1,5 +1,5 @@
 import { describe, test, expect } from "bun:test";
-import { isEditable } from "./dom-utils.js";
+import { isEditable } from "./is-editable.js";
 
 describe("isEditable", () => {
   test("null returns false", () => {

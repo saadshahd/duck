@@ -10,7 +10,7 @@ import {
   findById,
   findParent,
   moveInArray,
-} from "./helpers.js";
+} from "./mutation.js";
 
 const text = (id: string, content = "x"): ComponentData => ({
   type: "Text",

@@ -42,17 +42,22 @@ const fieldAt = (
  *   disallow only → all types minus disallowed
  *   both → allow defines the set, disallow subtracts from it
  *
- * Fails open: missing parent def, missing field, or non-slot field → all types.
+ * Fails closed: missing parent def, missing field, or non-slot field → the empty
+ * set. Only a config-declared `slot` field can permit a drop. This guards the
+ * phantom-slot case: `slotPathsOf` duck-types an empty non-slot array as a slot,
+ * so an empty array-of-primitives prop can surface a slot path that has no slot
+ * field — failing closed makes that path permit zero drops (dead, harmless)
+ * rather than fabricating a permissive drop target that could corrupt data.
  */
 export const allowedTypes = (
   config: Config,
   parentType: string,
   path: SlotPath,
 ): ReadonlySet<string> => {
-  const all = allTypes(config);
   const rawField = fieldAt(config, parentType, path);
-  if (!rawField || rawField.type !== "slot") return all;
+  if (!rawField || rawField.type !== "slot") return new Set();
   const field = rawField as SlotField;
+  const all = allTypes(config);
 
   const { allow, disallow } = field;
 
