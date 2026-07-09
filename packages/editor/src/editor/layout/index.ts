@@ -27,6 +27,7 @@ export {
   resolveLabel,
   qualifiedLabel,
   slotLabels,
+  slotChoices,
   NO_TARGET_LABEL,
   stepCycleBack,
 } from "./destinations.js";

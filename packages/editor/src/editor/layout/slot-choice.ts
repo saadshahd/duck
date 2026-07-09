@@ -1,5 +1,5 @@
 import type { Data } from "@puckeditor/core";
-import { getChildrenAt } from "@duckeditor/spec";
+import { getChildrenAt, samePath, type SlotPath } from "@duckeditor/spec";
 import type { FiberRegistry } from "../fiber/index.js";
 import { buildTiling } from "./tiling.js";
 import { discreteMarkers } from "./tiles.js";
@@ -13,19 +13,19 @@ import { containsPoint } from "./rect.js";
 export const slotChoiceRect = (args: {
   data: Data;
   parentId: string;
-  slotKey: string;
+  path: SlotPath;
   registry: FiberRegistry;
 }): DOMRect | undefined => {
-  const { data, parentId, slotKey, registry } = args;
+  const { data, parentId, path, registry } = args;
   const { tiling } = buildTiling({ data, containerId: parentId, registry });
 
   if (tiling.kind === "tiled")
-    return tiling.tiles.find((t) => t.path.join(".") === slotKey)?.rect;
+    return tiling.tiles.find((t) => samePath(t.path, path))?.rect;
 
   const containerRect = registry.get(parentId)?.getBoundingClientRect();
   if (!containerRect) return undefined;
-  return discreteMarkers(tiling, containerRect).find(
-    (m) => m.path.join(".") === slotKey,
+  return discreteMarkers(tiling, containerRect).find((m) =>
+    samePath(m.path, path),
   )?.rect;
 };
 
@@ -36,13 +36,12 @@ export const slotChoiceRect = (args: {
 export const slotChildAt = (args: {
   data: Data;
   parentId: string;
-  slotKey: string;
+  path: SlotPath;
   registry: FiberRegistry;
   point: { x: number; y: number };
 }): string | undefined => {
-  const { data, parentId, slotKey, registry, point } = args;
-  const children =
-    getChildrenAt(data, { at: "slot", parentId, path: [slotKey] }) ?? [];
+  const { data, parentId, path, registry, point } = args;
+  const children = getChildrenAt(data, { at: "slot", parentId, path }) ?? [];
   return children
     .map((child) => child.props.id as string)
     .find((id) => {

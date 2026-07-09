@@ -1,5 +1,5 @@
 export type { Path, PathStep, ParentSite, SlotPath } from "./path.js";
-export { sameSite, parentIdOf, slotKeyOf, getIn } from "./path.js";
+export { sameSite, samePath, parentIdOf, slotKeyOf, getIn } from "./path.js";
 export { findById } from "./find-by-id.js";
 export { findParent } from "./find-parent.js";
 export { findParentNode } from "./find-parent-node.js";

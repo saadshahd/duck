@@ -1,4 +1,5 @@
 import type { Data } from "@puckeditor/core";
+import type { SlotPath } from "@duckeditor/spec";
 import {
   useShadowSheet,
   useSlotStopRect,
@@ -25,7 +26,7 @@ export function SlotStop({
   registry,
   data,
   parentId,
-  slotKey,
+  path,
   label,
   active,
   onClimb,
@@ -36,7 +37,7 @@ export function SlotStop({
   registry: FiberRegistry;
   data: Data;
   parentId: string;
-  slotKey: string;
+  path: SlotPath;
   label: string;
   active: boolean;
   onClimb: () => void;
@@ -49,7 +50,7 @@ export function SlotStop({
     registry,
     data,
     parentId,
-    slotKey,
+    path,
   });
   useAutoFocus(active ? labelRef : NO_FOCUS);
 
@@ -73,7 +74,7 @@ export function SlotStop({
           const childId = slotChildAt({
             data,
             parentId,
-            slotKey,
+            path,
             registry,
             point: { x: e.clientX, y: e.clientY },
           });

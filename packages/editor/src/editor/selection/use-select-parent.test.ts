@@ -26,7 +26,7 @@ const collect = () => {
 const make = (
   lastSelectedId: string | null,
   pointer = "selected",
-  selectedSlot: { parentId: string; slotKey: string } | null = null,
+  selectedSlot: { parentId: string; path: string[] } | null = null,
 ) => {
   const { calls, send } = collect();
   const fn = createSelectParent({
@@ -71,7 +71,7 @@ describe("createSelectParent", () => {
   test("in slot-selected: sends SELECT with the selectedSlot parentId (climbs to parent element)", () => {
     const { calls, fn } = make("item", "slot-selected", {
       parentId: "section",
-      slotKey: "items",
+      path: ["items"],
     });
     fn!();
     expect(calls).toEqual([{ type: "SELECT", elementId: "section" }]);

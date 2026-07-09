@@ -15,6 +15,7 @@ import {
   findById,
   getChildrenAt,
   normalizeData,
+  samePath,
   type ParentSite,
   type PatternConfig,
 } from "@duckeditor/spec";
@@ -54,7 +55,7 @@ import {
   MoveGhost,
   measureSlot,
 } from "./overlay/index.js";
-import { ghostContent, slotLabels } from "./layout/index.js";
+import { ghostContent, slotChoices } from "./layout/index.js";
 import { BoxModelLayer } from "./box-model/index.js";
 import { useHistory, HistoryTimeline } from "./history/index.js";
 import { useKeyboard } from "./keyboard/index.js";
@@ -421,7 +422,7 @@ function EditorSurface<UserConfig extends Config = Config>({
     const site: ParentSite = {
       at: "slot",
       parentId: selectedSlot.parentId,
-      path: [selectedSlot.slotKey],
+      path: selectedSlot.path,
     };
     const children = getChildrenAt(currentData, site) ?? [];
     return { ...site, index: children.length };
@@ -451,12 +452,13 @@ function EditorSurface<UserConfig extends Config = Config>({
   // named on screen — the law that no insert writes to an unnamed slot.
   const slotBands = useMemo(() => {
     if (!selectedSlot) return [];
-    const labels = slotLabels(currentData, selectedSlot.parentId);
-    return Object.entries(labels).map(([slotKey, label]) => ({
-      slotKey,
-      label,
-      active: slotKey === selectedSlot.slotKey,
-    }));
+    return slotChoices(currentData, selectedSlot.parentId).map(
+      ({ path, label }) => ({
+        path,
+        label,
+        active: samePath(path, selectedSlot.path),
+      }),
+    );
   }, [selectedSlot, currentData]);
 
   const affordances = affordancesFor(
@@ -622,7 +624,7 @@ function EditorSurface<UserConfig extends Config = Config>({
                     registry: fiberRegistry,
                     data: currentData,
                     parentId: selectedSlot.parentId,
-                    slotKey: selectedSlot.slotKey,
+                    path: selectedSlot.path,
                   }),
               }}
               config={config}
@@ -660,13 +662,13 @@ function EditorSurface<UserConfig extends Config = Config>({
           selectedSlot &&
           selectParent &&
           fiberRegistry &&
-          slotBands.map(({ slotKey, label, active }) => (
+          slotBands.map(({ path, label, active }) => (
             <SlotStop
-              key={slotKey}
+              key={path.join(".")}
               registry={fiberRegistry}
               data={currentData}
               parentId={selectedSlot.parentId}
-              slotKey={slotKey}
+              path={path}
               label={label}
               active={active}
               onClimb={selectParent}
@@ -674,7 +676,7 @@ function EditorSurface<UserConfig extends Config = Config>({
                 send({
                   type: "SELECT_SLOT",
                   parentId: selectedSlot.parentId,
-                  slotKey,
+                  path,
                 })
               }
               onSelectChild={(childId) =>

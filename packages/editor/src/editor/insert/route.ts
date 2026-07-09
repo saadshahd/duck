@@ -3,18 +3,20 @@ import {
   allowedTypes,
   findById,
   findParent,
-  slotKeysOf,
+  slotPathsOf,
+  type SlotPath,
 } from "@duckeditor/spec";
 import type { InsertTarget } from "./use-insert.js";
 
 /** Where an insert action goes, resolved purely from the selection. No silent
  *  slot defaulting: a node that owns slots always routes to a slot-choice step
  *  (even a single-slot node, so the destination slot is named on screen before
- *  any write). Leaves insert as a next sibling; an empty selection appends at
- *  the document root. */
+ *  any write). Slots are addressed by prop-path, so array-item slots
+ *  (`items[i].content`) are offered alongside top-level ones. Leaves insert as
+ *  a next sibling; an empty selection appends at the document root. */
 type InsertRoute =
   | { kind: "root" }
-  | { kind: "slot-choice"; parentId: string; slotKeys: readonly string[] }
+  | { kind: "slot-choice"; parentId: string; paths: readonly SlotPath[] }
   | { kind: "sibling"; target: InsertTarget };
 
 /** A route that resolves to a concrete write target with no slot to choose. The
@@ -31,9 +33,9 @@ export const routeInsert = (
   const selected = findById(data, selectedId);
   if (!selected) return { kind: "root" };
 
-  const slotKeys = slotKeysOf(selected);
-  if (slotKeys.length > 0)
-    return { kind: "slot-choice", parentId: selectedId, slotKeys };
+  const paths = slotPathsOf(selected);
+  if (paths.length > 0)
+    return { kind: "slot-choice", parentId: selectedId, paths };
 
   const parent = findParent(data, selectedId);
   if (!parent) return { kind: "root" };

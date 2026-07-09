@@ -1,4 +1,5 @@
 import { setup, assign, type SnapshotFrom } from "xstate";
+import type { SlotPath } from "@duckeditor/spec";
 import { Selection } from "./selection-model.js";
 
 // --- Context ---
@@ -20,7 +21,7 @@ type SheetEditing = {
 
 type Editing = InlineEditing | SheetEditing;
 
-export type SelectedSlot = { parentId: string; slotKey: string };
+export type SelectedSlot = { parentId: string; path: SlotPath };
 
 export type EditorContext = {
   hoveredId: string | null;
@@ -44,8 +45,8 @@ export type EditorEvent =
   | { type: "REPLACE_SELECT"; elementIds: string[] }
   | { type: "TOGGLE_SELECT"; elementId: string }
   | { type: "DESELECT" }
-  | { type: "SELECT_SLOT"; parentId: string; slotKey: string }
-  | { type: "OPEN_INSERT_SLOT"; parentId: string; slotKey: string }
+  | { type: "SELECT_SLOT"; parentId: string; path: SlotPath }
+  | { type: "OPEN_INSERT_SLOT"; parentId: string; path: SlotPath }
   | { type: "OPEN_SHEET" }
   | ({
       type: "START_INLINE_EDIT";
@@ -218,7 +219,7 @@ export const editorMachine = setup({
                 ...Selection.clearKeepLast(context),
                 selectedSlot: {
                   parentId: event.parentId,
-                  slotKey: event.slotKey,
+                  path: event.path,
                 },
                 slotExplicit: true,
               })),
@@ -229,7 +230,7 @@ export const editorMachine = setup({
               actions: assign(({ event }) => ({
                 selectedSlot: {
                   parentId: event.parentId,
-                  slotKey: event.slotKey,
+                  path: event.path,
                 },
                 slotExplicit: false,
               })),
@@ -380,7 +381,7 @@ export const editorMachine = setup({
               actions: assign(({ event }) => ({
                 selectedSlot: {
                   parentId: event.parentId,
-                  slotKey: event.slotKey,
+                  path: event.path,
                 },
                 slotExplicit: true,
               })),

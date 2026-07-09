@@ -50,7 +50,7 @@ describe("slotChoiceRect", () => {
     const r = slotChoiceRect({
       data: data(),
       parentId: "card",
-      slotKey: "header",
+      path: ["header"],
       registry: registry(),
     });
     expect(r).toBeTruthy();
@@ -62,7 +62,7 @@ describe("slotChoiceRect", () => {
     const r = slotChoiceRect({
       data: data(),
       parentId: "card",
-      slotKey: "footer",
+      path: ["footer"],
       registry: registry(),
     });
     expect(r).toBeTruthy();
@@ -75,7 +75,7 @@ describe("slotChoiceRect", () => {
       slotChoiceRect({
         data: data(),
         parentId: "card",
-        slotKey: "ghost",
+        path: ["ghost"],
         registry: registry(),
       }),
     ).toBeUndefined();
@@ -86,7 +86,7 @@ describe("slotChoiceRect", () => {
       slotChoiceRect({
         data: data(),
         parentId: "nope",
-        slotKey: "header",
+        path: ["header"],
         registry: registry(),
       }),
     ).toBeUndefined();
@@ -97,7 +97,7 @@ describe("slotChildAt", () => {
   const args = (point: { x: number; y: number }) => ({
     data: data(),
     parentId: "card",
-    slotKey: "body",
+    path: ["body"],
     registry: registry(),
     point,
   });
@@ -117,7 +117,7 @@ describe("slotChildAt", () => {
       slotChildAt({
         data: data(),
         parentId: "card",
-        slotKey: "footer",
+        path: ["footer"],
         registry: registry(),
         point: { x: 100, y: 120 },
       }),
@@ -129,7 +129,7 @@ describe("slotChildAt", () => {
       slotChildAt({
         data: data(),
         parentId: "nope",
-        slotKey: "body",
+        path: ["body"],
         registry: registry(),
         point: { x: 100, y: 120 },
       }),

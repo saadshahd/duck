@@ -45,7 +45,7 @@ describe("openInsertEvent", () => {
         lastSelectedId: "multi",
         pointer: "selected",
       }),
-    ).toEqual({ type: "SELECT_SLOT", parentId: "multi", slotKey: "header" });
+    ).toEqual({ type: "SELECT_SLOT", parentId: "multi", path: ["header"] });
   });
 
   test("selected single-slot node: one action straight to the picker (OPEN_INSERT_SLOT)", () => {
@@ -55,7 +55,7 @@ describe("openInsertEvent", () => {
         lastSelectedId: "solo",
         pointer: "selected",
       }),
-    ).toEqual({ type: "OPEN_INSERT_SLOT", parentId: "solo", slotKey: "body" });
+    ).toEqual({ type: "OPEN_INSERT_SLOT", parentId: "solo", path: ["body"] });
   });
 
   test("selected leaf: opens the direct sibling picker (OPEN_INSERT)", () => {

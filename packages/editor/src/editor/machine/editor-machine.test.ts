@@ -55,8 +55,8 @@ const sampleEvents = [
   { type: "SELECT" as const, elementId: "el-1" },
   { type: "TOGGLE_SELECT" as const, elementId: "el-2" },
   { type: "DESELECT" as const },
-  { type: "SELECT_SLOT" as const, parentId: "card", slotKey: "body" },
-  { type: "OPEN_INSERT_SLOT" as const, parentId: "box", slotKey: "children" },
+  { type: "SELECT_SLOT" as const, parentId: "card", path: ["body"] },
+  { type: "OPEN_INSERT_SLOT" as const, parentId: "box", path: ["children"] },
   { type: "OPEN_SHEET" as const },
   {
     type: "START_INLINE_EDIT" as const,
@@ -474,7 +474,7 @@ const pointerOf = (s: { value: unknown }) => (s.value as MachineValue).pointer;
 
 const enterSlotSelected = [
   { type: "SELECT" as const, elementId: "el-1" },
-  { type: "SELECT_SLOT" as const, parentId: "card", slotKey: "body" },
+  { type: "SELECT_SLOT" as const, parentId: "card", path: ["body"] },
 ];
 
 describe("slot-selected: entry", () => {
@@ -483,14 +483,14 @@ describe("slot-selected: entry", () => {
     expect(pointerOf(s)).toBe("slot-selected");
     expect(s.context.selectedSlot).toEqual({
       parentId: "card",
-      slotKey: "body",
+      path: ["body"],
     });
     expect(s.context.selectedIds.size).toBe(0);
     expect(s.context.lastSelectedId).toBe("el-1");
   });
 
   it("SELECT_SLOT from idle is ignored (guard: must be in selected)", () => {
-    const s = walk({ type: "SELECT_SLOT", parentId: "card", slotKey: "body" });
+    const s = walk({ type: "SELECT_SLOT", parentId: "card", path: ["body"] });
     expect(pointerOf(s)).toBe("idle");
     expect(s.context.selectedSlot).toBeNull();
   });
@@ -591,7 +591,7 @@ describe("selectedSlot cleared by top-level REPLACE_SELECT", () => {
 });
 
 describe("slot-selected: dropped events keep slot-selected intact", () => {
-  const slotContext = { parentId: "card", slotKey: "body" };
+  const slotContext = { parentId: "card", path: ["body"] };
 
   const droppedEvents: EditorEvent[] = [
     { type: "TOGGLE_SELECT", elementId: "el-2" },
@@ -620,7 +620,7 @@ describe("slot-selected: OPEN_INSERT opens the slot picker", () => {
     expect(pointerOf(s)).toBe("inserting");
     expect(s.context.selectedSlot).toEqual({
       parentId: "card",
-      slotKey: "body",
+      path: ["body"],
     });
   });
 
@@ -635,7 +635,7 @@ describe("slot-selected: OPEN_INSERT opens the slot picker", () => {
     expect(pointerOf(s)).toBe("slot-selected");
     expect(s.context.selectedSlot).toEqual({
       parentId: "card",
-      slotKey: "body",
+      path: ["body"],
     });
   });
 
@@ -674,7 +674,7 @@ describe("single-slot insert: OPEN_INSERT_SLOT is one action", () => {
   const openInsertSlot = {
     type: "OPEN_INSERT_SLOT" as const,
     parentId: "box",
-    slotKey: "children",
+    path: ["children"],
   };
 
   it("selected + OPEN_INSERT_SLOT → inserting with selectedSlot set in one step", () => {
@@ -682,7 +682,7 @@ describe("single-slot insert: OPEN_INSERT_SLOT is one action", () => {
     expect(pointerOf(s)).toBe("inserting");
     expect(s.context.selectedSlot).toEqual({
       parentId: "box",
-      slotKey: "children",
+      path: ["children"],
     });
   });
 
@@ -1017,7 +1017,7 @@ describe("SELECT_SLOT across every pointer-region state", () => {
   const selectSlot = {
     type: "SELECT_SLOT" as const,
     parentId: "card",
-    slotKey: "body",
+    path: ["body"],
   };
 
   it("idle + SELECT_SLOT → no-op, pointer.idle, no slot", () => {
@@ -1037,7 +1037,7 @@ describe("SELECT_SLOT across every pointer-region state", () => {
     expect(pointerOf(s)).toBe("slot-selected");
     expect(s.context.selectedSlot).toEqual({
       parentId: "card",
-      slotKey: "body",
+      path: ["body"],
     });
     expect(s.context.selectedIds.size).toBe(0);
   });
@@ -1066,12 +1066,12 @@ describe("SELECT_SLOT across every pointer-region state", () => {
     const s = walk(...enterSlotSelected, {
       type: "SELECT_SLOT",
       parentId: "card",
-      slotKey: "header",
+      path: ["header"],
     });
     expect(pointerOf(s)).toBe("slot-selected");
     expect(s.context.selectedSlot).toEqual({
       parentId: "card",
-      slotKey: "header",
+      path: ["header"],
     });
   });
 
@@ -1146,7 +1146,7 @@ describe("R1: terminating drag events are no-ops outside the dragging pointer st
       expect(pointerOf(s)).toBe("slot-selected");
       expect(s.context.selectedSlot).toEqual({
         parentId: "card",
-        slotKey: "body",
+        path: ["body"],
       });
     });
   }

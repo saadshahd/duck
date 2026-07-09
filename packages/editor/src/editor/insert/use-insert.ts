@@ -54,16 +54,16 @@ export const openInsertEvent = (args: {
   if (args.pointer === "slot-selected") return { type: "OPEN_INSERT" };
   const route = routeInsert(args.data, args.lastSelectedId);
   if (route.kind !== "slot-choice") return { type: "OPEN_INSERT" };
-  return route.slotKeys.length === 1
+  return route.paths.length === 1
     ? {
         type: "OPEN_INSERT_SLOT",
         parentId: route.parentId,
-        slotKey: route.slotKeys[0],
+        path: route.paths[0],
       }
     : {
         type: "SELECT_SLOT",
         parentId: route.parentId,
-        slotKey: route.slotKeys[0],
+        path: route.paths[0],
       };
 };
 

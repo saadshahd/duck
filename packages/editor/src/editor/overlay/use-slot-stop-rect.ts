@@ -1,6 +1,7 @@
 import { autoUpdate } from "@floating-ui/react";
 import { useEffect, useRef, useCallback } from "react";
 import type { Data } from "@puckeditor/core";
+import type { SlotPath } from "@duckeditor/spec";
 import type { FiberRegistry } from "../fiber/index.js";
 import { ZERO_RECT, slotChoiceRect } from "../layout/index.js";
 
@@ -12,11 +13,11 @@ export const measureSlot = (args: {
   registry: FiberRegistry;
   data: Data;
   parentId: string;
-  slotKey: string;
+  path: SlotPath;
 }): DOMRect => {
-  const { registry, data, parentId, slotKey } = args;
+  const { registry, data, parentId, path } = args;
   return (
-    slotChoiceRect({ data, parentId, slotKey, registry }) ??
+    slotChoiceRect({ data, parentId, path, registry }) ??
     registry.get(parentId)?.getBoundingClientRect() ??
     ZERO_RECT
   );
@@ -29,19 +30,19 @@ export function useSlotStopRect(args: {
   registry: FiberRegistry;
   data: Data;
   parentId: string;
-  slotKey: string;
+  path: SlotPath;
 }): {
   bandRef: React.RefObject<HTMLDivElement | null>;
   labelRef: React.RefObject<HTMLButtonElement | null>;
 } {
-  const { registry, data, parentId, slotKey } = args;
+  const { registry, data, parentId, path } = args;
   const bandRef = useRef<HTMLDivElement>(null);
   const labelRef = useRef<HTMLButtonElement>(null);
 
   const sync = useCallback(() => {
     const band = bandRef.current;
     const label = labelRef.current;
-    const r = measureSlot({ registry, data, parentId, slotKey });
+    const r = measureSlot({ registry, data, parentId, path });
     if (band) {
       band.style.top = `${r.top}px`;
       band.style.left = `${r.left}px`;
@@ -52,17 +53,17 @@ export function useSlotStopRect(args: {
       label.style.top = `${r.top}px`;
       label.style.left = `${r.left}px`;
     }
-  }, [registry, data, parentId, slotKey]);
+  }, [registry, data, parentId, path]);
 
   useEffect(() => {
     const band = bandRef.current;
     if (!band) return;
     const vRef = {
       getBoundingClientRect: () =>
-        measureSlot({ registry, data, parentId, slotKey }),
+        measureSlot({ registry, data, parentId, path }),
     };
     return autoUpdate(vRef, band, sync, { animationFrame: true });
-  }, [registry, data, parentId, slotKey, sync]);
+  }, [registry, data, parentId, path, sync]);
 
   return { bandRef, labelRef };
 }

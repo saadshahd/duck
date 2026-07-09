@@ -78,6 +78,21 @@ export const slotLabels = (
   );
 };
 
+/** Every slot of a container as a `{ path, label }` choice — the path-carrying
+ *  form of `slotLabels`, so the slot-choice bands can re-target by prop-path
+ *  (top-level and array-item slots alike) rather than by a lossy join key. */
+export const slotChoices = (
+  data: Data,
+  containerId: string,
+): readonly { path: SlotPath; label: string }[] => {
+  const container = findById(data, containerId);
+  if (!container) return [];
+  return slotPathsOf(container).map((path) => ({
+    path,
+    label: qualifiedLabel(container.type, slotKeyOf(path)),
+  }));
+};
+
 /** Display label for a drop target: `Component › slot` for container and line
  *  drops, "Root" for root-level lines, a constant for no-target. Null when the
  *  container is unknown. */

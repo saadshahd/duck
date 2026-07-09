@@ -41,19 +41,19 @@ describe("routeInsert", () => {
     expect(routeInsert(data(), "ghost")).toEqual({ kind: "root" });
   });
 
-  test("multi-slot node → slot-choice carrying every slot key in declaration order", () => {
+  test("multi-slot node → slot-choice carrying every slot path in declaration order", () => {
     expect(routeInsert(data(), "multi")).toEqual({
       kind: "slot-choice",
       parentId: "multi",
-      slotKeys: ["header", "body", "footer"],
+      paths: [["header"], ["body"], ["footer"]],
     });
   });
 
-  test("single-slot node → slot-choice with one slot key (named, no real choice)", () => {
+  test("single-slot node → slot-choice with one slot path (named, no real choice)", () => {
     expect(routeInsert(singleSlotData(), "solo")).toEqual({
       kind: "slot-choice",
       parentId: "solo",
-      slotKeys: ["body"],
+      paths: [["body"]],
     });
   });
 

@@ -38,7 +38,8 @@ export const getIn = (root: ComponentData["props"], path: SlotPath): unknown =>
 export const slotKeyOf = (path: SlotPath): string =>
   path[path.length - 1] as string;
 
-const samePath = (a: SlotPath, b: SlotPath): boolean =>
+/** Whether two prop-paths address the same slot — equal length, equal segments. */
+export const samePath = (a: SlotPath, b: SlotPath): boolean =>
   a.length === b.length && a.every((segment, i) => segment === b[i]);
 
 /** Whether two sites point at the same children array. */
