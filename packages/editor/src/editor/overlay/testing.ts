@@ -673,6 +673,30 @@ export const clickFirstCatalogPickerItem = (page: Page) =>
     return null;
   }) as Promise<string | null>;
 
+/** Click a VALID (top-level, allowed) catalog-picker item by its component type
+ *  name. Returns false when no enabled item with that name is present — so an
+ *  allowed type absent from the valid list is a failed precondition, not a
+ *  silent no-op. */
+export const clickCatalogPickerItem = (page: Page, type: string) =>
+  page.evaluate((t) => {
+    for (const d of document.querySelectorAll("div")) {
+      if (!d.shadowRoot || (d as HTMLElement).style.position !== "fixed")
+        continue;
+      const item = [
+        ...d.shadowRoot.querySelectorAll("[data-role='catalog-picker-item']"),
+      ].find(
+        (el) =>
+          !(el as HTMLButtonElement).disabled &&
+          el.querySelector("[data-role='catalog-picker-item-type']")
+            ?.textContent === t,
+      ) as HTMLButtonElement | undefined;
+      if (!item) return false;
+      item.click();
+      return true;
+    }
+    return false;
+  }, type) as Promise<boolean>;
+
 export const getSlotStopRect = (page: Page) =>
   shadowQuery(page, (r) => {
     const el = r.querySelector("[data-role='slot-stop']") as HTMLElement | null;
@@ -2357,6 +2381,42 @@ export const clickArrayRowAction = (
     },
     { i: index, a: action },
   ) as Promise<boolean>;
+
+// --- Array-item slot summary (canvas-jump) helpers ---
+
+/** The read-only slot summary an array item's `slot` sub-field renders: its
+ *  label and its honest child count. Null when no summary is mounted. The count
+ *  reflects the item's ACTUAL stored children — the honesty contract. */
+export const readArraySlotSummary = (page: Page) =>
+  shadowQuery(page, (r) => {
+    const row = r.querySelector(".array-slot-summary");
+    if (!row) return null;
+    const label = row.querySelector(".field-label")?.textContent ?? "";
+    const count =
+      row.querySelector("[data-role='array-slot-count']")?.textContent ?? "";
+    return { label: label.trim(), count: count.trim() };
+  }) as Promise<{ label: string; count: string } | null>;
+
+/** Click the array-item slot summary's "Edit on canvas" affordance — the
+ *  canvas-jump that closes the sheet and selects the slot region on canvas. */
+export const clickArraySlotEditOnCanvas = (page: Page) =>
+  shadowQuery(page, (r) => {
+    const btn = r.querySelector(
+      "[data-role='array-slot-summary']",
+    ) as HTMLButtonElement | null;
+    if (!btn) return false;
+    btn.click();
+    return true;
+  }) as Promise<boolean>;
+
+/** Count editable in-sheet slot outlines (`.slot-outline`). An array-item slot
+ *  must NEVER render one — it renders a read-only summary — so this is the
+ *  doctrine observer: zero outlines for a component whose only slots are nested. */
+export const countSheetSlotOutlines = (page: Page) =>
+  shadowQuery(
+    page,
+    (r) => r.querySelectorAll(".slot-outline").length,
+  ) as Promise<number>;
 
 // --- Richtext control helpers ---
 

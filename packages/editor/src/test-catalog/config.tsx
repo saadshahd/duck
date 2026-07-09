@@ -811,7 +811,10 @@ export const config: Config = {
           type: "array",
           arrayFields: {
             heading: { type: "text" },
-            content: { type: "slot" },
+            // `disallow` exercises nested (array-item) allow/disallow
+            // enforcement: `Card` is rejected in `items[i].content`, everything
+            // else in the catalog is allowed.
+            content: { type: "slot", disallow: ["Card"] },
           },
           defaultItemProps: { heading: "Section", content: [] },
           getItemSummary: (item, i) =>

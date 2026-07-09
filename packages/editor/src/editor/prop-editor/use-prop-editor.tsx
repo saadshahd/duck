@@ -6,7 +6,7 @@ import {
   type ReactNode,
 } from "react";
 import type { ComponentData, Config, Data, Metadata } from "@puckeditor/core";
-import { findById } from "@duckeditor/spec";
+import { findById, type SlotPath } from "@duckeditor/spec";
 import type { FiberRegistry } from "../fiber/index.js";
 import type {
   EditorEvent,
@@ -157,6 +157,18 @@ export function usePropEditor({
 
   const cancelSheet = useCallback(() => send({ type: "CANCEL_EDIT" }), [send]);
 
+  // Canvas-jump for an array-item slot: close the sheet, then select the slot
+  // region on the canvas so the designer edits it visually (select → insert /
+  // drag). Never edit an array-item slot inside the sheet — that would be a
+  // second control surface occluding the element it edits.
+  const jumpToSlot = useCallback(
+    (parentId: string, path: SlotPath) => {
+      send({ type: "CANCEL_EDIT" });
+      send({ type: "SELECT_SLOT", parentId, path });
+    },
+    [send],
+  );
+
   // Keep the last valid sheet snapshot alive during exit animation. When the
   // sheet editing ends the snapshot freezes at its last value; a "closing" flag
   // drives the CSS exit transition, and after EXIT_MS the component unmounts.
@@ -218,6 +230,7 @@ export function usePropEditor({
       closing={closing}
       onPropChange={handlePropChange}
       onClose={cancelSheet}
+      onSelectSlot={jumpToSlot}
       data={data}
       commit={commit}
     />
@@ -233,6 +246,7 @@ function SheetView({
   closing,
   onPropChange,
   onClose,
+  onSelectSlot,
   data,
   commit,
 }: {
@@ -244,6 +258,7 @@ function SheetView({
   closing: boolean;
   onPropChange: (propKey: string, value: unknown, meta?: ChangeMeta) => void;
   onClose: () => void;
+  onSelectSlot: (parentId: string, path: SlotPath) => void;
   data: Data;
   commit: EditorCommit;
 }): ReactNode {
@@ -279,6 +294,7 @@ function SheetView({
             values={component.props as Record<string, unknown>}
             readOnlyFields={readOnlyFields}
             onChange={onPropChange}
+            onSelectSlot={onSelectSlot}
             elementId={elementId}
             data={data}
             config={config}

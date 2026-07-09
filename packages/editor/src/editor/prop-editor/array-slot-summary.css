@@ -1,0 +1,55 @@
+/* Read-only canvas-jump summary for a slot nested in an array item. Visually
+   distinct from editable rows: a quiet, dashed, read-only surface whose only
+   action is to jump to the canvas (never edited in place). */
+.array-slot-summary {
+  display: flex;
+  flex-direction: column;
+  gap: var(--label-gap);
+}
+
+.array-slot-summary-jump {
+  appearance: none;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  width: 100%;
+  min-height: 32px;
+  padding: 0 10px;
+  border-radius: var(--radius-control);
+  border: 1px dashed var(--control-border);
+  background: transparent;
+  color: var(--text-field-secondary);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition: background 80ms ease, border-color 80ms ease, color 80ms ease;
+}
+
+.array-slot-summary-jump:hover {
+  background: var(--accent-hover);
+  border-color: var(--accent);
+  color: var(--text-field);
+}
+
+.array-slot-summary-jump:focus-visible {
+  outline: 2px solid var(--control-focus);
+  outline-offset: -2px;
+}
+
+.array-slot-summary-count {
+  font-size: 13px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.array-slot-summary-edit {
+  font-size: 12px;
+  color: var(--text-field-muted);
+  flex-shrink: 0;
+}
+
+.array-slot-summary-jump:hover .array-slot-summary-edit {
+  color: var(--accent);
+}

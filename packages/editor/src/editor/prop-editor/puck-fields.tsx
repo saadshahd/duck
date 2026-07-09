@@ -1,6 +1,7 @@
 import { type ReactNode, useState, useEffect } from "react";
 import { Result } from "neverthrow";
 import type { Config, Data, Field } from "@puckeditor/core";
+import type { SlotPath } from "@duckeditor/spec";
 import { useFloating, flip, shift } from "@floating-ui/react";
 import { Disclosure } from "./disclosure.js";
 import { grouped } from "./grouping.js";
@@ -12,6 +13,7 @@ import { toDisplayLabel } from "./field-label.js";
 import { FieldMetadata } from "./field-metadata.js";
 import { useShadowSheet, useOnClickOutside } from "../overlay/index.js";
 import css from "./object-section.css?inline";
+import arraySlotSummaryCss from "./array-slot-summary.css?inline";
 import { SlotCtx, useSlotCtx, type CrossSlotDrag } from "./slot-context.js";
 import { useDebouncedText } from "./use-debounced-text.js";
 import { SlotOutline } from "./slot-outline.js";
@@ -68,6 +70,10 @@ export type FieldProps<F extends Field = Field, V = unknown> = {
   onChange: (value: V, meta?: ChangeMeta) => void;
   readOnly?: boolean;
   path?: string;
+  /** The field's prop-path from the edited component's root (real prop keys and
+   *  array indices), distinct from `path` (the disclosure-state string key).
+   *  Addresses an array-item slot for the canvas-jump. */
+  propPath?: SlotPath;
   depth?: number;
   isOpen?: (p: string) => boolean;
   toggle?: (p: string) => void;
@@ -213,6 +219,7 @@ const ObjectInput = ({
   onChange,
   readOnly,
   path = "",
+  propPath = [],
   depth = 0,
   isOpen,
   toggle,
@@ -229,6 +236,7 @@ const ObjectInput = ({
       onChange={(v, meta) => onChange({ ...obj, [key]: v }, meta)}
       readOnly={readOnly}
       path={`${path}.${key}`}
+      propPath={[...propPath, key]}
       depth={depth + 1}
       isOpen={isOpen}
       toggle={toggle}
@@ -256,6 +264,60 @@ const ObjectInput = ({
   );
 };
 
+/** Read-only canvas-jump summary for a slot nested in an array item. Honest:
+ *  the count reflects the item's ACTUAL stored children; the row is read-only
+ *  (never an editable in-sheet outline) and jumps to the canvas to edit. */
+const ArraySlotSummary = ({
+  label,
+  field,
+  value,
+  path,
+}: {
+  label: string;
+  field: Extract<Field, { type: "slot" }>;
+  value: unknown;
+  path: SlotPath;
+}): ReactNode => {
+  useShadowSheet(arraySlotSummaryCss);
+  const { selectSlot } = useSlotCtx();
+  const count = Array.isArray(value) ? value.length : 0;
+  return (
+    <div className={`${fieldClass(true)} array-slot-summary`}>
+      <FieldLabel text={toDisplayLabel(label, field.label)} readOnly />
+      <button
+        type="button"
+        className="array-slot-summary-jump"
+        data-role="array-slot-summary"
+        onClick={() => selectSlot(path)}
+      >
+        <span className="array-slot-summary-count" data-role="array-slot-count">
+          {count} {count === 1 ? "item" : "items"}
+        </span>
+        <span className="array-slot-summary-edit">Edit on canvas ›</span>
+      </button>
+    </div>
+  );
+};
+
+/** Array-item sub-field types that render as a canvas-jump instead of a
+ *  sheet-local control. A slot is the only one: its children are edited on the
+ *  canvas so the sheet never hosts a second, occluding control surface. */
+const arrayItemRenderers = {
+  slot: ArraySlotSummary,
+} satisfies Partial<
+  Record<
+    Field["type"],
+    (p: {
+      label: string;
+      field: never;
+      value: unknown;
+      path: SlotPath;
+    }) => ReactNode
+  >
+>;
+
+type ArrayItemType = keyof typeof arrayItemRenderers;
+
 const ArrayInput = ({
   label,
   field,
@@ -263,6 +325,7 @@ const ArrayInput = ({
   onChange,
   readOnly,
   path = "",
+  propPath = [],
   depth = 0,
   isOpen,
   toggle,
@@ -332,24 +395,43 @@ const ArrayInput = ({
     key: string,
     childField: Field,
     fieldPath: string,
-  ) => (
-    <PuckFieldInput
-      key={key}
-      label={key}
-      field={childField}
-      value={item[key]}
-      onChange={(v, meta) => {
-        const next = items.slice();
-        next[i] = carry({ ...item, [key]: v }, item);
-        onChange(next, meta);
-      }}
-      readOnly={readOnly}
-      path={fieldPath}
-      depth={depth + 1}
-      isOpen={isOpen}
-      toggle={toggle}
-    />
-  );
+  ) => {
+    const itemSlotPath: SlotPath = [...propPath, i, key];
+    // Array-item sub-fields render sheet-local, dispatched by type through the
+    // canvas-only lookup first: a slot is edited on the canvas, never in the
+    // sheet (an in-sheet outline would be a second control surface occluding the
+    // element it edits) — it renders as an honest read-only canvas-jump summary.
+    const CanvasOnly = arrayItemRenderers[childField.type as ArrayItemType];
+    if (CanvasOnly)
+      return (
+        <CanvasOnly
+          key={key}
+          label={key}
+          field={childField as never}
+          value={item[key]}
+          path={itemSlotPath}
+        />
+      );
+    return (
+      <PuckFieldInput
+        key={key}
+        label={key}
+        field={childField}
+        value={item[key]}
+        onChange={(v, meta) => {
+          const next = items.slice();
+          next[i] = carry({ ...item, [key]: v }, item);
+          onChange(next, meta);
+        }}
+        readOnly={readOnly}
+        path={fieldPath}
+        propPath={itemSlotPath}
+        depth={depth + 1}
+        isOpen={isOpen}
+        toggle={toggle}
+      />
+    );
+  };
 
   const renderRow = (item: ArrayItem, i: number) => {
     const rowKey = keyFor(item);
@@ -710,6 +792,7 @@ export function PuckFields({
   values,
   readOnlyFields,
   onChange,
+  onSelectSlot,
   elementId,
   data,
   config,
@@ -719,6 +802,7 @@ export function PuckFields({
   values: Record<string, unknown>;
   readOnlyFields?: Partial<Record<string, boolean>>;
   onChange: (key: string, value: unknown, meta?: ChangeMeta) => void;
+  onSelectSlot: (parentId: string, path: SlotPath) => void;
   elementId: string;
   data: Data;
   config: Config;
@@ -735,6 +819,7 @@ export function PuckFields({
         parentId: elementId,
         crossDrag,
         setCrossDrag,
+        selectSlot: (path) => onSelectSlot(elementId, path),
       }}
     >
       {toRenderItems(fields).map((item) => {
@@ -748,6 +833,7 @@ export function PuckFields({
               readOnly={readOnlyFields?.[item.key]}
               onChange={(v, meta) => onChange(item.key, v, meta)}
               path={item.key}
+              propPath={[item.key]}
               depth={0}
               isOpen={isOpen}
               toggle={toggle}
@@ -765,6 +851,7 @@ export function PuckFields({
                 readOnly={readOnlyFields?.[key]}
                 onChange={(v, meta) => onChange(key, v, meta)}
                 path={key}
+                propPath={[key]}
                 depth={0}
                 isOpen={isOpen}
                 toggle={toggle}

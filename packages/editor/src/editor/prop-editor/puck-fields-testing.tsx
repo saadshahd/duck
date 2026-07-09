@@ -12,6 +12,7 @@ export const fieldsTree = (fields: Record<string, Field>) => (
     fields={fields}
     values={{}}
     onChange={() => {}}
+    onSelectSlot={() => {}}
     elementId="test"
     data={emptyData}
     config={emptyConfig}
