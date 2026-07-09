@@ -11,7 +11,11 @@ import { resolveRenderer } from "./controls/dispatch.js";
 import { FieldLabel, fieldClass, selectDisplay } from "./field-shell.js";
 import { toDisplayLabel } from "./field-label.js";
 import { FieldMetadata } from "./field-metadata.js";
-import { useShadowSheet, useOnClickOutside } from "../overlay/index.js";
+import {
+  useShadowSheet,
+  useOnClickOutside,
+  chromeClick,
+} from "../overlay/index.js";
 import css from "./object-section.css?inline";
 import arraySlotSummaryCss from "./array-slot-summary.css?inline";
 import { SlotCtx, useSlotCtx, type CrossSlotDrag } from "./slot-context.js";
@@ -292,7 +296,7 @@ const ArraySlotSummary = ({
           type="button"
           className="array-slot-summary-add"
           data-role="array-slot-insert"
-          onClick={() => openInsert(path)}
+          onClick={chromeClick(() => openInsert(path))}
         >
           <span className="array-slot-summary-add-icon" aria-hidden>
             +
@@ -310,7 +314,7 @@ const ArraySlotSummary = ({
                   className="array-slot-summary-child"
                   data-role="array-slot-child"
                   data-child-id={childId}
-                  onClick={() => selectChild(childId)}
+                  onClick={chromeClick(() => selectChild(childId))}
                 >
                   <span className="array-slot-summary-child-type">
                     {config.components[child.type]?.label ?? child.type}

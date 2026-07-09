@@ -2427,6 +2427,35 @@ export const clickArraySlotChild = (page: Page, childId: string) =>
     return false;
   }, childId) as Promise<boolean>;
 
+/** Click the array-item slot child row with a REAL mouse (page.mouse at the
+ *  row's viewport center), unlike clickArraySlotChild's programmatic .click().
+ *  A trusted click is what reproduces the self-unmount race: closing the sheet
+ *  detaches the row mid-dispatch, and only a native click flushes React's
+ *  discrete update synchronously enough for the bubbled document selection
+ *  handler to see the detached target and re-select the canvas beneath it.
+ *  Returns false when no such row is mounted. */
+export const realClickArraySlotChild = async (
+  page: Page,
+  childId: string,
+): Promise<boolean> => {
+  const rect = (await page.evaluate((id) => {
+    for (const d of document.querySelectorAll("div")) {
+      if (!d.shadowRoot || (d as HTMLElement).style.position !== "fixed")
+        continue;
+      const btn = d.shadowRoot.querySelector(
+        `[data-role='array-slot-child'][data-child-id='${id}']`,
+      ) as HTMLElement | null;
+      if (!btn) return null;
+      const b = btn.getBoundingClientRect();
+      return { x: b.left + b.width / 2, y: b.top + b.height / 2 };
+    }
+    return null;
+  }, childId)) as { x: number; y: number } | null;
+  if (!rect) return false;
+  await page.mouse.click(rect.x, rect.y);
+  return true;
+};
+
 /** Whether the array-item slot's empty-state insert affordance is mounted — the
  *  honest signal that the slot has zero children. */
 export const isArraySlotInsertVisible = (page: Page) =>

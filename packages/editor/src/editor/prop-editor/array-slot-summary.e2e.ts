@@ -9,6 +9,7 @@ import {
   readArraySlotLabel,
   readArraySlotChildren,
   clickArraySlotChild,
+  realClickArraySlotChild,
   isArraySlotInsertVisible,
   clickArraySlotInsert,
   countSheetSlotOutlines,
@@ -80,6 +81,37 @@ test.describe("Array-item slot child list + canvas navigation", () => {
     expect(await isPropSheetOpen(page)).toBe(false);
     expect(await countSelectionRings(page)).toBe(1);
 
+    const childBox = await getPageElementBox(
+      page,
+      `[data-testid='${FIX.sections.childId}']`,
+    );
+    const ring = await getHighlightRect(page);
+    expect(childBox).not.toBeNull();
+    expect(ring).not.toBeNull();
+    const childHeight = childBox!.bottom - childBox!.top;
+    expect(closeTo(parseFloat(ring!.height), childHeight)).toBe(true);
+    expect(closeTo(parseFloat(ring!.top), childBox!.top)).toBe(true);
+  });
+
+  test("a REAL-mouse child click rings THAT child, not the root (self-unmount race)", async ({
+    page,
+  }) => {
+    await openItem(page, 0);
+
+    // Trusted click: closing the sheet detaches the row mid-dispatch. Without a
+    // stopPropagation guard the bubbled click reaches the document selection
+    // handler, which hit-tests the pointer and re-selects the canvas beneath the
+    // row — empty or the root — instead of the intended child. A synthetic
+    // .click() cannot reproduce this; only page.mouse can.
+    expect(await realClickArraySlotChild(page, FIX.sections.childId)).toBe(
+      true,
+    );
+    await page.waitForTimeout(400);
+
+    expect(await isPropSheetOpen(page)).toBe(false);
+    expect(await countSelectionRings(page)).toBe(1);
+
+    // The ring hugs the clicked child, NOT the Sections holder and NOT nothing.
     const childBox = await getPageElementBox(
       page,
       `[data-testid='${FIX.sections.childId}']`,

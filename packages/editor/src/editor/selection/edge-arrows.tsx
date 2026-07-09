@@ -5,7 +5,6 @@ import {
   type ReactNode,
   type CSSProperties,
   type Ref,
-  type MouseEventHandler,
 } from "react";
 import {
   useFloating,
@@ -14,7 +13,11 @@ import {
   shift,
   autoUpdate,
 } from "@floating-ui/react";
-import { useShadowSheet, useRegistryAnchor } from "../overlay/index.js";
+import {
+  useShadowSheet,
+  useRegistryAnchor,
+  chromeClick,
+} from "../overlay/index.js";
 import type { FiberRegistry } from "../fiber/index.js";
 import type { Axis } from "../layout/index.js";
 import { ZERO_RECT } from "../layout/index.js";
@@ -53,22 +56,6 @@ const BoxModelIcon = () => (
     <rect x="3" y="3" width="4" height="4" />
   </svg>
 );
-
-/** Chrome-click hygiene for every overlay button. Canvas selection lives on a
- *  document-level click listener that hit-tests the pointer; an action that
- *  unmounts its own button mid-dispatch (edit opens the sheet, delete removes
- *  the element, moving to the last slot unmounts the very arrow just clicked)
- *  detaches it, so the bubbled click would fail the "from shadow DOM?" guard and
- *  re-select whatever canvas element sits beneath the button. Stopping here —
- *  synchronously, before the unmount — keeps every chrome click off that
- *  listener. Both ActionButton and EdgeArrow route through this one guard so no
- *  chrome control can diverge from it. */
-const chromeClick =
-  (onClick: () => void): MouseEventHandler<HTMLButtonElement> =>
-  (e) => {
-    e.stopPropagation();
-    onClick();
-  };
 
 /** Base for every action-bar button. */
 function ActionButton({
