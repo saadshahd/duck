@@ -51,4 +51,27 @@ describe("search", () => {
     const result = await Effect.runPromise(search(data, "puck"));
     expect(result.results[0]!.ancestry.map((a) => a.id)).toEqual(["page"]);
   });
+
+  it("matches a component in an array-item slot once, under its own id", async () => {
+    const nested: Data = {
+      root: { props: {} },
+      content: [
+        {
+          type: "Grid",
+          props: {
+            id: "grid",
+            rows: [
+              {
+                cells: [{ type: "Text", props: { id: "cell", text: "Duck" } }],
+              },
+            ],
+          },
+        },
+      ],
+    };
+    const result = await Effect.runPromise(search(nested, "duck"));
+    expect(result.count).toBe(1);
+    expect(result.results[0]!.id).toBe("cell");
+    expect(result.results[0]!.propPath).toBe("text");
+  });
 });

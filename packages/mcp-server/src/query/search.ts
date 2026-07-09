@@ -3,8 +3,8 @@ import { Effect } from "effect";
 import {
   buildParentMap,
   getAncestry,
+  isSlotValue,
   preOrder,
-  slotKeysOf,
 } from "@duckeditor/spec";
 
 type Match = {
@@ -19,7 +19,6 @@ const matchesIn = (
   component: ComponentData,
   query: string,
 ): Array<{ propPath: string; value: string }> => {
-  const skip = new Set(slotKeysOf(component));
   const out: Array<{ propPath: string; value: string }> = [];
   const walk = (value: unknown, path: string) => {
     if (typeof value === "string") {
@@ -33,6 +32,9 @@ const matchesIn = (
         out.push({ propPath: path, value: text });
       return;
     }
+    // Slot children are their own components, matched under their own id via
+    // preOrder — never search them as part of this component's props.
+    if (isSlotValue(value)) return;
     if (Array.isArray(value)) {
       value.forEach((v, i) => walk(v, `${path}[${i}]`));
       return;
@@ -42,7 +44,6 @@ const matchesIn = (
     }
   };
   for (const [key, value] of Object.entries(component.props ?? {})) {
-    if (skip.has(key)) continue;
     walk(value, key);
   }
   return out;

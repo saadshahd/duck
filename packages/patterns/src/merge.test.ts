@@ -262,6 +262,17 @@ describe("merge — collection role", () => {
     );
   });
 
+  it("preserves ids nested in array-item slots inside the collection", () => {
+    const deep = make("Heading", "deep-h");
+    const grid = make("Grid", "g1", { rows: [{ cells: [deep] }] });
+    const selection = make("Stack", "s1", {
+      items: [make("Heading", "h1"), grid],
+    });
+    const result = merge(selection, collectionPattern, collectionConfig);
+    expect(result.isOk()).toBe(true);
+    expect(result._unsafeUnwrap().preservedIds.has("deep-h")).toBe(true);
+  });
+
   it("omits an optional collection slot when the selection has no collection", () => {
     const selection = make("Stack", "s1", {
       items: [make("Heading", "h1")],

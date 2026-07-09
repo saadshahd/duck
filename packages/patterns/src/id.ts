@@ -1,5 +1,5 @@
 import type { ComponentData } from "@puckeditor/core";
-import { slotKeysOf } from "@duckeditor/spec";
+import { mapComponent } from "@duckeditor/spec";
 import type { RemintIds } from "./types.js";
 
 /**
@@ -15,20 +15,9 @@ export const remintIds: RemintIds = (root, preservedIds) => {
     const id = preservedIds.has(String(node.props.id))
       ? String(node.props.id)
       : crypto.randomUUID();
-    const slotUpdates = Object.fromEntries(
-      slotKeysOf(node).map((key) => [
-        key,
-        (node.props[key] as ComponentData[]).map(walk),
-      ]),
-    );
-    return { ...node, props: { ...node.props, ...slotUpdates, id } };
+    const mapped = mapComponent(node, (child) => [walk(child)]);
+    return { ...mapped, props: { ...mapped.props, id } };
   };
 
-  const slotUpdates = Object.fromEntries(
-    slotKeysOf(root).map((key) => [
-      key,
-      (root.props[key] as ComponentData[]).map(walk),
-    ]),
-  );
-  return { ...root, props: { ...root.props, ...slotUpdates } };
-}
+  return mapComponent(root, (child) => [walk(child)]);
+};

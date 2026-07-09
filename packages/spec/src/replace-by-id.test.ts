@@ -6,8 +6,7 @@ const make = (
   type: string,
   id: string,
   extra: Record<string, unknown> = {},
-): ComponentData =>
-  ({ type, props: { id, ...extra } }) as ComponentData;
+): ComponentData => ({ type, props: { id, ...extra } }) as ComponentData;
 
 const heading = make("Heading", "heading");
 const text = make("Text", "text");
@@ -47,5 +46,22 @@ describe("replaceById", () => {
     expect(replaceById(data, { id: "nope", node: make("Box", "nope") })).toBe(
       data,
     );
+  });
+
+  it("replaces a component nested in an array-item slot", () => {
+    const deep = make("Heading", "deep", { text: "old" });
+    const gallery = make("Gallery", "gallery", {
+      blocks: [{ content: [deep] }],
+    });
+    const nested: Data = { root: { props: {} }, content: [gallery] };
+    const replacement = make("Heading", "deep", { text: "new" });
+    const next = replaceById(nested, { id: "deep", node: replacement });
+    const nextGallery = next.content[0] as ComponentData;
+    const block = (
+      nextGallery.props.blocks as { content: ComponentData[] }[]
+    )[0];
+
+    expect(next).not.toBe(nested);
+    expect(block.content[0]).toBe(replacement);
   });
 });

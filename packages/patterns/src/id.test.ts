@@ -1,4 +1,5 @@
 import { describe, it, expect } from "bun:test";
+import type { ComponentData } from "@puckeditor/core";
 import { remintIds } from "./id.js";
 import { make } from "./testing.js";
 
@@ -51,5 +52,16 @@ describe("remintIds", () => {
     const heading = (inner.props.items as (typeof root)[])[0];
     expect(inner.props.id).not.toBe("inner");
     expect(heading.props.id).not.toBe("tmpl-h");
+  });
+
+  it("remints IDs inside array-item slots", () => {
+    const root = make("Card", "c1", {
+      blocks: [{ content: [make("Heading", "tmpl-h")] }],
+    });
+    const result = remintIds(root, new Set(["c1"]));
+    const nested = (result.props.blocks as { content: ComponentData[] }[])[0]
+      .content[0];
+    expect(result.props.id).toBe("c1");
+    expect(nested.props.id).not.toBe("tmpl-h");
   });
 });

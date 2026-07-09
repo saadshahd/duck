@@ -12,6 +12,7 @@ export {
   slotPathsOf,
   slotKeysFromConfig,
   componentDef,
+  isSlotValue,
 } from "./slot-keys-of.js";
 export { mapComponent } from "./map-component.js";
 export { preOrder } from "./pre-order.js";

@@ -1,6 +1,6 @@
 import type { ComponentData } from "@puckeditor/core";
 import { ok, err, type Result } from "neverthrow";
-import { mapComponent, slotKeysOf } from "@duckeditor/spec";
+import { mapComponent, slotKeysOf, slotPathsOf, getIn } from "@duckeditor/spec";
 import {
   type PatternSlot,
   type SectionPattern,
@@ -80,8 +80,8 @@ function drainPlaced(
 function subtreeIds(node: ComponentData): string[] {
   return [
     String(node.props.id),
-    ...slotKeysOf(node).flatMap((key) =>
-      (node.props[key] as ComponentData[]).flatMap(subtreeIds),
+    ...slotPathsOf(node).flatMap((path) =>
+      (getIn(node.props, path) as ComponentData[]).flatMap(subtreeIds),
     ),
   ];
 }
