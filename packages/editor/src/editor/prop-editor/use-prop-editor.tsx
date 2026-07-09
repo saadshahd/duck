@@ -22,7 +22,7 @@ import { useInlineEdit } from "./inline-input.js";
 import { ArkEnvironment } from "../overlay/index.js";
 import { PropSheet } from "./prop-sheet.js";
 import { useSheetAnchor } from "./use-sheet-anchor.js";
-import { useScrollIntoCenter } from "./use-scroll-into-center.js";
+import { centerInView, useScrollIntoCenter } from "./use-scroll-into-center.js";
 import { useScrollLock } from "./use-scroll-lock.js";
 import { useResolvedFields } from "./use-resolved-fields.js";
 import { PuckFields, type ChangeMeta } from "./puck-fields.js";
@@ -157,14 +157,26 @@ export function usePropEditor({
 
   const cancelSheet = useCallback(() => send({ type: "CANCEL_EDIT" }), [send]);
 
-  // Canvas-jump for an array-item slot: close the sheet, then select the slot
-  // region on the canvas so the designer edits it visually (select → insert /
-  // drag). Never edit an array-item slot inside the sheet — that would be a
-  // second control surface occluding the element it edits.
-  const jumpToSlot = useCallback(
+  // Navigate an array-item slot from the sheet: close the sheet (CANCEL_EDIT
+  // leaves `editing`, unmounting the sheet — a plain SELECT would otherwise
+  // re-target the sheet via the `editingSheet` guard), then ring the chosen
+  // child on the canvas and scroll it into view. Never edit an array-item slot
+  // inside the sheet — that would be a second control surface occluding it.
+  const selectChild = useCallback(
+    (childId: string) => {
+      send({ type: "CANCEL_EDIT" });
+      send({ type: "SELECT", elementId: childId });
+      centerInView(registry, childId);
+    },
+    [send, registry],
+  );
+
+  // First-insert into an EMPTY array-item slot: close the sheet, then open the
+  // catalog picker for that nested slot so a child can land there.
+  const openInsertSlot = useCallback(
     (parentId: string, path: SlotPath) => {
       send({ type: "CANCEL_EDIT" });
-      send({ type: "SELECT_SLOT", parentId, path });
+      send({ type: "OPEN_INSERT_SLOT", parentId, path });
     },
     [send],
   );
@@ -230,7 +242,8 @@ export function usePropEditor({
       closing={closing}
       onPropChange={handlePropChange}
       onClose={cancelSheet}
-      onSelectSlot={jumpToSlot}
+      onSelectChild={selectChild}
+      onOpenInsert={openInsertSlot}
       data={data}
       commit={commit}
     />
@@ -246,7 +259,8 @@ function SheetView({
   closing,
   onPropChange,
   onClose,
-  onSelectSlot,
+  onSelectChild,
+  onOpenInsert,
   data,
   commit,
 }: {
@@ -258,7 +272,8 @@ function SheetView({
   closing: boolean;
   onPropChange: (propKey: string, value: unknown, meta?: ChangeMeta) => void;
   onClose: () => void;
-  onSelectSlot: (parentId: string, path: SlotPath) => void;
+  onSelectChild: (childId: string) => void;
+  onOpenInsert: (parentId: string, path: SlotPath) => void;
   data: Data;
   commit: EditorCommit;
 }): ReactNode {
@@ -294,7 +309,8 @@ function SheetView({
             values={component.props as Record<string, unknown>}
             readOnlyFields={readOnlyFields}
             onChange={onPropChange}
-            onSelectSlot={onSelectSlot}
+            onSelectChild={onSelectChild}
+            onOpenInsert={onOpenInsert}
             elementId={elementId}
             data={data}
             config={config}

@@ -12,7 +12,8 @@ export const fieldsTree = (fields: Record<string, Field>) => (
     fields={fields}
     values={{}}
     onChange={() => {}}
-    onSelectSlot={() => {}}
+    onSelectChild={() => {}}
+    onOpenInsert={() => {}}
     elementId="test"
     data={emptyData}
     config={emptyConfig}

@@ -2382,27 +2382,65 @@ export const clickArrayRowAction = (
     { i: index, a: action },
   ) as Promise<boolean>;
 
-// --- Array-item slot summary (canvas-jump) helpers ---
+// --- Array-item slot child-list (canvas navigation) helpers ---
 
-/** The read-only slot summary an array item's `slot` sub-field renders: its
- *  label and its honest child count. Null when no summary is mounted. The count
- *  reflects the item's ACTUAL stored children — the honesty contract. */
-export const readArraySlotSummary = (page: Page) =>
+/** The `field-label` text of the mounted array-item slot summary. Null when no
+ *  summary is mounted. Lets a test assert the honest field label ("Content"). */
+export const readArraySlotLabel = (page: Page) =>
   shadowQuery(page, (r) => {
     const row = r.querySelector(".array-slot-summary");
     if (!row) return null;
-    const label = row.querySelector(".field-label")?.textContent ?? "";
-    const count =
-      row.querySelector("[data-role='array-slot-count']")?.textContent ?? "";
-    return { label: label.trim(), count: count.trim() };
-  }) as Promise<{ label: string; count: string } | null>;
+    return row.querySelector(".field-label")?.textContent?.trim() ?? "";
+  }) as Promise<string | null>;
 
-/** Click the array-item slot summary's "Edit on canvas" affordance — the
- *  canvas-jump that closes the sheet and selects the slot region on canvas. */
-export const clickArraySlotEditOnCanvas = (page: Page) =>
+/** The array-item slot's read-only child list: each child's displayed type
+ *  label, in order. Null when no child list is mounted (an empty slot renders
+ *  the insert affordance instead). Honest: it must mirror the item's ACTUAL
+ *  stored children, so a test compares it against the fixture data. */
+export const readArraySlotChildren = (page: Page) =>
+  shadowQuery(page, (r) => {
+    const list = r.querySelector("[data-role='array-slot-children']");
+    if (!list) return null;
+    return [...list.querySelectorAll("[data-role='array-slot-child']")].map(
+      (b) =>
+        b
+          .querySelector(".array-slot-summary-child-type")
+          ?.textContent?.trim() ?? "",
+    );
+  }) as Promise<string[] | null>;
+
+/** Click the array-item slot child row with the given child id — the canvas
+ *  navigation that closes the sheet and rings that child. Returns false when no
+ *  such row is mounted. */
+export const clickArraySlotChild = (page: Page, childId: string) =>
+  page.evaluate((id) => {
+    for (const d of document.querySelectorAll("div")) {
+      if (!d.shadowRoot || (d as HTMLElement).style.position !== "fixed")
+        continue;
+      const btn = d.shadowRoot.querySelector(
+        `[data-role='array-slot-child'][data-child-id='${id}']`,
+      ) as HTMLButtonElement | null;
+      if (!btn) return false;
+      btn.click();
+      return true;
+    }
+    return false;
+  }, childId) as Promise<boolean>;
+
+/** Whether the array-item slot's empty-state insert affordance is mounted — the
+ *  honest signal that the slot has zero children. */
+export const isArraySlotInsertVisible = (page: Page) =>
+  shadowQuery(
+    page,
+    (r) => r.querySelector("[data-role='array-slot-insert']") !== null,
+  ) as Promise<boolean>;
+
+/** Click the array-item slot's empty-state insert affordance — closes the sheet
+ *  and opens the catalog picker for that nested slot. Returns false when absent. */
+export const clickArraySlotInsert = (page: Page) =>
   shadowQuery(page, (r) => {
     const btn = r.querySelector(
-      "[data-role='array-slot-summary']",
+      "[data-role='array-slot-insert']",
     ) as HTMLButtonElement | null;
     if (!btn) return false;
     btn.click();
@@ -2410,7 +2448,7 @@ export const clickArraySlotEditOnCanvas = (page: Page) =>
   }) as Promise<boolean>;
 
 /** Count editable in-sheet slot outlines (`.slot-outline`). An array-item slot
- *  must NEVER render one — it renders a read-only summary — so this is the
+ *  must NEVER render one — it renders a read-only child list — so this is the
  *  doctrine observer: zero outlines for a component whose only slots are nested. */
 export const countSheetSlotOutlines = (page: Page) =>
   shadowQuery(

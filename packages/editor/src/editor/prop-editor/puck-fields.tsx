@@ -1,6 +1,6 @@
 import { type ReactNode, useState, useEffect } from "react";
 import { Result } from "neverthrow";
-import type { Config, Data, Field } from "@puckeditor/core";
+import type { ComponentData, Config, Data, Field } from "@puckeditor/core";
 import type { SlotPath } from "@duckeditor/spec";
 import { useFloating, flip, shift } from "@floating-ui/react";
 import { Disclosure } from "./disclosure.js";
@@ -264,9 +264,11 @@ const ObjectInput = ({
   );
 };
 
-/** Read-only canvas-jump summary for a slot nested in an array item. Honest:
- *  the count reflects the item's ACTUAL stored children; the row is read-only
- *  (never an editable in-sheet outline) and jumps to the canvas to edit. */
+/** Read-only navigation surface for a slot nested in an array item. Honest: it
+ *  lists the item's ACTUAL stored children by type; clicking one selects THAT
+ *  child on the canvas (never edited in the sheet). An empty slot shows an
+ *  insert affordance instead. This keeps a single control surface — the list
+ *  moves selection to the canvas, it is not a second editor. */
 const ArraySlotSummary = ({
   label,
   field,
@@ -279,22 +281,49 @@ const ArraySlotSummary = ({
   path: SlotPath;
 }): ReactNode => {
   useShadowSheet(arraySlotSummaryCss);
-  const { selectSlot } = useSlotCtx();
-  const count = Array.isArray(value) ? value.length : 0;
+  const { config, selectChild, openInsert } = useSlotCtx();
+  const children = Array.isArray(value) ? (value as ComponentData[]) : [];
+  const displayLabel = toDisplayLabel(label, field.label);
   return (
     <div className={`${fieldClass(true)} array-slot-summary`}>
-      <FieldLabel text={toDisplayLabel(label, field.label)} readOnly />
-      <button
-        type="button"
-        className="array-slot-summary-jump"
-        data-role="array-slot-summary"
-        onClick={() => selectSlot(path)}
-      >
-        <span className="array-slot-summary-count" data-role="array-slot-count">
-          {count} {count === 1 ? "item" : "items"}
-        </span>
-        <span className="array-slot-summary-edit">Edit on canvas ›</span>
-      </button>
+      <FieldLabel text={displayLabel} readOnly />
+      {children.length === 0 ? (
+        <button
+          type="button"
+          className="array-slot-summary-add"
+          data-role="array-slot-insert"
+          onClick={() => openInsert(path)}
+        >
+          <span className="array-slot-summary-add-icon" aria-hidden>
+            +
+          </span>
+          <span>Add to {displayLabel.toLowerCase()}</span>
+        </button>
+      ) : (
+        <ul className="array-slot-summary-list" data-role="array-slot-children">
+          {children.map((child) => {
+            const childId = child.props.id as string;
+            return (
+              <li key={childId}>
+                <button
+                  type="button"
+                  className="array-slot-summary-child"
+                  data-role="array-slot-child"
+                  data-child-id={childId}
+                  onClick={() => selectChild(childId)}
+                >
+                  <span className="array-slot-summary-child-type">
+                    {config.components[child.type]?.label ?? child.type}
+                  </span>
+                  <span className="array-slot-summary-child-go" aria-hidden>
+                    ›
+                  </span>
+                </button>
+              </li>
+            );
+          })}
+        </ul>
+      )}
     </div>
   );
 };
@@ -792,7 +821,8 @@ export function PuckFields({
   values,
   readOnlyFields,
   onChange,
-  onSelectSlot,
+  onSelectChild,
+  onOpenInsert,
   elementId,
   data,
   config,
@@ -802,7 +832,8 @@ export function PuckFields({
   values: Record<string, unknown>;
   readOnlyFields?: Partial<Record<string, boolean>>;
   onChange: (key: string, value: unknown, meta?: ChangeMeta) => void;
-  onSelectSlot: (parentId: string, path: SlotPath) => void;
+  onSelectChild: (childId: string) => void;
+  onOpenInsert: (parentId: string, path: SlotPath) => void;
   elementId: string;
   data: Data;
   config: Config;
@@ -819,7 +850,8 @@ export function PuckFields({
         parentId: elementId,
         crossDrag,
         setCrossDrag,
-        selectSlot: (path) => onSelectSlot(elementId, path),
+        selectChild: onSelectChild,
+        openInsert: (path) => onOpenInsert(elementId, path),
       }}
     >
       {toRenderItems(fields).map((item) => {

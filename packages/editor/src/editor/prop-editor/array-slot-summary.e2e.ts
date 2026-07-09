@@ -6,23 +6,28 @@ import {
   clickToolbarAction,
   toggleSheetDisclosure,
   clickArrayRowAction,
-  readArraySlotSummary,
+  readArraySlotLabel,
+  readArraySlotChildren,
+  clickArraySlotChild,
+  isArraySlotInsertVisible,
+  clickArraySlotInsert,
   countSheetSlotOutlines,
-  clickArraySlotEditOnCanvas,
   isPropSheetOpen,
-  isSlotStopVisible,
-  getSlotStopLabelText,
-  clickSlotInsertBtn,
   isCatalogPickerVisible,
   clickCatalogPickerItem,
+  getHighlightRect,
+  getPageElementBox,
+  countSelectionRings,
 } from "../overlay/testing.js";
 
-/** Ticket 114 slice 5 (B) — an array-item `slot` sub-field is NOT edited in the
- *  sheet. It renders as an honest READ-ONLY summary (its real child count) with
- *  an "Edit on canvas" affordance that closes the sheet and selects the nested
- *  slot region on the canvas. This keeps a single control surface and never
- *  occludes the element being edited. */
-test.describe("Array-item slot summary + canvas-jump", () => {
+/** Ticket 114 — an array-item `slot` sub-field is NOT edited in the sheet. It
+ *  renders an honest READ-ONLY list of the slot's ACTUAL child nodes: clicking a
+ *  child closes the sheet and selects THAT child on the canvas (the feedback
+ *  loop — the designer sees what they picked). An EMPTY slot shows an insert
+ *  affordance that opens the catalog picker for the nested slot. This keeps a
+ *  single control surface — the list moves selection, it is never a second
+ *  editor, and it never occludes the element being edited. */
+test.describe("Array-item slot child list + canvas navigation", () => {
   test.beforeEach(async ({ page }) => {
     await page.goto("/test.html");
     await page.waitForTimeout(500);
@@ -32,6 +37,8 @@ test.describe("Array-item slot summary + canvas-jump", () => {
     page.locator('[data-testid="sections"]').locator("[data-section]").nth(i);
   const childTags = (loc: Locator): Promise<string[]> =>
     loc.evaluate((el) => [...el.children].map((c) => c.tagName));
+  const closeTo = (a: number, b: number, tolerance = 6) =>
+    Math.abs(a - b) <= tolerance;
 
   /** Open the Sections sheet, expand its `items` array, and expand the Nth item
    *  row to reveal its `heading` (scalar) + `content` (slot) sub-fields. */
@@ -47,55 +54,65 @@ test.describe("Array-item slot summary + canvas-jump", () => {
     await page.waitForTimeout(200);
   };
 
-  test("a slot sub-field renders a read-only summary, not an editable in-sheet outline", async ({
+  test("a filled slot lists its children by type — honestly, and never as an in-sheet outline", async ({
     page,
   }) => {
     await openItem(page, 0);
 
-    // Honest read-only summary: the count reflects item 0's ACTUAL one child.
-    expect(await readArraySlotSummary(page)).toEqual({
-      label: "Content",
-      count: "1 item",
-    });
-    // Doctrine: no editable in-sheet slot outline for an array-item slot.
+    // Honest: item 0's content slot holds exactly one Text child (the fixture),
+    // labelled by its stored `.type` — catalog-agnostic, no hardcoded name.
+    expect(await readArraySlotLabel(page)).toBe("Content");
+    expect(await readArraySlotChildren(page)).toEqual(["Text"]);
+    // Doctrine: an array-item slot never renders an editable in-sheet outline.
     expect(await countSheetSlotOutlines(page)).toBe(0);
   });
 
-  test("the empty item's summary reports zero, honestly", async ({ page }) => {
-    await openItem(page, 1);
-    expect(await readArraySlotSummary(page)).toEqual({
-      label: "Content",
-      count: "0 items",
-    });
-  });
-
-  test("Edit on canvas closes the sheet and selects the nested slot region", async ({
+  test("clicking a child closes the sheet and rings THAT child on the canvas", async ({
     page,
   }) => {
     await openItem(page, 0);
 
-    expect(await clickArraySlotEditOnCanvas(page)).toBe(true);
+    expect(await clickArraySlotChild(page, FIX.sections.childId)).toBe(true);
     await page.waitForTimeout(400);
 
-    // The sheet is gone (never occludes the element being edited) and the nested
-    // content slot is selected on the canvas, its band named.
+    // The sheet is gone (never occludes the edited element) and the ring hugs
+    // the clicked child, not the array holder.
     expect(await isPropSheetOpen(page)).toBe(false);
-    expect(await isSlotStopVisible(page)).toBe(true);
-    expect(await getSlotStopLabelText(page)).toBe("Sections › content");
+    expect(await countSelectionRings(page)).toBe(1);
+
+    const childBox = await getPageElementBox(
+      page,
+      `[data-testid='${FIX.sections.childId}']`,
+    );
+    const ring = await getHighlightRect(page);
+    expect(childBox).not.toBeNull();
+    expect(ring).not.toBeNull();
+    const childHeight = childBox!.bottom - childBox!.top;
+    expect(closeTo(parseFloat(ring!.height), childHeight)).toBe(true);
+    expect(closeTo(parseFloat(ring!.top), childBox!.top)).toBe(true);
   });
 
-  test("canvas-jump into the EMPTY item's slot lets the insert land there", async ({
+  test("an empty slot shows the insert affordance, not a child list", async ({
+    page,
+  }) => {
+    await openItem(page, 1);
+
+    // Honest: item 1's content slot is empty — no child list, an insert prompt.
+    expect(await readArraySlotChildren(page)).toBeNull();
+    expect(await isArraySlotInsertVisible(page)).toBe(true);
+  });
+
+  test("the empty slot's insert affordance opens the picker and lands a child there", async ({
     page,
   }) => {
     await openItem(page, 1);
 
     const before = (await childTags(sectionAt(page, 1))).length;
-    expect(await clickArraySlotEditOnCanvas(page)).toBe(true);
+    expect(await clickArraySlotInsert(page)).toBe(true);
     await page.waitForTimeout(400);
-    expect(await isSlotStopVisible(page)).toBe(true);
 
-    await clickSlotInsertBtn(page);
-    await page.waitForTimeout(300);
+    // Sheet closed, catalog picker open for the nested slot.
+    expect(await isPropSheetOpen(page)).toBe(false);
     expect(await isCatalogPickerVisible(page)).toBe(true);
 
     expect(await clickCatalogPickerItem(page, "Text")).toBe(true);

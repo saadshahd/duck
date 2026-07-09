@@ -1,13 +1,23 @@
-/* Read-only canvas-jump summary for a slot nested in an array item. Visually
-   distinct from editable rows: a quiet, dashed, read-only surface whose only
-   action is to jump to the canvas (never edited in place). */
+/* Navigation surface for a slot nested in an array item. Honest: it lists the
+   item's actual stored children (read-only) as quiet rows; clicking a row moves
+   selection to that child on the canvas. An empty slot shows a dashed insert
+   affordance. Never an editable in-sheet control — it navigates, never edits. */
 .array-slot-summary {
   display: flex;
   flex-direction: column;
   gap: var(--label-gap);
 }
 
-.array-slot-summary-jump {
+.array-slot-summary-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.array-slot-summary-child {
   appearance: none;
   display: flex;
   align-items: center;
@@ -17,39 +27,81 @@
   min-height: 32px;
   padding: 0 10px;
   border-radius: var(--radius-control);
-  border: 1px dashed var(--control-border);
-  background: transparent;
-  color: var(--text-field-secondary);
+  border: 1px solid var(--control-border);
+  background: var(--control-bg, transparent);
+  color: var(--text-field);
   font: inherit;
   text-align: left;
   cursor: pointer;
   transition: background 80ms ease, border-color 80ms ease, color 80ms ease;
 }
 
-.array-slot-summary-jump:hover {
+.array-slot-summary-child:hover {
   background: var(--accent-hover);
   border-color: var(--accent);
-  color: var(--text-field);
 }
 
-.array-slot-summary-jump:focus-visible {
+.array-slot-summary-child:focus-visible {
   outline: 2px solid var(--control-focus);
   outline-offset: -2px;
 }
 
-.array-slot-summary-count {
+.array-slot-summary-child-type {
   font-size: 13px;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
 
-.array-slot-summary-edit {
-  font-size: 12px;
+.array-slot-summary-child-go {
+  font-size: 14px;
+  color: var(--text-field-muted);
+  flex-shrink: 0;
+  transition: transform 80ms ease, color 80ms ease;
+}
+
+.array-slot-summary-child:hover .array-slot-summary-child-go {
+  color: var(--accent);
+  transform: translateX(2px);
+}
+
+.array-slot-summary-add {
+  appearance: none;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  min-height: 32px;
+  padding: 0 10px;
+  border-radius: var(--radius-control);
+  border: 1px dashed var(--control-border);
+  background: transparent;
+  color: var(--text-field-secondary);
+  font: inherit;
+  font-size: 13px;
+  text-align: left;
+  cursor: pointer;
+  transition: background 80ms ease, border-color 80ms ease, color 80ms ease;
+}
+
+.array-slot-summary-add:hover {
+  background: var(--accent-hover);
+  border-color: var(--accent);
+  color: var(--text-field);
+}
+
+.array-slot-summary-add:focus-visible {
+  outline: 2px solid var(--control-focus);
+  outline-offset: -2px;
+}
+
+.array-slot-summary-add-icon {
+  font-size: 15px;
+  line-height: 1;
   color: var(--text-field-muted);
   flex-shrink: 0;
 }
 
-.array-slot-summary-jump:hover .array-slot-summary-edit {
+.array-slot-summary-add:hover .array-slot-summary-add-icon {
   color: var(--accent);
 }
