@@ -65,4 +65,20 @@ describe("mapComponent", () => {
     expect(result.props.gap).toBe(4);
     expect(result.props.id).toBe("s1");
   });
+
+  it("visits children of an array-item slot (features[i].content), not just top-level slots", () => {
+    const replacement = make("Image", "img1");
+    const root = make("Card", "c1", {
+      features: [
+        { content: [make("Heading", "h1")] },
+        { content: [make("Text", "t1")] },
+      ],
+    });
+    const result = mapComponent(root, (child) =>
+      child.type === "Heading" ? [replacement] : [child],
+    );
+    const features = result.props.features as { content: ComponentData[] }[];
+    expect(features[0].content).toEqual([replacement]);
+    expect(features[1].content).toEqual([make("Text", "t1")]);
+  });
 });

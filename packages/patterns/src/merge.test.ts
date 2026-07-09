@@ -393,3 +393,44 @@ describe("merge — preservedIds", () => {
     expect(items.some((c) => c.props.id === "my-heading-id")).toBe(true);
   });
 });
+
+describe("merge — array-item slots inside a container", () => {
+  // A container's placeholder can live inside an array-item slot
+  // (e.g. `blocks[i].content`), not just a top-level slot. replacePlaceholder
+  // recurses into containers via mapComponent — it must find that placeholder
+  // there too, matching slotPathsOf's reach.
+  const containerConfig: PatternConfig = {
+    ...config,
+    componentRoles: { ...config.componentRoles, Section: "container" },
+  };
+
+  const nestedPattern: SectionPattern = {
+    name: "Heading in nested container",
+    description: "test",
+    slots: [
+      { name: "heading", accepts: ["heading"], cardinality: { kind: "first" } },
+    ],
+    data: make("Stack", "tmpl-root", {
+      items: [
+        make("Section", "tmpl-sec", {
+          blocks: [
+            { content: [make("Heading", "tmpl-h", { text: "Default" })] },
+          ],
+        }),
+      ],
+    }),
+  };
+
+  it("replaces a placeholder nested inside a container's array-item slot", () => {
+    const selection = make("Stack", "s1", {
+      items: [make("Heading", "h1", { text: "Real heading" })],
+    });
+    const result = merge(selection, nestedPattern, containerConfig);
+    expect(result.isOk()).toBe(true);
+    const items = result._unsafeUnwrap().data.props.items as ComponentData[];
+    const section = items.find((c) => c.props.id === "tmpl-sec")!;
+    const blocks = section.props.blocks as { content: ComponentData[] }[];
+    expect(blocks[0].content.some((c) => c.props.id === "h1")).toBe(true);
+    expect(blocks[0].content.some((c) => c.props.id === "tmpl-h")).toBe(false);
+  });
+});
