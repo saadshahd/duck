@@ -1,12 +1,14 @@
 import type { Data } from "@puckeditor/core";
-import { findById, slotPathsOf, type SlotPath } from "@duckeditor/spec";
+import {
+  findById,
+  samePath,
+  slotPathsOf,
+  type SlotPath,
+} from "@duckeditor/spec";
 import type { FiberRegistry } from "../fiber/index.js";
 import { cssAxis } from "./axis.js";
 import { slotRegions, type MeasuredRegion } from "./slot-regions.js";
 import { tileSlots, type SlotInput, type Tiling } from "./tiles.js";
-
-const samePath = (a: SlotPath, b: SlotPath): boolean =>
-  a.join(".") === b.join(".");
 
 const slotInputs = (
   paths: readonly SlotPath[],

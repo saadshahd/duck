@@ -1,3 +1,4 @@
+import { samePath } from "@duckeditor/spec";
 import { useShadowSheet } from "../overlay/index.js";
 import type { FiberRegistry } from "../fiber/index.js";
 import type { DropTarget } from "../layout/index.js";
@@ -19,9 +20,7 @@ const activeTileRect = (
   target: DropTarget & { kind: "container" },
 ): DOMRect | undefined =>
   target.tiling.kind === "tiled"
-    ? target.tiling.tiles.find(
-        (t) => t.path.join(".") === target.path.join("."),
-      )?.rect
+    ? target.tiling.tiles.find((t) => samePath(t.path, target.path))?.rect
     : undefined;
 
 function ContainerHighlight({

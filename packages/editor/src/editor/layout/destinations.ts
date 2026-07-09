@@ -7,6 +7,7 @@ import {
   getChildrenAt,
   getIn,
   preOrder,
+  samePath,
   sameSite,
   slotKeyOf,
   slotPathsOf,
@@ -274,9 +275,7 @@ const aimedSlotDestination = (args: {
   const tile = aimedSlotTile(tiling, containerRect, point);
   if (!tile) return null;
 
-  const measured = regions.find(
-    (r) => r.path.join(".") === tile.path.join("."),
-  );
+  const measured = regions.find((r) => samePath(r.path, tile.path));
   const site: ParentSite = {
     at: "slot",
     parentId: containerId,

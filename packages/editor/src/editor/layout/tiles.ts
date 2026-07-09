@@ -1,4 +1,4 @@
-import { type SlotPath } from "@duckeditor/spec";
+import { samePath, type SlotPath } from "@duckeditor/spec";
 import type { Axis } from "./axis.js";
 import { containsPoint, expandRect, type Edges } from "./rect.js";
 
@@ -8,9 +8,6 @@ export const TILE_FLOOR = 24;
  *  the same container always have distinct paths, so distinct keys — the trailing
  *  key alone collides across array items (`items.0.content` vs `items.1.content`).*/
 const pathKey = (path: SlotPath): string => path.join(".");
-
-const samePath = (a: SlotPath, b: SlotPath): boolean =>
-  pathKey(a) === pathKey(b);
 
 /** Sticky margin around the active tile: the pointer holds the current tile while
  *  within its expanded rect, so a tile does not flip the instant the pointer

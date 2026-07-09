@@ -6,6 +6,7 @@ import {
   findParent,
   getIn,
   parentIdOf,
+  samePath,
   sameSite,
   slotKeyOf,
   slotPathsOf,
@@ -70,7 +71,7 @@ const indexInSlot = ({
   component: ComponentData;
   axis: "vertical" | "horizontal";
 }): number => {
-  const measured = regions.find((r) => r.path.join(".") === path.join("."));
+  const measured = regions.find((r) => samePath(r.path, path));
   if (measured) return slotInsertIndex({ point, axis, region: measured });
   return (getIn(component.props, path) as ComponentData[]).length;
 };
