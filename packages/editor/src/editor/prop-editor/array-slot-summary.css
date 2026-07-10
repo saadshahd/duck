@@ -1,11 +1,10 @@
 /* Navigation surface for a slot nested in an array item. Honest: it lists the
-   item's actual stored children (read-only) as quiet rows; clicking a row moves
-   selection to that child on the canvas. An empty slot shows a dashed insert
-   affordance. Never an editable in-sheet control — it navigates, never edits. */
+   item's actual stored children as quiet nav rows — a leading component mark and
+   a trailing jump arrow say "open this on the canvas", never an input to type
+   into. Clicking a row moves selection to that child on the canvas. An empty slot
+   shows a confident insert action. Never an editable in-sheet control. */
 .array-slot-summary {
-  display: flex;
-  flex-direction: column;
-  gap: var(--label-gap);
+  gap: var(--label-gap); /* label → list, tighter than the field rhythm */
 }
 
 .array-slot-summary-list {
@@ -14,31 +13,32 @@
   padding: 0;
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 1px;
 }
 
+/* A nav row, not a field box: borderless and transparent at rest (like the
+   catalog picker and dropdown lists), so it never reads as the input above it. */
 .array-slot-summary-child {
   appearance: none;
   display: flex;
   align-items: center;
-  justify-content: space-between;
   gap: 8px;
   width: 100%;
-  min-height: 32px;
-  padding: 0 10px;
+  min-height: 30px;
+  padding: 0 8px;
+  border: none;
   border-radius: var(--radius-control);
-  border: 1px solid var(--control-border);
-  background: var(--control-bg, transparent);
+  background: transparent;
   color: var(--text-field);
   font: inherit;
+  font-size: 13px;
   text-align: left;
   cursor: pointer;
-  transition: background 80ms ease, border-color 80ms ease, color 80ms ease;
+  transition: background 100ms ease, color 100ms ease;
 }
 
 .array-slot-summary-child:hover {
-  background: var(--accent-hover);
-  border-color: var(--accent);
+  background: var(--control-bg-hover);
 }
 
 .array-slot-summary-child:focus-visible {
@@ -46,25 +46,52 @@
   outline-offset: -2px;
 }
 
+/* Leading mark — this row is a nested component, not a value. */
+.array-slot-summary-child-icon {
+  flex-shrink: 0;
+  display: flex;
+  color: var(--text-field-muted);
+}
+
 .array-slot-summary-child-type {
-  font-size: 13px;
+  flex: 1;
+  min-width: 0;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
 
-.array-slot-summary-child-go {
-  font-size: 14px;
-  color: var(--text-field-muted);
+/* Microcopy that names the destination — the honest replacement for the old
+   read-only lock. Revealed on hover/focus so the row's meaning ("open this child
+   on the canvas") is stated exactly when the pointer is on it. */
+.array-slot-summary-child-hint {
   flex-shrink: 0;
-  transition: transform 80ms ease, color 80ms ease;
+  font-size: 11px;
+  color: var(--text-field-muted);
+  opacity: 0;
+  transition: opacity 100ms ease;
+}
+
+.array-slot-summary-child:hover .array-slot-summary-child-hint,
+.array-slot-summary-child:focus-visible .array-slot-summary-child-hint {
+  opacity: 1;
+}
+
+/* Trailing jump mark — points off toward the canvas. */
+.array-slot-summary-child-go {
+  flex-shrink: 0;
+  display: flex;
+  color: var(--text-field-muted);
+  transition: color 100ms ease, transform 100ms ease;
 }
 
 .array-slot-summary-child:hover .array-slot-summary-child-go {
-  color: var(--accent);
-  transform: translateX(2px);
+  color: var(--text-field);
+  transform: translate(1px, -1px);
 }
 
+/* Insert action for an empty slot — a confident secondary action (solid inset
+   fill), not a timid dashed placeholder that reads as disabled. */
 .array-slot-summary-add {
   appearance: none;
   display: flex;
@@ -74,19 +101,19 @@
   min-height: 32px;
   padding: 0 10px;
   border-radius: var(--radius-control);
-  border: 1px dashed var(--control-border);
-  background: transparent;
+  border: 1px solid var(--control-border);
+  background: var(--control-bg);
   color: var(--text-field-secondary);
   font: inherit;
   font-size: 13px;
   text-align: left;
   cursor: pointer;
-  transition: background 80ms ease, border-color 80ms ease, color 80ms ease;
+  transition: background 100ms ease, border-color 100ms ease, color 100ms ease;
 }
 
 .array-slot-summary-add:hover {
-  background: var(--accent-hover);
-  border-color: var(--accent);
+  background: var(--control-bg-hover);
+  border-color: var(--control-border-hover);
   color: var(--text-field);
 }
 
@@ -98,10 +125,10 @@
 .array-slot-summary-add-icon {
   font-size: 15px;
   line-height: 1;
-  color: var(--text-field-muted);
+  color: var(--text-field-secondary);
   flex-shrink: 0;
 }
 
 .array-slot-summary-add:hover .array-slot-summary-add-icon {
-  color: var(--accent);
+  color: var(--text-field);
 }

@@ -268,11 +268,45 @@ const ObjectInput = ({
   );
 };
 
-/** Read-only navigation surface for a slot nested in an array item. Honest: it
- *  lists the item's ACTUAL stored children by type; clicking one selects THAT
- *  child on the canvas (never edited in the sheet). An empty slot shows an
- *  insert affordance instead. This keeps a single control surface — the list
- *  moves selection to the canvas, it is not a second editor. */
+/** Leading mark for a child row — a small component block, so the row reads as
+ *  a nested element on the canvas, never a value to type into. */
+const NodeGlyph = (): ReactNode => (
+  <svg width="12" height="12" viewBox="0 0 12 12" aria-hidden>
+    <rect
+      x="1.5"
+      y="1.5"
+      width="9"
+      height="9"
+      rx="2"
+      stroke="currentColor"
+      strokeWidth="1.2"
+      fill="none"
+    />
+    <path d="M1.5 4.5h9" stroke="currentColor" strokeWidth="1.2" fill="none" />
+  </svg>
+);
+
+/** Trailing mark — an arrow off to the canvas, so the row reads as "open this",
+ *  not "expand this in place". */
+const JumpGlyph = (): ReactNode => (
+  <svg width="11" height="11" viewBox="0 0 11 11" aria-hidden>
+    <path
+      d="M3 8L8 3M8 3H4.5M8 3v3.5"
+      stroke="currentColor"
+      strokeWidth="1.2"
+      fill="none"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    />
+  </svg>
+);
+
+/** Navigation surface for a slot nested in an array item. Honest: it lists the
+ *  item's ACTUAL stored children by type; clicking one selects THAT child on the
+ *  canvas — the slot's children are edited there, never in the sheet, so each row
+ *  is a jump (leading component mark + type + trailing arrow), never an input.
+ *  An empty slot shows an insert affordance instead. This keeps a single control
+ *  surface — the list moves selection to the canvas, it is not a second editor. */
 const ArraySlotSummary = ({
   label,
   field,
@@ -289,8 +323,8 @@ const ArraySlotSummary = ({
   const children = Array.isArray(value) ? (value as ComponentData[]) : [];
   const displayLabel = toDisplayLabel(label, field.label);
   return (
-    <div className={`${fieldClass(true)} array-slot-summary`}>
-      <FieldLabel text={displayLabel} readOnly />
+    <div className="prop-field array-slot-summary">
+      <FieldLabel text={displayLabel} />
       {children.length === 0 ? (
         <button
           type="button"
@@ -314,13 +348,20 @@ const ArraySlotSummary = ({
                   className="array-slot-summary-child"
                   data-role="array-slot-child"
                   data-child-id={childId}
+                  title="Edit on canvas"
                   onClick={chromeClick(() => selectChild(childId))}
                 >
+                  <span className="array-slot-summary-child-icon" aria-hidden>
+                    <NodeGlyph />
+                  </span>
                   <span className="array-slot-summary-child-type">
                     {config.components[child.type]?.label ?? child.type}
                   </span>
+                  <span className="array-slot-summary-child-hint" aria-hidden>
+                    Edit on canvas
+                  </span>
                   <span className="array-slot-summary-child-go" aria-hidden>
-                    ›
+                    <JumpGlyph />
                   </span>
                 </button>
               </li>

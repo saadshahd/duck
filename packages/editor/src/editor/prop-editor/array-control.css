@@ -237,17 +237,20 @@
 
 /* --- Add --- */
 
+/* Confident secondary action — a solid inset fill (matches the empty-slot insert
+   action), not a dashed placeholder that reads as disabled. */
 .array-add {
   appearance: none;
-  border: 1px dashed var(--control-border);
-  background: transparent;
+  border: 1px solid var(--control-border);
+  background: var(--control-bg);
   color: var(--text-field-secondary);
   font-family: var(--font-system);
-  font-size: 12px;
-  height: 28px;
+  font-size: 13px;
+  height: 30px;
   border-radius: var(--radius-control);
   cursor: pointer;
-  margin-top: 1px;
+  margin-top: 2px;
+  transition: background 100ms ease, border-color 100ms ease, color 100ms ease;
 }
 
 .array-add:hover:not(:disabled) {
