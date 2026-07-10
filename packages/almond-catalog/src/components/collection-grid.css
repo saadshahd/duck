@@ -1,0 +1,25 @@
+/* CollectionGrid — the layout-contract surface (sp-64 §4).
+   Column counts arrive as component-local custom properties (--cols-*, set by the
+   component from its child count + degrade rule) and drive a responsive grid. Gap is
+   DS-fixed rhythm (spacing is frozen in the contract — a literal, not a theme token);
+   colour is the child molecules' concern, so no theme tokens are referenced here. */
+.almond-grid {
+  display: grid;
+  gap: 1.5rem;
+  grid-template-columns: repeat(var(--cols-base), minmax(0, 1fr));
+}
+@media (min-width: 40rem) {
+  .almond-grid {
+    grid-template-columns: repeat(var(--cols-sm), minmax(0, 1fr));
+  }
+}
+@media (min-width: 48rem) {
+  .almond-grid {
+    grid-template-columns: repeat(var(--cols-md), minmax(0, 1fr));
+  }
+}
+@media (min-width: 64rem) {
+  .almond-grid {
+    grid-template-columns: repeat(var(--cols-lg), minmax(0, 1fr));
+  }
+}

@@ -1,0 +1,2 @@
+[test]
+# token engine + enforcement scans are pure functions and filesystem reads — no DOM preload needed

@@ -1,0 +1,26 @@
+/* Image atom — semantic tokens only (statically greppable, sp-64 §2.6b).
+   The frame is the DS surface: --radius corner, --hairline edge, --surface-muted
+   as the empty/loading fill. Three curated ratios drive the box via aspect-ratio;
+   the image covers it. */
+.almond-image {
+  display: block;
+  overflow: hidden;
+  border-radius: var(--radius);
+  background: hsl(var(--surface-muted));
+  box-shadow: inset 0 0 0 1px hsl(var(--hairline));
+}
+.almond-image[data-ratio="square"] {
+  aspect-ratio: 1 / 1;
+}
+.almond-image[data-ratio="landscape"] {
+  aspect-ratio: 16 / 9;
+}
+.almond-image[data-ratio="portrait"] {
+  aspect-ratio: 3 / 4;
+}
+.almond-image img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}

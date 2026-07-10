@@ -1,0 +1,43 @@
+/* StepItem molecule — semantic tokens only (statically greppable, sp-64 §2.6b).
+   The badge is a CSS counter, not a prop: `counter-increment` advances a counter the
+   StepsSection host resets, and `::before { content: counter(...) }` paints the number.
+   The editor can never desync it because there is no value to set. */
+.almond-step {
+  counter-increment: almond-step;
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 1rem;
+  align-items: start;
+}
+.almond-step__badge {
+  display: grid;
+  place-items: center;
+  width: 2rem;
+  height: 2rem;
+  border-radius: 999px;
+  background: hsl(var(--primary));
+  color: hsl(var(--primary-foreground));
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-size: 0.95rem;
+}
+.almond-step__badge::before {
+  content: counter(almond-step);
+}
+.almond-step__body {
+  display: grid;
+  gap: 0.35rem;
+}
+.almond-step__heading {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: 1.1rem;
+  font-weight: 560;
+  color: hsl(var(--ink));
+}
+.almond-step__text {
+  margin: 0;
+  font-family: var(--font-body);
+  line-height: 1.5;
+  color: hsl(var(--muted-foreground));
+}

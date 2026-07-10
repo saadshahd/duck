@@ -1,0 +1,12 @@
+/* SectionShell — theming + rhythm surface (sp-64 §3.3, ⑤ decision 10).
+   position:relative anchors a section's morph picker to itself, not the page <main>.
+   Background/ink come from the theme tokens the data-theme block sets on this subtree;
+   padding is DS-fixed rhythm (spacing is frozen in the contract — literals, not theme
+   tokens). */
+.almond-section {
+  position: relative;
+  padding-block: 4rem;
+  padding-inline: 1.5rem;
+  background: hsl(var(--background));
+  color: hsl(var(--foreground));
+}

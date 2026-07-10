@@ -1,0 +1,35 @@
+/* AppStoreBadges molecule — semantic tokens only (statically greppable, sp-64 §2.6b).
+   Themed pills instead of raster badges: --ink fill with --background copy reads as a
+   confident "get the app" without importing foreign brand art. */
+.almond-badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+}
+.almond-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0.55rem 1rem;
+  border-radius: var(--radius);
+  background: hsl(var(--ink));
+  color: hsl(var(--background));
+  text-decoration: none;
+}
+.almond-badge__glyph {
+  font-size: 1.4rem;
+  line-height: 1;
+}
+.almond-badge__labels {
+  display: grid;
+  font-family: var(--font-body);
+  line-height: 1.1;
+}
+.almond-badge__labels small {
+  font-size: 0.65rem;
+  opacity: 0.8;
+}
+.almond-badge__labels strong {
+  font-size: 1rem;
+  font-weight: 600;
+}

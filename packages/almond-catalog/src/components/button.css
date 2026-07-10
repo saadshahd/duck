@@ -1,0 +1,50 @@
+/* Button atom — semantic tokens only (statically greppable, sp-64 §2.6b).
+   Three curated variants; --radius + --font-body are DS-fixed, colour is the only
+   per-variant swap. --ring drives the focus outline so keyboard users see it under
+   every theme. */
+.almond-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5em;
+  font-family: var(--font-body);
+  font-size: 0.98rem;
+  font-weight: 550;
+  line-height: 1;
+  padding: 0.7em 1.15em;
+  border-radius: var(--radius);
+  border: 1px solid transparent;
+  text-decoration: none;
+  cursor: pointer;
+  transition:
+    background-color 0.18s ease,
+    border-color 0.18s ease,
+    color 0.18s ease;
+}
+.almond-button:focus-visible {
+  outline: 2px solid hsl(var(--ring));
+  outline-offset: 2px;
+}
+
+.almond-button[data-variant="primary"] {
+  background: hsl(var(--primary));
+  color: hsl(var(--primary-foreground));
+}
+
+.almond-button[data-variant="secondary"] {
+  background: hsl(var(--surface));
+  border-color: hsl(var(--border));
+  color: hsl(var(--ink));
+}
+.almond-button[data-variant="secondary"]:hover {
+  background: hsl(var(--surface-muted));
+}
+
+.almond-button[data-variant="ghost"] {
+  background: transparent;
+  color: hsl(var(--primary));
+  padding-inline: 0.4em;
+}
+.almond-button[data-variant="ghost"]:hover {
+  background: hsl(var(--accent-wash));
+}

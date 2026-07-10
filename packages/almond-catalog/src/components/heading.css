@@ -1,0 +1,29 @@
+/* Heading atom — consumes SEMANTIC tokens only (statically greppable, sp-64 §2.6b).
+   Never a ramp step, never a raw colour. `--ink` gives display type its extra weight
+   of darkness against `--foreground` body copy; `--font-display` is the family swap. */
+.almond-heading {
+  margin: 0;
+  font-family: var(--font-display);
+  color: hsl(var(--ink));
+  font-weight: 560;
+  line-height: 1.05;
+  letter-spacing: -0.02em;
+  text-wrap: balance;
+}
+.almond-heading[data-level="1"] {
+  font-size: clamp(2rem, 4vw, 2.9rem);
+}
+.almond-heading[data-level="2"] {
+  font-size: clamp(1.5rem, 2.6vw, 2rem);
+  letter-spacing: -0.024em;
+}
+.almond-heading[data-level="3"] {
+  font-size: 1.24rem;
+  line-height: 1.15;
+  letter-spacing: -0.012em;
+}
+.almond-heading[data-level="4"] {
+  font-size: 1.02rem;
+  line-height: 1.2;
+  letter-spacing: -0.006em;
+}

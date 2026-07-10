@@ -1,0 +1,56 @@
+/* Prose atom — semantic tokens only (statically greppable, sp-64 §2.6b).
+   Themes the flow content the richtext editor can emit: body copy in --foreground,
+   headings in --ink + display family, links in --accent, rules on --hairline. No
+   outer margin on the block; the free Section host owns inter-child rhythm. */
+.almond-prose {
+  font-family: var(--font-body);
+  color: hsl(var(--foreground));
+  font-size: 1.02rem;
+  line-height: 1.6;
+  max-width: 68ch;
+}
+.almond-prose > :first-child {
+  margin-top: 0;
+}
+.almond-prose > :last-child {
+  margin-bottom: 0;
+}
+.almond-prose p {
+  margin: 0 0 0.85em;
+  text-wrap: pretty;
+}
+.almond-prose h2,
+.almond-prose h3,
+.almond-prose h4 {
+  font-family: var(--font-display);
+  color: hsl(var(--ink));
+  font-weight: 560;
+  line-height: 1.15;
+  letter-spacing: -0.012em;
+  margin: 1.4em 0 0.5em;
+}
+.almond-prose a {
+  color: hsl(var(--primary));
+  text-underline-offset: 0.15em;
+}
+.almond-prose strong {
+  color: hsl(var(--ink));
+  font-weight: 600;
+}
+.almond-prose ul,
+.almond-prose ol {
+  margin: 0 0 0.85em;
+  padding-left: 1.3em;
+}
+.almond-prose li {
+  margin: 0.25em 0;
+}
+.almond-prose li::marker {
+  color: hsl(var(--muted-foreground));
+}
+.almond-prose blockquote {
+  margin: 1em 0;
+  padding-left: 1em;
+  border-left: 2px solid hsl(var(--hairline));
+  color: hsl(var(--muted-foreground));
+}

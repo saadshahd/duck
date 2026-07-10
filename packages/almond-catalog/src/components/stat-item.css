@@ -1,0 +1,22 @@
+/* StatItem molecule — semantic tokens only (statically greppable, sp-64 §2.6b).
+   The figure is the loudest thing on the band: display family at --ink; the label
+   sits quietly beneath in --muted-foreground. No box — the StatBand owns the frame. */
+.almond-stat {
+  display: grid;
+  gap: 0.25rem;
+  justify-items: center;
+  text-align: center;
+}
+.almond-stat__value {
+  font-family: var(--font-display);
+  font-size: clamp(2rem, 4vw, 2.8rem);
+  font-weight: 600;
+  line-height: 1;
+  letter-spacing: -0.02em;
+  color: hsl(var(--ink));
+}
+.almond-stat__label {
+  font-family: var(--font-body);
+  font-size: 0.95rem;
+  color: hsl(var(--muted-foreground));
+}

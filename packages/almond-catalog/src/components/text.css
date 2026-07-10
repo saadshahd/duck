@@ -1,0 +1,12 @@
+/* Text atom — semantic tokens only (statically greppable, sp-64 §2.6b).
+   Body family + foreground ink; a measure cap keeps long copy readable. No outer
+   margin: inter-child rhythm belongs to the free Section host, not the atom. */
+.almond-text {
+  margin: 0;
+  font-family: var(--font-body);
+  color: hsl(var(--foreground));
+  font-size: 1.02rem;
+  line-height: 1.6;
+  max-width: 68ch;
+  text-wrap: pretty;
+}

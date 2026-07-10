@@ -1,0 +1,24 @@
+// Public entry for the Almond catalog. The token engine is the T1 deliverable;
+// components accrete here as downstream tickets (T2+) land.
+export * from "./tokens/contract";
+export * from "./tokens/themes";
+export * from "./tokens/derive";
+export * from "./tokens/emit";
+export * from "./tokens/accessor";
+export * from "./components/heading";
+export * from "./components/text";
+export * from "./components/prose";
+export * from "./components/button";
+export * from "./components/image";
+export * from "./components/divider";
+export * from "./components/feature-item";
+export * from "./components/stat-item";
+export * from "./components/step-item";
+export * from "./components/plan-card";
+export * from "./components/certification";
+export * from "./components/testimonial";
+export * from "./components/logo-item";
+export * from "./components/faq-item";
+export * from "./components/product-summary";
+export * from "./components/app-store-badges";
+export * from "./data/products";

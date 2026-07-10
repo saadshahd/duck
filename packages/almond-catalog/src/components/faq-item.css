@@ -1,0 +1,28 @@
+/* FaqItem molecule — semantic tokens only (statically greppable, sp-64 §2.6b).
+   Question in display --ink, answer flow content in --foreground with links picking up
+   the accent — the FAQSection host owns the divider rhythm between items. */
+.almond-faq {
+  display: grid;
+  gap: 0.5rem;
+}
+.almond-faq__question {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: 1.1rem;
+  font-weight: 560;
+  color: hsl(var(--ink));
+}
+.almond-faq__answer {
+  font-family: var(--font-body);
+  line-height: 1.6;
+  color: hsl(var(--foreground));
+}
+.almond-faq__answer :first-child {
+  margin-top: 0;
+}
+.almond-faq__answer :last-child {
+  margin-bottom: 0;
+}
+.almond-faq__answer a {
+  color: hsl(var(--primary));
+}

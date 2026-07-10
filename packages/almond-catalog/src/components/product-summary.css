@@ -1,0 +1,78 @@
+/* ProductSummary molecule — semantic tokens only (statically greppable, sp-64 §2.6b).
+   Two presentations share one surface language: the card stacks, the row lines up. The
+   missing-ref placeholder is honest, not hidden — a dashed --border note in muted ink. */
+.almond-product {
+  font-family: var(--font-body);
+}
+.almond-product__icon {
+  color: hsl(var(--primary));
+  line-height: 1;
+}
+.almond-product__name {
+  font-family: var(--font-display);
+  color: hsl(var(--ink));
+}
+.almond-product__price {
+  color: hsl(var(--muted-foreground));
+}
+
+/* full card */
+.almond-product--card {
+  display: grid;
+  gap: 0.5rem;
+  padding: 1.75rem;
+  border-radius: var(--radius);
+  background: hsl(var(--surface));
+  box-shadow: inset 0 0 0 1px hsl(var(--hairline));
+}
+.almond-product--card .almond-product__icon {
+  font-size: 1.75rem;
+}
+.almond-product--card .almond-product__name {
+  margin: 0;
+  font-size: 1.2rem;
+  font-weight: 560;
+}
+.almond-product--card .almond-product__price {
+  margin: 0;
+  font-weight: 600;
+}
+.almond-product__blurb {
+  margin: 0;
+  line-height: 1.5;
+  color: hsl(var(--foreground));
+}
+.almond-product__link {
+  justify-self: start;
+  margin-top: 0.25rem;
+  color: hsl(var(--primary));
+  font-weight: 600;
+  text-decoration: none;
+}
+
+/* compact row */
+.almond-product--row {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.85rem 1rem;
+  border-radius: var(--radius);
+  background: hsl(var(--surface));
+  box-shadow: inset 0 0 0 1px hsl(var(--hairline));
+  text-decoration: none;
+}
+.almond-product--row .almond-product__name {
+  font-weight: 560;
+}
+.almond-product--row .almond-product__price {
+  margin-left: auto;
+  font-weight: 600;
+}
+
+/* dangling reference — labeled, never a crash */
+.almond-product--missing {
+  padding: 1rem 1.25rem;
+  border-radius: var(--radius);
+  border: 1px dashed hsl(var(--border));
+  color: hsl(var(--muted-foreground));
+}
