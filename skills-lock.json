@@ -5,6 +5,12 @@
       "source": "teeverc/effect-ts-skills",
       "sourceType": "github",
       "computedHash": "9f19eba536aca22b68f215e6f6390246c42e602fbf8d53aebe4dcbc908e6c10c"
+    },
+    "shadcn": {
+      "source": "shadcn/ui",
+      "sourceType": "github",
+      "skillPath": "skills/shadcn/SKILL.md",
+      "computedHash": "d81caa0f86aabab65b25e302d454f23a3328760386ed9078345584c0d5c8058e"
     }
   }
 }
