@@ -8,7 +8,9 @@
  * `.mode-dark` context does, and every atom and molecule reskins from the emitted matrix.
  */
 
+import { Render } from "@puckeditor/core";
 import { useMemo, useState } from "react";
+import { config } from "../puck.config";
 import { AppStoreBadges } from "../components/app-store-badges";
 import { Button } from "../components/button";
 import { Certification } from "../components/certification";
@@ -35,6 +37,17 @@ const LEVELS: { level: HeadingLevel; text: string }[] = [
   { level: 3, text: "No hidden markup" },
   { level: 4, text: "Held in your name" },
 ];
+
+const COLLECTION_ORGANISMS = [
+  "FeatureGrid",
+  "StatBand",
+  "LogoCloud",
+  "TrustSection",
+  "TestimonialSection",
+  "FAQSection",
+  "StepsSection",
+  "ProductShowcase",
+] as const;
 
 const shell: React.CSSProperties = {
   fontFamily: "system-ui, sans-serif",
@@ -64,6 +77,26 @@ export function App() {
 
   const derived = deriveTheme(theme);
   const aa = dark ? derived.dark.aa : derived.light.aa;
+
+  // The 8 collection organisms rendered through Puck's real <Render> from the catalog
+  // config — the honest consumer path, not a hand-reconstruction. Each organism's own
+  // SectionShell themes its subtree, so the selected theme is stamped onto every one; the
+  // seed items come straight from each config's defaults (minted with ids for Render).
+  const organismDoc = useMemo(() => {
+    // biome-ignore lint/suspicious/noExplicitAny: heterogeneous defaults, one demo doc
+    const components = config.components as Record<string, any>;
+    const content = COLLECTION_ORGANISMS.map((type, i) => {
+      const defaults = components[type].defaultProps ?? {};
+      const items = (defaults.items ?? []).map(
+        (item: { props: object }, j: number) => ({
+          ...item,
+          props: { ...item.props, id: `org-${i}-item-${j}` },
+        }),
+      );
+      return { type, props: { ...defaults, id: `org-${i}`, theme, items } };
+    });
+    return { root: {}, content };
+  }, [theme]);
 
   return (
     <div className={dark ? "mode-dark" : undefined} style={shell}>
@@ -238,6 +271,20 @@ export function App() {
         </div>
 
         <AppStoreBadges appStoreHref="#" playStoreHref="#" />
+      </div>
+
+      {/* Collection organisms — the 8 T5 organisms through Puck's real <Render>. Each
+          SectionShell paints itself full-bleed with the selected theme; the seed items,
+          layout-contract, and StepsSection counter all come from the catalog config. */}
+      <div
+        style={{
+          width: "min(960px, 100%)",
+          borderRadius: "14px",
+          overflow: "hidden",
+          border: "1px solid rgba(255,255,255,.12)",
+        }}
+      >
+        <Render config={config} data={organismDoc} />
       </div>
 
       {/* AA readout — the contrast the derive-recipe achieved for this theme×mode */}
