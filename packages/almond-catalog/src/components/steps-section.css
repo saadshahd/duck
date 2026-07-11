@@ -1,0 +1,8 @@
+/* StepsSection — the ordered-collection host (sp-64 §3.3a).
+   Establishes the `almond-step` counter that StepItem badges increment: reset once here,
+   incremented per item in DOM order, so the numbers self-derive and reordering renumbers
+   for free (StepItem owns the increment + `::before` paint; T4). No token refs — colour
+   is the child StepItems' concern. */
+.almond-steps {
+  counter-reset: almond-step;
+}
