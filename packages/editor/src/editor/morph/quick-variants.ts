@@ -21,11 +21,25 @@ const isDiscreteChoice = (field?: Field): field is SelectField | RadioField =>
   (field.type === "select" || field.type === "radio") &&
   field.options.length <= MAX_OPTIONS;
 
+/** A field opts out of the morph picker with `metadata.morphable: false` —
+ *  content-resolvers (productId, comparisonSet) that change what an element
+ *  says, not how it looks. Presentational fields are morphable by default.
+ *  Puck types `metadata` as `{ [key: string]: any }`, hence the read cast. */
+const isMorphable = (field?: Field): boolean =>
+  (field as { metadata?: { morphable?: unknown } } | undefined)?.metadata
+    ?.morphable !== false;
+
 const targetsDiscreteFields = (
   fields: FieldMap,
   variation: DerivedVariation,
 ): boolean =>
   Object.keys(variation.props).every((key) => isDiscreteChoice(fields[key]));
+
+const targetsMorphableFields = (
+  fields: FieldMap,
+  variation: DerivedVariation,
+): boolean =>
+  Object.keys(variation.props).every((key) => isMorphable(fields[key]));
 
 const matchesCurrent = (
   element: ComponentData,
@@ -49,6 +63,7 @@ export const quickVariants = ({
   const fields = fieldsOf(config, element.type);
   return variations
     .filter((v) => targetsDiscreteFields(fields, v))
+    .filter((v) => targetsMorphableFields(fields, v))
     .filter((v) => !matchesCurrent(element, v));
 };
 

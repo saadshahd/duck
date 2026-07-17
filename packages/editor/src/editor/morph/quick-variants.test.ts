@@ -88,6 +88,31 @@ describe("quickVariants", () => {
     });
     expect(kept).toEqual([]);
   });
+
+  it("drops variations targeting a field flagged metadata.morphable:false", () => {
+    const withFlag = makeConfig({
+      productId: {
+        type: "select",
+        options: options(3),
+        metadata: { morphable: false },
+      },
+    });
+    const kept = quickVariants({
+      variations: [variation("o1", { productId: "o1" })],
+      config: withFlag,
+      element: makeElement({ productId: "o0" }),
+    });
+    expect(kept).toEqual([]);
+  });
+
+  it("keeps variations targeting a select with morphable unset (default true)", () => {
+    const kept = quickVariants({
+      variations: [variation("o1", { tone: "o1" })],
+      config,
+      element: makeElement({ tone: "o0" }),
+    });
+    expect(kept).toEqual([variation("o1", { tone: "o1" })]);
+  });
 });
 
 describe("withVariant", () => {
