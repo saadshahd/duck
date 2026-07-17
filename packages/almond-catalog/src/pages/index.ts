@@ -9,7 +9,8 @@
  * Content is authored id-free through the small builders below; `almondPage` mints
  * deterministic ids (see `page.ts`). The builders are the DRY seam for the leaf nodes each
  * page repeats — a raw `{ type: "Button", props: {...} }` restated dozens of times is the
- * duplicated concept they remove.
+ * duplicated concept they remove. Builders with 3+ fields take a single object so no call
+ * site depends on positional order (heading/text, comparisonSet/goal are all swappable).
  */
 
 import type { ThemeName } from "../tokens/themes";
@@ -20,7 +21,6 @@ import type { FooterContent } from "../chrome/footer";
 // --- Content builders (module-local; the leaf/organism nodes pages repeat) ---
 
 type ButtonVariant = "primary" | "secondary" | "ghost";
-type Density = "comfortable" | "compact";
 type Presentation = "full-card" | "compact-row";
 
 const heading = (text: string, level: 1 | 2 | 3 | 4 = 2): BareComponent => ({
@@ -38,17 +38,19 @@ const prose = (body: string): BareComponent => ({
 const button = (
   label: string,
   variant: ButtonVariant = "primary",
-  href = "#",
-): BareComponent => ({ type: "Button", props: { label, href, variant } });
+): BareComponent => ({
+  type: "Button",
+  props: { label, href: "#", variant },
+});
 const appBadges = (): BareComponent => ({
   type: "AppStoreBadges",
   props: { appStoreHref: "#", playStoreHref: "#" },
 });
-const feature = (
-  icon: string,
-  heading: string,
-  text: string,
-): BareComponent => ({ type: "FeatureItem", props: { icon, heading, text } });
+const feature = (props: {
+  icon: string;
+  heading: string;
+  text: string;
+}): BareComponent => ({ type: "FeatureItem", props });
 const stat = (value: string, label: string): BareComponent => ({
   type: "StatItem",
   props: { value, label },
@@ -101,38 +103,42 @@ const hero = (
     actions: copy.actions,
   },
 });
-const collection = (
-  type: string,
-  theme: ThemeName,
-  items: BareComponent[],
-  density: Density = "comfortable",
-): BareComponent => ({ type, props: { theme, density, items } });
+/** A collection organism — the `comfortable` density default carries as data (only value used). */
+const collection = (spec: {
+  type: string;
+  theme: ThemeName;
+  items: BareComponent[];
+}): BareComponent => ({
+  type: spec.type,
+  props: { theme: spec.theme, density: "comfortable", items: spec.items },
+});
 const section = (theme: ThemeName, body: BareComponent[]): BareComponent => ({
   type: "Section",
   props: { theme, body },
 });
 const cta = (
   theme: ThemeName,
-  copy: { headline: string; subhead: string; actions: BareComponent[] },
-  format: "band" | "interstitial" = "band",
+  copy: {
+    headline: string;
+    subhead: string;
+    actions: BareComponent[];
+    format?: "band" | "interstitial";
+  },
 ): BareComponent => ({
   type: "CTABand",
   props: {
     theme,
-    format,
+    format: copy.format ?? "band",
     headline: copy.headline,
     subhead: copy.subhead,
     actions: copy.actions,
   },
 });
-const comparisonTable = (
-  theme: ThemeName,
-  comparisonSet: string,
-  goal: string,
-): BareComponent => ({
-  type: "ComparisonTable",
-  props: { theme, comparisonSet, goal },
-});
+const comparisonTable = (spec: {
+  theme: ThemeName;
+  comparisonSet: string;
+  goal: string;
+}): BareComponent => ({ type: "ComparisonTable", props: spec });
 const rateWidget = (
   theme: ThemeName,
   props: {
@@ -210,60 +216,73 @@ const personalLanding = almondPage({
         "Hold, spend and grow your money without the hidden markup — the boring parts of money, finally done plainly.",
       actions: [button("Open an account"), button("See how it works", "ghost")],
     }),
-    collection("FeatureGrid", "personal", [
-      feature(
-        "◇",
-        "No hidden markup",
-        "The price you see is the price you pay — every time.",
-      ),
-      feature(
-        "◈",
-        "Held in your name",
-        "Your money is ring-fenced and never lent out.",
-      ),
-      feature(
-        "◆",
-        "Paid daily",
-        "Interest lands the next morning, not once a year.",
-      ),
-    ]),
-    collection("StatBand", "personal", [
-      stat("0", "hidden fees"),
-      stat("4.1%", "AER, paid daily"),
-      stat("2 min", "to open an account"),
-    ]),
-    collection("StepsSection", "personal", [
-      step(
-        "Open your account",
-        "Two minutes and a photo of your ID — no branch, no paperwork.",
-      ),
-      step("Add your money", "Move funds in by bank transfer or debit card."),
-      step(
-        "Start earning",
-        "Interest lands the next morning and every day after.",
-      ),
-    ]),
-    collection("ProductShowcase", "personal", [
-      product("everyday"),
-      product("interest"),
-      product("send"),
-    ]),
-    collection("TestimonialSection", "personal", [
-      quote("I finally understand where my money goes.", "Priya N."),
-      quote("Opening an account took less time than my coffee.", "Marcus T."),
-      quote("The interest just shows up every morning.", "Lena K."),
-    ]),
+    collection({
+      type: "FeatureGrid",
+      theme: "personal",
+      items: [
+        feature({
+          icon: "◇",
+          heading: "No hidden markup",
+          text: "The price you see is the price you pay — every time.",
+        }),
+        feature({
+          icon: "◈",
+          heading: "Held in your name",
+          text: "Your money is ring-fenced and never lent out.",
+        }),
+        feature({
+          icon: "◆",
+          heading: "Paid daily",
+          text: "Interest lands the next morning, not once a year.",
+        }),
+      ],
+    }),
+    collection({
+      type: "StatBand",
+      theme: "personal",
+      items: [
+        stat("0", "hidden fees"),
+        stat("4.1%", "AER, paid daily"),
+        stat("2 min", "to open an account"),
+      ],
+    }),
+    collection({
+      type: "StepsSection",
+      theme: "personal",
+      items: [
+        step(
+          "Open your account",
+          "Two minutes and a photo of your ID — no branch, no paperwork.",
+        ),
+        step("Add your money", "Move funds in by bank transfer or debit card."),
+        step(
+          "Start earning",
+          "Interest lands the next morning and every day after.",
+        ),
+      ],
+    }),
+    collection({
+      type: "ProductShowcase",
+      theme: "personal",
+      items: [product("everyday"), product("interest"), product("send")],
+    }),
+    collection({
+      type: "TestimonialSection",
+      theme: "personal",
+      items: [
+        quote("I finally understand where my money goes.", "Priya N."),
+        quote("Opening an account took less time than my coffee.", "Marcus T."),
+        quote("The interest just shows up every morning.", "Lena K."),
+      ],
+    }),
     // Mixed-theme proof (§7.1): a Personal page hosting a Business-themed section.
-    cta(
-      "business",
-      {
-        headline: "Running a business? Almond works for teams too.",
-        subhead:
-          "Multi-user accounts, real exchange rates, and the same honest pricing.",
-        actions: [button("Explore Almond Business")],
-      },
-      "interstitial",
-    ),
+    cta("business", {
+      headline: "Running a business? Almond works for teams too.",
+      subhead:
+        "Multi-user accounts, real exchange rates, and the same honest pricing.",
+      actions: [button("Explore Almond Business")],
+      format: "interstitial",
+    }),
   ],
 });
 
@@ -284,44 +303,60 @@ const businessLanding = almondPage({
         button("Talk to sales", "ghost"),
       ],
     }),
-    collection("FeatureGrid", "business", [
-      feature(
-        "⬡",
-        "Real exchange rates",
-        "Pay international invoices with no markup buried in the numbers.",
-      ),
-      feature(
-        "⬢",
-        "Team cards",
-        "Issue cards with limits you set, and see spend as it happens.",
-      ),
-      feature(
-        "◫",
-        "One clear ledger",
-        "Every account and currency in a single, exportable view.",
-      ),
-    ]),
-    collection("StatBand", "business", [
-      stat("50+", "currencies supported"),
-      stat("0.4%", "average FX saving"),
-      stat("Same day", "to most destinations"),
-    ]),
-    collection("LogoCloud", "business", [
-      logo("Northwind"),
-      logo("Globex"),
-      logo("Initech"),
-      logo("Umbrella"),
-      logo("Hooli"),
-      logo("Vandelay"),
-    ]),
-    collection("ProductShowcase", "business", [
-      product("everyday"),
-      product("send"),
-      product("card"),
-    ]),
+    collection({
+      type: "FeatureGrid",
+      theme: "business",
+      items: [
+        feature({
+          icon: "⬡",
+          heading: "Real exchange rates",
+          text: "Pay international invoices with no markup buried in the numbers.",
+        }),
+        feature({
+          icon: "⬢",
+          heading: "Team cards",
+          text: "Issue cards with limits you set, and see spend as it happens.",
+        }),
+        feature({
+          icon: "◫",
+          heading: "One clear ledger",
+          text: "Every account and currency in a single, exportable view.",
+        }),
+      ],
+    }),
+    collection({
+      type: "StatBand",
+      theme: "business",
+      items: [
+        stat("50+", "currencies supported"),
+        stat("0.4%", "average FX saving"),
+        stat("Same day", "to most destinations"),
+      ],
+    }),
+    collection({
+      type: "LogoCloud",
+      theme: "business",
+      items: [
+        logo("Northwind"),
+        logo("Globex"),
+        logo("Initech"),
+        logo("Umbrella"),
+        logo("Hooli"),
+        logo("Vandelay"),
+      ],
+    }),
+    collection({
+      type: "ProductShowcase",
+      theme: "business",
+      items: [product("everyday"), product("send"), product("card")],
+    }),
     section("business", [
       heading("See how a business account compares", 2),
-      comparisonTable("business", "everyday", "full"),
+      comparisonTable({
+        theme: "business",
+        comparisonSet: "everyday",
+        goal: "full",
+      }),
     ]),
     cta("business", {
       headline: "Ready to give your business honest money?",
@@ -345,23 +380,27 @@ const card = almondPage({
         "Spend anywhere at the real exchange rate. No foreign transaction fees, no surprises on the statement.",
       actions: [button("Get your card"), appBadges()],
     }),
-    collection("FeatureGrid", "personal-bright-green", [
-      feature(
-        "▢",
-        "Spend at the real rate",
-        "Every currency converts at the honest rate — no markup.",
-      ),
-      feature(
-        "⚑",
-        "Freeze in a tap",
-        "Lost the card? Freeze and unfreeze it instantly from the app.",
-      ),
-      feature(
-        "↺",
-        "Instant notifications",
-        "Know exactly what you spent the moment you spend it.",
-      ),
-    ]),
+    collection({
+      type: "FeatureGrid",
+      theme: "personal-bright-green",
+      items: [
+        feature({
+          icon: "▢",
+          heading: "Spend at the real rate",
+          text: "Every currency converts at the honest rate — no markup.",
+        }),
+        feature({
+          icon: "⚑",
+          heading: "Freeze in a tap",
+          text: "Lost the card? Freeze and unfreeze it instantly from the app.",
+        }),
+        feature({
+          icon: "↺",
+          heading: "Instant notifications",
+          text: "Know exactly what you spent the moment you spend it.",
+        }),
+      ],
+    }),
     section("personal-bright-green", [
       heading("Meet the Almond Card", 2),
       product("card", "full-card"),
@@ -369,12 +408,16 @@ const card = almondPage({
         "Metal or plastic, the rate is the same honest one. No monthly fee, ever.",
       ),
     ]),
-    collection("TrustSection", "personal-bright-green", [
-      cert("🛡", "FSCS protected"),
-      cert("🔒", "256-bit encryption"),
-      cert("✅", "FCA regulated"),
-      cert("🏛", "Ring-fenced deposits"),
-    ]),
+    collection({
+      type: "TrustSection",
+      theme: "personal-bright-green",
+      items: [
+        cert("🛡", "FSCS protected"),
+        cert("🔒", "256-bit encryption"),
+        cert("✅", "FCA regulated"),
+        cert("🏛", "Ring-fenced deposits"),
+      ],
+    }),
     cta("personal-bright-green", {
       headline: "Spend honestly, everywhere.",
       subhead: "Order the Almond Card free — it arrives in days.",
@@ -406,32 +449,44 @@ const send = almondPage({
         amount: 1000,
       }),
     ]),
-    collection("FeatureGrid", "business-bright-blue", [
-      feature(
-        "→",
-        "The real rate",
-        "The mid-market rate, always — never a marked-up one.",
-      ),
-      feature(
-        "⚡",
-        "Same-day arrival",
-        "Most transfers land the same day, weekends included.",
-      ),
-      feature(
-        "◎",
-        "Track every step",
-        "Watch your transfer move from sent to arrived.",
-      ),
-    ]),
+    collection({
+      type: "FeatureGrid",
+      theme: "business-bright-blue",
+      items: [
+        feature({
+          icon: "→",
+          heading: "The real rate",
+          text: "The mid-market rate, always — never a marked-up one.",
+        }),
+        feature({
+          icon: "⚡",
+          heading: "Same-day arrival",
+          text: "Most transfers land the same day, weekends included.",
+        }),
+        feature({
+          icon: "◎",
+          heading: "Track every step",
+          text: "Watch your transfer move from sent to arrived.",
+        }),
+      ],
+    }),
     section("business-bright-blue", [
       heading("Send vs the alternatives", 2),
-      comparisonTable("business-bright-blue", "send", "full"),
+      comparisonTable({
+        theme: "business-bright-blue",
+        comparisonSet: "send",
+        goal: "full",
+      }),
     ]),
-    collection("StatBand", "business-bright-blue", [
-      stat("0%", "hidden markup"),
-      stat("50+", "currencies"),
-      stat("Same day", "to most places"),
-    ]),
+    collection({
+      type: "StatBand",
+      theme: "business-bright-blue",
+      items: [
+        stat("0%", "hidden markup"),
+        stat("50+", "currencies"),
+        stat("Same day", "to most places"),
+      ],
+    }),
     cta("business-bright-blue", {
       headline: "Move money like it's the 21st century.",
       subhead: "Your first transfer takes two minutes.",
@@ -456,11 +511,15 @@ const interest = almondPage({
     }),
     // Number-forward composition (⑤ dec 6): foreground the AER bignum + honest StatBand.
     // No ProjectionPanel organism; the RateHistory sparkline is a Fog visual-tuning item.
-    collection("StatBand", "personal-forrest-green", [
-      stat("4.1%", "AER, variable"),
-      stat("Daily", "interest paid"),
-      stat("£0", "to start earning"),
-    ]),
+    collection({
+      type: "StatBand",
+      theme: "personal-forrest-green",
+      items: [
+        stat("4.1%", "AER, variable"),
+        stat("Daily", "interest paid"),
+        stat("£0", "to start earning"),
+      ],
+    }),
     section("personal-forrest-green", [
       heading("How the interest works", 2),
       prose(
@@ -468,17 +527,21 @@ const interest = almondPage({
       ),
       product("interest", "full-card"),
     ]),
-    collection("StepsSection", "personal-forrest-green", [
-      step(
-        "Move money in",
-        "Add funds by transfer or card — no minimum balance.",
-      ),
-      step("Earn every day", "Interest accrues daily on your whole balance."),
-      step(
-        "Withdraw anytime",
-        "Take your money out whenever you need it, penalty-free.",
-      ),
-    ]),
+    collection({
+      type: "StepsSection",
+      theme: "personal-forrest-green",
+      items: [
+        step(
+          "Move money in",
+          "Add funds by transfer or card — no minimum balance.",
+        ),
+        step("Earn every day", "Interest accrues daily on your whole balance."),
+        step(
+          "Withdraw anytime",
+          "Take your money out whenever you need it, penalty-free.",
+        ),
+      ],
+    }),
     disclosureBand("personal-forrest-green", ["aer", "capital"]),
     cta("personal-forrest-green", {
       headline: "Start earning 4.1% today.",
@@ -502,43 +565,55 @@ const security = almondPage({
         "Your money is held in your name, protected by the FSCS, and guarded by the same encryption banks use.",
       actions: [button("How we protect you")],
     }),
-    collection("TrustSection", "business-forrest-blue", [
-      cert("🛡", "FSCS protected up to £85,000"),
-      cert("🔒", "256-bit encryption"),
-      cert("✅", "FCA regulated"),
-      cert("🏛", "Ring-fenced deposits"),
-    ]),
-    collection("FeatureGrid", "business-forrest-blue", [
-      feature(
-        "⊚",
-        "Held in your name",
-        "Deposits are ring-fenced and never lent out.",
-      ),
-      feature(
-        "⊕",
-        "Biometric access",
-        "Face and fingerprint unlock, plus a PIN only you know.",
-      ),
-      feature(
-        "⊘",
-        "Fraud watch",
-        "We monitor for unusual activity and flag it in real time.",
-      ),
-    ]),
-    collection("FAQSection", "business-forrest-blue", [
-      faq(
-        "Is my money safe with Almond?",
-        "<p>Yes — eligible deposits are protected up to <strong>£85,000</strong> by the FSCS, and your money is held in your name.</p>",
-      ),
-      faq(
-        "What happens if I lose my phone?",
-        "<p>Your account is protected by biometrics and a PIN. You can freeze access instantly from any browser.</p>",
-      ),
-      faq(
-        "Do you sell my data?",
-        "<p>Never. We make money from honest product fees, not from selling what we know about you.</p>",
-      ),
-    ]),
+    collection({
+      type: "TrustSection",
+      theme: "business-forrest-blue",
+      items: [
+        cert("🛡", "FSCS protected up to £85,000"),
+        cert("🔒", "256-bit encryption"),
+        cert("✅", "FCA regulated"),
+        cert("🏛", "Ring-fenced deposits"),
+      ],
+    }),
+    collection({
+      type: "FeatureGrid",
+      theme: "business-forrest-blue",
+      items: [
+        feature({
+          icon: "⊚",
+          heading: "Held in your name",
+          text: "Deposits are ring-fenced and never lent out.",
+        }),
+        feature({
+          icon: "⊕",
+          heading: "Biometric access",
+          text: "Face and fingerprint unlock, plus a PIN only you know.",
+        }),
+        feature({
+          icon: "⊘",
+          heading: "Fraud watch",
+          text: "We monitor for unusual activity and flag it in real time.",
+        }),
+      ],
+    }),
+    collection({
+      type: "FAQSection",
+      theme: "business-forrest-blue",
+      items: [
+        faq(
+          "Is my money safe with Almond?",
+          "<p>Yes — eligible deposits are protected up to <strong>£85,000</strong> by the FSCS, and your money is held in your name.</p>",
+        ),
+        faq(
+          "What happens if I lose my phone?",
+          "<p>Your account is protected by biometrics and a PIN. You can freeze access instantly from any browser.</p>",
+        ),
+        faq(
+          "Do you sell my data?",
+          "<p>Never. We make money from honest product fees, not from selling what we know about you.</p>",
+        ),
+      ],
+    }),
     disclosureBand("business-forrest-blue", ["deposits", "capital"]),
     cta("business-forrest-blue", {
       headline: "Money you can trust, quietly.",
@@ -562,39 +637,51 @@ const pricing = almondPage({
         "Every Almond product is free to open, with the honest rate built in — you only ever pay for what you use.",
       actions: [button("Open an account")],
     }),
-    collection("ProductShowcase", "personal", [
-      product("everyday"),
-      product("interest"),
-      product("send"),
-      product("card"),
-    ]),
-    collection("FeatureGrid", "personal", [
-      feature(
-        "✓",
-        "Free to open",
-        "Every account opens free, with no monthly fee.",
-      ),
-      feature(
-        "✓",
-        "No hidden markup",
-        "The exchange rate is always the real one.",
-      ),
-      feature(
-        "✓",
-        "Pay as you go",
-        "You only pay for extras like expedited transfers.",
-      ),
-    ]),
-    collection("FAQSection", "personal", [
-      faq(
-        "Are there any monthly fees?",
-        "<p>No. Opening and holding an Almond account is free — always.</p>",
-      ),
-      faq(
-        "How do you make money?",
-        "<p>From clear, optional fees on things like premium cards — never from a markup you can't see.</p>",
-      ),
-    ]),
+    collection({
+      type: "ProductShowcase",
+      theme: "personal",
+      items: [
+        product("everyday"),
+        product("interest"),
+        product("send"),
+        product("card"),
+      ],
+    }),
+    collection({
+      type: "FeatureGrid",
+      theme: "personal",
+      items: [
+        feature({
+          icon: "✓",
+          heading: "Free to open",
+          text: "Every account opens free, with no monthly fee.",
+        }),
+        feature({
+          icon: "✓",
+          heading: "No hidden markup",
+          text: "The exchange rate is always the real one.",
+        }),
+        feature({
+          icon: "✓",
+          heading: "Pay as you go",
+          text: "You only pay for extras like expedited transfers.",
+        }),
+      ],
+    }),
+    collection({
+      type: "FAQSection",
+      theme: "personal",
+      items: [
+        faq(
+          "Are there any monthly fees?",
+          "<p>No. Opening and holding an Almond account is free — always.</p>",
+        ),
+        faq(
+          "How do you make money?",
+          "<p>From clear, optional fees on things like premium cards — never from a markup you can't see.</p>",
+        ),
+      ],
+    }),
     cta("personal", {
       headline: "Honest money, honestly priced.",
       subhead: "Open your free account in minutes.",
@@ -619,21 +706,41 @@ const comparison = almondPage({
     }),
     section("business", [
       heading("Your everyday account", 2),
-      comparisonTable("business", "everyday", "full"),
+      comparisonTable({
+        theme: "business",
+        comparisonSet: "everyday",
+        goal: "full",
+      }),
     ]),
     section("business", [
       heading("Sending money abroad", 2),
-      comparisonTable("business", "send", "full"),
+      comparisonTable({
+        theme: "business",
+        comparisonSet: "send",
+        goal: "full",
+      }),
     ]),
-    collection("FeatureGrid", "business", [
-      feature("◇", "No hidden markup", "The rate you see is the rate you get."),
-      feature(
-        "◆",
-        "Paid daily",
-        "Interest that lands every morning, not once a year.",
-      ),
-      feature("→", "Real FX", "The mid-market rate on every currency."),
-    ]),
+    collection({
+      type: "FeatureGrid",
+      theme: "business",
+      items: [
+        feature({
+          icon: "◇",
+          heading: "No hidden markup",
+          text: "The rate you see is the rate you get.",
+        }),
+        feature({
+          icon: "◆",
+          heading: "Paid daily",
+          text: "Interest that lands every morning, not once a year.",
+        }),
+        feature({
+          icon: "→",
+          heading: "Real FX",
+          text: "The mid-market rate on every currency.",
+        }),
+      ],
+    }),
     cta("business", {
       headline: "Switch to money that tells the truth.",
       subhead: "Opening an account takes two minutes.",
