@@ -32,6 +32,10 @@ import { statItemConfig } from "./components/stat-item";
 import { stepItemConfig } from "./components/step-item";
 import { testimonialConfig } from "./components/testimonial";
 
+// Computed widgets (T7)
+import { comparisonTableConfig } from "./components/comparison-table";
+import { rateWidgetConfig } from "./components/rate-widget";
+
 // Collection organisms (T5)
 import { faqSectionConfig } from "./components/faq-section";
 import { featureGridConfig } from "./components/feature-grid";
@@ -76,6 +80,10 @@ export const config: Config = {
         "ProductShowcase",
       ],
     },
+    widgets: {
+      title: "Computed widgets",
+      components: ["ComparisonTable", "RateWidget"],
+    },
   },
   components: {
     // Atoms
@@ -105,5 +113,8 @@ export const config: Config = {
     FAQSection: faqSectionConfig,
     StepsSection: stepsSectionConfig,
     ProductShowcase: productShowcaseConfig,
+    // Computed widgets
+    ComparisonTable: comparisonTableConfig,
+    RateWidget: rateWidgetConfig,
   },
 };

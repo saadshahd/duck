@@ -1,0 +1,68 @@
+/* ComparisonTable widget — semantic tokens only (statically greppable, sp-64 §2.6b).
+   Bare: every string comes from comparisons.ts, none from the editor. The Almond column is
+   highlighted internally via [data-almond]; verdicts are marks, not authored text. */
+.almond-comparison {
+  font-family: var(--font-body);
+  color: hsl(var(--foreground));
+}
+.almond-comparison__table {
+  width: 100%;
+  border-collapse: collapse;
+}
+.almond-comparison__caption {
+  margin-bottom: 1rem;
+  font-family: var(--font-display);
+  font-size: 1.15rem;
+  color: hsl(var(--ink));
+  text-align: left;
+}
+.almond-comparison th,
+.almond-comparison td {
+  padding: 0.75rem 1rem;
+  text-align: center;
+  border-bottom: 1px solid hsl(var(--hairline));
+}
+.almond-comparison thead th {
+  font-family: var(--font-display);
+  font-weight: 560;
+  color: hsl(var(--ink));
+}
+.almond-comparison tbody th {
+  font-weight: 500;
+  color: hsl(var(--foreground));
+  text-align: left;
+}
+.almond-comparison [data-almond] {
+  background: hsl(var(--accent-wash));
+}
+.almond-comparison thead [data-almond] {
+  color: hsl(var(--primary));
+}
+.almond-comparison [data-verdict="yes"] {
+  color: hsl(var(--primary));
+}
+.almond-comparison [data-verdict="partial"] {
+  color: hsl(var(--foreground));
+}
+.almond-comparison [data-verdict="no"],
+.almond-comparison [data-verdict="na"] {
+  color: hsl(var(--muted-foreground));
+}
+.almond-comparison__mark {
+  font-size: 1.05rem;
+}
+.almond-comparison__sr {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+/* dangling reference — labeled, never a crash */
+.almond-comparison--missing {
+  padding: 1rem 1.25rem;
+  border-radius: var(--radius);
+  border: 1px dashed hsl(var(--border));
+  color: hsl(var(--muted-foreground));
+}

@@ -14,6 +14,7 @@ import { config } from "../puck.config";
 import { AppStoreBadges } from "../components/app-store-badges";
 import { Button } from "../components/button";
 import { Certification } from "../components/certification";
+import { ComparisonTable } from "../components/comparison-table";
 import { Divider } from "../components/divider";
 import { FaqItem } from "../components/faq-item";
 import { FeatureItem } from "../components/feature-item";
@@ -23,6 +24,7 @@ import { LogoItem } from "../components/logo-item";
 import { PlanCard } from "../components/plan-card";
 import { ProductSummary } from "../components/product-summary";
 import { Prose } from "../components/prose";
+import { RateWidget } from "../components/rate-widget";
 import { StatItem } from "../components/stat-item";
 import { StepItem } from "../components/step-item";
 import { Testimonial } from "../components/testimonial";
@@ -285,6 +287,36 @@ export function App() {
         }}
       >
         <Render config={config} data={organismDoc} />
+      </div>
+
+      {/* Computed widgets — the two T7 bare/resolved widgets read straight from their data
+          modules (comparisons.ts, rates stub). Each carries its own `data-theme` root, so
+          the selected theme reskins them too; the Almond column highlights internally and
+          the interactive RateWidget converts live. */}
+      <div data-theme={theme} style={{ ...panel, gap: "1.5rem" }}>
+        <ComparisonTable theme={theme} comparisonSet="send" goal="full" />
+        <div
+          style={{
+            display: "grid",
+            gridTemplateColumns: "1fr 1fr",
+            gap: "1rem",
+            alignItems: "start",
+          }}
+        >
+          <RateWidget
+            theme={theme}
+            fromCurrency="USD"
+            toCurrency="GBP"
+            amount={1000}
+          />
+          <RateWidget
+            theme={theme}
+            fromCurrency="EUR"
+            toCurrency="AUD"
+            amount={500}
+            mode="interactive"
+          />
+        </div>
       </div>
 
       {/* AA readout — the contrast the derive-recipe achieved for this theme×mode */}
