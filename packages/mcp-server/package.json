@@ -1,5 +1,5 @@
 {
-  "name": "duck-mcp-server",
+  "name": "@duckeditor/mcp-server",
   "version": "0.0.1",
   "private": true,
   "type": "module",
