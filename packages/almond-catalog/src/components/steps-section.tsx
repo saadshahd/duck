@@ -9,8 +9,8 @@
  */
 
 import type { ComponentConfig, Slot } from "@puckeditor/core";
-import type { ReactNode } from "react";
-import { CollectionGrid } from "./collection-grid";
+import { densityBodies } from "./collection-grid";
+import { DEFAULT_DENSITY, type Density, densityField } from "./density-field";
 import { SectionShell } from "./section-shell";
 import { themeField } from "./theme-field";
 import { DEFAULT_THEME, type ThemeName } from "../tokens/themes";
@@ -18,26 +18,29 @@ import "./steps-section.css";
 
 export interface StepsSectionProps {
   theme: ThemeName;
+  density: Density;
   items: Slot;
 }
 
-function StepsSectionBody({ children }: { children?: ReactNode }) {
-  return (
-    <div className="almond-steps">
-      <CollectionGrid columns={{ base: 1, md: 4 }} degrade={{ rule: "reflow" }}>
-        {children}
-      </CollectionGrid>
-    </div>
-  );
-}
+/** The DS-authored per-density layout-contract bundles; compact packs the steps tighter.
+ *  Both wrap the grid in `.almond-steps` — the `counter-reset` ancestor for the badges. */
+const bodies = densityBodies(
+  {
+    comfortable: { columns: { base: 1, md: 4 }, degrade: { rule: "reflow" } },
+    compact: { columns: { base: 2, md: 4 }, degrade: { rule: "reflow" } },
+  },
+  "almond-steps",
+);
 
 export const stepsSectionConfig: ComponentConfig<StepsSectionProps> = {
   fields: {
     theme: themeField,
+    density: densityField,
     items: { type: "slot", allow: ["StepItem"] },
   },
   defaultProps: {
     theme: DEFAULT_THEME,
+    density: DEFAULT_DENSITY,
     items: [
       {
         type: "StepItem",
@@ -62,9 +65,9 @@ export const stepsSectionConfig: ComponentConfig<StepsSectionProps> = {
       },
     ],
   },
-  render: ({ theme, items: Items }) => (
+  render: ({ theme, density, items: Items }) => (
     <SectionShell theme={theme}>
-      <Items as={StepsSectionBody} />
+      <Items as={bodies[density] ?? bodies[DEFAULT_DENSITY]} />
     </SectionShell>
   ),
 };

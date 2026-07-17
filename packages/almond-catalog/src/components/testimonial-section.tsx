@@ -7,33 +7,34 @@
  */
 
 import type { ComponentConfig, Slot } from "@puckeditor/core";
-import type { ReactNode } from "react";
-import { CollectionGrid } from "./collection-grid";
+import { densityBodies } from "./collection-grid";
+import { DEFAULT_DENSITY, type Density, densityField } from "./density-field";
 import { SectionShell } from "./section-shell";
 import { themeField } from "./theme-field";
 import { DEFAULT_THEME, type ThemeName } from "../tokens/themes";
 
 export interface TestimonialSectionProps {
   theme: ThemeName;
+  density: Density;
   items: Slot;
 }
 
-function TestimonialSectionBody({ children }: { children?: ReactNode }) {
-  return (
-    <CollectionGrid columns={{ base: 1, md: 3 }} degrade={{ rule: "balance" }}>
-      {children}
-    </CollectionGrid>
-  );
-}
+/** The DS-authored per-density layout-contract bundles; compact packs the quotes tighter. */
+const bodies = densityBodies({
+  comfortable: { columns: { base: 1, md: 3 }, degrade: { rule: "balance" } },
+  compact: { columns: { base: 2, md: 4 }, degrade: { rule: "balance" } },
+});
 
 export const testimonialSectionConfig: ComponentConfig<TestimonialSectionProps> =
   {
     fields: {
       theme: themeField,
+      density: densityField,
       items: { type: "slot", allow: ["Testimonial"] },
     },
     defaultProps: {
       theme: DEFAULT_THEME,
+      density: DEFAULT_DENSITY,
       items: [
         {
           type: "Testimonial",
@@ -61,9 +62,9 @@ export const testimonialSectionConfig: ComponentConfig<TestimonialSectionProps> 
         },
       ],
     },
-    render: ({ theme, items: Items }) => (
+    render: ({ theme, density, items: Items }) => (
       <SectionShell theme={theme}>
-        <Items as={TestimonialSectionBody} />
+        <Items as={bodies[density] ?? bodies[DEFAULT_DENSITY]} />
       </SectionShell>
     ),
   };

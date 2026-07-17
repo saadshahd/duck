@@ -6,11 +6,10 @@
  * paints through `SectionShell`.
  *
  * TWO render paths behind the `format` morph — `band` (a compact inline strip) and
- * `interstitial` (a full-bleed centred break). Both are built here; the `format` field
- * itself is promoted into the Puck contract in T9 (mirrors RateWidget's `mode` /
- * ProductSummary's `presentation` — a view param today so both paths exist and are testable
- * before the morph wiring lands). The rendered `actions` slot is passed in as children so
- * the view stays decoupled from Puck's Slot component type.
+ * `interstitial` (a full-bleed centred break). `format` is a `radio` quick-variant (T9),
+ * so the picker offers the alternative and a flip commits a prop `update`, no tree change.
+ * The rendered `actions` slot is passed in as children so the view stays decoupled from
+ * Puck's Slot component type.
  */
 
 import type { ComponentConfig, Slot } from "@puckeditor/core";
@@ -24,6 +23,7 @@ export type CTAFormat = "band" | "interstitial";
 
 export interface CTABandProps {
   theme: ThemeName;
+  format: CTAFormat;
   headline: string;
   subhead: string;
   actions: Slot;
@@ -65,6 +65,13 @@ export function CTABand({
 export const ctaBandConfig: ComponentConfig<CTABandProps> = {
   fields: {
     theme: themeField,
+    format: {
+      type: "radio",
+      options: [
+        { label: "Band", value: "band" },
+        { label: "Interstitial", value: "interstitial" },
+      ],
+    },
     headline: { type: "text" },
     subhead: { type: "textarea" },
     actions: {
@@ -74,6 +81,7 @@ export const ctaBandConfig: ComponentConfig<CTABandProps> = {
   },
   defaultProps: {
     theme: DEFAULT_THEME,
+    format: "band",
     headline: "Ready to keep more of your money?",
     subhead: "Open an Almond account in minutes — no fees to start.",
     actions: [
@@ -83,9 +91,10 @@ export const ctaBandConfig: ComponentConfig<CTABandProps> = {
       },
     ],
   },
-  render: ({ theme, headline, subhead, actions: Actions }) => (
+  render: ({ theme, format, headline, subhead, actions: Actions }) => (
     <CTABand
       theme={theme}
+      format={format}
       headline={headline}
       subhead={subhead}
       actions={<Actions as={CTABandActions} />}

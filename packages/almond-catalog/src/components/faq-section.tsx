@@ -8,32 +8,33 @@
  */
 
 import type { ComponentConfig, Slot } from "@puckeditor/core";
-import type { ReactNode } from "react";
-import { CollectionGrid } from "./collection-grid";
+import { densityBodies } from "./collection-grid";
+import { DEFAULT_DENSITY, type Density, densityField } from "./density-field";
 import { SectionShell } from "./section-shell";
 import { themeField } from "./theme-field";
 import { DEFAULT_THEME, type ThemeName } from "../tokens/themes";
 
 export interface FaqSectionProps {
   theme: ThemeName;
+  density: Density;
   items: Slot;
 }
 
-function FaqSectionBody({ children }: { children?: ReactNode }) {
-  return (
-    <CollectionGrid columns={{ base: 1 }} degrade={{ rule: "reflow" }}>
-      {children}
-    </CollectionGrid>
-  );
-}
+/** The DS-authored per-density layout-contract bundles; compact pairs Q&A into two columns. */
+const bodies = densityBodies({
+  comfortable: { columns: { base: 1 }, degrade: { rule: "reflow" } },
+  compact: { columns: { base: 1, md: 2 }, degrade: { rule: "reflow" } },
+});
 
 export const faqSectionConfig: ComponentConfig<FaqSectionProps> = {
   fields: {
     theme: themeField,
+    density: densityField,
     items: { type: "slot", allow: ["FaqItem"] },
   },
   defaultProps: {
     theme: DEFAULT_THEME,
+    density: DEFAULT_DENSITY,
     items: [
       {
         type: "FaqItem",
@@ -61,9 +62,9 @@ export const faqSectionConfig: ComponentConfig<FaqSectionProps> = {
       },
     ],
   },
-  render: ({ theme, items: Items }) => (
+  render: ({ theme, density, items: Items }) => (
     <SectionShell theme={theme}>
-      <Items as={FaqSectionBody} />
+      <Items as={bodies[density] ?? bodies[DEFAULT_DENSITY]} />
     </SectionShell>
   ),
 };

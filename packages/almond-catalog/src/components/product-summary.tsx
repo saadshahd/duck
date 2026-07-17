@@ -2,10 +2,12 @@
  * ProductSummary — the single, reusable product reference (sp-64 §3.2, §6).
  *
  * ONE component with TWO render paths — `full-card` and `compact-row` — so the same
- * product reads consistently across every page it appears on. The `presentation` morph
- * that switches paths is wired in T9; here it is a component-level param defaulting to
- * `full-card`, so both paths exist and are testable without yet touching the Puck field
- * contract (the editor lever today is only the semantic `productId` select).
+ * product reads consistently across every page it appears on. The `presentation` morph that
+ * switches paths is a `radio` quick-variant (T9) — the picker offers it and a flip commits a
+ * prop `update`. The other lever, the semantic `productId` select, is flagged
+ * `morphable:false` (§5.4): re-pointing which product shows is content, so it stays in the
+ * prop editor and out of the presentational picker. A molecule inherits its section theme,
+ * so ProductSummary carries no `theme` field of its own (§5.1).
  *
  * Resolution is total: an unknown id renders a labeled placeholder, never a crash
  * (§6; the dangling-ref state is finished in T12).
@@ -17,14 +19,18 @@ import "./product-summary.css";
 
 export type ProductPresentation = "full-card" | "compact-row";
 
-/** The Puck field contract: `productId` only. `presentation` joins it as a morph in T9. */
+/** The Puck field contract: the content-resolving `productId` (prop-editor-only, §5.4) plus
+ *  the presentational `presentation` morph (a picker quick-variant, T9). */
 export interface ProductSummaryProps {
   productId: string;
+  presentation: ProductPresentation;
 }
 
-interface ProductSummaryViewProps extends ProductSummaryProps {
+/** The component keeps `presentation` optional (defaulting `full-card`) so a direct render
+ *  omits it; the Puck contract requires it and `defaultProps` supplies it. */
+type ProductSummaryViewProps = Omit<ProductSummaryProps, "presentation"> & {
   presentation?: ProductPresentation;
-}
+};
 
 export function ProductSummary({
   productId,
@@ -74,8 +80,21 @@ const productOptions = (Object.keys(products) as ProductId[]).map((id) => ({
 
 export const productSummaryConfig: ComponentConfig<ProductSummaryProps> = {
   fields: {
-    productId: { type: "select", options: productOptions },
+    productId: {
+      type: "select",
+      options: productOptions,
+      metadata: { morphable: false },
+    },
+    presentation: {
+      type: "radio",
+      options: [
+        { label: "Full card", value: "full-card" },
+        { label: "Compact row", value: "compact-row" },
+      ],
+    },
   },
-  defaultProps: { productId: "everyday" },
-  render: ({ productId }) => <ProductSummary productId={productId} />,
+  defaultProps: { productId: "everyday", presentation: "full-card" },
+  render: ({ productId, presentation }) => (
+    <ProductSummary productId={productId} presentation={presentation} />
+  ),
 };

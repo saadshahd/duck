@@ -8,32 +8,33 @@
  */
 
 import type { ComponentConfig, Slot } from "@puckeditor/core";
-import type { ReactNode } from "react";
-import { CollectionGrid } from "./collection-grid";
+import { densityBodies } from "./collection-grid";
+import { DEFAULT_DENSITY, type Density, densityField } from "./density-field";
 import { SectionShell } from "./section-shell";
 import { themeField } from "./theme-field";
 import { DEFAULT_THEME, type ThemeName } from "../tokens/themes";
 
 export interface LogoCloudProps {
   theme: ThemeName;
+  density: Density;
   items: Slot;
 }
 
-function LogoCloudBody({ children }: { children?: ReactNode }) {
-  return (
-    <CollectionGrid columns={{ base: 2, md: 6 }} degrade={{ rule: "reflow" }}>
-      {children}
-    </CollectionGrid>
-  );
-}
+/** The DS-authored per-density layout-contract bundles; compact packs the marks tighter. */
+const bodies = densityBodies({
+  comfortable: { columns: { base: 2, md: 6 }, degrade: { rule: "reflow" } },
+  compact: { columns: { base: 3, md: 8 }, degrade: { rule: "reflow" } },
+});
 
 export const logoCloudConfig: ComponentConfig<LogoCloudProps> = {
   fields: {
     theme: themeField,
+    density: densityField,
     items: { type: "slot", allow: ["LogoItem"] },
   },
   defaultProps: {
     theme: DEFAULT_THEME,
+    density: DEFAULT_DENSITY,
     items: [
       { type: "LogoItem", props: { image: "", alt: "Acme" } },
       { type: "LogoItem", props: { image: "", alt: "Globex" } },
@@ -43,9 +44,9 @@ export const logoCloudConfig: ComponentConfig<LogoCloudProps> = {
       { type: "LogoItem", props: { image: "", alt: "Vandelay" } },
     ],
   },
-  render: ({ theme, items: Items }) => (
+  render: ({ theme, density, items: Items }) => (
     <SectionShell theme={theme}>
-      <Items as={LogoCloudBody} />
+      <Items as={bodies[density] ?? bodies[DEFAULT_DENSITY]} />
     </SectionShell>
   ),
 };

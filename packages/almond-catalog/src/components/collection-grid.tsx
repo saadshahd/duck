@@ -12,7 +12,13 @@
  * the colocated stylesheet consumes at each breakpoint.
  */
 
-import { Children, type CSSProperties, type ReactNode } from "react";
+import {
+  Children,
+  type ComponentType,
+  type CSSProperties,
+  type ReactNode,
+} from "react";
+import type { Density } from "./density-field";
 import "./collection-grid.css";
 
 export type Breakpoint = "base" | "sm" | "md" | "lg";
@@ -112,4 +118,43 @@ export function CollectionGrid({
       {children}
     </div>
   );
+}
+
+/** A whole layout-contract bundle a `density` value names (sp-64 §5.3): declared columns
+ *  plus the degrade rule, resolved together — never a bare column number. */
+export interface DensityBundle {
+  columns: Columns;
+  degrade: Degrade;
+}
+
+/**
+ * The two stable `as`-body components a collection organism swaps between on a `density`
+ * morph — one per density value, each baking its DS-authored bundle around `CollectionGrid`.
+ *
+ * Called once at module scope per organism so each body's component identity is stable
+ * across renders (Puck's DropZone `as` forwards no props, so the bundle can't ride through a
+ * single body — the T3/T5 grid-children rider); flipping `density` deliberately swaps which
+ * stable body renders, which remounts the slot subtree — acceptable for a rare morph.
+ * `wrapClassName`, when given, wraps the grid in a div carrying that class (StepsSection
+ * needs it as the `counter-reset` ancestor of every step — T4 rider).
+ */
+export function densityBodies(
+  bundles: Record<Density, DensityBundle>,
+  wrapClassName?: string,
+): Record<Density, ComponentType<{ children?: ReactNode }>> {
+  const make = (
+    bundle: DensityBundle,
+  ): ComponentType<{ children?: ReactNode }> =>
+    function DensityBody({ children }: { children?: ReactNode }) {
+      const grid = (
+        <CollectionGrid columns={bundle.columns} degrade={bundle.degrade}>
+          {children}
+        </CollectionGrid>
+      );
+      return wrapClassName ? <div className={wrapClassName}>{grid}</div> : grid;
+    };
+  return {
+    comfortable: make(bundles.comfortable),
+    compact: make(bundles.compact),
+  };
 }

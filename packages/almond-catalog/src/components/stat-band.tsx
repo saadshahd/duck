@@ -8,32 +8,33 @@
  */
 
 import type { ComponentConfig, Slot } from "@puckeditor/core";
-import type { ReactNode } from "react";
-import { CollectionGrid } from "./collection-grid";
+import { densityBodies } from "./collection-grid";
+import { DEFAULT_DENSITY, type Density, densityField } from "./density-field";
 import { SectionShell } from "./section-shell";
 import { themeField } from "./theme-field";
 import { DEFAULT_THEME, type ThemeName } from "../tokens/themes";
 
 export interface StatBandProps {
   theme: ThemeName;
+  density: Density;
   items: Slot;
 }
 
-function StatBandBody({ children }: { children?: ReactNode }) {
-  return (
-    <CollectionGrid columns={{ base: 1, md: 3 }} degrade={{ rule: "balance" }}>
-      {children}
-    </CollectionGrid>
-  );
-}
+/** The DS-authored per-density layout-contract bundles; compact packs items more tightly. */
+const bodies = densityBodies({
+  comfortable: { columns: { base: 1, md: 3 }, degrade: { rule: "balance" } },
+  compact: { columns: { base: 2, md: 6 }, degrade: { rule: "balance" } },
+});
 
 export const statBandConfig: ComponentConfig<StatBandProps> = {
   fields: {
     theme: themeField,
+    density: densityField,
     items: { type: "slot", allow: ["StatItem"] },
   },
   defaultProps: {
     theme: DEFAULT_THEME,
+    density: DEFAULT_DENSITY,
     items: [
       { type: "StatItem", props: { value: "0", label: "hidden fees" } },
       { type: "StatItem", props: { value: "4.1%", label: "AER, paid daily" } },
@@ -43,9 +44,9 @@ export const statBandConfig: ComponentConfig<StatBandProps> = {
       },
     ],
   },
-  render: ({ theme, items: Items }) => (
+  render: ({ theme, density, items: Items }) => (
     <SectionShell theme={theme}>
-      <Items as={StatBandBody} />
+      <Items as={bodies[density] ?? bodies[DEFAULT_DENSITY]} />
     </SectionShell>
   ),
 };

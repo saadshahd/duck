@@ -3,12 +3,12 @@
  * (sp-64 §3.3c, §6).
  *
  * TWO render paths behind the `mode` morph — `static` (a fixed conversion) and `interactive`
- * (a live amount input). Both are built here; the `mode` field itself is promoted into the
- * Puck contract in T9 (this mirrors ProductSummary's `presentation` — a view param today so
- * both paths exist and are testable without yet touching the morph wiring). The editor's
- * fields are `theme`, `fromCurrency`, `toCurrency`, `amount`; the currency selects are
- * flagged `morphable:false` (§5.4) — re-pointing which rate is shown is content, not a
- * presentational alternative.
+ * (a live amount input). `mode` is a `radio` quick-variant (T9) — the picker offers it and a
+ * flip commits a prop `update`. The editor's fields are `theme`, `mode`, `fromCurrency`,
+ * `toCurrency`, `amount`; the currency selects stay flagged `morphable:false` (§5.4) — re-
+ * pointing which rate is shown is content, not a presentational alternative, so it is prop-
+ * editor-only. (T9 ruling: §5.4's four-item enumeration is illustrative, not exhaustive; the
+ * operative test is content-vs-presentational, and currency is content of the same kind.)
  *
  * A widget carries its own `theme` (§5.1) but is decorated WITHIN a sibling organism, so it
  * paints a `data-theme` root rather than a nested `SectionShell` <section>. Resolution is
@@ -27,14 +27,15 @@ export type RateMode = "static" | "interactive";
 
 export interface RateWidgetProps {
   theme: ThemeName;
+  mode: RateMode;
   fromCurrency: string;
   toCurrency: string;
   amount: number;
 }
 
-interface RateWidgetViewProps extends RateWidgetProps {
-  mode?: RateMode;
-}
+/** The component keeps `mode` optional (defaulting `static`) so a direct render omits it;
+ *  the Puck contract (`RateWidgetProps`) requires it and `defaultProps` supplies it. */
+type RateWidgetViewProps = Omit<RateWidgetProps, "mode"> & { mode?: RateMode };
 
 const money = (value: number) => value.toFixed(2);
 
@@ -112,6 +113,13 @@ const currencyOptions = CURRENCIES.map((code) => ({
 export const rateWidgetConfig: ComponentConfig<RateWidgetProps> = {
   fields: {
     theme: themeField,
+    mode: {
+      type: "radio",
+      options: [
+        { label: "Static", value: "static" },
+        { label: "Interactive", value: "interactive" },
+      ],
+    },
     fromCurrency: {
       type: "select",
       options: currencyOptions,
@@ -126,13 +134,15 @@ export const rateWidgetConfig: ComponentConfig<RateWidgetProps> = {
   },
   defaultProps: {
     theme: DEFAULT_THEME,
+    mode: "static",
     fromCurrency: "USD",
     toCurrency: "GBP",
     amount: 1000,
   },
-  render: ({ theme, fromCurrency, toCurrency, amount }) => (
+  render: ({ theme, mode, fromCurrency, toCurrency, amount }) => (
     <RateWidget
       theme={theme}
+      mode={mode}
       fromCurrency={fromCurrency}
       toCurrency={toCurrency}
       amount={amount}
