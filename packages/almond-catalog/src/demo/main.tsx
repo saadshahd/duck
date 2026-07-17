@@ -1,7 +1,16 @@
 import { StrictMode, useState } from "react";
 import { createRoot } from "react-dom/client";
 import { App } from "./app";
+import { InventoryApp } from "./inventory-app";
 import { PagesApp } from "./pages-app";
+
+type View = "pages" | "studio" | "inventory";
+
+const VIEWS: { id: View; label: string }[] = [
+  { id: "pages", label: "Pages" },
+  { id: "studio", label: "Component studio" },
+  { id: "inventory", label: "Inventory" },
+];
 
 const tabBar: React.CSSProperties = {
   display: "flex",
@@ -26,30 +35,31 @@ function tab(active: boolean): React.CSSProperties {
   };
 }
 
-/** Demo shell: the T11 Pages harness and the component studio, side by side. */
+/** Demo shell: the T11 Pages harness, the component studio, and the T13 inventory route. */
 function Demo() {
-  const [view, setView] = useState<"pages" | "studio">("pages");
+  const [view, setView] = useState<View>("pages");
   return (
     <>
       <div style={tabBar}>
-        <button
-          type="button"
-          onClick={() => setView("pages")}
-          aria-pressed={view === "pages"}
-          style={tab(view === "pages")}
-        >
-          Pages
-        </button>
-        <button
-          type="button"
-          onClick={() => setView("studio")}
-          aria-pressed={view === "studio"}
-          style={tab(view === "studio")}
-        >
-          Component studio
-        </button>
+        {VIEWS.map(({ id, label }) => (
+          <button
+            key={id}
+            type="button"
+            onClick={() => setView(id)}
+            aria-pressed={view === id}
+            style={tab(view === id)}
+          >
+            {label}
+          </button>
+        ))}
       </div>
-      {view === "pages" ? <PagesApp /> : <App />}
+      {view === "pages" ? (
+        <PagesApp />
+      ) : view === "studio" ? (
+        <App />
+      ) : (
+        <InventoryApp />
+      )}
     </>
   );
 }
