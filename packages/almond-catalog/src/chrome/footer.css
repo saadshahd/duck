@@ -1,0 +1,70 @@
+/* Footer — fixed app-shell chrome (sp-64 §3.4). Contract tokens only, via hsl(var(--x)).
+   Muted surface, hairline-separated meta + fine-print; the data-theme root paints it under
+   the page-default theme like any organism. */
+.almond-footer {
+  display: grid;
+  gap: 2rem;
+  padding-block: 3rem;
+  padding-inline: 1.5rem;
+  background: hsl(var(--surface-muted));
+  color: hsl(var(--muted-foreground));
+  border-top: 1px solid hsl(var(--hairline));
+  font-family: var(--font-body);
+}
+
+.almond-footer__columns {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 2rem;
+}
+
+.almond-footer__title {
+  margin: 0 0 0.75rem;
+  font-size: 0.8rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: hsl(var(--foreground));
+}
+
+.almond-footer__links {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 0.5rem;
+}
+
+.almond-footer__link {
+  color: hsl(var(--muted-foreground));
+  text-decoration: none;
+  font-size: 0.9rem;
+}
+
+.almond-footer__link:hover {
+  color: hsl(var(--foreground));
+}
+
+.almond-footer__disclosures {
+  display: grid;
+  gap: 0.6rem;
+  padding-top: 1.5rem;
+  border-top: 1px solid hsl(var(--hairline));
+}
+
+.almond-footer__disclosure {
+  margin: 0;
+  font-size: 0.75rem;
+  line-height: 1.5;
+  color: hsl(var(--muted-foreground));
+}
+
+.almond-footer__meta {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  flex-wrap: wrap;
+  padding-top: 1.5rem;
+  border-top: 1px solid hsl(var(--hairline));
+  font-size: 0.8rem;
+}
