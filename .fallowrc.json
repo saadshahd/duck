@@ -34,7 +34,8 @@
           "src/editor/duck-render/**",
           "src/editor/animated-update.ts",
           "src/editor/resolve-config.ts",
-          "src/editor/resolve-op.ts",
+          "src/editor/commit.ts",
+          "src/editor/commit.test.ts",
           "src/editor/types.ts"
         ]
       },
