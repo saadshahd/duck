@@ -13,11 +13,11 @@ Boundary zones are defined in `.fallowrc.json` at the repo root. The config enco
 |------|-------|-----------------|
 | `spec-pkg` | `packages/spec/**` | Nothing in this project |
 | `mcp-server-pkg` | `packages/mcp-server/**` | `spec-pkg` only |
-| `editor-shell` | `src/editor/shell.tsx`, `src/editor/shell/**` | All editor zones + `spec-pkg` |
+| `editor-shell` | `src/editor/editor.tsx`, `src/editor/shell/**` | All editor zones + `spec-pkg` |
 | `editor-infra` | `src/editor/{fiber,overlay,machine,layout,spec-ops,bridge,duck-render}/**`, root-level `animated-update.ts`, `types.ts` | `spec-pkg` only |
 | `editor-domain-*` | One zone per domain subfolder | `editor-infra` + `spec-pkg` only |
 
-Domain subfolders (10 zones): `selection`, `drag`, `box-model`, `prop-editor`, `history`, `keyboard`, `context-menu`, `clipboard`, `insert`, `ghost`
+Domain subfolders each get their own `editor-domain-*` zone — see `boundaries.zones` in `.fallowrc.json` for the authoritative list.
 
 ## When to run fallow
 
