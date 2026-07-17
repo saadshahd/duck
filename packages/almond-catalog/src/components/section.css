@@ -1,0 +1,14 @@
+/* Section — the free composition host that owns inter-child rhythm (sp-64 §3.3b).
+   No token refs of its own: colour is each slotted child's concern against the ambient
+   theme. The body is a single vertical rhythm column — atoms carry no outer margins (T2),
+   so the gap here is the ONLY thing separating a Heading from the Text beneath it. A
+   constrained measure keeps prose readable; the wrapper centres within SectionShell's
+   padding. */
+.almond-section-body {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+  align-items: start;
+  max-width: 44rem;
+  margin-inline: auto;
+}

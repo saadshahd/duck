@@ -36,6 +36,12 @@ import { testimonialConfig } from "./components/testimonial";
 import { comparisonTableConfig } from "./components/comparison-table";
 import { rateWidgetConfig } from "./components/rate-widget";
 
+// Field / free-host organisms (T6)
+import { ctaBandConfig } from "./components/cta-band";
+import { disclosureBandConfig } from "./components/disclosure-band";
+import { heroConfig } from "./components/hero";
+import { sectionConfig } from "./components/section";
+
 // Collection organisms (T5)
 import { faqSectionConfig } from "./components/faq-section";
 import { featureGridConfig } from "./components/feature-grid";
@@ -84,6 +90,10 @@ export const config: Config = {
       title: "Computed widgets",
       components: ["ComparisonTable", "RateWidget"],
     },
+    hosts: {
+      title: "Field / free-host organisms",
+      components: ["Hero", "Section", "CTABand", "DisclosureBand"],
+    },
   },
   components: {
     // Atoms
@@ -116,5 +126,10 @@ export const config: Config = {
     // Computed widgets
     ComparisonTable: comparisonTableConfig,
     RateWidget: rateWidgetConfig,
+    // Field / free-host organisms
+    Hero: heroConfig,
+    Section: sectionConfig,
+    CTABand: ctaBandConfig,
+    DisclosureBand: disclosureBandConfig,
   },
 };

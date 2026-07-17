@@ -1,0 +1,24 @@
+/* DisclosureBand — muted legal fine-print (sp-64 §3.3b, §6).
+   Semantic tokens only (statically greppable, §2.6b). Deliberately quiet craft: small,
+   low-contrast muted text, hairline-separated so the disclosures read as compliance
+   footing rather than content — present but never competing with the page. */
+.almond-disclosure {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  max-width: 52rem;
+  margin-inline: auto;
+}
+.almond-disclosure__item {
+  margin: 0;
+  padding-top: 0.75rem;
+  font-family: var(--font-body);
+  font-size: 0.8rem;
+  line-height: 1.5;
+  color: hsl(var(--muted-foreground));
+  border-top: 1px solid hsl(var(--hairline));
+}
+.almond-disclosure__item:first-child {
+  padding-top: 0;
+  border-top: none;
+}
