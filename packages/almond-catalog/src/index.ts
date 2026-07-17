@@ -41,3 +41,4 @@ export * from "./data/comparisons";
 export * from "./data/disclosures";
 export * from "./data/rates";
 export { config } from "./puck.config";
+export { patternConfig } from "./pattern.config";

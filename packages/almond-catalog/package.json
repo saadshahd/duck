@@ -23,6 +23,8 @@
     "test": "bun test"
   },
   "dependencies": {
+    "@duckeditor/patterns": "workspace:*",
+    "@duckeditor/spec": "workspace:*",
     "@puckeditor/core": "^0.22.0",
     "culori": "^4.0.1",
     "react": "^19.0.0",
