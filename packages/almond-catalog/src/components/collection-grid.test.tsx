@@ -70,4 +70,23 @@ describe("CollectionGrid — count projection", () => {
     expect(html).toContain("--cols-base:2");
     expect(html).toContain("--cols-md:4");
   });
+
+  test("shows the add-first affordance at n=0", () => {
+    const html = renderToStaticMarkup(
+      <CollectionGrid columns={{ base: 3 }} degrade={{ rule: "balance" }}>
+        {[]}
+      </CollectionGrid>,
+    );
+    expect(html).toContain("almond-grid__empty");
+    expect(html).toContain("Add the first item");
+  });
+
+  test("omits the add-first affordance once it holds an item", () => {
+    const html = renderToStaticMarkup(
+      <CollectionGrid columns={{ base: 3 }} degrade={{ rule: "balance" }}>
+        <span>one</span>
+      </CollectionGrid>,
+    );
+    expect(html).not.toContain("almond-grid__empty");
+  });
 });

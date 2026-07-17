@@ -136,6 +136,12 @@ describe("layout-contract flows through the organism (FeatureGrid, balance)", ()
     expect(html).toContain("--cols-md:3");
   });
 
+  test("n=0 paints the add-first affordance inside the section", () => {
+    const html = renderOrganism(featureGridConfig, "personal", 0);
+    expect(html).toContain("almond-grid__empty");
+    expect(html).toContain("Add the first item");
+  });
+
   test("n=1 collapses ghost tracks (balance → min(declared,count))", () => {
     const html = renderOrganism(featureGridConfig, "personal", 1);
     expect(html).toContain("--cols-md:1");

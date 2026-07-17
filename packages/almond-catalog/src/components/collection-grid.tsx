@@ -115,7 +115,22 @@ export function CollectionGrid({
   } as CSSProperties;
   return (
     <div className="almond-grid" style={style}>
-      {children}
+      {count === 0 ? <EmptyAffordance /> : children}
+    </div>
+  );
+}
+
+/**
+ * The add-first affordance a collection paints when it holds no items (sp-64 §7.2 —
+ * the collection category's critical state). A full-bleed placeholder that spans every
+ * declared track (`grid-column: 1 / -1`), so the layout-contract still emits its columns
+ * while the empty section reads as a slot inviting its first item. Non-interactive: the
+ * catalog owns the honest empty signal, the editor overlays the actual add.
+ */
+function EmptyAffordance() {
+  return (
+    <div className="almond-grid__empty" role="note">
+      Add the first item
     </div>
   );
 }
