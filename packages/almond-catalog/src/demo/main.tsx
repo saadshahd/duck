@@ -1,13 +1,15 @@
 import { StrictMode, useState } from "react";
 import { createRoot } from "react-dom/client";
 import { App } from "./app";
+import { EditorApp } from "./editor-app";
 import { InventoryApp } from "./inventory-app";
 import { PagesApp } from "./pages-app";
 
-type View = "pages" | "studio" | "inventory";
+type View = "editor" | "pages" | "studio" | "inventory";
 
 const VIEWS: { id: View; label: string }[] = [
-  { id: "pages", label: "Pages" },
+  { id: "editor", label: "Editor" },
+  { id: "pages", label: "Pages (read-only)" },
   { id: "studio", label: "Component studio" },
   { id: "inventory", label: "Inventory" },
 ];
@@ -37,7 +39,7 @@ function tab(active: boolean): React.CSSProperties {
 
 /** Demo shell: the T11 Pages harness, the component studio, and the T13 inventory route. */
 function Demo() {
-  const [view, setView] = useState<View>("pages");
+  const [view, setView] = useState<View>("editor");
   return (
     <>
       <div style={tabBar}>
@@ -53,7 +55,9 @@ function Demo() {
           </button>
         ))}
       </div>
-      {view === "pages" ? (
+      {view === "editor" ? (
+        <EditorApp />
+      ) : view === "pages" ? (
         <PagesApp />
       ) : view === "studio" ? (
         <App />
