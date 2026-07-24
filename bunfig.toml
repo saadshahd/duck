@@ -1,0 +1,14 @@
+[install]
+# Every package resolves only what it declares, so a phantom import fails loud
+# instead of resolving by accident through a hoisted tree.
+linker = "isolated"
+
+# Packages are shared from a global content-addressable store, so this checkout
+# holds ~3.7M of symlinks instead of ~285M of files and every extra worktree is
+# near-free. Requires the isolated linker.
+#
+# The store lives outside the project tree, so a stored package can only resolve
+# what its own manifest declares. @puckeditor/core imports react-dom at runtime
+# while declaring it only in devDependencies, which breaks under that rule — see
+# vendor/README.md for why the root `overrides` entry exists.
+globalStore = true

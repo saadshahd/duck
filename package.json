@@ -29,5 +29,8 @@
   "type": "module",
   "workspaces": [
     "packages/*"
-  ]
+  ],
+  "overrides": {
+    "@puckeditor/core": "file:../../vendor/puckeditor-core-0.22.0.tgz"
+  }
 }
