@@ -71,10 +71,8 @@ When deciding what to test:
 
 ## Dev
 
-```
-bun install
-bun run dev        # Vite on :5173
-bun run typecheck  # All packages
-bun test           # Unit tests (bun:test)
-bunx playwright test --project=chromium  # E2E
-```
+Commands live in `package.json` scripts; README.md's Dev section lists the ones
+you need. Always `bun run test`, never bare `bun test` — the builtin run from the
+repo root uses the root config, where no `[test]` preload exists, so DOM globals
+are missing. The `test` script invokes it once per package instead, picking up
+each package's own `bunfig.toml`.
