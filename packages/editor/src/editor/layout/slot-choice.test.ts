@@ -1,6 +1,7 @@
 import { describe, test, expect } from "bun:test";
 import type { ComponentData, Data } from "@puckeditor/core";
 import type { FiberRegistry } from "../fiber/index.js";
+import { stubRegistry } from "../fiber/testing.js";
 import { slotChoiceRect, slotChildAt } from "./slot-choice.js";
 
 const rect = (x: number, y: number, w: number, h: number): DOMRect =>
@@ -29,21 +30,12 @@ const data = (): Data => ({
 
 /** A registry stub: the card spans 0..300 vertically; header child at the top,
  *  body child below. Empty footer has no child. */
-const registry = (): FiberRegistry => {
-  const rects: Record<string, DOMRect> = {
+const registry = (): FiberRegistry =>
+  stubRegistry({
     card: rect(0, 0, 200, 300),
     h: rect(0, 0, 200, 80),
     b: rect(0, 90, 200, 80),
-  };
-  return {
-    get: (id) =>
-      rects[id]
-        ? ({ getBoundingClientRect: () => rects[id] } as HTMLElement)
-        : undefined,
-    getNodeId: () => undefined,
-    dispose: () => {},
-  };
-};
+  });
 
 describe("slotChoiceRect", () => {
   test("measured slot → a non-empty band", () => {
