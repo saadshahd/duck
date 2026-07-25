@@ -12,9 +12,7 @@ export { FIX } from "../../test-catalog/fixture.js";
 export const openTestPage = async (page: Page) => {
   await page.goto("/test.html");
   await page.waitForFunction(() => {
-    const host = [...document.querySelectorAll("div")].find(
-      (d) => d.shadowRoot && d.style.position === "fixed",
-    );
+    const host = document.querySelector("[data-role='overlay-root']");
     return (
       (host?.shadowRoot?.adoptedStyleSheets.length ?? 0) > 0 &&
       document.querySelector("[data-testid]") !== null

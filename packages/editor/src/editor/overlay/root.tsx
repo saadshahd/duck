@@ -21,6 +21,7 @@ export function OverlayRoot({ children }: { children: ReactNode }) {
   return (
     <root.div
       ref={hostRef}
+      data-role="overlay-root"
       style={{
         position: "fixed",
         inset: 0,
