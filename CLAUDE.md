@@ -15,6 +15,17 @@ Every response MUST start with:
 
 Then provide code. Exception: trivial tasks (typo, yes/no) skip risks.
 
+## Taste rules
+
+Taste rules live in `.claude/sound/<topic>/` as plain reference files. They do
+NOT auto-load. Run `sound:prime` before writing or editing code, and again when
+the work reaches a surface it was not planned to touch. Run `sound:review` over
+a staged diff or commit range before committing.
+
+`.claude/rules/` holds only this project's architecture rules (`editor`,
+`mcp-server`, `fallow`, `effect-patterns`) — those still auto-load. Do NOT put
+taste rules there.
+
 ## Decision rules
 
 When uncertain between approaches:
