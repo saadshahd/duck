@@ -1,13 +1,15 @@
-import { test, expect } from "@playwright/test";
+import { test, expect, type Page } from "@playwright/test";
 import {
   climbToParent,
   toggleBoxModel,
   isBoxModelToggleActive,
   readBoxModelBands,
+  countBoxModelBands,
   countGapRegions,
   getBoxModelBandsRect,
-  waitFrames,
-openTestPage,
+  selectElement,
+  settle,
+  openTestPage,
 } from "../overlay/testing.js";
 
 /** Coverage for the box-model overlay (margin/padding/content bands + gap
@@ -20,17 +22,21 @@ test.describe("Box-model overlay", () => {
     await openTestPage(page);
   });
 
-  const selectPageBox = async (page: import("@playwright/test").Page) => {
-    await page.locator("h1").click();
-    await page.waitForTimeout(300);
+  const selectPageBox = async (page: Page) => {
+    await selectElement(page, page.locator("h1"));
     await climbToParent(page); // hero
     await climbToParent(page); // page
   };
 
-  const selectHero = async (page: import("@playwright/test").Page) => {
-    await page.locator("h1").click();
-    await page.waitForTimeout(300);
+  const selectHero = async (page: Page) => {
+    await selectElement(page, page.locator("h1"));
     await climbToParent(page); // hero
+  };
+
+  /** Toggle the overlay on and wait for the bands container it mounts. */
+  const showBands = async (page: Page) => {
+    await toggleBoxModel(page);
+    await expect.poll(() => countBoxModelBands(page)).toBe(1);
   };
 
   test("toggling on a margined, padded element mounts margin+padding+content bands; toggling off unmounts them", async ({
@@ -38,16 +44,17 @@ test.describe("Box-model overlay", () => {
   }) => {
     await selectPageBox(page);
 
-    await toggleBoxModel(page);
-    await page.waitForTimeout(150);
+    await showBands(page);
     expect(await isBoxModelToggleActive(page)).toBe(true);
     const bands = await readBoxModelBands(page);
     expect(new Set(bands.map((b) => b.band))).toEqual(
       new Set(["margin", "padding", "content"]),
     );
 
+    await settle(page);
     await toggleBoxModel(page);
-    await page.waitForTimeout(150);
+    // 1 → 0 is a real transition, so this poll waits on something.
+    await expect.poll(() => countBoxModelBands(page)).toBe(0);
     expect(await isBoxModelToggleActive(page)).toBe(false);
     expect(await readBoxModelBands(page)).toEqual([]);
   });
@@ -57,8 +64,7 @@ test.describe("Box-model overlay", () => {
   }) => {
     await selectHero(page);
 
-    await toggleBoxModel(page);
-    await page.waitForTimeout(150);
+    await showBands(page);
     const bands = await readBoxModelBands(page);
     expect(new Set(bands.map((b) => b.band))).toEqual(
       new Set(["padding", "content"]),
@@ -70,8 +76,7 @@ test.describe("Box-model overlay", () => {
   }) => {
     await selectHero(page); // 3 children, gap 1.5rem
 
-    await toggleBoxModel(page);
-    await page.waitForTimeout(150);
+    await showBands(page);
     expect(await countGapRegions(page)).toBe(2);
   });
 
@@ -80,17 +85,17 @@ test.describe("Box-model overlay", () => {
   }) => {
     // hero-actions starts with 2 Buttons (gap 0.75rem) — delete one so the
     // live container drops below the 2-child gap threshold.
-    await page.getByText("Start building").click();
-    await page.waitForTimeout(300);
+    const doomed = page.getByText("Start building");
+    await selectElement(page, doomed);
     await page.keyboard.press("Delete");
-    await page.waitForTimeout(300);
+    // The delete's own observable: the button leaves the light DOM.
+    await doomed.waitFor({ state: "detached" });
+    await settle(page);
 
-    await page.getByText("Read the docs").click();
-    await page.waitForTimeout(300);
+    await selectElement(page, page.getByText("Read the docs"));
     await climbToParent(page); // hero-actions
 
-    await toggleBoxModel(page);
-    await page.waitForTimeout(150);
+    await showBands(page);
     expect(await countGapRegions(page)).toBe(0);
   });
 
@@ -98,14 +103,14 @@ test.describe("Box-model overlay", () => {
     page,
   }) => {
     await selectPageBox(page);
-    await toggleBoxModel(page);
-    await page.waitForTimeout(150);
+    await showBands(page);
     expect(await isBoxModelToggleActive(page)).toBe(true);
 
     // Select a different element — the toggle must NOT carry over.
-    await page.locator("h1").click();
-    await page.waitForTimeout(300);
+    await settle(page);
+    await selectElement(page, page.locator("h1"));
 
+    await expect.poll(() => countBoxModelBands(page)).toBe(0);
     expect(await isBoxModelToggleActive(page)).toBe(false);
     expect(await readBoxModelBands(page)).toEqual([]);
   });
@@ -114,15 +119,18 @@ test.describe("Box-model overlay", () => {
     page,
   }) => {
     await selectHero(page);
-    await toggleBoxModel(page);
-    await page.waitForTimeout(150);
+    await showBands(page);
 
     const before = await getBoxModelBandsRect(page);
     expect(before).not.toBeNull();
 
     await page.mouse.wheel(0, 400);
-    await waitFrames(page, 6);
-    await page.waitForTimeout(100);
+
+    // The rAF anchor loop re-reads the element rect each frame; the moved band
+    // IS the observable, so poll it instead of guessing at frames + a sleep.
+    await expect
+      .poll(async () => (await getBoxModelBandsRect(page))?.top)
+      .not.toBe(before!.top);
 
     const after = await getBoxModelBandsRect(page);
     expect(after).not.toBeNull();

@@ -1,5 +1,10 @@
 import { test, expect } from "@playwright/test";
-import { countSelectionRings, openTestPage } from "../overlay/testing.js";
+import {
+  countSelectionRings,
+  selectElement,
+  settle,
+  openTestPage,
+} from "../overlay/testing.js";
 
 test.describe("Escape never navigates the browser", () => {
   test.beforeEach(async ({ page }) => {
@@ -10,15 +15,14 @@ test.describe("Escape never navigates the browser", () => {
     page,
   }) => {
     const url = page.url();
-    await page.locator("h1").click();
-    await page.waitForTimeout(200);
+    await selectElement(page, page.locator("h1"));
     expect(await countSelectionRings(page)).toBeGreaterThan(0);
 
     await page.keyboard.press("Escape");
-    await page.waitForTimeout(200);
 
+    // Ring count 1 → 0 is a real transition, so polling for it is not vacuous.
+    await expect.poll(() => countSelectionRings(page)).toBe(0);
     expect(page.url()).toBe(url);
-    expect(await countSelectionRings(page)).toBe(0);
   });
 
   test("Escape with nothing selected leaves URL unchanged", async ({
@@ -26,7 +30,10 @@ test.describe("Escape never navigates the browser", () => {
   }) => {
     const url = page.url();
     await page.keyboard.press("Escape");
-    await page.waitForTimeout(200);
+    // "The URL did not change" has no post-state to poll for — a poll would pass
+    // instantly whether or not a navigation was about to commit. Two frames give
+    // the browser its chance to act on the key before we read.
+    await settle(page);
     expect(page.url()).toBe(url);
   });
 });

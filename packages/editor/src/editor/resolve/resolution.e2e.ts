@@ -1,4 +1,4 @@
-import { test, expect } from "@playwright/test";
+import { test, expect, type Page } from "@playwright/test";
 import {
   clickToolbarAction,
   isSheetVisible,
@@ -6,8 +6,10 @@ import {
   isResolveErrorVisible,
   getReadOnlyFieldValue,
   countRole,
+  selectElement,
+  settle,
   FIX,
-openTestPage,
+  openTestPage,
 } from "../overlay/testing.js";
 
 // TODO(resolve error-path E2E): needs a failing resolver — deferred. No frozen
@@ -25,19 +27,24 @@ test.describe("Resolve pipeline — happy path", () => {
   const heroDescriptionText = FIX.text.copy;
   const elementId = FIX.text.id;
 
-  const selectHeroDescription = async (
-    page: import("@playwright/test").Page,
-  ) => {
-    await page.getByText(heroDescriptionText, { exact: true }).click();
-    await page.waitForTimeout(200);
+  const selectHeroDescription = (page: Page) =>
+    selectElement(page, page.getByText(heroDescriptionText, { exact: true }));
+
+  /** Open the sheet and wait for the panel itself. Tight polling intervals: the
+   *  shimmer assertions that follow live inside the resolver's 1000ms window, so
+   *  the wait must not spend that budget stepping through the default backoff. */
+  const openSheet = async (page: Page) => {
+    await clickToolbarAction(page, "edit");
+    await expect
+      .poll(() => isSheetVisible(page), { intervals: [50] })
+      .toBe(true);
   };
 
   test("opening the sheet resolves the field: shimmer first, then the resolved value + readonly badge", async ({
     page,
   }) => {
     await selectHeroDescription(page);
-    await clickToolbarAction(page, "edit");
-    await page.waitForTimeout(150);
+    await openSheet(page);
 
     expect(await isSheetVisible(page)).toBe(true);
     // Shimmer mounts immediately on open, before the resolver's delay elapses.
@@ -62,8 +69,7 @@ test.describe("Resolve pipeline — happy path", () => {
     page,
   }) => {
     await selectHeroDescription(page);
-    await clickToolbarAction(page, "edit");
-    await page.waitForTimeout(150);
+    await openSheet(page);
 
     await expect
       .poll(() => isResolvingVisible(page, elementId), {
@@ -74,11 +80,11 @@ test.describe("Resolve pipeline — happy path", () => {
     expect(firstValue).toBe(`Resolved force: ${heroDescriptionText}`);
 
     await page.keyboard.press("Escape");
-    await page.waitForTimeout(200);
-    expect(await isSheetVisible(page)).toBe(false);
+    // Sheet open → closed is a real transition, so this poll waits on it.
+    await expect.poll(() => isSheetVisible(page)).toBe(false);
+    await settle(page);
 
-    await clickToolbarAction(page, "edit");
-    await page.waitForTimeout(150);
+    await openSheet(page);
 
     // The shimmer reappears — the resolver actually re-ran, it didn't just
     // keep the previously resolved value cached.

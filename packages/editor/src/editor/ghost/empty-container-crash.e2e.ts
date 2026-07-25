@@ -1,8 +1,10 @@
-import { test, expect } from "@playwright/test";
+import { test, expect, type Page } from "@playwright/test";
 import {
   isCatalogPickerVisible,
   clickFirstCatalogPickerItem,
-openTestPage,
+  selectElement,
+  settle,
+  openTestPage,
 } from "../overlay/testing.js";
 
 /** BLOCKER repro (Smoke test findings): a container collapsing to zero children
@@ -16,7 +18,7 @@ test.describe("Empty-container ghost path does not crash the editor", () => {
     await openTestPage(page);
   });
 
-  const collectErrors = (page: import("@playwright/test").Page) => {
+  const collectErrors = (page: Page) => {
     const consoleErrors: string[] = [];
     page.on("console", (msg) => {
       if (msg.type() === "error") consoleErrors.push(msg.text());
@@ -26,6 +28,27 @@ test.describe("Empty-container ghost path does not crash the editor", () => {
     return { consoleErrors, pageErrors };
   };
 
+  /** Insert the first catalog offer as a sibling of the current selection.
+   *  Returns the inserted component's type name. */
+  const insertFirstOffer = async (page: Page) => {
+    await page.keyboard.press("/");
+    await expect.poll(() => isCatalogPickerVisible(page)).toBe(true);
+    await settle(page);
+    return clickFirstCatalogPickerItem(page);
+  };
+
+  /** Select the named text node and delete it, waiting for it to actually leave
+   *  the light DOM. The hook-order crash this suite guards renders synchronously
+   *  with that removal, so the detach is a sufficient observer for it — a
+   *  crashed editor unmounts the tree instead of re-rendering it. */
+  const deleteTextNode = async (page: Page, copy: string) => {
+    const node = page.getByText(copy, { exact: true });
+    await selectElement(page, node);
+    await page.keyboard.press("Delete");
+    await node.waitFor({ state: "detached" });
+    await settle(page);
+  };
+
   test("deleting all children of a container survives — no hook-order crash", async ({
     page,
   }) => {
@@ -33,26 +56,13 @@ test.describe("Empty-container ghost path does not crash the editor", () => {
 
     // Insert a Box (default children: Heading "Section heading" + Text "Add
     // your content here.") as a sibling of the hero heading.
-    await page.locator("h1").click();
-    await page.waitForTimeout(300);
-    await page.keyboard.press("/");
-    await page.waitForTimeout(300);
-    expect(await isCatalogPickerVisible(page)).toBe(true);
-    const inserted = await clickFirstCatalogPickerItem(page);
-    expect(inserted).toBe("Box");
-    await page.waitForTimeout(300);
+    await selectElement(page, page.locator("h1"));
+    expect(await insertFirstOffer(page)).toBe("Box");
 
     // Delete the Box's two default children one at a time — the second delete
     // collapses the Box to zero children (a ghost candidate).
-    await page.getByText("Section heading", { exact: true }).click();
-    await page.waitForTimeout(300);
-    await page.keyboard.press("Delete");
-    await page.waitForTimeout(300);
-
-    await page.getByText("Add your content here.", { exact: true }).click();
-    await page.waitForTimeout(300);
-    await page.keyboard.press("Delete");
-    await page.waitForTimeout(500);
+    await deleteTextNode(page, "Section heading");
+    await deleteTextNode(page, "Add your content here.");
 
     // The editor must still be alive: the hero heading (untouched sibling) is
     // still rendered — a crash unmounts the whole tree to a blank page.
@@ -73,24 +83,14 @@ test.describe("Empty-container ghost path does not crash the editor", () => {
     // Exact smoke-test path: select a card-body Text, insert a Box as its
     // sibling inside the Card body slot, then delete the Box's two default
     // children — the Box collapses to a ghost candidate inside the slot.
-    await page.getByText("No panels, no toolbars.", { exact: false }).click();
-    await page.waitForTimeout(300);
-    await page.keyboard.press("/");
-    await page.waitForTimeout(300);
-    expect(await isCatalogPickerVisible(page)).toBe(true);
-    const inserted = await clickFirstCatalogPickerItem(page);
-    expect(inserted).toBe("Box");
-    await page.waitForTimeout(300);
+    await selectElement(
+      page,
+      page.getByText("No panels, no toolbars.", { exact: false }),
+    );
+    expect(await insertFirstOffer(page)).toBe("Box");
 
-    await page.getByText("Section heading", { exact: true }).click();
-    await page.waitForTimeout(300);
-    await page.keyboard.press("Delete");
-    await page.waitForTimeout(300);
-
-    await page.getByText("Add your content here.", { exact: true }).click();
-    await page.waitForTimeout(300);
-    await page.keyboard.press("Delete");
-    await page.waitForTimeout(500);
+    await deleteTextNode(page, "Section heading");
+    await deleteTextNode(page, "Add your content here.");
 
     await expect(page.locator("h1")).toBeVisible();
 

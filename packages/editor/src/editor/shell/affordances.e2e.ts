@@ -7,7 +7,8 @@ import {
   dispatchDrag,
   clickToolbarAction,
   isSheetVisible,
-openTestPage,
+  selectElement,
+  openTestPage,
 } from "../overlay/testing.js";
 
 /** R4 observer: one assertion per interaction state pinning its complete,
@@ -22,8 +23,7 @@ test.describe("R4 — state-owned affordance sets", () => {
   test("resting-selected owns rings + label cluster + action bar; no slot stop, no drop overlay, no lift pulse", async ({
     page,
   }) => {
-    await page.locator("h1").click();
-    await page.waitForTimeout(300);
+    await selectElement(page, page.locator("h1"));
 
     expect(await readOverlayElements(page)).toEqual({
       selectionRings: 1,
@@ -40,8 +40,7 @@ test.describe("R4 — state-owned affordance sets", () => {
   test("editing owns the ring only — the panel supersedes the handle (no action bar, no label cluster, no box-model)", async ({
     page,
   }) => {
-    await page.locator("h1").click();
-    await page.waitForTimeout(300);
+    await selectElement(page, page.locator("h1"));
 
     await clickToolbarAction(page, "edit");
     await expect.poll(() => isSheetVisible(page)).toBe(true);
@@ -67,8 +66,7 @@ test.describe("R4 — state-owned affordance sets", () => {
   test("slot-selected owns the slot stop only; node label cluster yields (R12), no rings, no box-model, no action bar, no drop overlay", async ({
     page,
   }) => {
-    await page.locator("h3").first().click();
-    await page.waitForTimeout(300);
+    await selectElement(page, page.locator("h3").first());
 
     // Slot-selected is reached via the insert slot-choice on the Card. R12: the
     // node label cluster yields entirely so the slot-stop label is the sole
@@ -92,8 +90,7 @@ test.describe("R4 — state-owned affordance sets", () => {
     page,
   }) => {
     const heading = page.locator("h1");
-    await heading.click();
-    await page.waitForTimeout(300);
+    await selectElement(page, heading);
 
     const description = page.locator("p").first();
     const from = await sourceCenter(heading);
@@ -122,12 +119,10 @@ test.describe("R4 — state-owned affordance sets", () => {
     page,
   }) => {
     const heading = page.locator("h1");
-    await heading.click();
-    await page.waitForTimeout(300);
+    await selectElement(page, heading);
 
     // Lift into carry via Space — the keyboard lift is carry's entry point.
     await page.keyboard.press("Space");
-    await page.waitForTimeout(150);
 
     await expect
       .poll(() => readOverlayElements(page))

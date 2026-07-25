@@ -1,12 +1,15 @@
-import { test, expect } from "@playwright/test";
+import { test, expect, type Page } from "@playwright/test";
 import {
   isCatalogPickerVisible,
   clickFirstCatalogPickerItem,
+  getValidPickerItemTypes,
   isGhostStyled,
   getGhostRect,
   countGhostMarkers,
   isSelectionLabelVisible,
-openTestPage,
+  selectElement,
+  settle,
+  openTestPage,
 } from "../overlay/testing.js";
 
 /** Coverage for the ghost-placeholder visibility contract (previously only
@@ -26,27 +29,36 @@ test.describe("Ghost placeholder visibility", () => {
    *  inserted Stack is the only <div> immediately following <h1>. */
   const emptyBoxSelector = "h1 + div";
 
-  const insertAndEmptyBox = async (page: import("@playwright/test").Page) => {
-    await page.locator("h1").click();
-    await page.waitForTimeout(300);
+  /** Select the named text node, delete it, and wait for it to actually leave
+   *  the light DOM — the delete's own observable. `settle` then covers the next
+   *  input, since the detach resolves the instant the DOM mutates. */
+  const deleteTextNode = async (page: Page, copy: string) => {
+    const node = page.getByText(copy, { exact: true });
+    await selectElement(page, node);
+    await page.keyboard.press("Delete");
+    await node.waitFor({ state: "detached" });
+    await settle(page);
+  };
+
+  const insertAndEmptyBox = async (page: Page) => {
+    await selectElement(page, page.locator("h1"));
     await page.keyboard.press("/");
-    await page.waitForTimeout(300);
-    expect(await isCatalogPickerVisible(page)).toBe(true);
+    await expect.poll(() => isCatalogPickerVisible(page)).toBe(true);
+    await settle(page);
+
     await page.keyboard.type("Stack");
-    await page.waitForTimeout(150);
+    // The filter is what the typing produces: wait until Stack heads the valid
+    // list, which is exactly the precondition clickFirstCatalogPickerItem needs.
+    await expect
+      .poll(async () => (await getValidPickerItemTypes(page))[0])
+      .toBe("Stack");
+    await settle(page);
+
     const inserted = await clickFirstCatalogPickerItem(page);
     expect(inserted).toBe("Stack");
-    await page.waitForTimeout(300);
 
-    await page.getByText("Section heading", { exact: true }).click();
-    await page.waitForTimeout(300);
-    await page.keyboard.press("Delete");
-    await page.waitForTimeout(300);
-
-    await page.getByText("Add your content here.", { exact: true }).click();
-    await page.waitForTimeout(300);
-    await page.keyboard.press("Delete");
-    await page.waitForTimeout(500);
+    await deleteTextNode(page, "Section heading");
+    await deleteTextNode(page, "Add your content here.");
   };
 
   test("an empty container with a collapsed rect gets the ghost marker and measures at least 32x32", async ({
@@ -65,6 +77,8 @@ test.describe("Ghost placeholder visibility", () => {
     page,
   }) => {
     await insertAndEmptyBox(page);
+    // The expanded rect only exists once the ghost marker is applied.
+    await expect.poll(() => isGhostStyled(page, emptyBoxSelector)).toBe(true);
     const rect = await getGhostRect(page, emptyBoxSelector);
     expect(rect).not.toBeNull();
 
@@ -72,15 +86,15 @@ test.describe("Ghost placeholder visibility", () => {
       rect!.left + rect!.width / 2,
       rect!.top + rect!.height / 2,
     );
-    await page.waitForTimeout(300);
 
-    expect(await isSelectionLabelVisible(page)).toBe(true);
+    await expect.poll(() => isSelectionLabelVisible(page)).toBe(true);
   });
 
   test("inserting a child back removes the ghost marker and restores natural height", async ({
     page,
   }) => {
     await insertAndEmptyBox(page);
+    await expect.poll(() => isGhostStyled(page, emptyBoxSelector)).toBe(true);
     const ghostRect = await getGhostRect(page, emptyBoxSelector);
     expect(ghostRect).not.toBeNull();
 
@@ -89,14 +103,16 @@ test.describe("Ghost placeholder visibility", () => {
       ghostRect!.left + ghostRect!.width / 2,
       ghostRect!.top + ghostRect!.height / 2,
     );
-    await page.waitForTimeout(300);
-    await page.keyboard.press("/");
-    await page.waitForTimeout(300);
-    expect(await isCatalogPickerVisible(page)).toBe(true);
-    await clickFirstCatalogPickerItem(page);
-    await page.waitForTimeout(300);
+    await expect.poll(() => isSelectionLabelVisible(page)).toBe(true);
+    await settle(page);
 
-    expect(await isGhostStyled(page, emptyBoxSelector)).toBe(false);
+    await page.keyboard.press("/");
+    await expect.poll(() => isCatalogPickerVisible(page)).toBe(true);
+    await settle(page);
+    await clickFirstCatalogPickerItem(page);
+
+    // true → false is a real transition: the child unghosts the container.
+    await expect.poll(() => isGhostStyled(page, emptyBoxSelector)).toBe(false);
   });
 
   test("a multi-slot component with one empty slot among filled slots is never ghosted", async ({

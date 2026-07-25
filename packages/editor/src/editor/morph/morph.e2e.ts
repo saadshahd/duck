@@ -1,4 +1,4 @@
-import { test, expect } from "@playwright/test";
+import { test, expect, type Page } from "@playwright/test";
 import {
   getMorphButtonState,
   clickMorphButton,
@@ -9,14 +9,25 @@ import {
   clickMorphPickerItem,
   hasMorphOverlay,
   climbToParent,
-openTestPage,
+  selectElement,
+  settle,
+  openTestPage,
 } from "../overlay/testing.js";
 
-async function selectFeatureCard(page: import("@playwright/test").Page) {
-  await page.locator("h3").first().click();
-  await page.waitForTimeout(300);
+async function selectFeatureCard(page: Page) {
+  await selectElement(page, page.locator("h3").first());
   await climbToParent(page); // Heading → Card (one node→node climb)
-  await page.waitForTimeout(300);
+}
+
+/** Open the morph picker and wait for the picker itself, not a duration. The
+ *  picker is floating-ui anchored, but a probe against this build showed its
+ *  rect is already final on the first read after the click — `useAnchor`'s
+ *  effect and computePosition both resolve inside the click's own task — so
+ *  mount is a sufficient signal. `settle` covers the following INPUT. */
+async function openMorphPicker(page: Page) {
+  await clickMorphButton(page);
+  await expect.poll(() => getMorphPickerItems(page)).not.toBeNull();
+  await settle(page);
 }
 
 test.describe("Morph", () => {
@@ -28,8 +39,7 @@ test.describe("Morph", () => {
     page,
   }) => {
     // Text has no top-level select/radio fields and no applicable patterns
-    await page.locator("p").first().click();
-    await page.waitForTimeout(300);
+    await selectElement(page, page.locator("p").first());
 
     const state = await getMorphButtonState(page);
     expect(state).not.toBeNull();
@@ -50,8 +60,7 @@ test.describe("Morph", () => {
 
   test("clicking morph button opens picker with patterns", async ({ page }) => {
     await selectFeatureCard(page);
-    await clickMorphButton(page);
-    await page.waitForTimeout(200);
+    await openMorphPicker(page);
 
     const items = await getMorphPickerItems(page);
     expect(items).not.toBeNull();
@@ -61,8 +70,7 @@ test.describe("Morph", () => {
 
   test("hovering pattern in picker shows overlay", async ({ page }) => {
     await selectFeatureCard(page);
-    await clickMorphButton(page);
-    await page.waitForTimeout(200);
+    await openMorphPicker(page);
 
     // ArrowDown triggers the picker's document-level keydown handler
     // which calls onHover(0) → setActivePattern → overlay renders
@@ -76,14 +84,12 @@ test.describe("Morph", () => {
     page,
   }) => {
     await selectFeatureCard(page);
-    await clickMorphButton(page);
-    await page.waitForTimeout(200);
+    await openMorphPicker(page);
 
     await clickMorphPickerItem(page, "Centered stack");
-    await page.waitForTimeout(300);
 
     // Picker closed
-    expect(await getMorphPickerItems(page)).toBeNull();
+    await expect.poll(() => getMorphPickerItems(page)).toBeNull();
     // Overlay gone
     expect(await hasMorphOverlay(page)).toBe(false);
   });
@@ -92,15 +98,13 @@ test.describe("Morph", () => {
     const headingBefore = await page.locator("h3").first().textContent();
 
     await selectFeatureCard(page);
-    await clickMorphButton(page);
-    await page.waitForTimeout(200);
+    await openMorphPicker(page);
 
     expect(await getMorphPickerItems(page)).not.toBeNull();
 
     await page.keyboard.press("Escape");
-    await page.waitForTimeout(200);
 
-    expect(await getMorphPickerItems(page)).toBeNull();
+    await expect.poll(() => getMorphPickerItems(page)).toBeNull();
     expect(await hasMorphOverlay(page)).toBe(false);
     expect(await page.locator("h3").first().textContent()).toBe(headingBefore);
   });
@@ -109,14 +113,17 @@ test.describe("Morph", () => {
     const headingBefore = await page.locator("h3").first().textContent();
 
     await selectFeatureCard(page);
-    await clickMorphButton(page);
-    await page.waitForTimeout(200);
+    await openMorphPicker(page);
     await clickMorphPickerItem(page, "Card layout");
-    await page.waitForTimeout(300);
+    await expect.poll(() => getMorphPickerItems(page)).toBeNull();
+    await settle(page);
 
     await page.keyboard.press("Meta+z");
-    await page.waitForTimeout(300);
 
+    // `merge` carries the matched Heading into the template wholesale, so the
+    // h3 text is identical while the morph is applied — polling for it would
+    // pass before the undo lands. Two frames give the undo its chance instead.
+    await settle(page);
     expect(await page.locator("h3").first().textContent()).toBe(headingBefore);
   });
 
@@ -124,19 +131,15 @@ test.describe("Morph", () => {
     page,
   }) => {
     // Heading → slot-stop → Card → slot-stop → Grid
-    await page.locator("h3").first().click();
-    await page.waitForTimeout(300);
+    await selectElement(page, page.locator("h3").first());
     await climbToParent(page); // lands on Card
-    await page.waitForTimeout(300);
     await climbToParent(page); // lands on Grid
-    await page.waitForTimeout(300);
 
     const state = await getMorphButtonState(page);
     expect(state).not.toBeNull();
     expect(state!.disabled).toBe(false);
 
-    await clickMorphButton(page);
-    await page.waitForTimeout(200);
+    await openMorphPicker(page);
 
     const entries = await getMorphPickerEntries(page);
     expect(entries).not.toBeNull();
@@ -147,11 +150,9 @@ test.describe("Morph", () => {
   test("picker anchors beside the element, never occluding it", async ({
     page,
   }) => {
-    await page.locator("h1").click();
-    await page.waitForTimeout(300);
+    await selectElement(page, page.locator("h1"));
 
-    await clickMorphButton(page);
-    await page.waitForTimeout(200);
+    await openMorphPicker(page);
 
     const element = await page.locator("h1").boundingBox();
     const picker = await getMorphPickerRect(page);
@@ -173,11 +174,9 @@ test.describe("Morph", () => {
   }) => {
     const headingText = await page.locator("h1").textContent();
 
-    await page.locator("h1").click();
-    await page.waitForTimeout(300);
+    await selectElement(page, page.locator("h1"));
 
-    await clickMorphButton(page);
-    await page.waitForTimeout(200);
+    await openMorphPicker(page);
 
     // Heading level h1 → H2/H3/H4 offered; the active option (H1) is skipped
     expect(await hasMorphVariantsLabel(page)).toBe(true);
@@ -189,15 +188,17 @@ test.describe("Morph", () => {
     expect(variantNames).toEqual(["H2", "H3", "H4"]);
 
     await clickMorphPickerItem(page, "H2");
-    await page.waitForTimeout(300);
 
     // Prop replaced: same text now renders as h2, picker closed
-    expect(await page.locator("h2").first().textContent()).toBe(headingText);
-    expect(await getMorphPickerItems(page)).toBeNull();
+    await expect
+      .poll(() => page.locator("h2").first().textContent())
+      .toBe(headingText);
+    await expect.poll(() => getMorphPickerItems(page)).toBeNull();
+    await settle(page);
 
-    // Cmd+Z reverts the variant commit
+    // Cmd+Z reverts the variant commit. The h1 does not exist while the variant
+    // is applied, so `textContent()` on it genuinely waits for the undo to land.
     await page.keyboard.press("Meta+z");
-    await page.waitForTimeout(300);
     expect(await page.locator("h1").textContent()).toBe(headingText);
   });
 });
