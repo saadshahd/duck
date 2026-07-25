@@ -6,7 +6,8 @@ import {
   isSheetVisible,
   readDisclosureTriggers,
   clickDisclosureTrigger,
-openTestPage,
+  selectElement,
+  openTestPage,
 } from "../overlay/testing.js";
 
 /**
@@ -21,10 +22,9 @@ openTestPage,
 
 const openBannerSheet = async (page: Page) => {
   await page.locator("[data-banner]").scrollIntoViewIfNeeded();
-  await page.locator("[data-banner]").click();
-  await page.waitForTimeout(200);
+  await selectElement(page, page.locator("[data-banner]"));
   await clickToolbarAction(page, "edit");
-  await page.waitForTimeout(400);
+  await expect.poll(() => isSheetVisible(page)).toBe(true);
 };
 
 test.describe("Nested object disclosure — Banner.style.border", () => {

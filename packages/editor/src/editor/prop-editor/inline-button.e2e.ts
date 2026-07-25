@@ -1,5 +1,5 @@
 import { test, expect } from "@playwright/test";
-import { openTestPage } from "../overlay/testing.js";
+import { openTestPage, selectElement, settle } from "../overlay/testing.js";
 
 /** Get cursor offset within a contentEditable element. */
 const cursorOffset = (page: import("@playwright/test").Page) =>
@@ -17,12 +17,14 @@ test.describe("Inline editing on button elements", () => {
   test("space inserts at cursor and advances position", async ({ page }) => {
     const button = page.locator("button", { hasText: "Get started" }).first();
 
-    await button.click();
-    await page.waitForTimeout(300);
+    await selectElement(page, button);
     await button.dblclick();
-    await page.waitForTimeout(300);
 
+    // Inline edit's observable: the element becomes contentEditable. settle()
+    // after, so the first keystroke doesn't land mid-commit.
     const active = editableElement(page);
+    await active.waitFor();
+    await settle(page);
     expect(await active.getAttribute("contenteditable")).toBe("true");
 
     // Replace content, press space separately, then continue typing
@@ -40,13 +42,15 @@ test.describe("Inline editing on button elements", () => {
   test("editing stays active after space on button", async ({ page }) => {
     const button = page.locator("button", { hasText: "Get started" }).first();
 
-    await button.click();
-    await page.waitForTimeout(300);
+    await selectElement(page, button);
     await button.dblclick();
-    await page.waitForTimeout(300);
+    await editableElement(page).waitFor();
+    await settle(page);
 
+    // Space must leave editing untouched — there is no post-state to poll for
+    // (a passing poll would be vacuous), so settle covers the render.
     await page.keyboard.press("Space");
-    await page.waitForTimeout(100);
+    await settle(page);
 
     expect(await editableElement(page).count()).toBe(1);
   });

@@ -14,8 +14,21 @@ import {
   getSwatchInputValue,
   isSwatchInputInvalid,
   setSwatchColorText,
-openTestPage,
+  selectElement,
+  settle,
+  openTestPage,
 } from "../overlay/testing.js";
+
+/** The hex of the checked palette swatch, or null when none is — the observable
+ *  a discrete swatch pick produces. */
+const checkedSwatch = (page: import("@playwright/test").Page) =>
+  readSwatchItems(page).then(
+    (items) => items?.find((i) => i.checked)?.value ?? null,
+  );
+
+/** The heading's painted color — the canvas truth a committed color reaches. */
+const headingColor = (page: import("@playwright/test").Page) =>
+  page.locator("h1").evaluate((el) => getComputedStyle(el).color);
 
 /**
  * T5 observer O2: swatch grid color control — Ark SegmentGroup rendering
@@ -48,13 +61,15 @@ const COLOR_PALETTE = [
 ];
 
 const openHeadingSheet = async (page: import("@playwright/test").Page) => {
-  await page.locator("h1").click();
-  await page.waitForTimeout(200);
+  await selectElement(page, page.locator("h1"));
   await clickToolbarAction(page, "edit");
-  await page.waitForTimeout(400);
+  await expect.poll(() => isSheetVisible(page)).toBe(true);
+  await settle(page);
   // Expand style object disclosure so nested fields (including color) render.
+  // The swatch sentinel is mounted with the control, so it marks the expansion
+  // as done — no guess at how long the render takes.
   await expandSheetDisclosures(page);
-  await page.waitForTimeout(300);
+  await expect.poll(() => isSwatchSentinelVisible(page)).toBe(true);
 };
 
 test.describe("Swatch color control — Heading.style.color (T5)", () => {
@@ -123,7 +138,7 @@ test.describe("Swatch color control — Heading.style.color (T5)", () => {
 
     // Real mouse click — avoids synthetic .click() unmount-race masking.
     await page.mouse.click(center!.x, center!.y);
-    await page.waitForTimeout(200);
+    await expect.poll(() => checkedSwatch(page)).toBe(target);
 
     const items = await readSwatchItems(page);
     expect(items).not.toBeNull();
@@ -145,17 +160,19 @@ test.describe("Swatch color control — Heading.style.color (T5)", () => {
     const center = await getSwatchItemCenter(page, target);
     expect(center).not.toBeNull();
     await page.mouse.click(center!.x, center!.y);
-    await page.waitForTimeout(200);
+    await expect.poll(() => checkedSwatch(page)).toBe(target);
 
     // Confirm it is selected.
     const before = await readSwatchItems(page);
     expect(before!.filter((i) => i.checked).length).toBe(1);
 
-    // Click the sentinel to clear.
+    // Click the sentinel to clear (settle first — the poll above resolved the
+    // instant the DOM mutated, and a click fired mid-commit corrupts state).
     const sentinelCenter = await getSwatchSentinelCenter(page);
     expect(sentinelCenter).not.toBeNull();
+    await settle(page);
     await page.mouse.click(sentinelCenter!.x, sentinelCenter!.y);
-    await page.waitForTimeout(200);
+    await expect.poll(() => isSwatchSentinelSelected(page)).toBe(true);
 
     // No swatch selected; sentinel is back in selected state.
     const after = await readSwatchItems(page);
@@ -173,18 +190,20 @@ test.describe("Swatch color control — Heading.style.color (T5)", () => {
     const center = await getSwatchItemCenter(page, target);
     expect(center).not.toBeNull();
     await page.mouse.click(center!.x, center!.y);
-    await page.waitForTimeout(200);
+    await expect.poll(() => checkedSwatch(page)).toBe(target);
 
     // Close via Escape.
+    await settle(page);
     await page.keyboard.press("Escape");
-    await page.waitForTimeout(300);
-    expect(await isSheetVisible(page)).toBe(false);
+    await expect.poll(() => isSheetVisible(page)).toBe(false);
 
     // Reopen and re-expand disclosures.
+    await settle(page);
     await clickToolbarAction(page, "edit");
-    await page.waitForTimeout(400);
+    await expect.poll(() => isSheetVisible(page)).toBe(true);
+    await settle(page);
     await expandSheetDisclosures(page);
-    await page.waitForTimeout(300);
+    await expect.poll(() => isSwatchSentinelVisible(page)).toBe(true);
 
     const items = await readSwatchItems(page);
     expect(items).not.toBeNull();
@@ -207,13 +226,10 @@ test.describe("Swatch color control — Heading.style.color (T5)", () => {
     // Type an off-palette color; Enter flushes the continuous commit path.
     const typed = await setSwatchColorText(page, "#ff6b35");
     expect(typed).toBe(true);
-    await page.waitForTimeout(300);
 
-    // Canvas is the truth: the heading now paints the literal color.
-    const h1Color = await page
-      .locator("h1")
-      .evaluate((el) => getComputedStyle(el).color);
-    expect(h1Color).toBe("rgb(255, 107, 53)");
+    // Canvas is the truth: the heading now paints the literal color. Enter
+    // flushes the continuous commit, so this is the wait AND the assertion.
+    await expect.poll(() => headingColor(page)).toBe("rgb(255, 107, 53)");
 
     // Custom chip shows the actual color and the verbatim literal.
     const chip = await readSwatchCustomChip(page);
@@ -233,18 +249,16 @@ test.describe("Swatch color control — Heading.style.color (T5)", () => {
     const target = "#111111";
     const center = await getSwatchItemCenter(page, target);
     expect(center).not.toBeNull();
+    await settle(page);
     await page.mouse.click(center!.x, center!.y);
-    await page.waitForTimeout(300);
+    await expect.poll(() => checkedSwatch(page)).toBe(target);
 
     expect(await readSwatchCustomChip(page)).toBeNull();
     const after = await readSwatchItems(page);
     expect(after!.filter((i) => i.checked).map((i) => i.value)).toEqual([
       target,
     ]);
-    const h1After = await page
-      .locator("h1")
-      .evaluate((el) => getComputedStyle(el).color);
-    expect(h1After).toBe("rgb(17, 17, 17)");
+    expect(await headingColor(page)).toBe("rgb(17, 17, 17)");
   });
 
   // O2g: invalid color text never commits — the draft is marked invalid while
@@ -258,15 +272,17 @@ test.describe("Swatch color control — Heading.style.color (T5)", () => {
     const target = "#555555";
     const center = await getSwatchItemCenter(page, target);
     await page.mouse.click(center!.x, center!.y);
-    await page.waitForTimeout(200);
+    await expect.poll(() => checkedSwatch(page)).toBe(target);
 
     // Type garbage without flushing — the input honestly marks the draft invalid.
+    await settle(page);
     await setSwatchColorText(page, "not-a-color", { flush: false });
     expect(await isSwatchInputInvalid(page)).toBe(true);
 
-    // Flush; nothing commits and the control reverts to the stored value.
+    // Flush; nothing commits and the control reverts to the stored value — the
+    // input snapping back from the garbage draft is that revert's observable.
     await page.keyboard.press("Enter");
-    await page.waitForTimeout(350);
+    await expect.poll(() => getSwatchInputValue(page)).toBe(target);
 
     expect(await readSwatchCustomChip(page)).toBeNull();
     const items = await readSwatchItems(page);
@@ -275,9 +291,6 @@ test.describe("Swatch color control — Heading.style.color (T5)", () => {
     ]);
     expect(await getSwatchInputValue(page)).toBe(target);
     expect(await isSwatchInputInvalid(page)).toBe(false);
-    const h1Color = await page
-      .locator("h1")
-      .evaluate((el) => getComputedStyle(el).color);
-    expect(h1Color).toBe("rgb(85, 85, 85)");
+    expect(await headingColor(page)).toBe("rgb(85, 85, 85)");
   });
 });

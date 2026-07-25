@@ -7,7 +7,8 @@ import {
   clickSpacingLink,
   getSpacingChipCenter,
   getSpacingSentinelCenter,
-openTestPage,
+  selectElement,
+  openTestPage,
 } from "../overlay/testing.js";
 
 /**
@@ -20,10 +21,9 @@ openTestPage,
 
 const openBannerSheet = async (page: Page) => {
   await page.locator("[data-banner]").scrollIntoViewIfNeeded();
-  await page.locator("[data-banner]").click();
-  await page.waitForTimeout(200);
+  await selectElement(page, page.locator("[data-banner]"));
   await clickToolbarAction(page, "edit");
-  await page.waitForTimeout(400);
+  await expect.poll(() => isSheetVisible(page)).toBe(true);
 };
 
 test.describe("Spacing control — Banner.style.padding / margin", () => {
@@ -93,7 +93,12 @@ test.describe("Spacing control — Banner.style.padding / margin", () => {
     const center = await getSpacingChipCenter(page, "1rem", "Margin");
     expect(center).not.toBeNull();
     await page.mouse.click(center!.x, center!.y);
-    await page.waitForTimeout(200);
+
+    // A chip is a discrete commit — re-linking is its observable (margin opened
+    // unlinked, so this cannot pass before the click lands).
+    await expect
+      .poll(() => readSpacing(page, "Margin").then((s) => s?.linked))
+      .toBe(true);
 
     const s = await readSpacing(page, "Margin");
     expect(s!.linked).toBe(true);
@@ -109,7 +114,12 @@ test.describe("Spacing control — Banner.style.padding / margin", () => {
     const center = await getSpacingSentinelCenter(page, "Padding");
     expect(center).not.toBeNull();
     await page.mouse.click(center!.x, center!.y);
-    await page.waitForTimeout(200);
+
+    // Padding opened set ("1.5rem"), so the sentinel turning selected is the
+    // clear's observable, not a state the poll could pass through vacuously.
+    await expect
+      .poll(() => readSpacing(page, "Padding").then((s) => s?.sentinelSelected))
+      .toBe(true);
 
     const s = await readSpacing(page, "Padding");
     expect(s!.sentinelSelected).toBe(true);

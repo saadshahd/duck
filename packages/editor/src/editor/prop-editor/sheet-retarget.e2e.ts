@@ -8,7 +8,9 @@ import {
   getSheetControlKind,
   readSpacing,
   getSpacingChipCenter,
-openTestPage,
+  selectElement,
+  settle,
+  openTestPage,
 } from "../overlay/testing.js";
 
 /** Cross-cutting hook-order safety for the sheet's in-place re-target: the
@@ -41,19 +43,20 @@ test.describe("Sheet re-target — hook-order safety", () => {
     const { consoleErrors, pageErrors } = collectErrors(page);
 
     // Select Box "page": climb from h1 -> hero -> page.
-    await page.locator("h1").click();
-    await page.waitForTimeout(300);
+    await selectElement(page, page.locator("h1"));
     await climbToParent(page); // hero
     await climbToParent(page); // page
 
     await clickToolbarAction(page, "edit");
-    await page.waitForTimeout(300);
-    expect(await isSheetVisible(page)).toBe(true);
+    await expect.poll(() => isSheetVisible(page)).toBe(true);
     expect(await getSheetHeaderLabel(page)).toBe("Box");
 
+    // Padding lives inside a collapsed disclosure on Box, so its control kind
+    // reads null until the expansion mounts it — a real transition to poll.
     await expandSheetDisclosures(page);
-    await page.waitForTimeout(150);
-    expect(await getSheetControlKind(page, "Padding")).toBe("dimension");
+    await expect
+      .poll(() => getSheetControlKind(page, "Padding"))
+      .toBe("dimension");
 
     // Real canvas click on the Banner — an in-place retarget while the sheet
     // stays open (no close/reopen — that would mask the hook-order bug).
@@ -62,8 +65,11 @@ test.describe("Sheet re-target — hook-order safety", () => {
     await banner.scrollIntoViewIfNeeded();
     const box = await banner.boundingBox();
     expect(box).not.toBeNull();
+    await settle(page);
     await page.mouse.click(box!.x + box!.width / 2, box!.y + box!.height / 2);
-    await page.waitForTimeout(400);
+
+    // The retarget's observable: the open sheet's header now names the Banner.
+    await expect.poll(() => getSheetHeaderLabel(page)).toBe("Banner");
 
     // No hook-order crash and no other page error.
     const hookOrderWarning = consoleErrors.find((m) =>
@@ -76,8 +82,10 @@ test.describe("Sheet re-target — hook-order safety", () => {
     expect(await isSheetVisible(page)).toBe(true);
     expect(await getSheetHeaderLabel(page)).toBe("Banner");
 
+    // Banner's Padding sits in the always-open Style section, so the expansion
+    // has no distinct post-state to poll for — settle covers its paint.
     await expandSheetDisclosures(page);
-    await page.waitForTimeout(150);
+    await settle(page);
 
     // The control actually SWAPPED kind, not merely re-rendered as dimension.
     expect(await getSheetControlKind(page, "Padding")).toBe("spacing");
@@ -88,9 +96,13 @@ test.describe("Sheet re-target — hook-order safety", () => {
     const chipCenter = await getSpacingChipCenter(page, "1rem", "Padding");
     expect(chipCenter).not.toBeNull();
     await page.mouse.click(chipCenter!.x, chipCenter!.y);
-    await page.waitForTimeout(200);
 
-    const after = await readSpacing(page, "Padding");
-    expect(after?.chips.find((c) => c.value === "1rem")?.checked).toBe(true);
+    await expect
+      .poll(() =>
+        readSpacing(page, "Padding").then(
+          (after) => after?.chips.find((c) => c.value === "1rem")?.checked,
+        ),
+      )
+      .toBe(true);
   });
 });

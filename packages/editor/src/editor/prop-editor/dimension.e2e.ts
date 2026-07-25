@@ -11,7 +11,9 @@ import {
   isDimensionSentinelSelected,
   getDimensionSentinelCenter,
   readDimensionCustom,
-openTestPage,
+  selectElement,
+  settle,
+  openTestPage,
 } from "../overlay/testing.js";
 
 /**
@@ -47,15 +49,23 @@ const FONT_SIZE_PRESETS = [
   "3rem",
 ];
 
+/** The value of the checked preset chip, or null when the value is off-grid or
+ *  unset — the observable a dimension commit produces. */
+const checkedChip = (page: import("@playwright/test").Page) =>
+  readDimensionChips(page, FIELD).then(
+    (chips) => chips?.find((c) => c.checked)?.value ?? null,
+  );
+
 const openHeadingSheet = async (page: import("@playwright/test").Page) => {
   // Click the hero h1 to select it.
-  await page.locator("h1").click();
-  await page.waitForTimeout(200);
+  await selectElement(page, page.locator("h1"));
   await clickToolbarAction(page, "edit");
-  await page.waitForTimeout(400);
+  await expect.poll(() => isSheetVisible(page)).toBe(true);
+  await settle(page);
   // Expand style object disclosure so nested fields (including fontSize) render.
+  // The stored "3rem" chip becoming checked marks the expansion as rendered.
   await expandSheetDisclosures(page);
-  await page.waitForTimeout(300);
+  await expect.poll(() => checkedChip(page)).toBe("3rem");
 };
 
 test.describe("Dimension control — Heading.style.fontSize (T6)", () => {
@@ -109,7 +119,7 @@ test.describe("Dimension control — Heading.style.fontSize (T6)", () => {
 
     // Real mouse click — avoids synthetic .click() unmount-race masking.
     await page.mouse.click(center!.x, center!.y);
-    await page.waitForTimeout(200);
+    await expect.poll(() => checkedChip(page)).toBe(target);
 
     const chips = await readDimensionChips(page, FIELD);
     expect(chips).not.toBeNull();
@@ -134,7 +144,10 @@ test.describe("Dimension control — Heading.style.fontSize (T6)", () => {
     // commit path the way a designer's keystrokes do.
     const typed = await setDimensionValue(page, "1.75", FIELD);
     expect(typed).toBe(true);
-    await page.waitForTimeout(300);
+
+    // The off-grid commit's observable: the "3rem" chip drops its check, since
+    // 1.75rem matches no preset.
+    await expect.poll(() => checkedChip(page)).toBeNull();
 
     // After typing off-grid, no chip should be selected (1.75rem is not a preset).
     const chips = await readDimensionChips(page, FIELD);
@@ -147,15 +160,18 @@ test.describe("Dimension control — Heading.style.fontSize (T6)", () => {
     expect(inputVal).toBe("1.75");
 
     // Close via Escape.
+    await settle(page);
     await page.keyboard.press("Escape");
-    await page.waitForTimeout(300);
-    expect(await isSheetVisible(page)).toBe(false);
+    await expect.poll(() => isSheetVisible(page)).toBe(false);
 
-    // Reopen and re-expand disclosures.
+    // Reopen and re-expand disclosures. The persisted value is off-grid, so the
+    // number input carrying it is what marks the re-expansion as rendered.
+    await settle(page);
     await clickToolbarAction(page, "edit");
-    await page.waitForTimeout(400);
+    await expect.poll(() => isSheetVisible(page)).toBe(true);
+    await settle(page);
     await expandSheetDisclosures(page);
-    await page.waitForTimeout(300);
+    await expect.poll(() => getDimensionInputValue(page, FIELD)).toBe("1.75");
 
     // The off-grid value "1.75rem" should persist — no chip selected.
     const chipsAfter = await readDimensionChips(page, FIELD);
@@ -184,7 +200,9 @@ test.describe("Dimension control — Heading.style.fontSize (T6)", () => {
     const center = await getDimensionSentinelCenter(page, FIELD);
     expect(center).not.toBeNull();
     await page.mouse.click(center!.x, center!.y);
-    await page.waitForTimeout(200);
+    await expect
+      .poll(() => isDimensionSentinelSelected(page, FIELD))
+      .toBe(true);
 
     // No chip selected; sentinel is now in selected state; input is empty.
     const chipsAfter = await readDimensionChips(page, FIELD);
@@ -208,7 +226,7 @@ test.describe("Dimension control — Heading.style.fontSize (T6)", () => {
 
     // Type an off-grid literal (1.75rem is not a preset).
     expect(await setDimensionValue(page, "1.75", FIELD)).toBe(true);
-    await page.waitForTimeout(300);
+    await expect.poll(() => readDimensionCustom(page, FIELD)).not.toBeNull();
 
     // No preset chip is checked, but the value is not lost: a "Custom" marker
     // appears carrying the stored literal, and the number field is flagged as
@@ -223,9 +241,11 @@ test.describe("Dimension control — Heading.style.fontSize (T6)", () => {
 
     // Clearing to unset removes the marker (unset is the sentinel's job, not custom).
     const sentinel = await getDimensionSentinelCenter(page, FIELD);
+    await settle(page);
     await page.mouse.click(sentinel!.x, sentinel!.y);
-    await page.waitForTimeout(200);
-    expect(await isDimensionSentinelSelected(page, FIELD)).toBe(true);
+    await expect
+      .poll(() => isDimensionSentinelSelected(page, FIELD))
+      .toBe(true);
     expect(await readDimensionCustom(page, FIELD)).toBeNull();
   });
 });

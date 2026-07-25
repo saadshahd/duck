@@ -6,7 +6,8 @@ import {
   readRadioGroup,
   getRadioOptionCenter,
   arrowNavRadio,
-openTestPage,
+  selectElement,
+  openTestPage,
 } from "../overlay/testing.js";
 
 /**
@@ -20,10 +21,9 @@ openTestPage,
 
 const openBannerSheet = async (page: Page) => {
   await page.locator("[data-banner]").scrollIntoViewIfNeeded();
-  await page.locator("[data-banner]").click();
-  await page.waitForTimeout(200);
+  await selectElement(page, page.locator("[data-banner]"));
   await clickToolbarAction(page, "edit");
-  await page.waitForTimeout(400);
+  await expect.poll(() => isSheetVisible(page)).toBe(true);
 };
 
 test.describe("Radio control — Banner.emphasis / Banner.tone", () => {
@@ -74,12 +74,16 @@ test.describe("Radio control — Banner.emphasis / Banner.tone", () => {
     const center = await getRadioOptionCenter(page, "low", "Emphasis");
     expect(center).not.toBeNull();
     await page.mouse.click(center!.x, center!.y);
-    await page.waitForTimeout(200);
 
-    const group = await readRadioGroup(page, "Emphasis");
-    expect(group!.options.filter((o) => o.checked).map((o) => o.value)).toEqual(
-      ["low"],
-    );
+    // Radio is a discrete control — the click commits within a frame, so the
+    // checked set is the observable to wait on, not a fixed delay.
+    await expect
+      .poll(() =>
+        readRadioGroup(page, "Emphasis").then((g) =>
+          g!.options.filter((o) => o.checked).map((o) => o.value),
+        ),
+      )
+      .toEqual(["low"]);
   });
 
   test("arrow keys move the native radio selection (a11y roving nav)", async ({

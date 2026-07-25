@@ -6,8 +6,17 @@ import {
   focusFirstSegmentedItem,
   getSegmentedRole,
   getSegmentedItemCenter,
-openTestPage,
+  selectElement,
+  settle,
+  openTestPage,
 } from "../overlay/testing.js";
+
+/** The value of the checked segment in the named field — the observable a
+ *  discrete segmented commit produces. */
+const checkedSegment = (page: import("@playwright/test").Page, field: string) =>
+  readSegmentedItems(page, field).then(
+    (items) => items?.find((i) => i.checked)?.value ?? null,
+  );
 
 /**
  * T4 observer: segmented control (Ark SegmentGroup) renders correctly inside the
@@ -19,10 +28,9 @@ openTestPage,
  */
 
 const openHeadingSheet = async (page: import("@playwright/test").Page) => {
-  await page.locator("h1").click();
-  await page.waitForTimeout(200);
+  await selectElement(page, page.locator("h1"));
   await clickToolbarAction(page, "edit");
-  await page.waitForTimeout(400);
+  await expect.poll(() => isSheetVisible(page)).toBe(true);
 };
 
 test.describe("Segmented control — Heading.level (T4)", () => {
@@ -75,7 +83,7 @@ test.describe("Segmented control — Heading.level (T4)", () => {
 
     // ArrowRight moves selection and focus to the next item.
     await page.keyboard.press("ArrowRight");
-    await page.waitForTimeout(100);
+    await expect.poll(() => checkedSegment(page, "Level")).toBe("h2");
 
     const afterRight = await readSegmentedItems(page, "Level");
     expect(afterRight).not.toBeNull();
@@ -89,9 +97,11 @@ test.describe("Segmented control — Heading.level (T4)", () => {
     expect(selectedAfterRight.length).toBe(1);
     expect(selectedAfterRight[0].value).toBe("h2");
 
-    // ArrowLeft wraps back to h1.
+    // ArrowLeft wraps back to h1. settle() first: the assertion above resolved
+    // the instant the DOM mutated, and a keypress fired mid-commit corrupts state.
+    await settle(page);
     await page.keyboard.press("ArrowLeft");
-    await page.waitForTimeout(100);
+    await expect.poll(() => checkedSegment(page, "Level")).toBe("h1");
     const afterLeft = await readSegmentedItems(page, "Level");
     const focusedLeft = afterLeft!.find((i) => i.focused);
     expect(focusedLeft?.value).toBe("h1");
@@ -135,16 +145,17 @@ test.describe("Segmented control — Heading.level (T4)", () => {
     const h3Center = await getSegmentedItemCenter(page, "h3", "Level");
     expect(h3Center).not.toBeNull();
     await page.mouse.click(h3Center!.x, h3Center!.y);
-    await page.waitForTimeout(200);
+    await expect.poll(() => checkedSegment(page, "Level")).toBe("h3");
 
-    // Close via Escape.
+    // Close via Escape (settle first — the poll above resolved mid-commit).
+    await settle(page);
     await page.keyboard.press("Escape");
-    await page.waitForTimeout(300);
-    expect(await isSheetVisible(page)).toBe(false);
+    await expect.poll(() => isSheetVisible(page)).toBe(false);
 
     // Reopen.
+    await settle(page);
     await clickToolbarAction(page, "edit");
-    await page.waitForTimeout(400);
+    await expect.poll(() => isSheetVisible(page)).toBe(true);
 
     // The h3 segment must now be selected.
     const items = await readSegmentedItems(page, "Level");

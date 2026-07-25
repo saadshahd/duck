@@ -19,7 +19,9 @@ import {
   getHighlightRect,
   getPageElementBox,
   countSelectionRings,
-openTestPage,
+  readArrayRows,
+  settle,
+  openTestPage,
 } from "../overlay/testing.js";
 
 /** Ticket 114 — an array-item `slot` sub-field is NOT edited in the sheet. It
@@ -45,14 +47,21 @@ test.describe("Array-item slot child list + canvas navigation", () => {
    *  row to reveal its `heading` (scalar) + `content` (slot) sub-fields. */
   const openItem = async (page: Page, i: number) => {
     await selectByTestId(page, FIX.sections.childId);
-    await page.waitForTimeout(300);
     await climbToParent(page); // nested child → Sections
     await clickToolbarAction(page, "edit");
-    await page.waitForTimeout(400);
+    await expect.poll(() => isPropSheetOpen(page)).toBe(true);
+    await settle(page);
     expect(await toggleSheetDisclosure(page, "Items")).toBe(true);
-    await page.waitForTimeout(200);
+    // Rows only exist once the Items disclosure is open.
+    await expect
+      .poll(() => readArrayRows(page).then((r) => r?.length ?? 0))
+      .toBeGreaterThan(i);
+    await settle(page);
     expect(await clickArrayRowAction(page, i, "toggle")).toBe(true);
-    await page.waitForTimeout(200);
+    // The row reports itself open once its sub-fields have mounted.
+    await expect
+      .poll(() => readArrayRows(page).then((r) => r?.[i]?.open))
+      .toBe(true);
   };
 
   test("a filled slot lists its children by type — honestly, and never as an in-sheet outline", async ({
@@ -74,12 +83,11 @@ test.describe("Array-item slot child list + canvas navigation", () => {
     await openItem(page, 0);
 
     expect(await clickArraySlotChild(page, FIX.sections.childId)).toBe(true);
-    await page.waitForTimeout(400);
 
     // The sheet is gone (never occludes the edited element) and the ring hugs
     // the clicked child, not the array holder.
-    expect(await isPropSheetOpen(page)).toBe(false);
-    expect(await countSelectionRings(page)).toBe(1);
+    await expect.poll(() => isPropSheetOpen(page)).toBe(false);
+    await expect.poll(() => countSelectionRings(page)).toBe(1);
 
     const childBox = await getPageElementBox(
       page,
@@ -106,10 +114,8 @@ test.describe("Array-item slot child list + canvas navigation", () => {
     expect(await realClickArraySlotChild(page, FIX.sections.childId)).toBe(
       true,
     );
-    await page.waitForTimeout(400);
-
-    expect(await isPropSheetOpen(page)).toBe(false);
-    expect(await countSelectionRings(page)).toBe(1);
+    await expect.poll(() => isPropSheetOpen(page)).toBe(false);
+    await expect.poll(() => countSelectionRings(page)).toBe(1);
 
     // The ring hugs the clicked child, NOT the Sections holder and NOT nothing.
     const childBox = await getPageElementBox(
@@ -141,16 +147,17 @@ test.describe("Array-item slot child list + canvas navigation", () => {
 
     const before = (await childTags(sectionAt(page, 1))).length;
     expect(await clickArraySlotInsert(page)).toBe(true);
-    await page.waitForTimeout(400);
 
     // Sheet closed, catalog picker open for the nested slot.
+    await expect.poll(() => isCatalogPickerVisible(page)).toBe(true);
     expect(await isPropSheetOpen(page)).toBe(false);
-    expect(await isCatalogPickerVisible(page)).toBe(true);
 
+    await settle(page);
     expect(await clickCatalogPickerItem(page, "Text")).toBe(true);
-    await page.waitForTimeout(400);
 
     // The child landed in the previously-empty item 1 slot.
-    expect((await childTags(sectionAt(page, 1))).length).toBe(before + 1);
+    await expect
+      .poll(() => childTags(sectionAt(page, 1)).then((t) => t.length))
+      .toBe(before + 1);
   });
 });

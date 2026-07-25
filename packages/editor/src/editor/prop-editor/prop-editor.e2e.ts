@@ -5,8 +5,16 @@ import {
   readSegmentedItems,
   isSwatchSentinelVisible,
   isDimensionSentinelVisible,
-openTestPage,
+  isSheetVisible,
+  selectElement,
+  settle,
+  openTestPage,
 } from "../overlay/testing.js";
+
+/** The h1 once inline editing has taken it over — the observable a dblclick
+ *  produces (and drops again on commit/revert). */
+const editableHeading = (page: import("@playwright/test").Page) =>
+  page.locator("h1[contenteditable='true']");
 
 test.describe("Inline text editing", () => {
   test.beforeEach(async ({ page }) => {
@@ -17,12 +25,11 @@ test.describe("Inline text editing", () => {
     const heading = page.locator("h1");
 
     // Select first
-    await heading.click();
-    await page.waitForTimeout(300);
+    await selectElement(page, heading);
 
     // Double-click to enter inline edit
     await heading.dblclick();
-    await page.waitForTimeout(300);
+    await editableHeading(page).waitFor();
 
     const contentEditable = await heading.getAttribute("contenteditable");
     expect(contentEditable).toBe("true");
@@ -32,16 +39,19 @@ test.describe("Inline text editing", () => {
     const heading = page.locator("h1");
     const originalText = await heading.textContent();
 
-    await heading.click();
-    await page.waitForTimeout(300);
+    await selectElement(page, heading);
     await heading.dblclick();
-    await page.waitForTimeout(300);
+    await editableHeading(page).waitFor();
+    await settle(page);
 
     // Type new text (selectAll + type replaces content)
     await page.keyboard.press("Meta+a");
     await page.keyboard.type("Updated Heading");
     await page.keyboard.press("Enter");
-    await page.waitForTimeout(300);
+
+    // Enter's observable is EXITING edit mode — the typed text is already in the
+    // contentEditable DOM before the commit, so text alone would pass vacuously.
+    await expect(heading).not.toHaveAttribute("contenteditable", "true");
 
     const newText = await heading.textContent();
     expect(newText).toBe("Updated Heading");
@@ -56,10 +66,10 @@ test.describe("Inline text editing", () => {
     const heading = page.locator("h1");
     const originalText = await heading.textContent();
 
-    await heading.click();
-    await page.waitForTimeout(300);
+    await selectElement(page, heading);
     await heading.dblclick();
-    await page.waitForTimeout(300);
+    await editableHeading(page).waitFor();
+    await settle(page);
 
     // Type something
     await page.keyboard.press("Meta+a");
@@ -67,7 +77,7 @@ test.describe("Inline text editing", () => {
 
     // Escape should revert
     await page.keyboard.press("Escape");
-    await page.waitForTimeout(300);
+    await expect(heading).not.toHaveAttribute("contenteditable", "true");
 
     const text = await heading.textContent();
     expect(text).toBe(originalText);
@@ -76,10 +86,9 @@ test.describe("Inline text editing", () => {
   test("editing blocks drag (states are exclusive)", async ({ page }) => {
     const heading = page.locator("h1");
 
-    await heading.click();
-    await page.waitForTimeout(300);
+    await selectElement(page, heading);
     await heading.dblclick();
-    await page.waitForTimeout(300);
+    await editableHeading(page).waitFor();
 
     // During editing, element should not be draggable
     const draggable = await heading.getAttribute("draggable");
@@ -93,12 +102,11 @@ test.describe("Sheet editing", () => {
   });
 
   test("edit button opens prop sheet", async ({ page }) => {
-    await page.locator("h3").first().click();
-    await page.waitForTimeout(300);
+    await selectElement(page, page.locator("h3").first());
     expect(await hasToolbarAction(page, "edit")).toBe(true);
 
     await clickToolbarAction(page, "edit");
-    await page.waitForTimeout(400);
+    await expect.poll(() => isSheetVisible(page)).toBe(true);
 
     const visible = await page.evaluate(() => {
       for (const d of document.querySelectorAll("div")) {
@@ -119,10 +127,9 @@ test.describe("Sheet editing", () => {
     // absence honestly: no item checked, sentinel visible, or empty input.
     // After T8, the style section is always-open (FieldSection, not Disclosure),
     // so no expand step is needed.
-    await page.getByText("Zero Chrome").click();
-    await page.waitForTimeout(300);
+    await selectElement(page, page.getByText("Zero Chrome"));
     await clickToolbarAction(page, "edit");
-    await page.waitForTimeout(300);
+    await expect.poll(() => isSheetVisible(page)).toBe(true);
 
     // textAlign is segmented (left/center/right/justify). Unset → no item checked.
     const textAlignItems = await readSegmentedItems(page, "Text align");
@@ -143,25 +150,28 @@ test.describe("Sheet editing", () => {
   test("read-only resolved field is non-editable after async resolve", async ({
     page,
   }) => {
-    await page.locator("p").first().click();
-    await page.waitForTimeout(300);
+    await selectElement(page, page.locator("p").first());
     await clickToolbarAction(page, "edit");
-    await page.waitForTimeout(1500); // resolveData delay (~1s) + margin
 
-    const readOnly = await page.evaluate(() => {
-      for (const d of document.querySelectorAll("div")) {
-        if (!d.shadowRoot || d.style.position !== "fixed") continue;
-        const fields = [
-          ...d.shadowRoot.querySelectorAll(
-            "[data-role='prop-sheet'] input, [data-role='prop-sheet'] textarea",
-          ),
-        ] as (HTMLInputElement | HTMLTextAreaElement)[];
-        const resolved = fields.find((f) => f.readOnly);
-        return resolved ? resolved.readOnly : false;
-      }
-      return false;
-    });
-
-    expect(readOnly).toBe(true);
+    // The sheet mounts at once; the resolved field only arrives after
+    // resolveData's ~1s delay. Poll the field itself rather than sleeping past
+    // a delay the test does not actually care about.
+    await expect
+      .poll(() =>
+        page.evaluate(() => {
+          for (const d of document.querySelectorAll("div")) {
+            if (!d.shadowRoot || d.style.position !== "fixed") continue;
+            const fields = [
+              ...d.shadowRoot.querySelectorAll(
+                "[data-role='prop-sheet'] input, [data-role='prop-sheet'] textarea",
+              ),
+            ] as (HTMLInputElement | HTMLTextAreaElement)[];
+            const resolved = fields.find((f) => f.readOnly);
+            return resolved ? resolved.readOnly : false;
+          }
+          return false;
+        }),
+      )
+      .toBe(true);
   });
 });

@@ -10,7 +10,9 @@ import {
   getSheetRect,
   getBackdropCutoutRect,
   isSelectionRingEditing,
-openTestPage,
+  selectElement,
+  settle,
+  openTestPage,
 } from "../overlay/testing.js";
 
 test.describe("Focus sheet shell", () => {
@@ -23,12 +25,10 @@ test.describe("Focus sheet shell", () => {
   test("Observer 1: sheet is fully visible (not occluded) when opened", async ({
     page,
   }) => {
-    await page.locator("h1").click();
-    await page.waitForTimeout(200);
+    await selectElement(page, page.locator("h1"));
     await clickToolbarAction(page, "edit");
-    await page.waitForTimeout(400);
 
-    expect(await isSheetVisible(page)).toBe(true);
+    await expect.poll(() => isSheetVisible(page)).toBe(true);
 
     const rect = await getSheetRect(page);
     expect(rect).not.toBeNull();
@@ -51,12 +51,10 @@ test.describe("Focus sheet shell", () => {
   test("Observer 6: typed value persists across backdrop close + reopen", async ({
     page,
   }) => {
-    await page.locator("h1").click();
-    await page.waitForTimeout(200);
+    await selectElement(page, page.locator("h1"));
     await clickToolbarAction(page, "edit");
-    await page.waitForTimeout(400);
 
-    expect(await isSheetVisible(page)).toBe(true);
+    await expect.poll(() => isSheetVisible(page)).toBe(true);
 
     // Type into the first text input inside the sheet via React's synthetic
     // event path (native setter + bubbling `input` event).
@@ -76,7 +74,10 @@ test.describe("Focus sheet shell", () => {
         input.dispatchEvent(new Event("input", { bubbles: true }));
       }
     }, typed);
-    await page.waitForTimeout(200);
+    // The draft is deliberately still IN FLIGHT here — this is a continuous
+    // control mid-debounce, so there is no committed post-state to poll for.
+    // settle() lets the draft render before the focusout below flushes it.
+    await settle(page);
 
     // Blur the focused text input before closing so the debounce flushes
     // immediately. The CONTINUOUS_DEBOUNCE_MS window (commit-mode.ts) clears
@@ -105,13 +106,13 @@ test.describe("Focus sheet shell", () => {
     // full 1280px viewport so no guaranteed empty pixel exists at a fixed offset.
     // Escape is the robust, demo-topology-independent close path.
     await page.keyboard.press("Escape");
-    await page.waitForTimeout(300);
 
-    expect(await isSheetVisible(page)).toBe(false);
+    await expect.poll(() => isSheetVisible(page)).toBe(false);
 
     // Reopen via the edit button (still visible — selection kept).
+    await settle(page);
     await clickToolbarAction(page, "edit");
-    await page.waitForTimeout(400);
+    await expect.poll(() => isSheetVisible(page)).toBe(true);
 
     const value = await page.evaluate(() => {
       for (const d of document.querySelectorAll("div")) {
@@ -132,10 +133,9 @@ test.describe("Focus sheet shell", () => {
   test("Observer 5: expanding a style object never dims/occludes the element", async ({
     page,
   }) => {
-    await page.locator("h1").click();
-    await page.waitForTimeout(200);
+    await selectElement(page, page.locator("h1"));
     await clickToolbarAction(page, "edit");
-    await page.waitForTimeout(400);
+    await expect.poll(() => isSheetVisible(page)).toBe(true);
 
     const beforeCutout = await getBackdropCutoutRect(page);
     expect(beforeCutout).not.toBeNull();
@@ -150,7 +150,12 @@ test.describe("Focus sheet shell", () => {
         trigger?.click();
       }
     });
-    await page.waitForTimeout(300);
+    // settle(), not a poll on the trigger's open state: measured on this sheet,
+    // the Heading renders NO disclosure trigger (its style object is the
+    // always-open FieldSection since T8), so the click above is a no-op and
+    // there is no post-state to wait for. The assertion below — the cutout
+    // unchanged — is what this test actually observes.
+    await settle(page);
 
     // The cutout still tracks the same element rect (un-occluded, un-dimmed).
     const afterCutout = await getBackdropCutoutRect(page);
@@ -165,26 +170,26 @@ test.describe("Focus sheet shell", () => {
   test("F8: editing surface raises the backdrop cutout + editing ring, then clears on close", async ({
     page,
   }) => {
-    await page.locator("h1").click();
-    await page.waitForTimeout(200);
+    // selectElement's settle is the wait here: both assertions below are about
+    // an ABSENT surface, so polling for them would pass before the click landed.
+    await selectElement(page, page.locator("h1"));
 
     // Selected but not editing — no backdrop, ring is the plain (non-editing) one.
     expect(await getBackdropCutoutRect(page)).toBeNull();
     expect(await isSelectionRingEditing(page)).toBe(false);
 
     await clickToolbarAction(page, "edit");
-    await page.waitForTimeout(400);
 
     // Editing — the surface is up: cutout frames the element, ring is editing.
-    expect(await isSheetVisible(page)).toBe(true);
+    await expect.poll(() => isSheetVisible(page)).toBe(true);
     expect(await getBackdropCutoutRect(page)).not.toBeNull();
     expect(await isSelectionRingEditing(page)).toBe(true);
 
+    await settle(page);
     await page.keyboard.press("Escape");
-    await page.waitForTimeout(300);
 
     // Closed — the surface is gone; selection persists but no editing chrome.
-    expect(await isSheetVisible(page)).toBe(false);
+    await expect.poll(() => isSheetVisible(page)).toBe(false);
     expect(await getBackdropCutoutRect(page)).toBeNull();
     expect(await isSelectionRingEditing(page)).toBe(false);
   });
@@ -245,13 +250,11 @@ test.describe("Toolbar pen click targets the selected element", () => {
   test("real click on the pen opens the selected element's sheet, not the one beneath it", async ({
     page,
   }) => {
-    await page.locator("[data-banner]").click();
-    await page.waitForTimeout(250);
+    await selectElement(page, page.locator("[data-banner]"));
 
     expect(await realClickToolbarAction(page, "edit")).toBe(true);
-    await page.waitForTimeout(400);
 
-    expect(await isSheetVisible(page)).toBe(true);
+    await expect.poll(() => isSheetVisible(page)).toBe(true);
     expect(await getSheetHeaderLabel(page)).toBe("Banner");
   });
 });
@@ -268,15 +271,14 @@ test.describe("Every demo component opens its sheet clean", () => {
       page,
     }) => {
       await surface.select(page);
-      await page.waitForTimeout(250);
+      await settle(page);
 
       for (const [level, label] of surface.ancestry.entries()) {
-        if (level > 0) {
-          await climbToParent(page);
-          await page.waitForTimeout(200);
-        }
+        // climbToParent already settles; the header label below is what proves
+        // the climb reached the next ancestor.
+        if (level > 0) await climbToParent(page);
         await clickToolbarAction(page, "edit");
-        await page.waitForTimeout(400);
+        await expect.poll(() => getSheetHeaderLabel(page)).toBe(label);
 
         expect(await isCrashNoticeVisible(page)).toBe(false);
         expect(await isSheetVisible(page)).toBe(true);
@@ -285,8 +287,10 @@ test.describe("Every demo component opens its sheet clean", () => {
 
         // Escape closes the sheet but keeps the selection — the next climb
         // starts from this element.
+        await settle(page);
         await page.keyboard.press("Escape");
-        await page.waitForTimeout(250);
+        await expect.poll(() => isSheetVisible(page)).toBe(false);
+        await settle(page);
       }
     });
   }
