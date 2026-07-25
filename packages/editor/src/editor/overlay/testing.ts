@@ -1,4 +1,4 @@
-import type { Page, Locator } from "@playwright/test";
+import { expect, type Page, type Locator } from "@playwright/test";
 
 export { FIX } from "../../test-catalog/fixture.js";
 
@@ -379,7 +379,7 @@ export const selectParentElement = (page: Page) =>
  *  Use when you need the FloatingActionBar (toolbar) visible on the parent. */
 export const climbToParent = async (page: Page) => {
   await selectParentElement(page);
-  await page.waitForTimeout(300);
+  await waitFrames(page, 2);
 };
 
 /** Enter the insert slot-choice step (slot-selected) on a multi-slot node: climb
@@ -387,9 +387,9 @@ export const climbToParent = async (page: Page) => {
  *  that climb navigates nodes only — the slot bands belong to the insert flow. */
 export const enterSlotChoice = async (page: Page) => {
   await selectParentElement(page);
-  await page.waitForTimeout(300);
+  await waitFrames(page, 2);
   await page.keyboard.press("/");
-  await page.waitForTimeout(300);
+  await expect.poll(() => isSlotStopVisible(page)).toBe(true);
 };
 
 export const isSlotStopVisible = (page: Page) =>
@@ -1015,7 +1015,10 @@ export const dragOverAt = async (page: Page, p: Point) => {
     tgt?.dispatchEvent(new DragEvent("dragenter", init));
     tgt?.dispatchEvent(new DragEvent("dragover", init));
   }, p);
-  await page.waitForTimeout(20);
+  // dragover is a continuous-priority React event, so its commit can land after
+  // the dispatch returns. Two frames covers the commit plus the overlay's rAF
+  // anchor pass — the point where the resolution is readable.
+  await waitFrames(page, 2);
 };
 
 export const dragEnd = (page: Page, p: Point) =>
@@ -2697,7 +2700,7 @@ export const arrowNavRadio = async (
   );
   if (!focused) return null;
   await page.keyboard.press(key);
-  await page.waitForTimeout(120);
+  await waitFrames(page, 2);
   const group = await readRadioGroup(page, fieldLabel);
   return group?.options.find((o) => o.checked)?.value ?? null;
 };
@@ -2804,8 +2807,11 @@ export const clickSpacingLink = async (
     { label: fieldLabel, finder: spacingRoot.toString() },
   )) as { x: number; y: number } | null;
   if (!c) return false;
+  const linkedBefore = (await readSpacing(page, fieldLabel))?.linked;
   await page.mouse.click(c.x, c.y);
-  await page.waitForTimeout(120);
+  await expect
+    .poll(() => readSpacing(page, fieldLabel).then((s) => s?.linked))
+    .toBe(!linkedBefore);
   return true;
 };
 
@@ -3066,6 +3072,11 @@ export const readDisclosureTriggers = (page: Page) =>
     })),
   ) as Promise<{ label: string; open: boolean }[]>;
 
+/** Whether the disclosure group with this label is expanded. Undefined when no
+ *  trigger carries the label. */
+export const isDisclosureOpen = async (page: Page, label: string) =>
+  (await readDisclosureTriggers(page)).find((t) => t.label === label)?.open;
+
 /** Click the disclosure trigger whose label matches (real mouse), so a test can
  *  open one named group without expanding every disclosure. Returns false when
  *  no trigger carries that label. */
@@ -3096,7 +3107,8 @@ export const clickDisclosureTrigger = async (
     return null;
   }, label)) as { x: number; y: number } | null;
   if (!c) return false;
+  const openBefore = await isDisclosureOpen(page, label);
   await page.mouse.click(c.x, c.y);
-  await page.waitForTimeout(150);
+  await expect.poll(() => isDisclosureOpen(page, label)).toBe(!openBefore);
   return true;
 };
