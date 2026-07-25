@@ -2,10 +2,13 @@ import { test, expect, type Page, type Locator } from "@playwright/test";
 import {
   dispatchDrag,
   draggablePressPoint,
+  getCycleChipText,
+  selectElement,
+  settle,
   sourceCenter,
   getActiveDestinationLabel,
   type Point,
-openTestPage,
+  openTestPage,
 } from "../overlay/testing.js";
 
 /** Ticket 114 slice 4 + folded 117: drop INTO array-item slots — a slot that
@@ -19,7 +22,9 @@ test.describe("Drop into array-item slots", () => {
   test.beforeEach(async ({ page }) => {
     await openTestPage(page);
     await sections(page).scrollIntoViewIfNeeded();
-    await page.waitForTimeout(200);
+    // Nothing in the app scrolls smoothly, so the scroll itself is already done —
+    // only the overlay's rAF anchor pass is outstanding.
+    await settle(page);
   });
 
   const sections = (page: Page): Locator =>
@@ -52,7 +57,7 @@ test.describe("Drop into array-item slots", () => {
     await page.mouse.down();
     for (const wp of waypoints) {
       await page.mouse.move(wp.x, wp.y, { steps: 8 });
-      await page.waitForTimeout(60);
+      await settle(page);
     }
     if (release) await page.mouse.up();
   };
@@ -61,12 +66,18 @@ test.describe("Drop into array-item slots", () => {
    *  key-up 1px nudge re-arms the next rising edge (Chromium emits no dragover
    *  for a modifier-only change). */
   const tapShift = async (page: Page, at: Point) => {
+    const before = await getCycleChipText(page);
     await page.keyboard.down("Shift");
     await page.mouse.move(at.x + 1, at.y, { steps: 1 });
-    await page.waitForTimeout(120);
+    // The chip re-reads "N of M" on every step, so its text CHANGING is the step
+    // landing — the observable the old fixed sleep was guessing at.
+    await expect
+      .poll(() => getCycleChipText(page), { intervals: [25] })
+      .not.toBe(before);
     await page.keyboard.up("Shift");
     await page.mouse.move(at.x, at.y, { steps: 1 });
-    await page.waitForTimeout(80);
+    // Falling edge re-arms the next rising edge; settle before the next input.
+    await settle(page);
   };
 
   test("drop into a filled array-item slot lands the child inside that item", async ({
@@ -74,18 +85,19 @@ test.describe("Drop into array-item slots", () => {
   }) => {
     const before = (await childTags(sectionAt(page, 0))).length;
 
-    await banner(page).click();
-    await page.waitForTimeout(300);
+    await selectElement(page, banner(page));
 
     await dispatchDrag(page, {
       from: await sourceCenter(banner(page)),
       to: await filledSlotPoint(page),
       phase: "full",
     });
-    await page.waitForTimeout(500);
 
-    // The child lands in item 0's filled slot, not item 1's empty one.
-    expect((await childTags(sectionAt(page, 0))).length).toBe(before + 1);
+    // The child lands in item 0's filled slot, not item 1's empty one. The commit
+    // runs behind a view transition (animatedUpdate), so poll for the new child.
+    await expect
+      .poll(async () => (await childTags(sectionAt(page, 0))).length)
+      .toBe(before + 1);
     expect(await childTags(sectionAt(page, 1))).toEqual(["H4"]);
   });
 
@@ -98,8 +110,7 @@ test.describe("Drop into array-item slots", () => {
     const item0Before = (await childTags(sectionAt(page, 0))).length;
     expect(await childTags(sectionAt(page, 1))).toEqual(["H4"]);
 
-    await banner(page).click();
-    await page.waitForTimeout(300);
+    await selectElement(page, banner(page));
 
     const at = await sourceCenter(sections(page));
     await mouseDrag(page, banner(page), [at], false);
@@ -111,10 +122,12 @@ test.describe("Drop into array-item slots", () => {
     await tapShift(page, at); // index 1 → items[1].content (empty)
     expect(await getActiveDestinationLabel(page)).toBe("Sections › content");
     await page.mouse.up();
-    await page.waitForTimeout(500);
 
-    // The child landed in the empty item 1, leaving item 0 untouched.
-    expect((await childTags(sectionAt(page, 1))).length).toBeGreaterThan(1);
+    // The child landed in the empty item 1, leaving item 0 untouched. The commit
+    // runs behind a view transition, so poll for item 1 growing.
+    await expect
+      .poll(async () => (await childTags(sectionAt(page, 1))).length)
+      .toBeGreaterThan(1);
     expect((await childTags(sectionAt(page, 0))).length).toBe(item0Before);
   });
 });

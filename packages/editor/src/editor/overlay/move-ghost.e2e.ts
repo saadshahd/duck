@@ -8,8 +8,10 @@ import {
   dragStart,
   dragOverAt,
   dragEnd,
+  selectElement,
+  settle,
   type Point,
-openTestPage,
+  openTestPage,
 } from "./testing.js";
 
 const cardTitle = (page: Page) => page.locator('h3:has-text("Zero Chrome")');
@@ -28,10 +30,12 @@ const VOID: Point = { x: 5, y: 5 };
 
 /** Lift the heading into carry via Space (keyboard never auto-scrolls). */
 const liftHeading = async (page: Page) => {
-  await page.locator("h1").click();
-  await page.waitForTimeout(300);
+  await selectElement(page, page.locator("h1"));
   await page.keyboard.press("Space");
-  await page.waitForTimeout(150);
+  // Space is a discrete-priority event, so the carry state commit has already
+  // flushed; carry arms on a setTimeout(0) (use-carry.ts) which two frames
+  // clears, and two frames is also the overlay's rAF anchor pass.
+  await settle(page);
 };
 
 test.describe("Move ghost — one element, both modalities", () => {
@@ -43,8 +47,7 @@ test.describe("Move ghost — one element, both modalities", () => {
     page,
   }) => {
     const heading = page.locator("h1");
-    await heading.click();
-    await page.waitForTimeout(300);
+    await selectElement(page, heading);
 
     await dragStart(page, heading);
     await dragOverAt(page, await headerGapPoint(page));
@@ -68,8 +71,7 @@ test.describe("Move ghost — one element, both modalities", () => {
     page,
   }) => {
     const heading = page.locator("h1");
-    await heading.click();
-    await page.waitForTimeout(300);
+    await selectElement(page, heading);
 
     const gap = await headerGapPoint(page);
     const lower: Point = { x: gap.x, y: gap.y + 60 };
@@ -92,8 +94,7 @@ test.describe("Move ghost — one element, both modalities", () => {
     page,
   }) => {
     const heading = page.locator("h1");
-    await heading.click();
-    await page.waitForTimeout(300);
+    await selectElement(page, heading);
 
     await dragStart(page, heading);
     await dragOverAt(page, VOID);
@@ -140,7 +141,10 @@ test.describe("Move ghost — one element, both modalities", () => {
     const first = await getMoveGhostPosition(page);
 
     await page.mouse.move(gap.x, gap.y + 60);
-    await page.waitForTimeout(60);
+    // The ghost is positioned straight from React state (move-ghost.tsx reads
+    // `point`), so a mousemove's continuous-priority commit plus one paint is
+    // all that stands between the move and a readable position.
+    await settle(page);
     const second = await getMoveGhostPosition(page);
 
     expect(first).not.toBeNull();

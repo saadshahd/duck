@@ -12,11 +12,13 @@ import {
   readTiles,
   getCycleChipText,
   dispatchDrag,
+  selectElement,
+  settle,
   sourceCenter,
   draggablePressPoint,
   edgePoint,
   type Point,
-openTestPage,
+  openTestPage,
 } from "../overlay/testing.js";
 
 /** Simulate a full native drag-and-drop onto a sibling's edge. */
@@ -63,21 +65,18 @@ test.describe("Drag-to-reorder", () => {
 
   test("selected element gets draggable attribute", async ({ page }) => {
     const heading = page.locator("h1");
-    await heading.click();
-    await page.waitForTimeout(300);
-    expect(await heading.getAttribute("draggable")).toBe("true");
+    await selectElement(page, heading);
+    await expect(heading).toHaveAttribute("draggable", "true");
   });
 
   test("drag over sibling shows drop indicator", async ({ page }) => {
     const heading = page.locator("h1");
-    await heading.click();
-    await page.waitForTimeout(300);
+    await selectElement(page, heading);
 
     const description = page.locator("p").first();
     await dragOver(page, heading, description);
-    await page.waitForTimeout(300);
 
-    expect(await hasDropIndicator(page)).toBe(true);
+    await expect.poll(() => hasDropIndicator(page)).toBe(true);
   });
 
   test("drop reorders elements", async ({ page }) => {
@@ -87,55 +86,60 @@ test.describe("Drag-to-reorder", () => {
     const initialFirst = await heroSection.locator("> *").first().textContent();
 
     // Select heading
-    await heading.click();
-    await page.waitForTimeout(300);
+    await selectElement(page, heading);
 
     // Drag heading to below the description (second sibling)
     const description = page.locator("p").first();
     await dragAndDrop(page, heading, description, "bottom");
-    await page.waitForTimeout(500);
 
-    // After reorder, heading should no longer be the first child
-    const newFirst = await heroSection.locator("> *").first().textContent();
-    expect(newFirst).not.toBe(initialFirst);
+    // After reorder, heading should no longer be the first child. The commit
+    // runs inside a view transition (animatedUpdate), so the DOM change lands a
+    // frame or two after the drop dispatch returns — poll rather than sleep.
+    await expect
+      .poll(() => heroSection.locator("> *").first().textContent())
+      .not.toBe(initialFirst);
   });
 
   test("cannot drag while editing", async ({ page }) => {
     const heading = page.locator("h1");
-    await heading.click();
-    await page.waitForTimeout(300);
+    await selectElement(page, heading);
 
     // Double-click to enter inline edit
     await heading.dblclick();
-    await page.waitForTimeout(300);
 
-    // Element should not be draggable during edit
-    const draggable = await heading.getAttribute("draggable");
-    expect(draggable).not.toBe("true");
+    // Element should not be draggable during edit — a real transition, since
+    // selection above set draggable="true".
+    await expect(heading).not.toHaveAttribute("draggable", "true");
   });
 
   test("second drag works after first drop", async ({ page }) => {
     const heading = page.locator("h1");
-    await heading.click();
-    await page.waitForTimeout(300);
+    const heroSection = heading.locator("..");
+    const initialFirst = await heroSection.locator("> *").first().textContent();
+    await selectElement(page, heading);
 
     const description = page.locator("p").first();
     await dragAndDrop(page, heading, description, "bottom");
-    await page.waitForTimeout(500);
 
-    await description.click();
-    await page.waitForTimeout(300);
+    // Wait for the reorder to actually land before selecting again — the point
+    // of the test is re-selection AFTER a drop, so clicking mid-commit would
+    // exercise something else.
+    await expect
+      .poll(() => heroSection.locator("> *").first().textContent())
+      .not.toBe(initialFirst);
+    await selectElement(page, description);
 
     // The draggable affordance lands on the selected component's registered root
     // element, which wraps the inner <p>. Re-selection after a drop must
     // re-attach it — proving a second drag can begin.
     const descriptionRoot = description.locator("..");
-    expect(await descriptionRoot.getAttribute("draggable")).toBe("true");
+    await expect(descriptionRoot).toHaveAttribute("draggable", "true");
 
-    // Drag back
+    // Drag back. Nothing is asserted afterwards; settle just lets the dispatched
+    // drop flush before teardown.
     const movedHeading = page.locator("h1");
     await dragAndDrop(page, description, movedHeading, "top");
-    await page.waitForTimeout(500);
+    await settle(page);
   });
 });
 
@@ -156,7 +160,7 @@ async function mouseDrag(
   await page.mouse.down();
   for (const wp of waypoints) {
     await page.mouse.move(wp.x, wp.y, { steps: 8 });
-    await page.waitForTimeout(60);
+    await settle(page);
   }
   if (release) await page.mouse.up();
 }
@@ -179,38 +183,33 @@ test.describe("Slot-aware container drops", () => {
 
   test("container drop shows 'Component › slot' label", async ({ page }) => {
     const heading = page.locator("h1");
-    await heading.click();
-    await page.waitForTimeout(300);
+    await selectElement(page, heading);
 
     await dragOverPoint(page, heading, await headerGapPoint(page));
-    await page.waitForTimeout(300);
 
-    expect(await getActiveTileLabel(page)).toBe("Card › header");
+    await expect.poll(() => getActiveTileLabel(page)).toBe("Card › header");
   });
 
   test("container hover paints gapless labeled tiles", async ({ page }) => {
     const heading = page.locator("h1");
-    await heading.click();
-    await page.waitForTimeout(300);
+    await selectElement(page, heading);
 
     await mouseDrag(page, heading, [await headerGapPoint(page)], false);
-    await page.waitForTimeout(300);
 
-    const labels = await getTileLabels(page);
-    expect(labels).toEqual(["Card › header", "Card › body", "Card › footer"]);
+    await expect
+      .poll(() => getTileLabels(page))
+      .toEqual(["Card › header", "Card › body", "Card › footer"]);
 
     await page.mouse.up();
   });
 
   test("tile label is visible before release", async ({ page }) => {
     const heading = page.locator("h1");
-    await heading.click();
-    await page.waitForTimeout(300);
+    await selectElement(page, heading);
 
     await mouseDrag(page, heading, [await headerGapPoint(page)], false);
-    await page.waitForTimeout(300);
 
-    expect(await getActiveTileLabel(page)).toBe("Card › header");
+    await expect.poll(() => getActiveTileLabel(page)).toBe("Card › header");
     const rect = await getActiveTileRect(page);
     expect(rect).not.toBeNull();
 
@@ -221,36 +220,38 @@ test.describe("Slot-aware container drops", () => {
     page,
   }) => {
     const heading = page.locator("h1");
-    await heading.click();
-    await page.waitForTimeout(300);
+    await selectElement(page, heading);
 
     await dragAndDropPoint(page, heading, await headerGapPoint(page));
-    await page.waitForTimeout(500);
 
-    const tags = await card(page).evaluate((el) =>
-      [...el.children].map((c) => c.tagName),
-    );
-    expect(tags.slice(0, 2)).toEqual(["H3", "H1"]);
+    await expect
+      .poll(async () =>
+        (
+          await card(page).evaluate((el) =>
+            [...el.children].map((c) => c.tagName),
+          )
+        ).slice(0, 2),
+      )
+      .toEqual(["H3", "H1"]);
   });
 
   test("move an element between slots of the same container", async ({
     page,
   }) => {
     const title = cardTitle(page);
-    await title.click();
-    await page.waitForTimeout(300);
+    await selectElement(page, title);
 
     const desc = page.locator('p:has-text("No panels, no toolbars")');
     await dragAndDrop(page, title, desc, "bottom");
-    await page.waitForTimeout(500);
 
-    const tags = await card(page).evaluate((el) =>
-      [...el.children].map((c) => c.tagName),
-    );
     // The moved H3 lands after the body Text; the trailing DIV is the card's
     // `tags` decoration (feature-1 carries a "Design" tag for the array-field
     // suite), which renders after the body slot and before the empty footer.
-    expect(tags).toEqual(["DIV", "H3", "DIV"]);
+    await expect
+      .poll(() =>
+        card(page).evaluate((el) => [...el.children].map((c) => c.tagName)),
+      )
+      .toEqual(["DIV", "H3", "DIV"]);
   });
 });
 
@@ -263,7 +264,13 @@ async function holdDragAt(page: Page, source: Locator, point: Point) {
   await page.mouse.move(start.x, start.y);
   await page.mouse.down();
   await page.mouse.move(point.x, point.y, { steps: 8 });
-  await page.waitForTimeout(80);
+  // The cycle chip mounts in onDragStart (use-drag-reorder sets the "entry"
+  // CycleStatus there), so its presence is exactly "the native drag session is
+  // live and the overlay has painted" — what the fixed sleep stood in for. It
+  // says nothing about a resolved destination; callers that need one poll for it.
+  await expect
+    .poll(() => getCycleChipText(page), { intervals: [25] })
+    .not.toBeNull();
 }
 
 /** Tap Shift once during a live native drag. Chromium emits no dragover for a
@@ -272,12 +279,18 @@ async function holdDragAt(page: Page, source: Locator, point: Point) {
  *  rising edge). Without the key-up nudge shiftKey stays latched true and no
  *  further step ever fires. */
 async function tapShift(page: Page, at: Point) {
+  const before = await getCycleChipText(page);
   await page.keyboard.down("Shift");
   await page.mouse.move(at.x + 1, at.y, { steps: 1 });
-  await page.waitForTimeout(120);
+  // The chip re-reads "N of M" on every step, so its text CHANGING is the step
+  // landing — the observable the fixed sleep was guessing at.
+  await expect
+    .poll(() => getCycleChipText(page), { intervals: [25] })
+    .not.toBe(before);
   await page.keyboard.up("Shift");
   await page.mouse.move(at.x, at.y, { steps: 1 });
-  await page.waitForTimeout(80);
+  // Falling edge re-arms the next rising edge; settle before the next input.
+  await settle(page);
 }
 
 test.describe("Shift-cycle destination stack", () => {
@@ -294,13 +307,12 @@ test.describe("Shift-cycle destination stack", () => {
     page,
   }) => {
     const heading = page.locator("h1");
-    await heading.click();
-    await page.waitForTimeout(300);
+    await selectElement(page, heading);
 
     const at = await cardCenter(page);
     await holdDragAt(page, heading, at);
 
-    // First tap selects within 500ms.
+    // First tap steps onto the deepest container's first slot.
     await tapShift(page, at);
     const first = await getActiveDestinationLabel(page);
 
@@ -338,8 +350,7 @@ test.describe("Shift-cycle destination stack", () => {
       .locator('h3:has-text("Catalog-Agnostic")')
       .locator("..");
     const heading = page.locator("h1");
-    await heading.click();
-    await page.waitForTimeout(300);
+    await selectElement(page, heading);
 
     const box = await targetCard.boundingBox();
     if (!box) throw new Error("Card not visible");
@@ -349,13 +360,18 @@ test.describe("Shift-cycle destination stack", () => {
     };
 
     await mouseDrag(page, heading, [footerBand], true);
-    await page.waitForTimeout(500);
 
-    const tags = await targetCard.evaluate((el) =>
-      [...el.children].map((c) => c.tagName),
-    );
-    // H1 lands as the card's last child (the footer slot's only element).
-    expect(tags.at(-1)).toBe("H1");
+    // H1 lands as the card's last child (the footer slot's only element). The
+    // commit runs behind a view transition, so poll for the new child order.
+    await expect
+      .poll(async () =>
+        (
+          await targetCard.evaluate((el) =>
+            [...el.children].map((c) => c.tagName),
+          )
+        ).at(-1),
+      )
+      .toBe("H1");
   });
 
   test("cycle to beside-in-parent and drop lands the element as a sibling", async ({
@@ -365,8 +381,7 @@ test.describe("Shift-cycle destination stack", () => {
     const before = await grid.evaluate((el) => el.children.length);
 
     const heading = page.locator("h1");
-    await heading.click();
-    await page.waitForTimeout(300);
+    await selectElement(page, heading);
 
     const at = await cardCenter(page);
     await holdDragAt(page, heading, at);
@@ -379,11 +394,11 @@ test.describe("Shift-cycle destination stack", () => {
       if (label && !label.startsWith("Card ›")) landed = true;
     }
     await page.mouse.up();
-    await page.waitForTimeout(500);
 
     expect(landed).toBe(true);
-    const after = await grid.evaluate((el) => el.children.length);
-    expect(after).toBe(before + 1);
+    await expect
+      .poll(() => grid.evaluate((el) => el.children.length))
+      .toBe(before + 1);
   });
 });
 
@@ -398,17 +413,15 @@ test.describe("Move ghost on a between-siblings line drag", () => {
     page,
   }) => {
     const heading = page.locator("h1");
-    await heading.click();
-    await page.waitForTimeout(300);
+    await selectElement(page, heading);
 
     const description = page.locator("p").first();
     await dragOver(page, heading, description);
-    await page.waitForTimeout(300);
 
     // A line drop still paints the spatial indicator (where), and the single ghost
     // names the resolution (what + validity). The zone label, position chip, and
     // root label are folded into the ghost — none survives.
-    expect(await hasDropIndicator(page)).toBe(true);
+    await expect.poll(() => hasDropIndicator(page)).toBe(true);
 
     const ghost = await readMoveGhost(page);
     expect(ghost).not.toBeNull();
@@ -445,9 +458,10 @@ test.describe("Band grammar — carved and discrete", () => {
   }) => {
     const source = ctaSource(page);
     await source.scrollIntoViewIfNeeded();
-    await page.waitForTimeout(200);
-    await source.click();
-    await page.waitForTimeout(300);
+    // Nothing scrolls smoothly here, so the scroll is already done — settle just
+    // lets the overlay re-anchor before the click.
+    await settle(page);
+    await selectElement(page, source);
 
     // Target the carved divider band: the 24px slot between the head (h3 "Stack
     // panel") and the body. The midpoint of that carved band is just below the
@@ -463,7 +477,13 @@ test.describe("Band grammar — carved and discrete", () => {
     };
 
     await mouseDrag(page, source, [dividerBandMid], false);
-    await page.waitForTimeout(300);
+    // Wait for the panel's band set to paint at all; how many of those are
+    // CARVED is what the assertion below decides.
+    await expect
+      .poll(async () => (await readTiles(page))?.length ?? 0, {
+        intervals: [50],
+      })
+      .toBeGreaterThan(0);
 
     const carved = await countCarvedTiles(page);
     await page.mouse.up();
@@ -478,9 +498,10 @@ test.describe("Band grammar — carved and discrete", () => {
   }) => {
     const source = ctaSource(page);
     await source.scrollIntoViewIfNeeded();
-    await page.waitForTimeout(200);
-    await source.click();
-    await page.waitForTimeout(300);
+    // Nothing scrolls smoothly here, so the scroll is already done — settle just
+    // lets the overlay re-anchor before the click.
+    await settle(page);
+    await selectElement(page, source);
 
     const panelBox = await scatterPanel(page).boundingBox();
     if (!panelBox) throw new Error("Scatter panel not visible");
@@ -490,7 +511,13 @@ test.describe("Band grammar — carved and discrete", () => {
     };
 
     await mouseDrag(page, source, [center], false);
-    await page.waitForTimeout(300);
+    // Wait for the panel's tiles to paint at all; whether they are DISCRETE and
+    // how the leader count matches is what the assertions below decide.
+    await expect
+      .poll(async () => (await readTiles(page))?.length ?? 0, {
+        intervals: [50],
+      })
+      .toBeGreaterThan(0);
 
     const tiles = (await readTiles(page)) ?? [];
     const discreteCount = tiles.filter((t) => t.discrete).length;
@@ -530,13 +557,16 @@ test.describe("Same-parent container guard and cycle chip", () => {
     // Select card1 and start dragging over card2's interior.
     const source = card1(page);
     await source.scrollIntoViewIfNeeded();
-    await page.waitForTimeout(200);
-    await source.click();
-    await page.waitForTimeout(300);
+    // Nothing scrolls smoothly here, so the scroll is already done — settle just
+    // lets the overlay re-anchor before the click.
+    await settle(page);
+    await selectElement(page, source);
 
     const at = await card2Center(page);
     await holdDragAt(page, source, at);
-    await page.waitForTimeout(200);
+    // holdDragAt only proves the drag session is live (the entry chip mounts in
+    // onDragStart); the resolution against card2 lands on the first dragover.
+    await expect.poll(() => hasDropIndicator(page)).toBe(true);
 
     // Must show a line indicator (reorder-beside), not slot tiles.
     const hasLine = await hasDropIndicator(page);
@@ -557,16 +587,17 @@ test.describe("Same-parent container guard and cycle chip", () => {
   }) => {
     const source = card1(page);
     await source.scrollIntoViewIfNeeded();
-    await page.waitForTimeout(200);
-    await source.click();
-    await page.waitForTimeout(300);
+    // Nothing scrolls smoothly here, so the scroll is already done — settle just
+    // lets the overlay re-anchor before the click.
+    await settle(page);
+    await selectElement(page, source);
 
     const at = await card2Center(page);
     await holdDragAt(page, source, at);
 
-    // First shift tap dives into card2's slots.
+    // First shift tap dives into card2's slots. tapShift returns once the chip
+    // has stepped, and the dive's tiles paint in that same commit.
     await tapShift(page, at);
-    await page.waitForTimeout(200);
 
     const tileLabels = await getTileLabels(page);
     const chipText = await getCycleChipText(page);
@@ -588,15 +619,15 @@ test.describe("Same-parent container guard and cycle chip", () => {
   }) => {
     const source = card1(page);
     await source.scrollIntoViewIfNeeded();
-    await page.waitForTimeout(200);
-    await source.click();
-    await page.waitForTimeout(300);
+    // Nothing scrolls smoothly here, so the scroll is already done — settle just
+    // lets the overlay re-anchor before the click.
+    await settle(page);
+    await selectElement(page, source);
 
     // R12: the chip discloses the cycle key from drag entry, before any Shift
     // step — over any destination, not just after diving into slots.
     const at = await card2Center(page);
     await holdDragAt(page, source, at);
-    await page.waitForTimeout(80);
 
     const chip = await getCycleChipText(page);
     await page.mouse.up();
@@ -606,20 +637,22 @@ test.describe("Same-parent container guard and cycle chip", () => {
   test("cycle chip disappears after drop", async ({ page }) => {
     const source = card1(page);
     await source.scrollIntoViewIfNeeded();
-    await page.waitForTimeout(200);
-    await source.click();
-    await page.waitForTimeout(300);
+    // Nothing scrolls smoothly here, so the scroll is already done — settle just
+    // lets the overlay re-anchor before the click.
+    await settle(page);
+    await selectElement(page, source);
 
     const at = await card2Center(page);
     await holdDragAt(page, source, at);
     await tapShift(page, at);
-    await page.waitForTimeout(200);
 
     // Chip present before drop.
     const chipBefore = await getCycleChipText(page);
 
     await page.mouse.up();
-    await page.waitForTimeout(300);
+    // onDrop clears the cycle status, unmounting the chip — a real transition
+    // from the non-null reading just taken, so this poll cannot pass vacuously.
+    await expect.poll(() => getCycleChipText(page)).toBeNull();
 
     const chipAfter = await getCycleChipText(page);
     expect(chipBefore, "chip present before drop").not.toBeNull();

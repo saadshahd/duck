@@ -9,9 +9,11 @@ import {
   getLiftPulseRect,
   isNoTargetFlashVisible,
   getCycleChipText,
+  selectElement,
+  settle,
   waitFrames,
   type Point,
-openTestPage,
+  openTestPage,
 } from "../overlay/testing.js";
 
 const cardTitle = (page: Page) => page.locator('h3:has-text("Zero Chrome")');
@@ -30,7 +32,10 @@ const cardTags = (page: Page) =>
 
 const lift = async (page: Page) => {
   await page.keyboard.press("Space");
-  await page.waitForTimeout(150);
+  // Space is discrete-priority, so the carry state commit has already flushed
+  // when the press resolves; carry arms on a setTimeout(0) (use-carry.ts) and
+  // the overlay paints on its rAF anchor pass — two frames clears both.
+  await settle(page);
 };
 
 test.describe("Carry (pointer-driven move)", () => {
@@ -42,8 +47,7 @@ test.describe("Carry (pointer-driven move)", () => {
     page,
   }) => {
     const heading = page.locator("h1");
-    await heading.click();
-    await page.waitForTimeout(300);
+    await selectElement(page, heading);
     expect(await isToolbarVisible(page)).toBe(true);
 
     await lift(page);
@@ -63,8 +67,7 @@ test.describe("Carry (pointer-driven move)", () => {
 
   test("Space lift, arrow step, Enter commits", async ({ page }) => {
     const heading = page.locator("h1");
-    await heading.click();
-    await page.waitForTimeout(300);
+    await selectElement(page, heading);
 
     await lift(page);
 
@@ -74,11 +77,15 @@ test.describe("Carry (pointer-driven move)", () => {
       .poll(() => getActiveDestinationLabel(page))
       .toBe("Card › header");
 
+    // Arrow presses are discrete-priority: each step's commit has flushed by the
+    // time the press resolves, leaving only the overlay's rAF paint. Settle
+    // between them so the second press never lands mid-commit.
     await page.keyboard.press("ArrowDown");
-    await page.waitForTimeout(80);
+    await settle(page);
     await page.keyboard.press("ArrowDown");
-    await page.waitForTimeout(120);
-    expect(await getActiveDestinationLabel(page)).toBe("Card › body");
+    await expect
+      .poll(() => getActiveDestinationLabel(page))
+      .toBe("Card › body");
 
     await page.keyboard.press("Enter");
 
@@ -89,8 +96,7 @@ test.describe("Carry (pointer-driven move)", () => {
     page,
   }) => {
     const heading = page.locator("h1");
-    await heading.click();
-    await page.waitForTimeout(300);
+    await selectElement(page, heading);
 
     await lift(page);
 
@@ -102,7 +108,7 @@ test.describe("Carry (pointer-driven move)", () => {
     expect(before).not.toBeNull();
 
     await page.keyboard.press("ArrowDown");
-    await page.waitForTimeout(80);
+    await settle(page);
     const after = await getActiveDestinationLabel(page);
 
     expect(after).not.toBeNull();
@@ -116,15 +122,16 @@ test.describe("Carry (pointer-driven move)", () => {
     const heroSection = heading.locator("..");
     const before = await heroSection.locator("> *").first().textContent();
 
-    await heading.click();
-    await page.waitForTimeout(300);
+    await selectElement(page, heading);
     expect(await countHighlights(page)).toBe(1);
 
     await lift(page);
 
     const gap = await headerGapPoint(page);
     await page.mouse.move(gap.x, gap.y);
-    await page.waitForTimeout(120);
+    // Which destination the pointer resolves is irrelevant here — Escape must
+    // cancel regardless. Two frames is all the move's commit and paint need.
+    await settle(page);
 
     await page.keyboard.press("Escape");
 
@@ -144,8 +151,7 @@ test.describe("Carry affordances", () => {
     page,
   }) => {
     const heading = page.locator("h1");
-    await heading.click();
-    await page.waitForTimeout(300);
+    await selectElement(page, heading);
     expect(await isToolbarVisible(page)).toBe(true);
 
     const hasOldButton = await page.evaluate(() => {
@@ -166,8 +172,7 @@ test.describe("Carry affordances", () => {
     page,
   }) => {
     const heading = page.locator("h1");
-    await heading.click();
-    await page.waitForTimeout(300);
+    await selectElement(page, heading);
 
     await lift(page);
 
@@ -183,20 +188,18 @@ test.describe("Carry affordances", () => {
 
   test("lift pulse appears when carrying starts", async ({ page }) => {
     const heading = page.locator("h1");
-    await heading.click();
-    await page.waitForTimeout(300);
+    await selectElement(page, heading);
 
     await lift(page);
 
-    expect(await isLiftPulseVisible(page)).toBe(true);
+    await expect.poll(() => isLiftPulseVisible(page)).toBe(true);
   });
 
   test("clicking void area while carrying shows no-target flash then clears; still carrying", async ({
     page,
   }) => {
     const heading = page.locator("h1");
-    await heading.click();
-    await page.waitForTimeout(300);
+    await selectElement(page, heading);
 
     await lift(page);
 
@@ -226,15 +229,16 @@ test.describe("Carry affordances", () => {
 
   test("Esc cancels carry: cursor restored", async ({ page }) => {
     const heading = page.locator("h1");
-    await heading.click();
-    await page.waitForTimeout(300);
+    await selectElement(page, heading);
 
     await lift(page);
 
     expect(await page.evaluate(() => document.body.style.cursor)).toBe("move");
 
     await page.keyboard.press("Escape");
-    await page.waitForTimeout(100);
+    // Escape is discrete-priority — the carry-exit commit (which restores the
+    // body cursor) has flushed by the time the press resolves.
+    await settle(page);
 
     const cursor = await page.evaluate(() => document.body.style.cursor);
     expect(cursor).not.toBe("move");
@@ -256,7 +260,7 @@ test.describe("Carry affordances", () => {
 
     // Select via raw pointer coords so Playwright never auto-scrolls the page back.
     await page.mouse.click(box.x + box.width / 2, box.y + box.height / 2);
-    await page.waitForTimeout(300);
+    await settle(page);
 
     // Lift via Space (keyboard never re-scrolls), keeping the scroll offset intact.
     await lift(page);
@@ -288,8 +292,7 @@ test.describe("Carry tracks scroll", () => {
   }) => {
     // Lift the heading via Space so no auto-scroll perturbs the page offset.
     const heading = page.locator("h1");
-    await heading.click();
-    await page.waitForTimeout(300);
+    await selectElement(page, heading);
     await lift(page);
 
     // Aim mid-Card-body — deep inside a tall band, clear of its boundaries — so a
@@ -380,8 +383,7 @@ test.describe("Carry cycle chip", () => {
     page,
   }) => {
     const heading = page.locator("h1");
-    await heading.click();
-    await page.waitForTimeout(300);
+    await selectElement(page, heading);
 
     // R12: the chip is the entire grammar disclosure — it appears at carry entry,
     // before any Tab step, naming the cycle key for this modality.
@@ -396,8 +398,7 @@ test.describe("Carry cycle chip", () => {
     page,
   }) => {
     const heading = page.locator("h1");
-    await heading.click();
-    await page.waitForTimeout(300);
+    await selectElement(page, heading);
 
     await lift(page);
 
@@ -406,10 +407,12 @@ test.describe("Carry cycle chip", () => {
 
     const gap = await headerGapPoint(page);
     await page.mouse.move(gap.x, gap.y);
-    await page.waitForTimeout(80);
+    await settle(page);
 
     await page.keyboard.press("Tab");
-    await page.waitForTimeout(80);
+    // The step swaps the chip off its entry hint — a real transition from the
+    // reading asserted two lines above, so this poll cannot pass vacuously.
+    await expect.poll(() => getCycleChipText(page)).not.toBe("⇥ to cycle");
 
     const chip = await getCycleChipText(page);
     expect(chip).not.toBeNull();
@@ -423,28 +426,27 @@ test.describe("Carry cycle chip", () => {
     page,
   }) => {
     const heading = page.locator("h1");
-    await heading.click();
-    await page.waitForTimeout(300);
+    await selectElement(page, heading);
 
     await lift(page);
 
     const gap = await headerGapPoint(page);
     await page.mouse.move(gap.x, gap.y);
-    await page.waitForTimeout(80);
+    await settle(page);
 
     // First Tab — anchors at the hovered tile.
     await page.keyboard.press("Tab");
-    await page.waitForTimeout(80);
+    await settle(page);
     const labelAfterFirst = await getActiveDestinationLabel(page);
 
     // Second Tab — advances one step.
     await page.keyboard.press("Tab");
-    await page.waitForTimeout(80);
+    await settle(page);
     const labelAfterSecond = await getActiveDestinationLabel(page);
 
     // Shift+Tab — reverses one step, returning to the first label.
     await page.keyboard.press("Shift+Tab");
-    await page.waitForTimeout(80);
+    await settle(page);
     const labelAfterBack = await getActiveDestinationLabel(page);
 
     expect(labelAfterBack).toBe(labelAfterFirst);
@@ -458,14 +460,13 @@ test.describe("Carry cycle chip", () => {
     page,
   }) => {
     const heading = page.locator("h1");
-    await heading.click();
-    await page.waitForTimeout(300);
+    await selectElement(page, heading);
 
     await lift(page);
 
     const gap = await headerGapPoint(page);
     await page.mouse.move(gap.x, gap.y);
-    await page.waitForTimeout(80);
+    await settle(page);
 
     // Record the focused element before Tab.
     const focusBefore = await page.evaluate(
@@ -473,7 +474,7 @@ test.describe("Carry cycle chip", () => {
     );
 
     await page.keyboard.press("Tab");
-    await page.waitForTimeout(80);
+    await settle(page);
 
     // Focus must not have moved to a different native element.
     const focusAfter = await page.evaluate(
@@ -511,8 +512,7 @@ test.describe("Carry cycle chip", () => {
     });
 
     // Select the "Zero Chrome" h3 (feature-1's header), lift, aim over its card.
-    await cardTitle(page).click();
-    await page.waitForTimeout(300);
+    await selectElement(page, cardTitle(page));
 
     await lift(page);
 
@@ -531,7 +531,7 @@ test.describe("Carry cycle chip", () => {
       Array.from({ length: total }),
       async () => {
         await page.keyboard.press("Tab");
-        await page.waitForTimeout(60);
+        await settle(page);
         return {
           label: await getActiveDestinationLabel(page),
           tiles: await readTileRects(page),
@@ -562,23 +562,24 @@ test.describe("Carry cycle chip", () => {
 
   test("cycle chip disappears after Esc cancels carry", async ({ page }) => {
     const heading = page.locator("h1");
-    await heading.click();
-    await page.waitForTimeout(300);
+    await selectElement(page, heading);
 
     await lift(page);
 
     const gap = await headerGapPoint(page);
     await page.mouse.move(gap.x, gap.y);
-    await page.waitForTimeout(80);
+    await settle(page);
 
     await page.keyboard.press("Tab");
-    await page.waitForTimeout(80);
+    await settle(page);
 
     // Chip visible after Tab.
     expect(await getCycleChipText(page)).not.toBeNull();
 
     await page.keyboard.press("Escape");
-    await page.waitForTimeout(100);
+    // Escape is discrete-priority — the carry-cancel commit that unmounts the
+    // chip has flushed by the time the press resolves.
+    await settle(page);
 
     // Chip gone after cancel.
     expect(await getCycleChipText(page)).toBeNull();

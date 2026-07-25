@@ -4,6 +4,8 @@ import {
   draggablePressPoint,
   openTestPage,
   readTileRects,
+  selectElement,
+  settle,
 } from "./testing.js";
 
 /**
@@ -72,7 +74,9 @@ test.describe("Discrete-marker presentation — Scatter panel", () => {
   }) => {
     const container = SCATTER(page);
     await container.scrollIntoViewIfNeeded();
-    await page.waitForTimeout(200);
+    // Scrolling is instant (no smooth scroll-behavior anywhere in the app), so
+    // the only thing outstanding is the overlay's rAF anchor pass.
+    await settle(page);
 
     const box = (await container.boundingBox())!;
     const center = { x: box.x + box.width / 2, y: box.y + box.height / 2 };
@@ -80,13 +84,18 @@ test.describe("Discrete-marker presentation — Scatter panel", () => {
     // Lift the source and hold a drag over the panel center so the discrete
     // marker stack paints.
     const source = ctaSource(page);
-    await source.click();
-    await page.waitForTimeout(300);
+    await selectElement(page, source);
     // Selection chrome (edge arrows) covers the small CTA's center once it is
     // selected — press where a real hit-test still reaches the source.
     const from = await draggablePressPoint(source);
     await dispatchDrag(page, { from, to: center, phase: "hold" });
-    await page.waitForTimeout(40);
+    // The marker stack is what this test measures — wait for it to be painted
+    // at all (the labels/geometry assertions below then do the real work).
+    await expect
+      .poll(async () => (await readTileRects(page))?.length ?? 0, {
+        intervals: [50],
+      })
+      .toBeGreaterThan(0);
 
     const geom = await geometry(container, Object.values(SLOT_CHILD));
     const markers = (await readTileRects(page)) ?? [];
@@ -134,6 +143,5 @@ test.describe("Discrete-marker presentation — Scatter panel", () => {
     expect(uniform, "markers must not form an equidistant column").toBe(false);
 
     await dispatchDrag(page, { from, to: center, phase: "release" });
-    await page.waitForTimeout(100);
   });
 });

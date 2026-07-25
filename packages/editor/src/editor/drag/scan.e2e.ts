@@ -7,8 +7,10 @@ import {
   readResolution,
   readTileRects,
   readTiles,
+  selectElement,
+  settle,
   type Point,
-openTestPage,
+  openTestPage,
 } from "../overlay/testing.js";
 
 /**
@@ -267,12 +269,17 @@ async function dragStepRead(
 /** Lift `container.source` into carry mode (Space) and move the pointer over the
  *  container so a destination resolves. Returns once carrying. */
 async function liftIntoCarry(page: Page, container: Container, at: Point) {
-  await container.source(page).click();
-  await page.waitForTimeout(300);
+  await selectElement(page, container.source(page));
   await page.keyboard.press("Space");
-  await page.waitForTimeout(200);
+  // Space is discrete-priority (commit already flushed); carry arms on a
+  // setTimeout(0) and the overlay paints on its rAF pass — two frames clears both.
+  await settle(page);
   await page.mouse.move(at.x, at.y, { steps: 1 });
-  await page.waitForTimeout(40);
+  // Carry names a destination at every point inside a container, so a non-null
+  // label is the signal that this pointer position has actually resolved.
+  await expect
+    .poll(() => getActiveDestinationLabel(page), { intervals: [25] })
+    .not.toBeNull();
 }
 
 /**
@@ -290,7 +297,9 @@ async function liftIntoCarry(page: Page, container: Container, at: Point) {
 async function carryScan(page: Page, container: Container) {
   const el = container.container(page);
   await el.scrollIntoViewIfNeeded();
-  await page.waitForTimeout(200);
+  // Nothing scrolls smoothly in this app, so the scroll is done; settle covers
+  // the overlay re-anchor that follows it.
+  await settle(page);
   const box = (await el.boundingBox())!;
   const cx = box.x + box.width / 2;
   const points: Point[] = [];
@@ -305,7 +314,10 @@ async function carryScan(page: Page, container: Container) {
   let dead = 0;
   for (const p of points) {
     await page.mouse.move(p.x, p.y, { steps: 1 });
-    await page.waitForTimeout(20);
+    // A pointermove is continuous-priority, so its commit can land after the
+    // dispatch returns; two frames covers the commit plus the overlay rAF pass
+    // (the same constant dragOverAt uses for the drag path).
+    await settle(page);
     const dest = await getActiveDestinationLabel(page);
     if (!dest) dead++;
   }
@@ -315,7 +327,6 @@ async function carryScan(page: Page, container: Container) {
   else await assertCarryDiscrete(page, container);
 
   await page.keyboard.press("Escape");
-  await page.waitForTimeout(100);
 }
 
 /** Tiled container: exact slot ownership at the drag-derived band samples, plus a
@@ -339,7 +350,7 @@ async function assertCarryTiled(
 
   for (const s of samples) {
     await page.mouse.move(s.point.x, s.point.y, { steps: 1 });
-    await page.waitForTimeout(20);
+    await settle(page);
     const dest = await getActiveDestinationLabel(page);
     expect(
       dest,
@@ -368,7 +379,7 @@ async function assertCarryTiled(
   });
   for (const p of probes) {
     await page.mouse.move(p.point.x, p.point.y, { steps: 1 });
-    await page.waitForTimeout(20);
+    await settle(page);
     const dest = await getActiveDestinationLabel(page);
     expect(
       dest,
@@ -436,7 +447,7 @@ async function assertCarryDiscrete(page: Page, container: Container) {
   await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2, {
     steps: 1,
   });
-  await page.waitForTimeout(40);
+  await settle(page);
 
   const rects = (await readTileRects(page)) ?? [];
   expect(rects.length, `discrete markers painted in ${container.title}`).toBe(
@@ -448,7 +459,7 @@ async function assertCarryDiscrete(page: Page, container: Container) {
     await page.mouse.move((r.left + r.right) / 2, (r.top + r.bottom) / 2, {
       steps: 1,
     });
-    await page.waitForTimeout(20);
+    await settle(page);
     const dest = await getActiveDestinationLabel(page);
     expect(
       dest,
@@ -467,7 +478,9 @@ async function assertCarryDiscrete(page: Page, container: Container) {
 async function dragScan(page: Page, container: Container) {
   const el = container.container(page);
   await el.scrollIntoViewIfNeeded();
-  await page.waitForTimeout(200);
+  // Nothing scrolls smoothly in this app, so the scroll is done; settle covers
+  // the overlay re-anchor that follows it.
+  await settle(page);
   const box = (await el.boundingBox())!;
   const cx = box.x + box.width / 2;
 
@@ -476,8 +489,7 @@ async function dragScan(page: Page, container: Container) {
     points.push({ x: cx, y });
 
   const source = container.source(page);
-  await source.click();
-  await page.waitForTimeout(300);
+  await selectElement(page, source);
 
   await dragStart(page, source);
   const reads = await dragStepRead(page, points);
@@ -502,7 +514,6 @@ async function dragScan(page: Page, container: Container) {
   else await assertDiscrete(page, container, box);
 
   await dragEnd(page, points.at(-1)!);
-  await page.waitForTimeout(100);
 }
 
 /** Tiled container: exact tile-ownership at container-background sample points

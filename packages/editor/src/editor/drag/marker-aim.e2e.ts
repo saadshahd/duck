@@ -6,8 +6,10 @@ import {
   getActiveDestinationLabel,
   readResolution,
   readTileRects,
+  selectElement,
+  settle,
   type Point,
-openTestPage,
+  openTestPage,
 } from "../overlay/testing.js";
 
 /**
@@ -68,12 +70,17 @@ async function markerCenters(
 // --- Carry lift (mirrors scan.e2e.ts) ---
 
 async function liftIntoCarry(page: Page, source: Locator, at: Point) {
-  await source.click();
-  await page.waitForTimeout(300);
+  await selectElement(page, source);
   await page.keyboard.press("Space");
-  await page.waitForTimeout(200);
+  // Space is discrete-priority (commit already flushed); carry arms on a
+  // setTimeout(0) and the overlay paints on its rAF pass — two frames clears both.
+  await settle(page);
   await page.mouse.move(at.x, at.y, { steps: 1 });
-  await page.waitForTimeout(40);
+  // Carry names a destination at every point inside a container, so a non-null
+  // label is the signal that this pointer position has actually resolved.
+  await expect
+    .poll(() => getActiveDestinationLabel(page), { intervals: [25] })
+    .not.toBeNull();
 }
 
 // --- Single-child midpoint flip (rectAxis insert-index law) ---
@@ -115,7 +122,9 @@ async function ctaVsBodyOrder(
 async function carryCtaToBody(page: Page, dy: number) {
   const el = scatterContainer(page);
   await el.scrollIntoViewIfNeeded();
-  await page.waitForTimeout(200);
+  // Nothing scrolls smoothly in this app, so the scroll is done; settle covers
+  // the overlay re-anchor that follows it.
+  await settle(page);
   const box = (await el.boundingBox())!;
   const center: Point = { x: box.x + box.width / 2, y: box.y + box.height / 2 };
 
@@ -123,14 +132,22 @@ async function carryCtaToBody(page: Page, dy: number) {
 
   const marker = await markerCenterFor(page, "body");
   await page.mouse.move(marker.x, marker.y + dy, { steps: 1 });
-  await page.waitForTimeout(40);
+  await settle(page);
   expect(
     await getActiveDestinationLabel(page),
     `carry aim near the body marker resolves the body slot (dy=${dy})`,
   ).toBe("Panel › body");
 
   await page.keyboard.press("Enter");
-  await page.waitForTimeout(200);
+  // The move commits behind a view transition (animatedUpdate), so the DOM lands
+  // a couple of frames later. The CTA arriving INSIDE the scatter container is
+  // that commit; unlike the before/after order the callers assert, it is false
+  // until the move happens, so this wait can never pass vacuously.
+  await expect
+    .poll(() =>
+      scatterContainer(page).locator('button:has-text("Get started")').count(),
+    )
+    .toBe(1);
 }
 
 // --- Specs ---
@@ -177,7 +194,9 @@ test.describe("Discrete markers are hit-targets in both modalities", () => {
   }) => {
     const el = scatterContainer(page);
     await el.scrollIntoViewIfNeeded();
-    await page.waitForTimeout(200);
+    // Nothing scrolls smoothly in this app, so the scroll is done; settle covers
+    // the overlay re-anchor that follows it.
+    await settle(page);
     const box = (await el.boundingBox())!;
     const center: Point = {
       x: box.x + box.width / 2,
@@ -195,7 +214,9 @@ test.describe("Discrete markers are hit-targets in both modalities", () => {
 
     for (const { label, point } of markers) {
       await page.mouse.move(point.x, point.y, { steps: 1 });
-      await page.waitForTimeout(20);
+      // A pointermove is continuous-priority, so its commit can land after the
+      // dispatch returns; two frames covers the commit plus the overlay rAF pass.
+      await settle(page);
       expect(
         await getActiveDestinationLabel(page),
         `carry aim at marker "${label}" center resolves its slot`,
@@ -203,7 +224,6 @@ test.describe("Discrete markers are hit-targets in both modalities", () => {
     }
 
     await page.keyboard.press("Escape");
-    await page.waitForTimeout(100);
   });
 
   test("drag: aiming at each scatter marker center resolves that marker's slot", async ({
@@ -211,7 +231,9 @@ test.describe("Discrete markers are hit-targets in both modalities", () => {
   }) => {
     const el = scatterContainer(page);
     await el.scrollIntoViewIfNeeded();
-    await page.waitForTimeout(200);
+    // Nothing scrolls smoothly in this app, so the scroll is done; settle covers
+    // the overlay re-anchor that follows it.
+    await settle(page);
     const box = (await el.boundingBox())!;
     const center: Point = {
       x: box.x + box.width / 2,
@@ -219,8 +241,7 @@ test.describe("Discrete markers are hit-targets in both modalities", () => {
     };
 
     const source = ctaSource(page);
-    await source.click();
-    await page.waitForTimeout(300);
+    await selectElement(page, source);
     await dragStart(page, source);
 
     // Hover the container so the discrete marker stack paints, then read centers.
@@ -241,6 +262,5 @@ test.describe("Discrete markers are hit-targets in both modalities", () => {
     }
 
     await dragEnd(page, center);
-    await page.waitForTimeout(100);
   });
 });

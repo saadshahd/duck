@@ -1,10 +1,12 @@
 import { test, expect, type Page } from "@playwright/test";
 import {
+  countRole,
   dispatchDragAltHeld,
   dispatchDragAltViaVoid,
+  selectElement,
   sourceCenter,
   edgePoint,
-openTestPage,
+  openTestPage,
 } from "../overlay/testing.js";
 
 /**
@@ -46,8 +48,7 @@ test.describe("Alt-held drag onto slot-constrained container", () => {
     page,
   }) => {
     const btn = page.locator("button").first();
-    await btn.click();
-    await page.waitForTimeout(300);
+    await selectElement(page, btn);
 
     expect(await firstCardHasButton(page)).toBe(false);
 
@@ -57,17 +58,17 @@ test.describe("Alt-held drag onto slot-constrained container", () => {
       to: await edgePoint(heading, "top"),
       leaveBeforeDrop: false,
     });
-    await page.waitForTimeout(400);
 
-    expect(await firstCardHasButton(page)).toBe(true);
+    // The commit lands behind a view transition (animatedUpdate), so the DOM
+    // change is not synchronous with the drop dispatch — poll the outcome.
+    await expect.poll(() => firstCardHasButton(page)).toBe(true);
   });
 
   test("real-user path: Alt held, dropTargets empty at drop → element MUST still be placed", async ({
     page,
   }) => {
     const btn = page.locator("button").first();
-    await btn.click();
-    await page.waitForTimeout(300);
+    await selectElement(page, btn);
 
     expect(await firstCardHasButton(page)).toBe(false);
 
@@ -77,19 +78,17 @@ test.describe("Alt-held drag onto slot-constrained container", () => {
       to: await edgePoint(heading, "top"),
       leaveBeforeDrop: true,
     });
-    await page.waitForTimeout(400);
 
     // The held indicator showed an allowed-under-Alt drop; the Alt override must
     // commit it into Card.header. With current code this FAILS (drop cancelled).
-    expect(await firstCardHasButton(page)).toBe(true);
+    await expect.poll(() => firstCardHasButton(page)).toBe(true);
   });
 
   test("void path: Alt held, hover Card.header then drop in empty space → MUST cancel", async ({
     page,
   }) => {
     const btn = page.locator("button").first();
-    await btn.click();
-    await page.waitForTimeout(300);
+    await selectElement(page, btn);
 
     expect(await firstCardHasButton(page)).toBe(false);
 
@@ -103,7 +102,15 @@ test.describe("Alt-held drag onto slot-constrained container", () => {
       over: await edgePoint(heading, "top"),
       to: { x: 2, y: 2 },
     });
-    await page.waitForTimeout(400);
+
+    // A poll on the negative (still no button) is vacuous — it would pass before
+    // the drop could commit. A cancelled drop paints the transient cancel flash
+    // (use-drag-reorder's onDrop, 700ms), so waiting for that flash proves the
+    // drop was PROCESSED and took the cancel branch. Short intervals so the poll
+    // cannot step over the flash's lifetime.
+    await expect
+      .poll(() => countRole(page, "drag-cancel-flash"), { intervals: [50] })
+      .toBe(1);
 
     expect(await firstCardHasButton(page)).toBe(false);
   });
