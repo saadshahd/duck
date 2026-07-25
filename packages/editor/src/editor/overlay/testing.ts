@@ -22,13 +22,31 @@ export const openTestPage = async (page: Page) => {
   });
 };
 
+/** Let the editor's render loop catch up with an interaction that has already
+ *  been dispatched. Clicks and keypresses are discrete-priority React events —
+ *  their state commit is flushed before the dispatch returns — so the only thing
+ *  still outstanding is the overlay's rAF-anchored paint. Two frames covers it.
+ *
+ *  Use this where the interaction has no distinct post-state to poll for (a
+ *  no-op, or a retarget that leaves affordance counts unchanged). Where there
+ *  IS one — a panel appearing, a value committing — poll for that instead. */
+export const settle = (page: Page) => waitFrames(page, 2);
+
 // --- Frozen-catalog selection ---
+
+/** Click a rendered element and let the selection land. Unlike polling a ring
+ *  COUNT, this stays honest when the click retargets an existing selection —
+ *  the count never changes there, so a poll would pass before the move. */
+export const selectElement = async (page: Page, target: Locator) => {
+  await target.click();
+  await settle(page);
+};
 
 /** Click the frozen-catalog element rendered with the given `data-testid` (its
  *  fixture id). The single deterministic way to select a specific element
  *  without relying on copy or DOM structure. */
 export const selectByTestId = (page: Page, id: string) =>
-  page.locator(`[data-testid='${id}']`).first().click();
+  selectElement(page, page.locator(`[data-testid='${id}']`).first());
 
 // --- Shadow DOM access ---
 
