@@ -1,4 +1,4 @@
-import { test, expect } from "@playwright/test";
+import { test, expect, type Page } from "@playwright/test";
 import {
   isToolbarVisible,
   clickToolbarAction,
@@ -7,7 +7,9 @@ import {
   getToolbarRect,
   getPageElementBox,
   countVisibleEdgeArrows,
-openTestPage,
+  selectElement,
+  settle,
+  openTestPage,
 } from "../overlay/testing.js";
 
 /** K6 observer — the supersede doctrine (sp 53): at most ONE of
@@ -19,6 +21,30 @@ type Box = { top: number; left: number; bottom: number; right: number };
 const intersects = (a: Box, b: Box): boolean =>
   a.left < b.right && b.left < a.right && a.top < b.bottom && b.top < a.bottom;
 
+/** Wait until the sheet's slide-in has landed — two consecutive readings of its
+ *  rect agree. The panel enters with `transform: translateX(100%) → 0` over
+ *  200ms (prop-editor/prop-sheet.css), so a rect read while it is still in
+ *  flight sits partly off-screen to the right: an occlusion test against it
+ *  would pass for the wrong reason. Rect stability is the observable the
+ *  transition actually produces; the previous fixed 300ms only guessed at it. */
+const waitForSheetAtRest = async (page: Page) => {
+  let previous: string | null = null;
+  await expect
+    .poll(
+      async () => {
+        const r = await getSheetRect(page);
+        const current = r
+          ? `${Math.round(r.left)}:${Math.round(r.width)}`
+          : null;
+        const atRest = current !== null && current === previous;
+        previous = current;
+        return atRest;
+      },
+      { intervals: [50, 50, 50, 100, 250] },
+    )
+    .toBe(true);
+};
+
 test.describe("Surface doctrine — supersede + occlusion invariants", () => {
   test.beforeEach(async ({ page }) => {
     await openTestPage(page);
@@ -27,8 +53,7 @@ test.describe("Surface doctrine — supersede + occlusion invariants", () => {
   test("while the sheet is open there is NO toolbar and no edge arrow; closing restores the handle", async ({
     page,
   }) => {
-    await page.locator("h1").click();
-    await page.waitForTimeout(300);
+    await selectElement(page, page.locator("h1"));
     expect(await isToolbarVisible(page)).toBe(true);
 
     await clickToolbarAction(page, "edit");
@@ -38,6 +63,7 @@ test.describe("Surface doctrine — supersede + occlusion invariants", () => {
     expect(await isToolbarVisible(page)).toBe(false);
     expect(await countVisibleEdgeArrows(page)).toBe(0);
 
+    await settle(page);
     await page.keyboard.press("Escape");
     await expect.poll(() => isSheetVisible(page)).toBe(false);
     await expect.poll(() => isToolbarVisible(page)).toBe(true);
@@ -46,11 +72,10 @@ test.describe("Surface doctrine — supersede + occlusion invariants", () => {
   test("the open sheet's rect never intersects the selected element's rect", async ({
     page,
   }) => {
-    await page.locator("h1").click();
-    await page.waitForTimeout(300);
+    await selectElement(page, page.locator("h1"));
     await clickToolbarAction(page, "edit");
     await expect.poll(() => isSheetVisible(page)).toBe(true);
-    await page.waitForTimeout(300);
+    await waitForSheetAtRest(page);
 
     const sheet = await getSheetRect(page);
     const element = await getPageElementBox(page, "h1");
@@ -74,9 +99,12 @@ test.describe("Surface doctrine — supersede + occlusion invariants", () => {
     await page
       .locator("h1")
       .evaluate((el) => el.scrollIntoView({ block: "start" }));
-    await page.waitForTimeout(200);
-    await page.locator("h1").click();
-    await page.waitForTimeout(400);
+    await settle(page);
+    await selectElement(page, page.locator("h1"));
+    // The bar is anchored by floating-ui; wait for it to mount, then give its
+    // first positioning pass a frame to paint before reading geometry.
+    await expect.poll(() => isToolbarVisible(page)).toBe(true);
+    await settle(page);
 
     const toolbar = await getToolbarRect(page);
     const element = await getPageElementBox(page, "h1");

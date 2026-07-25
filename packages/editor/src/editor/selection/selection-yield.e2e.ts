@@ -11,7 +11,9 @@ import {
   sourceCenter,
   edgePoint,
   dispatchDrag,
-openTestPage,
+  selectElement,
+  settle,
+  openTestPage,
 } from "../overlay/testing.js";
 
 /**
@@ -24,10 +26,8 @@ openTestPage,
  * ring is gone and exactly one selection border remains — the slot stop band.
  */
 
-const selectNested = async (page: Page) => {
-  await page.locator("h3").first().click();
-  await page.waitForTimeout(300);
-};
+const selectNested = (page: Page) =>
+  selectElement(page, page.locator("h3").first());
 
 test.describe("Selection yields while dragging", () => {
   test.beforeEach(async ({ page }) => {
@@ -38,12 +38,11 @@ test.describe("Selection yields while dragging", () => {
     page,
   }) => {
     const heading = page.locator("h1");
-    await heading.click();
-    await page.waitForTimeout(300);
+    await selectElement(page, heading);
 
     // Reveal box-model bands so their suppression is observable.
     await toggleBoxModel(page);
-    await page.waitForTimeout(150);
+    await settle(page);
     expect(await countSelectionRings(page)).toBe(1);
     expect(await isSelectionLabelVisible(page)).toBe(true);
     expect(await countBoxModelBands(page)).toBeGreaterThan(0);
@@ -68,23 +67,22 @@ test.describe("Selection yields while dragging", () => {
     page,
   }) => {
     const heading = page.locator("h1");
-    await heading.click();
-    await page.waitForTimeout(300);
+    await selectElement(page, heading);
 
     await toggleBoxModel(page);
-    await page.waitForTimeout(150);
+    await settle(page);
     expect(await countSelectionRings(page)).toBe(1);
     expect(await countBoxModelBands(page)).toBeGreaterThan(0);
 
     // Lift into carry via Space — the keyboard lift is carry's entry point.
     await page.keyboard.press("Space");
-    await page.waitForTimeout(150);
 
     await expect.poll(() => countSelectionRings(page)).toBe(0);
     expect(await isSelectionLabelVisible(page)).toBe(false);
     expect(await countBoxModelBands(page)).toBe(0);
 
     // Cancel restores selection chrome.
+    await settle(page);
     await page.keyboard.press("Escape");
     await expect.poll(() => countSelectionRings(page)).toBe(1);
     expect(await isSelectionLabelVisible(page)).toBe(true);

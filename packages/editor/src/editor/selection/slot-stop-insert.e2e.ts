@@ -11,7 +11,9 @@ import {
   getIncompatiblePickerItemState,
   clickIncompatiblePickerItem,
   pageContentCensus,
-openTestPage,
+  selectElement,
+  settle,
+  openTestPage,
 } from "../overlay/testing.js";
 
 /** T4 observer: slot-selected state owns an inline insert (+) inside the band.
@@ -29,8 +31,7 @@ test.describe("Slot-selected inline insert", () => {
   }) => {
     // Select a nested element (h3 lives in a slot inside a Card), then enter the
     // insert slot-choice on its Card (slot-selected).
-    await page.locator("h3").first().click();
-    await page.waitForTimeout(300);
+    await selectElement(page, page.locator("h3").first());
 
     await enterSlotChoice(page);
 
@@ -41,18 +42,17 @@ test.describe("Slot-selected inline insert", () => {
   test("clicking (+) inside the slot band opens the catalog picker", async ({
     page,
   }) => {
-    await page.locator("h3").first().click();
-    await page.waitForTimeout(300);
+    await selectElement(page, page.locator("h3").first());
 
     await enterSlotChoice(page);
 
     expect(await isSlotInsertBtnVisible(page)).toBe(true);
     expect(await isCatalogPickerVisible(page)).toBe(false);
+    await settle(page);
 
     await clickSlotInsertBtn(page);
-    await page.waitForTimeout(300);
 
-    expect(await isCatalogPickerVisible(page)).toBe(true);
+    await expect.poll(() => isCatalogPickerVisible(page)).toBe(true);
   });
 
   test("catalog picker opened from slot (+) inserts into that slot", async ({
@@ -66,8 +66,7 @@ test.describe("Slot-selected inline insert", () => {
     const cardTags = () =>
       card.evaluate((el) => [...el.children].map((c) => c.tagName));
 
-    await page.locator("h3").first().click();
-    await page.waitForTimeout(300);
+    await selectElement(page, page.locator("h3").first());
 
     await enterSlotChoice(page);
 
@@ -75,23 +74,26 @@ test.describe("Slot-selected inline insert", () => {
     expect(await getSlotStopLabelText(page)).toMatch(/› header$/);
     const tagsBefore = await cardTags();
 
+    await settle(page);
     await clickSlotInsertBtn(page);
-    await page.waitForTimeout(300);
 
-    expect(await isCatalogPickerVisible(page)).toBe(true);
+    await expect.poll(() => isCatalogPickerVisible(page)).toBe(true);
+    await settle(page);
 
     // Click the first picker item via the named helper (data-role query, not CSS class).
     await clickFirstCatalogPickerItem(page);
-    await page.waitForTimeout(300);
 
     // Picker closes after insert.
-    expect(await isCatalogPickerVisible(page)).toBe(false);
+    await expect.poll(() => isCatalogPickerVisible(page)).toBe(false);
 
     // Insertion landed in the header slot, not elsewhere: exactly one new child,
     // added among the leading (header) positions — the body's former children
-    // are all pushed down by one and otherwise unchanged.
+    // are all pushed down by one and otherwise unchanged. The write lands through
+    // a view transition, so poll the rendered child count.
+    await expect
+      .poll(async () => (await cardTags()).length)
+      .toBe(tagsBefore.length + 1);
     const tagsAfter = await cardTags();
-    expect(tagsAfter.length).toBe(tagsBefore.length + 1);
     expect(tagsAfter.slice(2)).toEqual(tagsBefore.slice(1));
   });
 
@@ -101,14 +103,13 @@ test.describe("Slot-selected inline insert", () => {
     // The honest affordance on the slot-choice route: an incompatible item is
     // disabled up front (never a click-then-reject), and its reason names the
     // targeted slot — not the generic "this slot".
-    await page.locator("h3").first().click();
-    await page.waitForTimeout(300);
+    await selectElement(page, page.locator("h3").first());
 
     await enterSlotChoice(page);
+    await settle(page);
     await clickSlotInsertBtn(page);
-    await page.waitForTimeout(300);
 
-    expect(await isCatalogPickerVisible(page)).toBe(true);
+    await expect.poll(() => isCatalogPickerVisible(page)).toBe(true);
     await openIncompatiblePickerSection(page);
 
     expect(await getIncompatiblePickerItemState(page, "Button")).toEqual({
@@ -119,7 +120,9 @@ test.describe("Slot-selected inline insert", () => {
     // Clicking it anyway must not write: document unchanged, picker still open.
     const censusBefore = await pageContentCensus(page);
     await clickIncompatiblePickerItem(page, "Button");
-    await page.waitForTimeout(300);
+    // Nothing must change, so there is no post-state to poll for — settle covers
+    // the commit + paint a leaked write would have produced.
+    await settle(page);
 
     expect(await pageContentCensus(page)).toEqual(censusBefore);
     expect(await isCatalogPickerVisible(page)).toBe(true);
@@ -128,8 +131,7 @@ test.describe("Slot-selected inline insert", () => {
   test("slot-stop and insert (+) are absent in resting-selected state", async ({
     page,
   }) => {
-    await page.locator("h1").click();
-    await page.waitForTimeout(300);
+    await selectElement(page, page.locator("h1"));
 
     expect(await isSlotStopVisible(page)).toBe(false);
     expect(await isSlotInsertBtnVisible(page)).toBe(false);
@@ -138,20 +140,19 @@ test.describe("Slot-selected inline insert", () => {
   test("closing catalog picker via outside click leaves slot-stop intact", async ({
     page,
   }) => {
-    await page.locator("h3").first().click();
-    await page.waitForTimeout(300);
+    await selectElement(page, page.locator("h3").first());
 
     await enterSlotChoice(page);
+    await settle(page);
 
     await clickSlotInsertBtn(page);
-    await page.waitForTimeout(300);
-    expect(await isCatalogPickerVisible(page)).toBe(true);
+    await expect.poll(() => isCatalogPickerVisible(page)).toBe(true);
+    await settle(page);
 
     // Click somewhere outside the picker to close it
     await page.mouse.click(10, 10);
-    await page.waitForTimeout(300);
 
-    expect(await isCatalogPickerVisible(page)).toBe(false);
+    await expect.poll(() => isCatalogPickerVisible(page)).toBe(false);
     // Slot stop should still be visible — clicking outside only closes picker
     expect(await isSlotStopVisible(page)).toBe(true);
   });

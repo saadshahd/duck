@@ -1,4 +1,4 @@
-import { test, expect, type Page } from "@playwright/test";
+import { test, expect } from "@playwright/test";
 import {
   countHighlights,
   getHighlightRect,
@@ -15,7 +15,9 @@ import {
   selectParentElement,
   enterSlotChoice,
   readSlotBands,
-openTestPage,
+  selectElement,
+  settle,
+  openTestPage,
 } from "../overlay/testing.js";
 
 test.describe("Editor overlay", () => {
@@ -25,50 +27,46 @@ test.describe("Editor overlay", () => {
 
   test("hover shows highlight, mouse away clears it", async ({ page }) => {
     await page.locator("h1").hover();
-    await page.waitForTimeout(300);
-    expect(await countHighlights(page)).toBe(1);
+    await expect.poll(() => countHighlights(page)).toBe(1);
 
     await page.mouse.move(10, 10);
-    await page.waitForTimeout(300);
-    expect(await countHighlights(page)).toBe(0);
+    await expect.poll(() => countHighlights(page)).toBe(0);
   });
 
   test("click shows floating action bar", async ({ page }) => {
-    await page.locator("h3").first().click();
-    await page.waitForTimeout(300);
+    await selectElement(page, page.locator("h3").first());
 
-    expect(await isToolbarVisible(page)).toBe(true);
+    await expect.poll(() => isToolbarVisible(page)).toBe(true);
     expect(await countHighlights(page)).toBe(1);
   });
 
   test("click empty space deselects", async ({ page }) => {
-    await page.locator("h3").first().click();
-    await page.waitForTimeout(300);
+    await selectElement(page, page.locator("h3").first());
 
     await page.mouse.click(10, 10);
-    await page.waitForTimeout(300);
 
-    expect(await isToolbarVisible(page)).toBe(false);
+    await expect.poll(() => isToolbarVisible(page)).toBe(false);
     expect(await countHighlights(page)).toBe(0);
   });
 
   test("action bar clicks preserve selection", async ({ page }) => {
-    await page.locator("h3").first().click();
-    await page.waitForTimeout(300);
+    await selectElement(page, page.locator("h3").first());
     expect(await isToolbarVisible(page)).toBe(true);
 
     await clickToolbar(page);
-    await page.waitForTimeout(300);
+    // The bar must SURVIVE the click, so there is no new state to poll for —
+    // a poll for "still visible" would pass before the click was even processed.
+    await settle(page);
     expect(await isToolbarVisible(page)).toBe(true);
   });
 
   test("hover different elements moves highlight", async ({ page }) => {
     await page.locator("h1").hover();
-    await page.waitForTimeout(300);
+    await expect.poll(() => getHighlightRect(page)).not.toBeNull();
     const rectA = await getHighlightRect(page);
 
     await page.locator("h2").first().hover();
-    await page.waitForTimeout(300);
+    await expect.poll(() => getHighlightRect(page)).not.toEqual(rectA);
     const rectB = await getHighlightRect(page);
 
     expect(rectA).not.toBeNull();
@@ -77,24 +75,23 @@ test.describe("Editor overlay", () => {
   });
 
   test("hover while selected does not change selection", async ({ page }) => {
-    await page.locator("h3").first().click();
-    await page.waitForTimeout(300);
+    await selectElement(page, page.locator("h3").first());
     expect(await isToolbarVisible(page)).toBe(true);
 
     await page.locator("h1").hover();
-    await page.waitForTimeout(300);
+    // The law is that NOTHING moves, so there is no post-state to poll for.
+    await settle(page);
 
     expect(await isToolbarVisible(page)).toBe(true);
     expect(await countHighlights(page)).toBe(1);
   });
 
   test("selecting different element changes selection", async ({ page }) => {
-    await page.locator("h3").first().click();
-    await page.waitForTimeout(300);
+    await selectElement(page, page.locator("h3").first());
     const rectA = await getHighlightRect(page);
 
     await page.locator("h1").click();
-    await page.waitForTimeout(300);
+    await expect.poll(() => getHighlightRect(page)).not.toEqual(rectA);
     const rectB = await getHighlightRect(page);
 
     expect(await isToolbarVisible(page)).toBe(true);
@@ -104,12 +101,13 @@ test.describe("Editor overlay", () => {
   });
 
   test("scroll updates selection rect", async ({ page }) => {
-    await page.locator("h3").first().click();
-    await page.waitForTimeout(300);
+    await selectElement(page, page.locator("h3").first());
     const rectBefore = await getHighlightRect(page);
 
     await page.evaluate(() => window.scrollBy(0, 100));
-    await page.waitForTimeout(300);
+    // The overlay re-anchors on the next rAF pass (see the sibling test below,
+    // which pins that to a two-frame budget).
+    await settle(page);
     const rectAfter = await getHighlightRect(page);
 
     expect(rectBefore).not.toBeNull();
@@ -120,8 +118,7 @@ test.describe("Editor overlay", () => {
   test("overlay tracks element within one frame after scroll", async ({
     page,
   }) => {
-    await page.locator("h3").first().click();
-    await page.waitForTimeout(300);
+    await selectElement(page, page.locator("h3").first());
 
     const rectBefore = await getHighlightRect(page);
     expect(rectBefore).not.toBeNull();
@@ -143,8 +140,7 @@ test.describe("Editor overlay", () => {
     page,
   }) => {
     const heading = page.locator("h1");
-    await heading.click();
-    await page.waitForTimeout(300);
+    await selectElement(page, heading);
     expect(await isToolbarVisible(page)).toBe(true);
 
     const description = page.locator("p").first();
@@ -170,11 +166,12 @@ test.describe("Slot address and slot-stop", () => {
     // Climb is pure node→node navigation. From a Heading inside a Card's header
     // slot, one ↑ selects the Card node directly — it never enters slot-selected,
     // so no slot-stop band paints.
-    await page.locator("h3").first().click();
-    await page.waitForTimeout(300);
+    await selectElement(page, page.locator("h3").first());
 
     await selectParentElement(page);
-    await page.waitForTimeout(300);
+    // A climb retargets the existing selection: the ring COUNT never changes, so
+    // there is no count to poll — settle for the re-anchor pass.
+    await settle(page);
 
     expect(await isSlotStopVisible(page)).toBe(false);
     expect(await countSelectionRings(page)).toBe(1);
@@ -187,20 +184,19 @@ test.describe("Slot address and slot-stop", () => {
     // Slot-selected is reached via the insert flow on the multi-slot Card. The
     // active slot label climbs to the node owning the slot (the Card) — the
     // binding ruling: a slot label click selects the parent node, never deselects.
-    await page.locator("h3").first().click();
-    await page.waitForTimeout(300);
+    await selectElement(page, page.locator("h3").first());
     await enterSlotChoice(page);
     expect(await isSlotStopVisible(page)).toBe(true);
+    await settle(page);
 
     // A REAL pointer click at the label's coordinates — exercises the document
     // click handler a designer triggers, unlike a synthetic .click().
     const rect = await getSlotStopLabelViewportRect(page, true);
     if (!rect) throw new Error("active slot-stop label not visible");
     await page.mouse.click(rect.x + rect.width / 2, rect.y + rect.height / 2);
-    await page.waitForTimeout(300);
 
     // The Card NODE is now selected: ring + toolbar, slot stop gone, no deselect.
-    expect(await isSlotStopVisible(page)).toBe(false);
+    await expect.poll(() => isSlotStopVisible(page)).toBe(false);
     expect(await countSelectionRings(page)).toBe(1);
     expect(await isToolbarVisible(page)).toBe(true);
   });
@@ -211,10 +207,13 @@ test.describe("Slot address and slot-stop", () => {
     // Owner's path: the body slot is active and its label sits above the body
     // band, overlapping the header band's rect — the label must still win the
     // click (z-index) and climb to the Card node, never deselect.
-    await page.getByText("No panels, no toolbars", { exact: false }).click();
-    await page.waitForTimeout(300);
+    await selectElement(
+      page,
+      page.getByText("No panels, no toolbars", { exact: false }),
+    );
     await enterSlotChoice(page);
     expect(await isSlotStopVisible(page)).toBe(true);
+    await settle(page);
 
     // Choose the body band (the middle slot) so its label is the active one.
     const bands = await readSlotBands(page);
@@ -225,16 +224,17 @@ test.describe("Slot address and slot-stop", () => {
       (body.left + body.right) / 2,
       (body.top + body.bottom) / 2,
     );
-    await page.waitForTimeout(300);
+    // Retargeting the active band leaves the band count unchanged — nothing to
+    // poll for, so settle before reading the newly active label's rect.
+    await settle(page);
 
     // Real click on the ACTIVE (body) label.
     const rect = await getSlotStopLabelViewportRect(page, true);
     if (!rect) throw new Error("active slot-stop label not visible");
     await page.mouse.click(rect.x + rect.width / 2, rect.y + rect.height / 2);
-    await page.waitForTimeout(300);
 
     // The Card NODE is now selected: ring + toolbar, slot stop gone.
-    expect(await isSlotStopVisible(page)).toBe(false);
+    await expect.poll(() => isSlotStopVisible(page)).toBe(false);
     expect(await countSelectionRings(page)).toBe(1);
     expect(await isToolbarVisible(page)).toBe(true);
   });
@@ -242,22 +242,20 @@ test.describe("Slot address and slot-stop", () => {
   test("Escape from slot-stop (insert flow) returns to the node, slot-stop gone", async ({
     page,
   }) => {
-    await page.locator("h3").first().click();
-    await page.waitForTimeout(300);
+    await selectElement(page, page.locator("h3").first());
 
     await enterSlotChoice(page);
     expect(await isSlotStopVisible(page)).toBe(true);
+    await settle(page);
 
     await page.keyboard.press("Escape");
-    await page.waitForTimeout(300);
 
-    expect(await isSlotStopVisible(page)).toBe(false);
+    await expect.poll(() => isSlotStopVisible(page)).toBe(false);
     expect(await isToolbarVisible(page)).toBe(true);
   });
 
   test("scroll keeps slot band attached (tracks live)", async ({ page }) => {
-    await page.locator("h3").first().click();
-    await page.waitForTimeout(300);
+    await selectElement(page, page.locator("h3").first());
 
     await enterSlotChoice(page);
     const rectBefore = await getSlotStopRect(page);

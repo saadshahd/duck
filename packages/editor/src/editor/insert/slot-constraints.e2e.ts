@@ -1,9 +1,9 @@
 import { test, expect, type Page } from "@playwright/test";
 import {
   climbToParent,
-  enterSlotChoice,
   clickSlotInsertBtn,
   isCatalogPickerVisible,
+  isSlotStopVisible,
   hasCatalogPickerIncompatibleSection,
   getIncompatiblePickerItemTypes,
   getValidPickerItemTypes,
@@ -17,7 +17,9 @@ import {
   sourceCenter,
   edgePoint,
   pageContentCensus,
-openTestPage,
+  selectElement,
+  settle,
+  openTestPage,
 } from "../overlay/testing.js";
 
 test.describe("Slot constraints — insert picker partitioning", () => {
@@ -29,19 +31,18 @@ test.describe("Slot constraints — insert picker partitioning", () => {
     page,
   }) => {
     // Select a Heading inside a Card header, climb to the Card, enter slot-choice.
-    await page.locator("h3").first().click();
-    await page.waitForTimeout(300);
+    await selectElement(page, page.locator("h3").first());
     await climbToParent(page);
 
     // Enter the slot-choice step on the multi-slot Card.
     await page.keyboard.press("/");
-    await page.waitForTimeout(300);
+    await expect.poll(() => isSlotStopVisible(page)).toBe(true);
+    await settle(page);
 
     // Click the insert button for the header slot (the active slot-stop).
     await clickSlotInsertBtn(page);
-    await page.waitForTimeout(300);
 
-    expect(await isCatalogPickerVisible(page)).toBe(true);
+    await expect.poll(() => isCatalogPickerVisible(page)).toBe(true);
 
     // Heading and Text must be in the valid (top-level) list.
     const valid = await getValidPickerItemTypes(page);
@@ -61,15 +62,13 @@ test.describe("Slot constraints — insert picker partitioning", () => {
     page,
   }) => {
     // Click the H1 heading which lives in the hero Stack.
-    await page.locator("h1").first().click();
-    await page.waitForTimeout(300);
+    await selectElement(page, page.locator("h1").first());
     await climbToParent(page);
 
     // Stack has one slot (children) — pressing / opens the picker directly.
     await page.keyboard.press("/");
-    await page.waitForTimeout(300);
 
-    expect(await isCatalogPickerVisible(page)).toBe(true);
+    await expect.poll(() => isCatalogPickerVisible(page)).toBe(true);
 
     // No incompatible section for an unconstrained slot.
     expect(await hasCatalogPickerIncompatibleSection(page)).toBe(false);
@@ -84,10 +83,9 @@ test.describe("Slot constraints — direct/sibling route", () => {
   // Select the Heading INSIDE a Card header (no climb) and open insert — the
   // leaf routes to the sibling picker targeting the constrained header slot.
   const openSiblingPickerInCardHeader = async (page: Page) => {
-    await page.locator("h3").first().click();
-    await page.waitForTimeout(300);
+    await selectElement(page, page.locator("h3").first());
     await page.keyboard.press("/");
-    await page.waitForTimeout(300);
+    await expect.poll(() => isCatalogPickerVisible(page)).toBe(true);
   };
 
   test("B: sibling picker inside Card.header partitions valid vs incompatible", async ({
@@ -112,6 +110,7 @@ test.describe("Slot constraints — direct/sibling route", () => {
     page,
   }) => {
     await openSiblingPickerInCardHeader(page);
+    await settle(page);
     await openIncompatiblePickerSection(page);
 
     // The honest affordance: visibly non-insertable, reason on the control.
@@ -124,7 +123,9 @@ test.describe("Slot constraints — direct/sibling route", () => {
     // Clicking it anyway must not write: document unchanged, picker still open.
     const censusBefore = await pageContentCensus(page);
     await clickIncompatiblePickerItem(page, "Button");
-    await page.waitForTimeout(300);
+    // Nothing must change here, so there is no post-state to poll for — settle
+    // for the commit + paint a leaked write WOULD have produced.
+    await settle(page);
 
     expect(await pageContentCensus(page)).toEqual(censusBefore);
     expect(await isCatalogPickerVisible(page)).toBe(true);
@@ -141,8 +142,7 @@ test.describe("Slot constraints — drag/drop blocking", () => {
   }) => {
     // Select the first button (in the hero Stack).
     const btn = page.locator("button").first();
-    await btn.click();
-    await page.waitForTimeout(300);
+    await selectElement(page, btn);
 
     // Drag the button OVER a Card header (h3 sibling line area) — hold phase only.
     const heading = page.locator("h3").first();
@@ -151,10 +151,9 @@ test.describe("Slot constraints — drag/drop blocking", () => {
       to: await edgePoint(heading, "top"),
       phase: "hold",
     });
-    await page.waitForTimeout(300);
 
     // The drop indicator must be visible and marked blocked.
-    expect(await hasDropIndicator(page)).toBe(true);
+    await expect.poll(() => hasDropIndicator(page)).toBe(true);
     expect(await hasBlockedDropIndicator(page)).toBe(true);
   });
 
@@ -162,8 +161,7 @@ test.describe("Slot constraints — drag/drop blocking", () => {
     page,
   }) => {
     const btn = page.locator("button").first();
-    await btn.click();
-    await page.waitForTimeout(300);
+    await selectElement(page, btn);
 
     const censusBefore = await pageContentCensus(page);
 
@@ -174,7 +172,10 @@ test.describe("Slot constraints — drag/drop blocking", () => {
       to: await edgePoint(heading, "top"),
       phase: "full",
     });
-    await page.waitForTimeout(300);
+    // `drop`/`dragend` are discrete-priority, so a commit they caused has
+    // already flushed; two frames cover the view-transition swap a real write
+    // would paint. There is no post-state to poll — the law is "nothing moved".
+    await settle(page);
 
     // Document must be unchanged — Button was not inserted into Card.header.
     const censusAfter = await pageContentCensus(page);
@@ -185,8 +186,7 @@ test.describe("Slot constraints — drag/drop blocking", () => {
     page,
   }) => {
     const btn = page.locator("button").first();
-    await btn.click();
-    await page.waitForTimeout(300);
+    await selectElement(page, btn);
 
     // Census uses light-DOM querySelectorAll — excludes shadow-DOM overlay buttons
     // (history dots, action bar) so the assertion is not skewed by commit side-effects.
@@ -199,7 +199,7 @@ test.describe("Slot constraints — drag/drop blocking", () => {
       from: await sourceCenter(btn),
       to: await edgePoint(heading, "top"),
     });
-    await page.waitForTimeout(400);
+    await settle(page);
 
     // Button count in light DOM is unchanged — it was moved, not added.
     const censusAfter = await pageContentCensus(page);
@@ -214,8 +214,7 @@ test.describe("Slot constraints — drag/drop blocking", () => {
   }) => {
     // Select the first button.
     const btn = page.locator("button").first();
-    await btn.click();
-    await page.waitForTimeout(300);
+    await selectElement(page, btn);
 
     // Drag to the h1 heading (in the hero Stack — same Stack, different position).
     const heading = page.locator("h1").first();
@@ -224,10 +223,9 @@ test.describe("Slot constraints — drag/drop blocking", () => {
       to: await edgePoint(heading, "top"),
       phase: "hold",
     });
-    await page.waitForTimeout(300);
 
     // Drop indicator present but NOT blocked.
-    expect(await hasDropIndicator(page)).toBe(true);
+    await expect.poll(() => hasDropIndicator(page)).toBe(true);
     expect(await hasBlockedDropIndicator(page)).toBe(false);
   });
 });

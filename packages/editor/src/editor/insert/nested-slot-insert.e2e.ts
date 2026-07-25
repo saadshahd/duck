@@ -10,7 +10,8 @@ import {
   getIncompatiblePickerItemState,
   clickCatalogPickerItem,
   readSlotStopLabels,
-openTestPage,
+  settle,
+  openTestPage,
 } from "../overlay/testing.js";
 
 /** Ticket 114 slice 5 (A) — insert INTO an array-item slot via the selection /
@@ -32,8 +33,8 @@ test.describe("Insert into an array-item slot", () => {
   test("both array-item content slots are offered as named bands in slot-choice", async ({
     page,
   }) => {
+    // selectByTestId settles after the click; enterSlotChoice polls the bands in.
     await selectByTestId(page, FIX.sections.childId);
-    await page.waitForTimeout(300);
 
     await enterSlotChoice(page);
 
@@ -47,36 +48,37 @@ test.describe("Insert into an array-item slot", () => {
     page,
   }) => {
     await selectByTestId(page, FIX.sections.childId);
-    await page.waitForTimeout(300);
 
     await enterSlotChoice(page);
     expect(await getSlotStopLabelText(page)).toMatch(/› content$/);
 
     const before = (await childTags(sectionAt(page, 0))).length;
 
+    await settle(page);
     await clickSlotInsertBtn(page);
-    await page.waitForTimeout(300);
-    expect(await isCatalogPickerVisible(page)).toBe(true);
+    await expect.poll(() => isCatalogPickerVisible(page)).toBe(true);
+    await settle(page);
 
     expect(await clickCatalogPickerItem(page, "Text")).toBe(true);
-    await page.waitForTimeout(400);
 
-    expect(await isCatalogPickerVisible(page)).toBe(false);
+    await expect.poll(() => isCatalogPickerVisible(page)).toBe(false);
     // The new child landed in item 0's content slot (not item 1's, not a sibling
-    // of the Sections holder).
-    expect((await childTags(sectionAt(page, 0))).length).toBe(before + 1);
+    // of the Sections holder). The write lands through a view transition, so poll
+    // the rendered child count rather than reading one frame after the click.
+    await expect
+      .poll(async () => (await childTags(sectionAt(page, 0))).length)
+      .toBe(before + 1);
   });
 
   test("nested disallow is enforced: Card is rejected in items[i].content", async ({
     page,
   }) => {
     await selectByTestId(page, FIX.sections.childId);
-    await page.waitForTimeout(300);
 
     await enterSlotChoice(page);
+    await settle(page);
     await clickSlotInsertBtn(page);
-    await page.waitForTimeout(300);
-    expect(await isCatalogPickerVisible(page)).toBe(true);
+    await expect.poll(() => isCatalogPickerVisible(page)).toBe(true);
 
     await openIncompatiblePickerSection(page);
     // `content` declares `disallow: ["Card"]` on the nested array-item slot —

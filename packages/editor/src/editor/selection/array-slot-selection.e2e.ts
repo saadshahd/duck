@@ -9,7 +9,8 @@ import {
   selectParentElement,
   countSelectionRings,
   isToolbarVisible,
-openTestPage,
+  settle,
+  openTestPage,
 } from "../overlay/testing.js";
 
 /** Ticket 114 slice 2 — the derisk scenario proven live. A pre-slice-1 HEAD
@@ -30,8 +31,8 @@ test.describe("Array-item slot selection", () => {
   test("clicking a component inside an array-item slot selects the nested child, not the array holder", async ({
     page,
   }) => {
+    // selectByTestId clicks and settles — the ring is anchored when it returns.
     await selectByTestId(page, FIX.sections.childId);
-    await page.waitForTimeout(300);
 
     const childBox = await getPageElementBox(
       page,
@@ -64,10 +65,9 @@ test.describe("Array-item slot selection", () => {
     page,
   }) => {
     await selectByTestId(page, FIX.sections.childId);
-    await page.waitForTimeout(300);
 
     await toggleBoxModel(page);
-    await page.waitForTimeout(150);
+    await settle(page);
 
     expect(await countBoxModelBands(page)).toBeGreaterThan(0);
   });
@@ -76,10 +76,11 @@ test.describe("Array-item slot selection", () => {
     page,
   }) => {
     await selectByTestId(page, FIX.sections.childId);
-    await page.waitForTimeout(300);
 
     await selectParentElement(page);
-    await page.waitForTimeout(300);
+    // A climb retargets the existing ring — the ring COUNT is unchanged, so
+    // there is nothing to poll for; settle covers the re-anchor pass.
+    await settle(page);
 
     const holderBox = await getPageElementBox(
       page,
