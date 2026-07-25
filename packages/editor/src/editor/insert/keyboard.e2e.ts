@@ -11,6 +11,7 @@ import {
   pageContentCensus,
   focusIncompatiblePickerSummary,
   isIncompatiblePickerSectionOpen,
+openTestPage,
 } from "../overlay/testing.js";
 
 /** Insert picker keyboard flow: filter focused on open, Enter confirms the
@@ -21,8 +22,7 @@ import {
 
 test.describe("Insert picker — keyboard flow", () => {
   test.beforeEach(async ({ page }) => {
-    await page.goto("/test.html");
-    await page.waitForTimeout(500);
+    await openTestPage(page);
   });
 
   test("direct route: filter is focused the instant the picker opens", async ({

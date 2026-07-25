@@ -1,5 +1,10 @@
 import { test, expect, type Page, type Locator } from "@playwright/test";
-import { dispatchDrag, draggablePressPoint, readTileRects } from "./testing.js";
+import {
+  dispatchDrag,
+  draggablePressPoint,
+  openTestPage,
+  readTileRects,
+} from "./testing.js";
 
 /**
  * Discrete-marker presentation law (R6), acceptance-tested on the demo Scatter
@@ -59,8 +64,7 @@ const geometry = (container: Locator, childTexts: readonly string[]) =>
 
 test.describe("Discrete-marker presentation — Scatter panel", () => {
   test.beforeEach(async ({ page }) => {
-    await page.goto("/test.html");
-    await page.waitForTimeout(500);
+    await openTestPage(page);
   });
 
   test("markers anchor to child geometry and clamp inside the container", async ({

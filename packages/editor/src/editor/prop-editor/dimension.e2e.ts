@@ -11,6 +11,7 @@ import {
   isDimensionSentinelSelected,
   getDimensionSentinelCenter,
   readDimensionCustom,
+openTestPage,
 } from "../overlay/testing.js";
 
 /**
@@ -59,8 +60,7 @@ const openHeadingSheet = async (page: import("@playwright/test").Page) => {
 
 test.describe("Dimension control — Heading.style.fontSize (T6)", () => {
   test.beforeEach(async ({ page }) => {
-    await page.goto("/test.html");
-    await page.waitForTimeout(500);
+    await openTestPage(page);
   });
 
   // O3a: dimension control renders one chip per preset option.

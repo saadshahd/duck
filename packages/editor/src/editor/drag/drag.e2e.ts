@@ -16,6 +16,7 @@ import {
   draggablePressPoint,
   edgePoint,
   type Point,
+openTestPage,
 } from "../overlay/testing.js";
 
 /** Simulate a full native drag-and-drop onto a sibling's edge. */
@@ -57,8 +58,7 @@ const dragAndDropPoint = async (page: Page, source: Locator, point: Point) =>
 
 test.describe("Drag-to-reorder", () => {
   test.beforeEach(async ({ page }) => {
-    await page.goto("/test.html");
-    await page.waitForTimeout(500);
+    await openTestPage(page);
   });
 
   test("selected element gets draggable attribute", async ({ page }) => {
@@ -163,8 +163,7 @@ async function mouseDrag(
 
 test.describe("Slot-aware container drops", () => {
   test.beforeEach(async ({ page }) => {
-    await page.goto("/test.html");
-    await page.waitForTimeout(500);
+    await openTestPage(page);
   });
 
   const cardTitle = (page: Page) => page.locator('h3:has-text("Zero Chrome")');
@@ -283,8 +282,7 @@ async function tapShift(page: Page, at: Point) {
 
 test.describe("Shift-cycle destination stack", () => {
   test.beforeEach(async ({ page }) => {
-    await page.goto("/test.html");
-    await page.waitForTimeout(500);
+    await openTestPage(page);
   });
 
   const cardTitle = (page: Page) => page.locator('h3:has-text("Zero Chrome")');
@@ -393,8 +391,7 @@ test.describe("Shift-cycle destination stack", () => {
 
 test.describe("Move ghost on a between-siblings line drag", () => {
   test.beforeEach(async ({ page }) => {
-    await page.goto("/test.html");
-    await page.waitForTimeout(500);
+    await openTestPage(page);
   });
 
   test("ghost names source → qualified slot destination · valid; no retired label survives", async ({
@@ -427,8 +424,7 @@ test.describe("Move ghost on a between-siblings line drag", () => {
 
 test.describe("Band grammar — carved and discrete", () => {
   test.beforeEach(async ({ page }) => {
-    await page.goto("/test.html");
-    await page.waitForTimeout(500);
+    await openTestPage(page);
   });
 
   /** The Stack panel container: two hops up from its heading (slots are wrapped
@@ -518,8 +514,7 @@ test.describe("Band grammar — carved and discrete", () => {
  *  Shift-cycle dives into the target's slots and reveals the cycle counter chip. */
 test.describe("Same-parent container guard and cycle chip", () => {
   test.beforeEach(async ({ page }) => {
-    await page.goto("/test.html");
-    await page.waitForTimeout(500);
+    await openTestPage(page);
   });
 
   // Card siblings in the features grid

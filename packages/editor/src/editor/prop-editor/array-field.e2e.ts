@@ -14,6 +14,7 @@ import {
   hoverTimelineDot,
   readTimelineDots,
   getTimelineTooltipText,
+openTestPage,
 } from "../overlay/testing.js";
 
 /** All rendered tag chips across the page, in document order. The demo Card
@@ -40,8 +41,7 @@ const openCardArray = async (
 
 test.describe("Array field management", () => {
   test.beforeEach(async ({ page }) => {
-    await page.goto("/test.html");
-    await page.waitForTimeout(500);
+    await openTestPage(page);
   });
 
   test("add appends a defaultItemProps item — row value and canvas update", async ({

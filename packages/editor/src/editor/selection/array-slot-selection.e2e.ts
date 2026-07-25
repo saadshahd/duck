@@ -9,6 +9,7 @@ import {
   selectParentElement,
   countSelectionRings,
   isToolbarVisible,
+openTestPage,
 } from "../overlay/testing.js";
 
 /** Ticket 114 slice 2 — the derisk scenario proven live. A pre-slice-1 HEAD
@@ -23,8 +24,7 @@ const closeTo = (a: number, b: number, tolerance = 6) =>
 
 test.describe("Array-item slot selection", () => {
   test.beforeEach(async ({ page }) => {
-    await page.goto("/test.html");
-    await page.waitForTimeout(500);
+    await openTestPage(page);
   });
 
   test("clicking a component inside an array-item slot selects the nested child, not the array holder", async ({

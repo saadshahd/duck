@@ -15,6 +15,7 @@ import {
   getPageElementBox,
   bandPaddingPoint,
   pickerOwnsCenterPoint,
+openTestPage,
 } from "../overlay/testing.js";
 
 /** R11: insert never writes without a named slot on screen. A multi-slot node's
@@ -36,8 +37,7 @@ const overlapsWithMargin = (picker: Box, band: Box): boolean =>
 
 test.describe("Insert routing — explicit slot, no silent default", () => {
   test.beforeEach(async ({ page }) => {
-    await page.goto("/test.html");
-    await page.waitForTimeout(500);
+    await openTestPage(page);
   });
 
   test("/ on a multi-slot node enters the slot-choice step: every slot named, nothing written", async ({
@@ -155,8 +155,7 @@ test.describe("Insert routing — explicit slot, no silent default", () => {
     // A short viewport forces the picker to overlap the slot bands (no room to
     // flip clear of them), the exact geometry where the stacking bug surfaces.
     await page.setViewportSize({ width: 1280, height: 500 });
-    await page.goto("/test.html");
-    await page.waitForTimeout(500);
+    await openTestPage(page);
 
     await page.locator("h3").first().click();
     await page.waitForTimeout(300);

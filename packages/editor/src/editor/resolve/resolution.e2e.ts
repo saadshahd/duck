@@ -7,6 +7,7 @@ import {
   getReadOnlyFieldValue,
   countRole,
   FIX,
+openTestPage,
 } from "../overlay/testing.js";
 
 // TODO(resolve error-path E2E): needs a failing resolver — deferred. No frozen
@@ -18,8 +19,7 @@ import {
  *  `resolvedText` field with `Resolved ${trigger}: ${text}`. */
 test.describe("Resolve pipeline — happy path", () => {
   test.beforeEach(async ({ page }) => {
-    await page.goto("/test.html");
-    await page.waitForTimeout(500);
+    await openTestPage(page);
   });
 
   const heroDescriptionText = FIX.text.copy;

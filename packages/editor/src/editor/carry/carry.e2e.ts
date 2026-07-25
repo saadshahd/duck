@@ -11,6 +11,7 @@ import {
   getCycleChipText,
   waitFrames,
   type Point,
+openTestPage,
 } from "../overlay/testing.js";
 
 const cardTitle = (page: Page) => page.locator('h3:has-text("Zero Chrome")');
@@ -34,8 +35,7 @@ const lift = async (page: Page) => {
 
 test.describe("Carry (pointer-driven move)", () => {
   test.beforeEach(async ({ page }) => {
-    await page.goto("/test.html");
-    await page.waitForTimeout(500);
+    await openTestPage(page);
   });
 
   test("Space lifts; clicking a slot band moves the element into it", async ({
@@ -137,8 +137,7 @@ test.describe("Carry (pointer-driven move)", () => {
 
 test.describe("Carry affordances", () => {
   test.beforeEach(async ({ page }) => {
-    await page.goto("/test.html");
-    await page.waitForTimeout(500);
+    await openTestPage(page);
   });
 
   test("action-move button no longer exists in the toolbar", async ({
@@ -281,8 +280,7 @@ test.describe("Carry affordances", () => {
 
 test.describe("Carry tracks scroll", () => {
   test.beforeEach(async ({ page }) => {
-    await page.goto("/test.html");
-    await page.waitForTimeout(500);
+    await openTestPage(page);
   });
 
   test("scroll mid-carry re-resolves every affordance in lockstep — pulse, tiles, and active label all follow the new geometry", async ({
@@ -375,8 +373,7 @@ test.describe("Carry tracks scroll", () => {
 
 test.describe("Carry cycle chip", () => {
   test.beforeEach(async ({ page }) => {
-    await page.goto("/test.html");
-    await page.waitForTimeout(500);
+    await openTestPage(page);
   });
 
   test("cycle chip is present at carry entry showing the ⇥ cycle hint", async ({

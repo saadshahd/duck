@@ -2,6 +2,7 @@ import { test, expect } from "@playwright/test";
 import {
   isCatalogPickerVisible,
   clickFirstCatalogPickerItem,
+openTestPage,
 } from "../overlay/testing.js";
 
 /** BLOCKER repro (Smoke test findings): a container collapsing to zero children
@@ -12,8 +13,7 @@ import {
  *  no React hook-order warning, no page crash. */
 test.describe("Empty-container ghost path does not crash the editor", () => {
   test.beforeEach(async ({ page }) => {
-    await page.goto("/test.html");
-    await page.waitForTimeout(500);
+    await openTestPage(page);
   });
 
   const collectErrors = (page: import("@playwright/test").Page) => {

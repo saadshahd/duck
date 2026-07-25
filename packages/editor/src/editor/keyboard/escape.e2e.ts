@@ -1,10 +1,9 @@
 import { test, expect } from "@playwright/test";
-import { countSelectionRings } from "../overlay/testing.js";
+import { countSelectionRings, openTestPage } from "../overlay/testing.js";
 
 test.describe("Escape never navigates the browser", () => {
   test.beforeEach(async ({ page }) => {
-    await page.goto("/test.html");
-    await page.waitForTimeout(500);
+    await openTestPage(page);
   });
 
   test("Escape with a selection deselects and keeps the URL", async ({

@@ -7,6 +7,7 @@ import {
   readResolution,
   readTileRects,
   type Point,
+openTestPage,
 } from "../overlay/testing.js";
 
 /**
@@ -136,8 +137,7 @@ async function carryCtaToBody(page: Page, dy: number) {
 
 test.describe("Single-child insert axis flips at the child's own midpoint", () => {
   test.beforeEach(async ({ page }) => {
-    await page.goto("/test.html");
-    await page.waitForTimeout(500);
+    await openTestPage(page);
   });
 
   // The scatter body slot holds exactly one child, so it carries no cross-sibling
@@ -169,8 +169,7 @@ test.describe("Single-child insert axis flips at the child's own midpoint", () =
 
 test.describe("Discrete markers are hit-targets in both modalities", () => {
   test.beforeEach(async ({ page }) => {
-    await page.goto("/test.html");
-    await page.waitForTimeout(500);
+    await openTestPage(page);
   });
 
   test("carry: aiming at each scatter marker center resolves that marker's slot", async ({

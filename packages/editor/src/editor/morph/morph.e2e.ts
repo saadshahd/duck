@@ -9,6 +9,7 @@ import {
   clickMorphPickerItem,
   hasMorphOverlay,
   climbToParent,
+openTestPage,
 } from "../overlay/testing.js";
 
 async function selectFeatureCard(page: import("@playwright/test").Page) {
@@ -20,8 +21,7 @@ async function selectFeatureCard(page: import("@playwright/test").Page) {
 
 test.describe("Morph", () => {
   test.beforeEach(async ({ page }) => {
-    await page.goto("/test.html");
-    await page.waitForTimeout(500);
+    await openTestPage(page);
   });
 
   test("morph button is disabled with count 0 for element without patterns or variants", async ({

@@ -1,4 +1,5 @@
 import { test, expect } from "@playwright/test";
+import { openTestPage } from "../overlay/testing.js";
 
 /** Get cursor offset within a contentEditable element. */
 const cursorOffset = (page: import("@playwright/test").Page) =>
@@ -10,8 +11,7 @@ const editableElement = (page: import("@playwright/test").Page) =>
 
 test.describe("Inline editing on button elements", () => {
   test.beforeEach(async ({ page }) => {
-    await page.goto("/test.html");
-    await page.waitForTimeout(500);
+    await openTestPage(page);
   });
 
   test("space inserts at cursor and advances position", async ({ page }) => {

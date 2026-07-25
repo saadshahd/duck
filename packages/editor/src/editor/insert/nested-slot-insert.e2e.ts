@@ -10,6 +10,7 @@ import {
   getIncompatiblePickerItemState,
   clickCatalogPickerItem,
   readSlotStopLabels,
+openTestPage,
 } from "../overlay/testing.js";
 
 /** Ticket 114 slice 5 (A) — insert INTO an array-item slot via the selection /
@@ -20,8 +21,7 @@ import {
  *  the nested `disallow` (Card is rejected in `items[i].content`). */
 test.describe("Insert into an array-item slot", () => {
   test.beforeEach(async ({ page }) => {
-    await page.goto("/test.html");
-    await page.waitForTimeout(500);
+    await openTestPage(page);
   });
 
   const sectionAt = (page: Page, i: number): Locator =>

@@ -6,6 +6,7 @@ import {
   getGhostRect,
   countGhostMarkers,
   isSelectionLabelVisible,
+openTestPage,
 } from "../overlay/testing.js";
 
 /** Coverage for the ghost-placeholder visibility contract (previously only
@@ -17,8 +18,7 @@ import {
  *  (divider) among filled ones — the case that must NEVER be ghosted. */
 test.describe("Ghost placeholder visibility", () => {
   test.beforeEach(async ({ page }) => {
-    await page.goto("/test.html");
-    await page.waitForTimeout(500);
+    await openTestPage(page);
   });
 
   /** Insert a Stack as h1's sibling, then delete both of its default

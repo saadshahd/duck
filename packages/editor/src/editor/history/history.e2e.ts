@@ -12,12 +12,12 @@ import {
   isToolbarVisible,
   countSelectionRings,
   isCatalogPickerVisible,
+openTestPage,
 } from "../overlay/testing.js";
 
 test.describe("History: undo/redo through real edits", () => {
   test.beforeEach(async ({ page }) => {
-    await page.goto("/test.html");
-    await page.waitForTimeout(500);
+    await openTestPage(page);
   });
 
   test("two sequential edits undo and redo in exact reverse/forward order", async ({
@@ -98,8 +98,7 @@ test.describe("History: undo/redo through real edits", () => {
 
 test.describe("History: timeline", () => {
   test.beforeEach(async ({ page }) => {
-    await page.goto("/test.html");
-    await page.waitForTimeout(500);
+    await openTestPage(page);
   });
 
   test("rail is hidden until the first navigation event, then shows past/current/future", async ({
@@ -249,8 +248,7 @@ test.describe("History: timeline", () => {
 // insert picker only while the FSM holds a live selection.
 test.describe("History: data change removing the selected element deselects", () => {
   test.beforeEach(async ({ page }) => {
-    await page.goto("/test.html");
-    await page.waitForTimeout(500);
+    await openTestPage(page);
   });
 
   const expectDeselected = async (page: Page) => {

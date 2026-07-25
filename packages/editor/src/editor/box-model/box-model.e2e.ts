@@ -7,6 +7,7 @@ import {
   countGapRegions,
   getBoxModelBandsRect,
   waitFrames,
+openTestPage,
 } from "../overlay/testing.js";
 
 /** Coverage for the box-model overlay (margin/padding/content bands + gap
@@ -16,8 +17,7 @@ import {
  *  Buttons). */
 test.describe("Box-model overlay", () => {
   test.beforeEach(async ({ page }) => {
-    await page.goto("/test.html");
-    await page.waitForTimeout(500);
+    await openTestPage(page);
   });
 
   const selectPageBox = async (page: import("@playwright/test").Page) => {

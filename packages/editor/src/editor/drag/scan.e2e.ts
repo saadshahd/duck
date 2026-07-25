@@ -8,6 +8,7 @@ import {
   readTileRects,
   readTiles,
   type Point,
+openTestPage,
 } from "../overlay/testing.js";
 
 /**
@@ -590,8 +591,7 @@ async function assertDiscrete(
 
 test.describe("Real-pointer slot-targeting scan", () => {
   test.beforeEach(async ({ page }) => {
-    await page.goto("/test.html");
-    await page.waitForTimeout(500);
+    await openTestPage(page);
   });
 
   test("carry scan: card", async ({ page }) => {

@@ -17,12 +17,12 @@ import {
   sourceCenter,
   edgePoint,
   pageContentCensus,
+openTestPage,
 } from "../overlay/testing.js";
 
 test.describe("Slot constraints — insert picker partitioning", () => {
   test.beforeEach(async ({ page }) => {
-    await page.goto("/test.html");
-    await page.waitForTimeout(500);
+    await openTestPage(page);
   });
 
   test("B: Card.header picker — Heading/Text valid, Button in incompatible section", async ({
@@ -78,8 +78,7 @@ test.describe("Slot constraints — insert picker partitioning", () => {
 
 test.describe("Slot constraints — direct/sibling route", () => {
   test.beforeEach(async ({ page }) => {
-    await page.goto("/test.html");
-    await page.waitForTimeout(500);
+    await openTestPage(page);
   });
 
   // Select the Heading INSIDE a Card header (no climb) and open insert — the
@@ -134,8 +133,7 @@ test.describe("Slot constraints — direct/sibling route", () => {
 
 test.describe("Slot constraints — drag/drop blocking", () => {
   test.beforeEach(async ({ page }) => {
-    await page.goto("/test.html");
-    await page.waitForTimeout(500);
+    await openTestPage(page);
   });
 
   test("C: Button dragged to Card.header shows blocked indicator", async ({

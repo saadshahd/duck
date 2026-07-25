@@ -6,6 +6,7 @@ import {
   readRadioGroup,
   getRadioOptionCenter,
   arrowNavRadio,
+openTestPage,
 } from "../overlay/testing.js";
 
 /**
@@ -27,8 +28,7 @@ const openBannerSheet = async (page: Page) => {
 
 test.describe("Radio control — Banner.emphasis / Banner.tone", () => {
   test.beforeEach(async ({ page }) => {
-    await page.goto("/test.html");
-    await page.waitForTimeout(500);
+    await openTestPage(page);
   });
 
   test("emphasis (3 short options) renders segmented with the stored value checked", async ({

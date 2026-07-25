@@ -9,6 +9,7 @@ import {
   dragOverAt,
   dragEnd,
   type Point,
+openTestPage,
 } from "./testing.js";
 
 const cardTitle = (page: Page) => page.locator('h3:has-text("Zero Chrome")');
@@ -35,8 +36,7 @@ const liftHeading = async (page: Page) => {
 
 test.describe("Move ghost — one element, both modalities", () => {
   test.beforeEach(async ({ page }) => {
-    await page.goto("/test.html");
-    await page.waitForTimeout(500);
+    await openTestPage(page);
   });
 
   test("drag: ghost names source → destination · valid; destination painted exactly once", async ({

@@ -7,6 +7,7 @@ import {
   clickSpacingLink,
   getSpacingChipCenter,
   getSpacingSentinelCenter,
+openTestPage,
 } from "../overlay/testing.js";
 
 /**
@@ -27,8 +28,7 @@ const openBannerSheet = async (page: Page) => {
 
 test.describe("Spacing control — Banner.style.padding / margin", () => {
   test.beforeEach(async ({ page }) => {
-    await page.goto("/test.html");
-    await page.waitForTimeout(500);
+    await openTestPage(page);
   });
 
   test("a linked preset value shows the chip checked, one input, no sides", async ({

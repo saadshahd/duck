@@ -9,12 +9,12 @@ import {
   getContextMenuActiveIndex,
   countSelectionRings,
   isToolbarVisible,
+openTestPage,
 } from "../overlay/testing.js";
 
 test.describe("Context menu", () => {
   test.beforeEach(async ({ page }) => {
-    await page.goto("/test.html");
-    await page.waitForTimeout(500);
+    await openTestPage(page);
   });
 
   test("real right-click on a nested element opens the menu with its ancestry", async ({

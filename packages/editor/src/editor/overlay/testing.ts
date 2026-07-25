@@ -2,6 +2,26 @@ import type { Page, Locator } from "@playwright/test";
 
 export { FIX } from "../../test-catalog/fixture.js";
 
+// --- Page boot ---
+
+/** Open the frozen-catalog harness and wait until the editor is operable: the
+ *  fixture has rendered into the light DOM AND the overlay's shadow root has
+ *  adopted its token sheet — OverlayRoot's mount effect, the point past which
+ *  overlay children can paint (see overlay/root.tsx). Both are signals the boot
+ *  actually emits; a fixed sleep only guessed at when they would arrive. */
+export const openTestPage = async (page: Page) => {
+  await page.goto("/test.html");
+  await page.waitForFunction(() => {
+    const host = [...document.querySelectorAll("div")].find(
+      (d) => d.shadowRoot && d.style.position === "fixed",
+    );
+    return (
+      (host?.shadowRoot?.adoptedStyleSheets.length ?? 0) > 0 &&
+      document.querySelector("[data-testid]") !== null
+    );
+  });
+};
+
 // --- Frozen-catalog selection ---
 
 /** Click the frozen-catalog element rendered with the given `data-testid` (its

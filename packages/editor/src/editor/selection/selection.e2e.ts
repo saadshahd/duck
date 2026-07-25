@@ -15,12 +15,12 @@ import {
   selectParentElement,
   enterSlotChoice,
   readSlotBands,
+openTestPage,
 } from "../overlay/testing.js";
 
 test.describe("Editor overlay", () => {
   test.beforeEach(async ({ page }) => {
-    await page.goto("/test.html");
-    await page.waitForTimeout(500);
+    await openTestPage(page);
   });
 
   test("hover shows highlight, mouse away clears it", async ({ page }) => {
@@ -161,8 +161,7 @@ test.describe("Editor overlay", () => {
 
 test.describe("Slot address and slot-stop", () => {
   test.beforeEach(async ({ page }) => {
-    await page.goto("/test.html");
-    await page.waitForTimeout(500);
+    await openTestPage(page);
   });
 
   test("↑ climbs node→node: selects the parent node directly, no slot stop", async ({

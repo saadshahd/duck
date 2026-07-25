@@ -6,6 +6,7 @@ import {
   readRichTextActions,
   readRichTextActiveActions,
   clickRichTextAction,
+openTestPage,
 } from "../overlay/testing.js";
 
 /** Longer than CONTINUOUS_DEBOUNCE_MS (300) — waits out one continuous commit. */
@@ -35,8 +36,7 @@ const openCardNote = async (page: Page, headingText: string) => {
 
 test.describe("Richtext control", () => {
   test.beforeEach(async ({ page }) => {
-    await page.goto("/test.html");
-    await page.waitForTimeout(500);
+    await openTestPage(page);
   });
 
   test("types content and bolds a range — stored as HTML, live on the canvas", async ({

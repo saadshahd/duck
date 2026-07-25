@@ -5,6 +5,7 @@ import {
   sourceCenter,
   getActiveDestinationLabel,
   type Point,
+openTestPage,
 } from "../overlay/testing.js";
 
 /** Ticket 114 slice 4 + folded 117: drop INTO array-item slots — a slot that
@@ -16,8 +17,7 @@ import {
  *  `document.elementFromPoint`. */
 test.describe("Drop into array-item slots", () => {
   test.beforeEach(async ({ page }) => {
-    await page.goto("/test.html");
-    await page.waitForTimeout(500);
+    await openTestPage(page);
     await sections(page).scrollIntoViewIfNeeded();
     await page.waitForTimeout(200);
   });

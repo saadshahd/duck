@@ -6,6 +6,7 @@ import {
   isSheetVisible,
   readDisclosureTriggers,
   clickDisclosureTrigger,
+openTestPage,
 } from "../overlay/testing.js";
 
 /**
@@ -28,8 +29,7 @@ const openBannerSheet = async (page: Page) => {
 
 test.describe("Nested object disclosure — Banner.style.border", () => {
   test.beforeEach(async ({ page }) => {
-    await page.goto("/test.html");
-    await page.waitForTimeout(500);
+    await openTestPage(page);
   });
 
   test("nested object is a collapsed disclosure; its fields mount only on open", async ({

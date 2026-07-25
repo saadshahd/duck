@@ -4,6 +4,7 @@ import {
   dispatchDragAltViaVoid,
   sourceCenter,
   edgePoint,
+openTestPage,
 } from "../overlay/testing.js";
 
 /**
@@ -38,8 +39,7 @@ const firstCardHasButton = (page: Page) =>
 
 test.describe("Alt-held drag onto slot-constrained container", () => {
   test.beforeEach(async ({ page }) => {
-    await page.goto("/test.html");
-    await page.waitForTimeout(500);
+    await openTestPage(page);
   });
 
   test("control: Alt held, dropTargets present at drop → element placed", async ({

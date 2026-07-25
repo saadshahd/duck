@@ -11,6 +11,7 @@ import {
   getIncompatiblePickerItemState,
   clickIncompatiblePickerItem,
   pageContentCensus,
+openTestPage,
 } from "../overlay/testing.js";
 
 /** T4 observer: slot-selected state owns an inline insert (+) inside the band.
@@ -20,8 +21,7 @@ import {
 
 test.describe("Slot-selected inline insert", () => {
   test.beforeEach(async ({ page }) => {
-    await page.goto("/test.html");
-    await page.waitForTimeout(500);
+    await openTestPage(page);
   });
 
   test("slot-stop band shows inline insert (+) button when slot is selected", async ({

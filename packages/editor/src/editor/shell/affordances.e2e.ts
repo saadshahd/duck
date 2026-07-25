@@ -7,6 +7,7 @@ import {
   dispatchDrag,
   clickToolbarAction,
   isSheetVisible,
+openTestPage,
 } from "../overlay/testing.js";
 
 /** R4 observer: one assertion per interaction state pinning its complete,
@@ -15,8 +16,7 @@ import {
 
 test.describe("R4 — state-owned affordance sets", () => {
   test.beforeEach(async ({ page }) => {
-    await page.goto("/test.html");
-    await page.waitForTimeout(500);
+    await openTestPage(page);
   });
 
   test("resting-selected owns rings + label cluster + action bar; no slot stop, no drop overlay, no lift pulse", async ({

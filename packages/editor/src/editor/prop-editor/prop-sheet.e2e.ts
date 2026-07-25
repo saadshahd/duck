@@ -10,12 +10,12 @@ import {
   getSheetRect,
   getBackdropCutoutRect,
   isSelectionRingEditing,
+openTestPage,
 } from "../overlay/testing.js";
 
 test.describe("Focus sheet shell", () => {
   test.beforeEach(async ({ page }) => {
-    await page.goto("/test.html");
-    await page.waitForTimeout(500);
+    await openTestPage(page);
   });
 
   // Observer #1 — sheet opens fully on screen for any element (including full-
@@ -234,8 +234,7 @@ const SHEET_SURFACES: Array<{
 
 test.describe("Toolbar pen click targets the selected element", () => {
   test.beforeEach(async ({ page }) => {
-    await page.goto("/test.html");
-    await page.waitForTimeout(500);
+    await openTestPage(page);
   });
 
   // Regression: a REAL click on the pen used to bubble to the document
@@ -259,8 +258,7 @@ test.describe("Toolbar pen click targets the selected element", () => {
 
 test.describe("Every demo component opens its sheet clean", () => {
   test.beforeEach(async ({ page }) => {
-    await page.goto("/test.html");
-    await page.waitForTimeout(500);
+    await openTestPage(page);
   });
 
   // Regression guard for the crash boundary: a sheet that trips it makes the

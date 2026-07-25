@@ -14,6 +14,7 @@ import {
   getSwatchInputValue,
   isSwatchInputInvalid,
   setSwatchColorText,
+openTestPage,
 } from "../overlay/testing.js";
 
 /**
@@ -58,8 +59,7 @@ const openHeadingSheet = async (page: import("@playwright/test").Page) => {
 
 test.describe("Swatch color control — Heading.style.color (T5)", () => {
   test.beforeEach(async ({ page }) => {
-    await page.goto("/test.html");
-    await page.waitForTimeout(500);
+    await openTestPage(page);
   });
 
   // O2a: swatch grid renders one item per palette option inside the shadow root,

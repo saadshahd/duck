@@ -19,6 +19,7 @@ import {
   getHighlightRect,
   getPageElementBox,
   countSelectionRings,
+openTestPage,
 } from "../overlay/testing.js";
 
 /** Ticket 114 — an array-item `slot` sub-field is NOT edited in the sheet. It
@@ -30,8 +31,7 @@ import {
  *  editor, and it never occludes the element being edited. */
 test.describe("Array-item slot child list + canvas navigation", () => {
   test.beforeEach(async ({ page }) => {
-    await page.goto("/test.html");
-    await page.waitForTimeout(500);
+    await openTestPage(page);
   });
 
   const sectionAt = (page: Page, i: number): Locator =>

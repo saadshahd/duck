@@ -1,10 +1,9 @@
 import { test, expect } from "@playwright/test";
-import { countHighlights } from "../overlay/testing.js";
+import { countHighlights, openTestPage } from "../overlay/testing.js";
 
 test.describe("Hover ring", () => {
   test.beforeEach(async ({ page }) => {
-    await page.goto("/test.html");
-    await page.waitForTimeout(500);
+    await openTestPage(page);
   });
 
   test("hover shows a ring; leaving leaves the page chrome-free", async ({

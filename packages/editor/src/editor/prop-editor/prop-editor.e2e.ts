@@ -5,12 +5,12 @@ import {
   readSegmentedItems,
   isSwatchSentinelVisible,
   isDimensionSentinelVisible,
+openTestPage,
 } from "../overlay/testing.js";
 
 test.describe("Inline text editing", () => {
   test.beforeEach(async ({ page }) => {
-    await page.goto("/test.html");
-    await page.waitForTimeout(500);
+    await openTestPage(page);
   });
 
   test("double-click text makes it editable", async ({ page }) => {
@@ -89,8 +89,7 @@ test.describe("Inline text editing", () => {
 
 test.describe("Sheet editing", () => {
   test.beforeEach(async ({ page }) => {
-    await page.goto("/test.html");
-    await page.waitForTimeout(500);
+    await openTestPage(page);
   });
 
   test("edit button opens prop sheet", async ({ page }) => {

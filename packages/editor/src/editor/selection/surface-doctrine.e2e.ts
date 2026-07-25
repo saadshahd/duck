@@ -7,6 +7,7 @@ import {
   getToolbarRect,
   getPageElementBox,
   countVisibleEdgeArrows,
+openTestPage,
 } from "../overlay/testing.js";
 
 /** K6 observer — the supersede doctrine (sp 53): at most ONE of
@@ -20,8 +21,7 @@ const intersects = (a: Box, b: Box): boolean =>
 
 test.describe("Surface doctrine — supersede + occlusion invariants", () => {
   test.beforeEach(async ({ page }) => {
-    await page.goto("/test.html");
-    await page.waitForTimeout(500);
+    await openTestPage(page);
   });
 
   test("while the sheet is open there is NO toolbar and no edge arrow; closing restores the handle", async ({

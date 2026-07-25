@@ -8,6 +8,7 @@ import {
   getSheetControlKind,
   readSpacing,
   getSpacingChipCenter,
+openTestPage,
 } from "../overlay/testing.js";
 
 /** Cross-cutting hook-order safety for the sheet's in-place re-target: the
@@ -21,8 +22,7 @@ import {
  *  different renderer. */
 test.describe("Sheet re-target — hook-order safety", () => {
   test.beforeEach(async ({ page }) => {
-    await page.goto("/test.html");
-    await page.waitForTimeout(500);
+    await openTestPage(page);
   });
 
   const collectErrors = (page: Page) => {
